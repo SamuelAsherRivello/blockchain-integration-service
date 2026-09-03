@@ -6,11 +6,11 @@
 
 ## Live Demo
 
-[Open the latest live demo](https://samuelasherrivello.github.io/blockchain-integration-service/)
+[Open the live demo](https://samuelasherrivello.github.io/blockchain-integration-service/)
 
-Current release: **[v0.1.0](https://github.com/SamuelAsherRivello/blockchain-integration-service/releases/tag/v0.1.0)**. GitHub Pages serves the built `packages/integration-demo` application. The demo header shows its package version.
+Current release: **v0.10.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
 
-Select ⚡ Account in the 9:16 preview, then dismiss “Feature coming soon” with OK. Wallet, payment, and achievement features are not implemented.
+Select ⚡ Account, then dismiss “Feature coming soon” with OK. Wallet, payment, and achievement features are not implemented.
 
 ## Table of Contents
 
