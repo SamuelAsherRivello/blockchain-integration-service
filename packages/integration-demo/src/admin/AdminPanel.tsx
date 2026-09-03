@@ -1,6 +1,6 @@
 import userStoriesUrl from '../../../../documentation/User Story Diagrams.md?url';
 
-const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A2', category: 'Account', label: 'Create Account' }] as const;
+const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A2', category: 'Account', label: 'Create Account' }, { id: 'A6', category: 'Account', label: 'Log Out' }] as const;
 export function AdminPanel({ selected, accountOpen, canReset, error, onSelect, onReset }: {
   selected: string | null; accountOpen: boolean; canReset: boolean; error?: string; onSelect(id: string): void; onReset(): void;
 }) {

@@ -10,7 +10,7 @@
 
 Current release: **v0.10.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
 
-In the current local implementation, Account / Account Button demonstrates entry and Account / Create Account opens the real Signet creation flow. Continue remembers the new account across refreshes and browser restarts. The logged-in dialogue shows disabled Log Out and working Back. Reset Client is implemented as a first-run reset; its real stored-data check remains manual. Restore, working logout, the full account menu, payments, and achievements remain unavailable. The deployed release may lag the local checkout.
+In the current local implementation, Account / Account Button demonstrates entry and Account / Create Account opens the real Signet creation flow. Continue remembers the new account across refreshes and browser restarts. The logged-in dialogue shows enabled Log Out and working Back. Reset Client is implemented as a first-run reset; its real stored-data check remains manual. Restore, the full account menu, payments, and achievements remain unavailable. A6 logout is implemented with manual storage verification pending. The deployed release may lag the local checkout.
 
 ## Table of Contents
 

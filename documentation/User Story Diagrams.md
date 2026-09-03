@@ -1,4 +1,4 @@
-﻿# User Story Diagrams
+# User Story Diagrams
 
 ## Table of contents
 
@@ -27,10 +27,11 @@
 | --- | --- | --- |
 | A1. Open Account ✅ | Account / Account Button | Complete: no-profile Account button, Account dialogue, and Back. Active-profile opening belongs to A4. |
 | A2. Create Account | Account / Create Account | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
-| A3-A6 | Not listed | Planned; no restoration, full account menu, activity, or functional logout yet. |
+| A3-A5 | Not listed | Planned; no restoration, full account menu, or activity yet. |
+| A6. Log Out | Account / Log Out | Implemented; core and isolated browser checks pass. Manual real-storage logout verification pending. |
 | B1-B4, C1-C5 | Not listed | Planned; their categories are hidden. |
 
-The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, disabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows "You are now logged in.", disabled Log Out, and Back. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
+The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, disabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows "You are now logged in.", enabled Log Out, and Back. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
 
 Stories are sized to be completed independently. A1 covers entry; A2 owns creation and the minimal active dialogue, A3 restoration, and A4 the full account menu. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
 
@@ -127,7 +128,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
   Title: Account
   State: You are now logged in.
   |
-  +--> [A2.15] Log Out [disabled; A6]
+  +--> [A2.15] Log Out [opens A6 confirmation]
   +--> [A2.16] Back --> preceding host presentation
 
 [A2.17] Refresh/close before Continue commits --> next entry starts at A2.13
@@ -142,7 +143,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
 - Game receives account state, not recovery material or Arkade-specific types. Creating an account does not itself mean the wallet is funded or a payment succeeded.
 - Service: UI explains and displays recovery; Core orchestrates activation; Arkade owns SDK identity/wallet setup and any required connectivity. SDK 0.4.67 creation has been verified against the live Signet operator with explicit transient repositories.
 - Confirmed: persist the completed account on this browser across refreshes and restarts until Log Out (future A6), Admin Reset Client, or loss of browser data. Do not resume an unfinished creation after reopening. The admin selection resets on refresh; the viewport stays empty until a story is selected.
-- Confirmed: the minimal logged-in dialogue hides Create/Restore and shows disabled Log Out plus working Back. A4 owns the full account menu; A6 owns functional logout. Admin Reset Client is the first-run reset available in this slice, replacing the previous preserve-persisted-data behavior when A2 is implemented.
+- Confirmed: the minimal logged-in dialogue hides Create/Restore and shows enabled Log Out plus working Back. A4 owns the full account menu; A6 owns functional logout. Admin Reset Client is the first-run reset available in this slice, replacing the previous preserve-persisted-data behavior when A2 is implemented.
 - Implemented default: Continue is immediately available without a mandatory backup checkbox or phrase verification, consistent with optional external saving. The linked design records the implemented storage protection, SDK evidence, and failure behavior.
 - Security: warn never to enter or reuse a real-funds recovery phrase. Keep recovery material out of game callbacks, logs, analytics, demo event history, and verification captures. Account creation does not imply funding or network availability.
 
@@ -180,7 +181,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
 
 ### A4. Open Account with an active profile
 
-Status: planned. This story owns opening Account when a real active profile exists, including profile-state routing and the account menu. It is separate from the completed no-profile A1 flow. Planned A2 includes only the minimal logged-in Account dialogue (status, disabled Log Out, Back); this story owns the full menu.
+Status: planned. This story owns opening Account when a real active profile exists, including profile-state routing and the account menu. It is separate from the completed no-profile A1 flow. Planned A2 includes only the minimal logged-in Account dialogue (status, enabled Log Out, Back); this story owns the full menu.
 
 ```text
 [A4.01] Player: Gear --> Account
@@ -238,15 +239,27 @@ Optional educational view.
 [A6.01] Player: Account --> Log Out
                        |
                        v
-[A6.02] Core: check active operations
+[A6.10] UI: backup confirmation; checkbox initially unchecked
            |
-           +--> [A6.03] Pending --> UI: explain unresolved work
-           |               [logout policy still to decide]
+           +--> Back --> Account; account remains active and saved
+           |
+           +--> [A6.11] Check "I have backed up my wallet"
+                       --> enable Log Out --> Player confirms
+                       |
+                       v
+[A6.02] Core: validate the confirmed account and storage generation
+           |
+           +--> [A6.03] Future pending-payment policy (deferred)
            |
            +--> [A6.04] Safe to log out
                        |
                        v
-            [A6.05] End active service session
+            [A6.05] Clear remembered account material; end active service session
+                 |     |
+                 |     +--> [A6.12] Failure/unconfirmed --> same dialogue: Retry
+                 |                                          |
+                 |                         reconcile <------+
+                 v
             [A6.06] Arkade: release session resources as needed
                        |
                        v
@@ -257,9 +270,13 @@ Optional educational view.
 [A6.09] Game: ordinary gameplay remains available
 ```
 
-- Game responds to service availability; account logout must not make normal gameplay unusable. The exact disconnect event/API contract is still undecided.
+- Implemented with manual real-storage verification pending. See [A6 verification](A6_VERIFICATION.md). Game observes the non-secret `accountDisconnected` event after confirmed active-to-absent state; normal gameplay remains usable.
 - Service: Core owns session transition and pending-work policy; UI explains consequences; Arkade handles SDK-specific lifecycle cleanup. Logout is not an on-chain transaction and does not erase wallet assets.
-- Complexity: implement clearing remembered account material on logout, warn about losing access to an unsaved disposable profile, and define mid-run behavior. The brief ties feature eligibility to a connected run; connecting or switching accounts mid-run must not silently override that rule.
+- Confirmed scope: use the supplied Arkade Reset wallet screenshots as the behavioral reference for a backup confirmation, with our heading "Account Log Out" and action "Log Out". Ask "Did you back up your wallet?" and warn that clearing the account from this browser cannot be undone locally; restoring access requires the saved recovery phrase. This confirmation is permanent A6 behavior, independent of A3 restoration availability.
+- The "I have backed up my wallet" checkbox starts unchecked every time the confirmation opens. Log Out is disabled until checked and becomes disabled again if unchecked. Checking the box alone does not log out; the player must press Log Out. Back cancels without clearing account material or ending the session.
+- The Admin Log Out demonstration opens the real Account dialogue, recognizing a saved account or showing the chooser if none exists. Successful logout preserves selection and shows Create Account / Restore Account (Restore remains disabled). Back restores the preceding host presentation.
+- Failures retain the confirmation with Retry. No success is reported until storage clearing is confirmed; retries reconcile ambiguous completion and never clear a replacement account using an old confirmation. Other live contexts reconcile confirmed logout. Arkade wallets are already disposed after creation, so this slice has no additional network cleanup.
+- A6 offers no recovery-phrase access. Pending-payment handling is deferred until payments exist. Game-specific mid-run policy is also deferred; the brief's connected-run eligibility rule is unchanged.
 
 ## B. Pay-to-play
 
@@ -538,8 +555,6 @@ Optional stretch goal; a test-sat payout, distinct from the Final Extraction ach
 - Game owns the win condition and keeps the victory valid regardless of payout. Receiving currency is separate from owning the Final Extraction achievement; neither implies the other succeeded.
 - Service: UI presents receive status; Core orchestrates eligibility/status and a still-undefined game callback; Arkade handles the real Signet receive workflow and balance refresh. Never display a fabricated reward transaction.
 - Complexity: identify a funded sender, payout authorization, replay limits, and supported receive infrastructure without exposing credentials or adding a custom server. This remains a non-cheat-resistant proof of concept and follows the core account/payment/achievement flows.
-
-
 
 
 

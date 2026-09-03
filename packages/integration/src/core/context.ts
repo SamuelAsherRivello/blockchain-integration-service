@@ -1,11 +1,12 @@
 import { createAccount, identify, type AccountSecret } from '../arkade/account.ts';
-import { createAccountStorage, type AccountStorage } from './account-storage.ts';
+import { createAccountStorage, type AccountStorage, type StoredAccount } from './account-storage.ts';
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
-  phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting';
+  phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error';
+  logoutBackupAcknowledged: boolean;
   profileId?: string; error?: string; canReset: boolean;
 }>;
-export type BisEvent = Readonly<{ type: 'accountConnected'; profileId: string }>;
+export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }>;
 export interface BisContext {
   getState(): BisState;
   subscribe(listener: () => void): () => void;
@@ -15,6 +16,10 @@ export interface BisContext {
   closeAccount(): void;
   createAccount(): Promise<void>;
   continueAccount(): Promise<void>;
+  openLogoutConfirmation(): void;
+  setLogoutBackupAcknowledged(acknowledged: boolean): void;
+  confirmLogout(): Promise<void>;
+  cancelLogout(): void;
   retry(): Promise<void>;
   dispose(): void;
 }
@@ -28,12 +33,15 @@ export function getControls(context: BisContext): Controls {
 }
 // Private dependency seam for isolated tests; not exported by the package.
 export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify): BisContext {
-  let state: BisState = Object.freeze({view:'empty',hasProfile:false,phase:'loading',canReset:false});
+  let state: BisState = Object.freeze({view:'empty',hasProfile:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false});
   let previous: BisState['view'] = 'empty';
   let disposed = false, version = 0, generation = 0;
   let pending: AccountSecret | undefined;
   let operation = new AbortController();
   let failure: 'load' | 'create' | 'save' | undefined;
+  let confirmedProfile: string | undefined;
+  let logoutTarget: { profileId: string; generation: number } | undefined;
+  let storageRevision = 0;
   const listeners = new Set<() => void>();
   const events = new Set<(event: BisEvent)=>void>();
   const assertAlive = () => { if(disposed) throw new Error('BIS context is disposed.'); };
@@ -44,15 +52,35 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   };
   const invalidate = () => {version++;operation.abort();operation=new AbortController();pending=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
+  const emit = (event: BisEvent, current: number) => {
+    for (const listener of [...events]) {
+      if (disposed || current !== version) break;
+      if (events.has(listener)) listener(Object.freeze(event));
+    }
+  };
+  async function readStable(current: number): Promise<StoredAccount> {
+    let loaded: StoredAccount, revision: number;
+    do {
+      revision = storageRevision;
+      loaded = await storage.load();
+      if (loaded.account && await identifyAccount(loaded.account.phrase) !== loaded.account.profileId) throw new Error('Invalid account.');
+    } while (!disposed && version === current && revision !== storageRevision);
+    return loaded;
+  }
+  function acceptLoaded(loaded: StoredAccount, current: number) {
+    if (disposed || version !== current) return;
+    const former = confirmedProfile;
+    confirmedProfile = loaded.account?.profileId;
+    generation = loaded.generation; failure = undefined; logoutTarget = undefined;
+    update({phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
+    if (former && !loaded.account) emit({type:'accountDisconnected',profileId:former}, current);
+  }
   async function hydrate() {
     invalidate(); const current=version;
-    update({phase:'loading',hasProfile:false,profileId:undefined,error:undefined});
+    logoutTarget=undefined;
+    update({phase:'loading',error:undefined,logoutBackupAcknowledged:false});
     try {
-      const loaded=await storage.load();
-      if(loaded.account && await identifyAccount(loaded.account.phrase)!==loaded.account.profileId) throw new Error('Invalid account.');
-      if(disposed||version!==current) return;
-      generation=loaded.generation;failure=undefined;
-      update({phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,canReset:!!loaded.account,error:undefined});
+      acceptLoaded(await readStable(current), current);
     } catch {if(!disposed&&version===current) fail('load','Your saved account could not be opened. Retry or use Reset Client in the demo.');}
   }
   let initialization: Promise<void>;
@@ -63,7 +91,8 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     ready:()=>initialization,
     openAccountDialog() {assertAlive();if(state.view==='account') return;previous=state.view;update({view:'account'});},
     closeAccount() {
-      assertAlive();if(state.view!=='account'||state.phase==='resetting') return;
+      assertAlive();if(state.view!=='account'||state.phase==='resetting'||state.phase==='logging-out') return;
+      if(state.phase==='logout-confirmation'||state.phase==='logout-error') {context.cancelLogout();return;}
       if(pending||state.phase==='creating'||state.phase==='saving'||failure==='create'||failure==='save') {
         invalidate();failure=undefined;update({phase:'idle',error:undefined,canReset:false});
         // A cancelled commit might already be durable; reconcile before another creation.
@@ -89,11 +118,53 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         await storage.save(account,generation,operation.signal);
         if(disposed||version!==current)return;
         pending=undefined;failure=undefined;
+        confirmedProfile=account.profileId;
         update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
-        if(!disposed&&version===current) for(const listener of [...events]) if(events.has(listener))listener(Object.freeze({type:'accountConnected',profileId:account.profileId}));
+        emit({type:'accountConnected',profileId:account.profileId},current);
       }catch {if(!disposed&&version===current)fail('save','Your account could not be saved. Retry or go Back.');}
     },
+    openLogoutConfirmation() {
+      assertAlive();
+      if (state.phase !== 'active' || !state.profileId) return;
+      context.openAccountDialog();
+      logoutTarget = {profileId:state.profileId!,generation};
+      update({phase:'logout-confirmation',logoutBackupAcknowledged:false,error:undefined});
+    },
+    setLogoutBackupAcknowledged(acknowledged) {
+      assertAlive();
+      if (state.phase === 'logout-confirmation' || state.phase === 'logout-error') update({logoutBackupAcknowledged:acknowledged === true});
+    },
+    cancelLogout() {
+      assertAlive();
+      if (state.phase === 'logout-error') { initialization=hydrate();return; }
+      if (state.phase !== 'logout-confirmation') return;
+      logoutTarget=undefined;
+      update({phase:'active',logoutBackupAcknowledged:false,error:undefined});
+    },
+    async confirmLogout() {
+      assertAlive();
+      if (!logoutTarget || !state.logoutBackupAcknowledged || !['logout-confirmation','logout-error'].includes(state.phase)) return;
+      const target=logoutTarget;
+      invalidate(); const current=version;
+      update({phase:'logging-out',error:undefined});
+      try {
+        const loaded=await readStable(current);
+        if (disposed || version!==current) return;
+        if (!loaded.account || loaded.generation!==target.generation || loaded.account.profileId!==target.profileId) {
+          acceptLoaded(loaded,current); return;
+        }
+        await storage.reset(target.generation);
+        if (disposed || version!==current) return;
+        const after=await readStable(current);
+        if (disposed || version!==current) return;
+        if (after.account?.profileId===target.profileId && after.generation===target.generation) throw new Error('Clearing not confirmed.');
+        acceptLoaded(after,current);
+      } catch {
+        if (!disposed && version===current) update({phase:'logout-error',error:'Log out did not finish. Your saved account has not been confirmed cleared. Please retry.'});
+      }
+    },
     async retry() {
+      assertAlive();if(state.phase==='logout-error'){await context.confirmLogout();return;}
       assertAlive();if(state.phase!=='error')return;
       if(failure==='load'){initialization=hydrate();await initialization;}
       else if(failure==='save')await context.continueAccount();
@@ -107,12 +178,15 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     present() {assertAlive();if(state.view!=='account')update({view:'account-button'});},
     async reset() {
       assertAlive();if(state.phase==='resetting')return;
-      invalidate();update({phase:'resetting',error:undefined});
+      invalidate();logoutTarget=undefined;update({phase:'resetting',error:undefined,logoutBackupAcknowledged:false});
       try {await storage.reset();if(disposed)return;previous='empty';update({view:'empty'});initialization=hydrate();await initialization;}
       catch {if(!disposed)fail('load','Reset did not finish. Your account has not been confirmed cleared.');throw new Error('Reset did not finish.');}
     },
   });
-  const unsubscribeStorage=storage.subscribe(()=> {if(!disposed&&state.phase!=='resetting'){initialization=hydrate();}});
+  const unsubscribeStorage=storage.subscribe(()=> {
+    storageRevision++;
+    if(!disposed&&!['resetting','logging-out','logout-error'].includes(state.phase)){initialization=hydrate();}
+  });
   initialization=hydrate();
   return context;
 }

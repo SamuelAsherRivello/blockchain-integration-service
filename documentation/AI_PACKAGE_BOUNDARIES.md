@@ -129,6 +129,6 @@ Use `createBisContext()`, `createBisAdminContext(context)`, and `createBisUi(con
 
 Production light styling and centering live in `integration/src/ui/overlay.css`; dark page, story navigation, and viewport framing live in `integration-demo/src/style.css`. The demo must not override production styles. Hosts own container placement; BIS does not emulate the game's settings menu.
 
-The admin catalog contains implemented demonstrations only, and hides empty categories. Each new feature must update both its demonstration and the user-story document, including partial/dependent paths. A1 demonstrates entry. A2 adds real creation, recovery, origin-local encrypted persistence, and the minimal active dialogue with disabled Log Out. A4 owns the full account menu and A6 functional logout. Admin first-run reset clears BIS-owned account storage; real deletion-based verification is manual. A2 is not yet reported fully complete.
+The admin catalog contains implemented demonstrations only, and hides empty categories. Each new feature must update both its demonstration and the user-story document, including partial/dependent paths. A1 demonstrates entry. A2 adds real creation, recovery, origin-local encrypted persistence, and the minimal active dialogue with enabled Log Out. A4 owns the full account menu and A6 functional logout. Admin first-run reset clears BIS-owned account storage; real deletion-based verification is manual. A2 is not yet reported fully complete.
 
 

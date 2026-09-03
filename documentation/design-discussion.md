@@ -44,6 +44,17 @@ These questions and recommendations are not approved design decisions. The next 
 
 - Create Account is enabled when logged out. Recovery display is immediate; optional external saving does not block Continue. Only Continue commits and activates the account.
 - The real host and Runtime Preview use identical production persistence. Completed accounts survive refresh/browser restart on the same origin/browser profile. Interrupted creation restarts from the beginning.
-- Active Account shows "You are now logged in.", disabled Log Out, and Back, with Create/Restore hidden. Admin Reset Client provides the first-run reset until A6 exists.
+- Active Account shows "You are now logged in.", enabled Log Out, and Back, with Create/Restore hidden. Admin Reset Client remains the separate first-run reset; A6 provides production logout.
 - Refresh clears admin selection and leaves the viewport empty; selecting A2 recognizes a saved account. Story IDs do not dictate development order.
 - SDK creation, reload/restart persistence, and plain-host parity have been verified. Manual real-storage reset checks remain before A2 is reported complete.
+
+## A6 implementation (manual storage verification pending)
+
+- Log Out clears remembered account material only after a backup confirmation modeled on the supplied Arkade Reset wallet screenshots. Use the BIS heading "Account Log Out" and action "Log Out". This is permanent behavior, independent of whether A3 restoration is implemented.
+- Ask "Did you back up your wallet?" and explain that clearing this browser's saved account cannot be undone locally and that restoration requires the saved recovery phrase. Wallet assets are not erased by logout.
+- Require an initially unchecked "I have backed up my wallet" checkbox. Enable Log Out only while checked; checking alone never executes logout. Each opening starts unchecked. Back returns to Account with the session and saved account unchanged.
+- After confirmed, successful logout, show Create Account / Restore Account and keep ordinary gameplay available. Include the confirmation states and cancellation in the A6 Admin demonstration and verification.
+- Failed or unconfirmed clearing keeps the dialogue open with Retry; success is reported only after confirmed clearing. Retry reconciles already-cleared and replacement-account cases safely.
+- A6 offers no recovery-phrase access. Pending-payment handling is deferred until payment features exist; game-specific mid-run eligibility remains outside this slice. A3 restoration and a future backup-access feature remain separate.
+- Public methods are `openLogoutConfirmation()`, `setLogoutBackupAcknowledged(boolean)`, `confirmLogout()`, and `cancelLogout()`. `retry()` handles logout errors. Each observing active context receives `accountDisconnected` with its former public profile ID only after confirmed absence; disposal stops notifications.
+- Production UI and the A6 Admin story are implemented. Core storage-double and isolated browser verification are recorded in `A6_VERIFICATION.md`; real-storage deletion checks remain manual and pending.

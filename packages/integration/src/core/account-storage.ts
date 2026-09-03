@@ -3,7 +3,7 @@ export type StoredAccount = { generation: number; account: AccountSecret | null 
 export interface AccountStorage {
   load(): Promise<StoredAccount>;
   save(account: AccountSecret, generation: number, signal: AbortSignal): Promise<void>;
-  reset(): Promise<void>;
+  reset(expectedGeneration?: number): Promise<void>;
   subscribe(listener: () => void): () => void;
 }
 const DB = 'bis-account-signet-v1';
@@ -74,11 +74,15 @@ export function createAccountStorage(): AccountStorage {
       });
       channel?.postMessage('changed');
     },
-    async reset() {
+    async reset(expectedGeneration) {
       await transaction<void>('readwrite',(store,set,tx)=> {
         const request=store.get('generation');
         request.onsuccess=()=> {
-          try {store.put(generation(request.result)+1,'generation'); store.delete('identity');set(undefined);}catch {tx.abort();}
+          try {
+            const current = generation(request.result);
+            if (expectedGeneration !== undefined && expectedGeneration !== current) { tx.abort(); return; }
+            store.put(current+1,'generation'); store.delete('identity');set(undefined);
+          }catch {tx.abort();}
         };
       });
       channel?.postMessage('changed'); notify();
