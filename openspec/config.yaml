@@ -1,0 +1,19 @@
+schema: spec-driven
+context: |
+  Repository: blockchain-integration-service.
+  Source baseline: BGS_PROJECT_BRIEF.md. Later decisions: docs/design-discussion.md.
+  Planning phase: settle folder structure, names, and integration points before implementation.
+  React + TypeScript. Game is a separate repository.
+  Signet only. Arkade SDK only for v1. No custom application server.
+  No simulated transaction outcomes; the harness may simulate game events only.
+  Game remains playable without an account or connectivity.
+  Preserve Frontend, Core Services, and Arkade Integration responsibilities.
+  Do not log or commit recovery phrases or other secrets.
+rules:
+  proposal:
+    - Mark unresolved decisions; recommendations are not approved decisions.
+  design:
+    - Keep the game-facing API free of Arkade-specific types.
+    - Verify current Signet capabilities before claiming feasibility.
+  tasks:
+    - Keep planning and implementation phases explicit.
