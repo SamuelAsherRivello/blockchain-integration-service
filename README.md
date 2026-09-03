@@ -6,7 +6,9 @@
 
 ## Live Demo
 
-[Open the demo](https://samuelasherrivello.github.io/blockchain-integration-service/)
+[Open the latest live demo](https://samuelasherrivello.github.io/blockchain-integration-service/)
+
+Current release: **[v0.1.0](https://github.com/SamuelAsherRivello/blockchain-integration-service/releases/tag/v0.1.0)**. GitHub Pages serves the built `packages/integration-demo` application. The demo header shows its package version.
 
 Select ⚡ Account in the 9:16 preview, then dismiss “Feature coming soon” with OK. Wallet, payment, and achievement features are not implemented.
 
@@ -52,7 +54,18 @@ Signet-only, Arkade-only integration with no custom application server. The sepa
 
 ### Configuration
 
-React 19.2.8 + TypeScript, npm workspaces, and Vite. React was verified against the npm latest tag when this slice was created. No Arkade SDK is installed.
+React 19.2.8 + TypeScript, npm workspaces, and Vite. React was verified against the npm latest tag when this slice was created. The official Arkade SDK (`@arkade-os/sdk` 0.4.67) is installed in `packages/integration` but not initialized. No wallet or network operations run.
+
+### Dependencies
+
+| Package | Role | Version |
+| --- | --- | --- |
+| React + React DOM | Runtime UI | 19.2.8 |
+| Arkade SDK | Future Signet adapter; currently unused | 0.4.67 |
+| TypeScript | Type checking | 7.0.2 |
+| Vite | Dev server and production builds | 8.2.2 |
+
+The root `package.json` defines npm workspaces and shared tooling. Each package has its own manifest. `package-lock.json` locks the complete dependency tree; `npm ci` installs it locally. `.gitignore` excludes all `node_modules/` and `dist/` directories.
 
 ### Structure
 
