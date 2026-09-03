@@ -1,20 +1,24 @@
-export function AdminPanel() {
-  return (
-    <aside className="admin-panel" aria-labelledby="admin-title">
-      <div className="panel-heading"><span className="eyebrow">DEVELOPMENT</span><span className="panel-number">01</span></div>
-      <h1 id="admin-title">Admin</h1>
-      <p className="panel-intro">A workspace for testing your game integration.</p>
-      <section className="admin-card">
-        <span className="status-dot" aria-hidden="true" />
-        <div><h2>UI preview</h2><p>The first piece is ready to try.</p></div>
-        <span className="small-tag">WIP</span>
-      </section>
-      <section className="try-it">
-        <span className="eyebrow">TRY IT OUT</span>
-        <p>Select <strong>⚡ Account</strong> in the preview, then dismiss the prompt with <strong>OK</strong>.</p>
-      </section>
-      <div className="admin-note"><span aria-hidden="true">＋</span><p>Game-event controls will live here as the integration grows.</p></div>
-      <footer className="admin-footer"><span className="status-dot" aria-hidden="true" /> UI only · No wallet connected</footer>
-    </aside>
-  );
+import userStoriesUrl from '../../../../documentation/User Story Diagrams.md?url';
+
+const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }] as const;
+export function AdminPanel({ selected, accountOpen, onSelect, onReset }: {
+  selected: boolean; accountOpen: boolean; onSelect(): void; onReset(): void;
+}) {
+  return <aside className="admin-panel" aria-label="Admin UI">
+    <h1 className="panel-title">Admin</h1>
+    <section aria-labelledby="documentation-title">
+      <h2 id="documentation-title" className="admin-section-title">User Stories</h2>
+      <a className="documentation-link" href={userStoriesUrl} target="_blank" rel="noopener noreferrer">Documentation ↗</a>
+    </section>
+    <nav aria-label="User stories">
+      {[...new Set(stories.map(story => story.category))].map(category => <section key={category}>
+        <h3 className="category-title">{category}</h3>
+        {stories.filter(story => story.category === category).map(story =>
+          <button key={story.id} className="story-button" aria-pressed={selected} disabled={accountOpen} onClick={onSelect}>
+            <span>{story.id}</span>{story.label}<span className="story-arrow" aria-hidden="true">↗</span>
+          </button>)}
+      </section>)}
+    </nav>
+    <button className="reset-button" disabled={!selected} onClick={onReset}>Reset Client</button>
+  </aside>;
 }

@@ -10,9 +10,11 @@
 
 Current release: **v0.10.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
 
-Select ⚡ Account, then dismiss “Feature coming soon” with OK. Wallet, payment, and achievement features are not implemented.
+In the current local implementation, select Account / Account Button in Admin UI, then click the production Account button. Back returns to the button; Reset Client clears selection and runtime content. Create/Restore, payments, and achievements remain unavailable. The deployed release may lag the local checkout.
 
 ## Table of Contents
+
+**Completed:** [A1. Open Account](documentation/User%20Story%20Diagrams.md#a1-open-the-game-then-account) ✅ — Account button → Account dialogue → Back.
 
 1. [Live Demo](#live-demo)
 2. [Getting Started](#getting-started)
@@ -104,7 +106,7 @@ With OpenSpec CLI installed, run `./.openspec/setup.ps1` using PowerShell 7 afte
 
 ## Troubleshooting
 
-If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. Only the Account coming-soon prompt is available in this initial slice. If the local port is busy, use the URL printed by Vite.
+If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. The local Account demo supports the no-profile chooser; real account setup and the active-profile menu remain planned. If the local port is busy, use the URL printed by Vite.
 
 ## Resources
 
@@ -129,3 +131,6 @@ If publishing fails, inspect the Actions run. Pages source must be **GitHub Acti
 
 Provided as-is under the MIT License.
 Copyright © 2026 Rivello Multimedia Consulting, LLC.
+
+
+

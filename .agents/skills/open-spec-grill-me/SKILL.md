@@ -19,6 +19,8 @@ wording.
 
 1. Determine whether the user supplied a plan, named a change, is already
    exploring one, or has an existing proposal.
+   If the target is a named standalone planning document, read it and keep it
+   as the artifact to refine; do not force it into a new OpenSpec change.
 2. Run `openspec list --json` and resolve the relevant change from explicit
    input, conversation context, or the only active change. If several changes
    are plausible, ask which one to use.
@@ -66,10 +68,36 @@ branches revealed by the code or answers.
 - Always order questions from most impactful and helpful to least. Resolve
   prerequisite decisions before dependent ones and revisit affected branches
   when an earlier assumption changes.
-- Ask one focused question at a time unless a tiny group is inseparable. For
-  every grilling question, provide numbered answer choices. Put the concrete
-  recommended answer first and label it `(recommended)`, then end with an
-  `Other (tell me more)` option.
+- Re-rank the remaining questions after every answer by expected return on
+  investment: prioritize decisions that remove the most consequential
+  uncertainty, unblock other decisions, or prevent substantial rework.
+  Do not preserve the original question order when the answers change those
+  priorities.
+- Ask one focused question per turn. Present each grilling question in plain
+  text with sequentially numbered choices, not just an open-ended question
+  after a recommendation paragraph.
+- Normally provide three concrete choices, followed by a fourth option:
+  `Other (tell me more)`. Add more meaningful choices when useful, with Other
+  always last; three is not a maximum. Keep alternatives distinct and relevant.
+- Option 1 MUST be the concrete recommended answer, labeled `(recommended)`
+  and accompanied by a short reason. Never assume that the user selected it.
+- The final numbered option MUST be `Other (tell me more)`. Explicitly allow
+  the user to type their own answer, with or without that option's number;
+  Other is additional to the concrete choices, not a replacement for one.
+- Do not use question widgets or user-input tools for this interview. As of
+  the user's current ChatGPT version (2026-09-03), the question widget is not
+  ready: it can close before the user answers. Present the multiple-choice
+  question directly in chat, end the turn, and wait for the user's reply.
+  When ChatGPT updates to a new version, compatibility may be rechecked.
+  A version update alone does not establish that the widget works: keep
+  widgets disabled until verification shows that questions remain available
+  until the user answers and that replies are delivered reliably. Accept a
+  number, an option's wording, or any free-form response. A widget closing or
+  accepting delivery is not an answer.
+- Never treat a recommendation or preselected widget option as an answer.
+  Advance only after an explicit answer or request to skip. A skipped question
+  remains unresolved. If delivery fails, re-present the same question with its
+  choices and original number; do not consume another question from the budget.
 - Challenge vague words such as "fast," "simple," "secure," "supported," and
   "done" until they become observable constraints or acceptance criteria.
 - Probe contradictions and edge cases directly. Periodically summarize settled
@@ -78,6 +106,31 @@ branches revealed by the code or answers.
 Do not ask questions merely to be exhaustive. A question is material when
 different answers would change scope, externally visible behavior, architecture,
 compatibility, risk, implementation sequencing, or acceptance criteria.
+
+### Question Format
+
+Use this shape for each substantive grilling question:
+
+```text
+Which scope should this change cover?
+
+1. Account chooser only (recommended): establishes the entry flow first.
+2. Chooser and account creation: includes creating a test account.
+3. Chooser, creation, and restoration: includes both account setup paths.
+4. Other (tell me more): type your preferred scope.
+```
+
+Before sending, check: one question, numbered concrete alternatives,
+recommendation at 1, Other last, and free-form answers accepted. A request to
+change this interview format is not an answer to the pending design question.
+
+This is a mandatory pre-send format check for every substantive grilling
+question, including the first question and any re-presented question. Do not
+replace the choices with an open-ended question or a recommendation paragraph
+followed by a yes/no question. Keep the recommendation inside option 1 and
+keep `Other (tell me more)` as the final option. If a format correction is
+requested, preserve the pending decision and its question number; the
+correction does not resolve that decision or advance the interview.
 
 ## Completion Test
 
@@ -95,7 +148,28 @@ inaccurate, unless an explicit question budget has already been exhausted. If
 corrections expose new material branches and budget remains, resume the
 interview.
 
-## Reconcile Into OpenSpec
+## Turn Feedback Into Artifact Updates
+
+The interview must improve the target artifacts, not merely produce questions
+or a chat summary. Track which conclusions the user actually confirmed and
+which recommendations remain unanswered.
+
+- When the user explicitly asks to update the target artifacts from their
+  feedback, apply the established conclusions within that authorized scope.
+  Do not ask for the same authorization again or wait for unrelated questions
+  to be resolved before capturing a settled conclusion.
+- Revise the relevant existing wording, examples, and constraints coherently;
+  do not append a transcript while leaving contradictory guidance in place.
+- For a standalone document, update that document directly. Creating a new
+  OpenSpec change or changing other instruction files requires separate scope.
+- Keep unanswered questions and deferred choices explicit. Neither silence,
+  a skipped question, nor the assistant's recommendation establishes a decision.
+- After each authorized update, verify the result, summarize the actual
+  changes, and give clickable links to every changed artifact.
+- If the user has only answered interview questions without authorizing
+  artifact writes, summarize the proposed edits and obtain confirmation first.
+
+## Reconcile OpenSpec Artifacts
 
 After the Completion Test is satisfied, or after an explicit question budget is
 exhausted, map each established conclusion to the artifact whose schema
@@ -105,7 +179,8 @@ requirements, design, and tasks do not contradict one another.
 - Existing change: follow the `openspec-update-change` workflow. Propose exact
   revisions and reasons, obtain its required confirmations, and edit only paths
   already listed in `existingOutputPaths`.
-- No change yet: identify the proposed change name and planning artifacts. If
+- No change yet and an OpenSpec proposal is the requested target: identify the
+  proposed change name and planning artifacts. If
   material ambiguity remains, report it instead of fabricating assumptions.
   Otherwise, obtain confirmation before following `openspec-propose`.
 - Mid-exploration: continue using the current exploration context, but answers
@@ -118,5 +193,6 @@ requirements, design, and tasks do not contradict one another.
   unresolved, and the next planning or apply step. Never start implementation
   in this invocation.
 
-The requested outcome is a coherent, user-confirmed OpenSpec planning state,
-not merely an interview transcript.
+The requested outcome is coherent, user-confirmed planning artifacts, whether
+OpenSpec artifacts or the user's named planning document, not merely an
+interview transcript.
