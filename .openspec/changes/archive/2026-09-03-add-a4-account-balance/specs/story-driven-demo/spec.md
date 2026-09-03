@@ -1,24 +1,4 @@
-# story-driven-demo Specification
-
-## Purpose
-
-Keep the demo a lean, truthful navigator of available integration demonstrations with explicit production boundaries and synchronized story documentation.
-
-## Requirements
-
-### Requirement: Demo identification and preview framing
-The demo SHALL display "Blockchain Integration Service - Demo" in its header, a version prefixed with "v", and a GitHub icon linking to the repository. The panels SHALL be labeled "Admin" and "Runtime Preview" with matching heading typography. An empty preview SHALL show a centered demo-owned "Game Viewport" placeholder, hidden when production content is rendered.
-
-#### Scenario: Empty preview identification
-- **WHEN** the demo starts or Reset Client clears runtime content
-- **THEN** the Game Viewport placeholder is visible and no production Account button is shown
-
-### Requirement: Preview content scale
-The demo SHALL offer 100%, 50%, and 25% content scale beside the 9:16 indicator, defaulting to 50%. Scaling SHALL keep the outer frame fixed, give the production mount region inversely proportional layout dimensions, and scale the DOM presentation to fit. It SHALL NOT require production styling changes or remount/reset the current account flow.
-
-#### Scenario: Change scale with dialogue open
-- **WHEN** a user changes the preview scale while the Account dialogue is open
-- **THEN** the dialogue remains open and centered, its content scales, and its enabled controls remain interactive
+## MODIFIED Requirements
 
 ### Requirement: Implemented demonstrations only
 The Admin UI SHALL show only implemented demonstrations and categories containing at least one such demonstration. It SHALL start without a selected story, including after refresh. This slice SHALL expose Account / Account Button, Account / Create Account, Account / Restore Account, Account / Account Balance, and Account / Log Out, and omit Pay-to-play and Achievements.
@@ -29,6 +9,7 @@ The Admin heading SHALL be followed by User Stories and a Documentation link to 
 - **WHEN** the implemented demo loads
 - **THEN** Account Button, Create Account, Restore Account, Account Balance, and Log Out are available under Account and Runtime Preview content is empty
 - **AND** no filler cards, introduction, WIP badges, or empty categories appear
+
 
 ### Requirement: Production controls and state
 Selecting Account Button SHALL render the real production entry button. Selecting Create Account SHALL open the production Account dialogue without automatically creating an identity. Runtime Preview SHALL use only production APIs and components, including the same persistence behavior as a game host. Admin SHALL observe public production state and SHALL NOT introspect for unimplemented APIs or receive recovery material. Story actions SHALL be disabled while an account flow is open.
@@ -43,28 +24,6 @@ Selecting Account Button SHALL render the real production entry button. Selectin
 - **THEN** the initially empty viewport shows the production logged-in Account menu for that account
 - **AND** no replacement account is created
 
-### Requirement: Reset clears selection and transient state
-Reset Client SHALL clear transient state and integration-owned persisted account material, release old clients/UI/subscriptions, clear selection, and leave runtime content empty with a fresh logged-out client. It SHALL preserve unrelated origin/host data and SHALL NOT erase remote wallet assets or fabricate outcomes. Reset SHALL remain available when there is selected content, pending account work, or saved account state, even without a selected story. A failed reset SHALL report failure rather than claim a fresh start. Stale work in the current or another open instance SHALL NOT repopulate cleared account state.
-
-#### Scenario: Clear selected story
-- **WHEN** Reset Client succeeds while the Account dialogue is shown
-- **THEN** the fresh client has no saved account, selected story, or Account button
-- **AND** old subscriptions are released and the next account entry is logged out
-
-#### Scenario: No selected story
-- **WHEN** the demo has no selected story but a saved account exists
-- **THEN** Reset Client is enabled and can clear it
-
-#### Scenario: Already fresh
-- **WHEN** there is no selection, pending operation, or persisted account state after hydration
-- **THEN** Reset Client is disabled
-
-### Requirement: Visually distinct package-owned styles
-Demo-owned page/navigation/frame styling SHALL remain dark. Production integration content SHALL use an independently owned light visual design. Demo styling SHALL NOT override production component styling.
-
-#### Scenario: Independent host
-- **WHEN** the production UI is mounted in a plain host without demo CSS
-- **THEN** its typography, colors, sizing, and behavior remain usable and visually consistent
 
 ### Requirement: User stories remain truthful
 User-story documentation SHALL retain stable story and step IDs and distinguish complete, partial, and planned behavior. Every new runtime feature SHALL include an Admin demonstration and synchronized documentation before completion is reported. A1 SHALL document entry, A2 creation and the minimal active dialogue, A3 restoration of account access, A4 the Account menu and Account Details balance dialog, and A6 functional logout. Story numbering SHALL NOT mandate development order.
@@ -79,24 +38,6 @@ User-story documentation SHALL retain stable story and step IDs and distinguish 
 - **THEN** documentation maps A1 to Account Button and explains its entry path
 - **AND** it distinguishes A2 creation from A3 restoration and the independently delivered A4 balance dialog and deferred menu features
 
-### Requirement: A6 production demonstration
-Selecting Log Out SHALL open the production Account dialogue for the actual persisted state without creating or faking an account. An active account SHALL offer the production logout flow; a logged-out context SHALL show the existing chooser so the player can create an account first. Admin SHALL not receive recovery material or bypass confirmation. Story actions SHALL remain disabled while the production dialogue is open. Logout SHALL preserve the selected story and preview; Admin Reset Client SHALL retain its separate reset behavior.
-
-#### Scenario: Demonstrate with a real account
-- **WHEN** Log Out is selected with a persisted active account
-- **THEN** the production Account dialogue offers A6 confirmation with the same behavior as an independent host
-
-#### Scenario: No account to log out
-- **WHEN** Log Out is selected without an active account
-- **THEN** the chooser appears without a fabricated profile or automatic account creation
-
-### Requirement: A6 delivery evidence
-A6 completion SHALL require synchronized story documentation and evidence covering acknowledgement toggling, cancellation, error/Retry, successful clearing, reload, multiple-instance state, and ordinary host usability. Documentation SHALL retain existing step IDs, distinguish A6 from Admin Reset Client, and identify restoration, recovery-phrase access, payment handling, and game-specific connected-run rules as outside this slice.
-
-#### Scenario: Report A6 complete
-- **WHEN** A6 is reported complete
-- **THEN** the production and Admin paths have corresponding verification evidence and accurate story documentation
-- **AND** missing manual real-storage verification remains explicitly pending rather than being inferred from storage doubles
 
 ### Requirement: A3 production demonstration and evidence
 Selecting Restore Account in Admin SHALL open the production Account dialogue for the actual persisted state, without auto-restoring or manufacturing an account. Logged-out players SHALL enter restoration through its enabled Restore Account action; active players SHALL see the existing logged-in dialogue. Admin SHALL consume only public non-secret state and events. Completion SHALL require matching production-host and demo behavior, synchronized A3 story documentation, and verification of same-identity restoration, persistent reopening, word/checksum validation, masking, clipboard handling, and failures. The A3 diagram SHALL retain existing step IDs while identifying wallet balance loading as A4 work and achievement loading and other menu features as deferred. Unperformed live verification SHALL remain explicitly pending.
@@ -114,6 +55,8 @@ Selecting Restore Account in Admin SHALL open the production Account dialogue fo
 - **WHEN** A3 is reported complete
 - **THEN** evidence covers the real Signet account-access round trip and independent-host parity without exposing recovery material
 - **AND** A3 evidence does not claim A4 balance verification, achievements, other menu features, or gameplay recovery
+
+## ADDED Requirements
 
 ### Requirement: A4 production demonstration and evidence
 Selecting Account Balance SHALL open the production Account dialog for the actual saved state. An active account SHALL show the A4 balance flow; without an account the existing chooser SHALL appear without automatic creation or fabricated data. The demo SHALL use the same public APIs and balance behavior as an independent host. Completion SHALL require synchronized documentation and evidence covering real Signet reads, refresh, failures after success, no balance persistence, navigation and account-change races, and independent-host parity. Deterministic fixtures SHALL be confined to isolated tests and SHALL NOT be presented as live demo balances.

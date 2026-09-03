@@ -49,3 +49,8 @@
 .bis-word-valid .bis-word-indicator { color: #16804c; }
 .bis-word-invalid .bis-word-indicator { color: #bf3333; }
 .bis-show-check { justify-content: center; padding: 8px; }
+.bis-card .bis-network { font-size: 11px; color: #526b74; margin-bottom: 12px; }
+.bis-balance { display: flex; flex-direction: column; justify-content: center; gap: 8px; min-height: 110px; padding: 14px 10px; margin-bottom: 10px; border: 1px solid #d7e5df; border-radius: 12px; background: #edf4f1; font-size: 12px; }
+.bis-balance-label, .bis-balance-total { color: #526b74; font-size: 11px; }
+.bis-balance-amount { font-size: 26px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bis-balance-amount span { font-size: 13px; font-weight: inherit; }

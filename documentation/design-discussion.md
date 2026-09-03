@@ -1,5 +1,14 @@
 # Design discussion
 
+## A4 confirmed scope and implementation
+
+- Both Account and Account Details show the same three-line information block below the title: "You are now logged in.", "Account ID: <first 4>…<last 4>" (ID in code styling), and "Network: Signet".
+- Account is a menu titled Account with Account Details, Log Out and Back. Account Details has its own title, identity/network information, available/total balances and only Refresh/Back actions. Back returns to Account. No balance request runs merely from opening Account.
+- Load on Account Details entry/manual refresh only. Clear amounts when loading or unavailable. Do not persist balances, reuse prior dialog values, or show stale amounts after failure, even within the same dialog. This supersedes the earlier tentative stale-value policy.
+- Balance failure retains verified account access. Missing/unreadable keys remain an account-access error; Signet is not a connectivity indicator.
+- A5 activity/history, C4 assets/achievements, custom rendering, and receiving/funding details are separate deferred features with no placeholder buttons in A4.
+- Adapter/core/UI/demo are implemented. Real zero balance and browser failure/recovery checks passed; funded Signet verification remains pending. See A4_VERIFICATION.md. Earlier A2/A6 manual storage checks remain pending.
+
 ## A3 confirmed behavior and implementation
 
 - Any word field accepts multiple space-separated words and fills sequential fields starting there. Typing a separating space advances focus; overflow beyond field twelve preserves the existing grid with an error.
@@ -44,7 +53,7 @@ These questions and recommendations are not approved design decisions. The next 
 - Runtime Preview UI consumes production API only. Admin UI consumes production state first and uses admin context only for transient reset. No private imports or security bypasses.
 - Demo styles own the dark surrounding page/frame; integration styles own light centered production content. Hosts choose the mount container; future multi-container layouts are deferred.
 - Admin shows implemented demonstrations and nonempty categories only. Initial selection is empty. Reset recreates clients, clears selected story and BIS-owned persisted account material, and leaves runtime content empty. This supersedes the A1 preserve-storage behavior; live reset verification remains manual.
-- A1 is complete: Account button > Account dialogue > Back. A2 owns creation and the minimal active Account dialogue; A3 owns restoration, A4 the full account menu, and A6 functional logout. Keep each story small enough to complete fully, then try it together and refine with hands-on feedback.
+- A1 is complete: Account button > Account dialogue > Back. A2 owns creation and the minimal active Account dialogue; A3 owns restoration, A4 the lean balance dialog, and A6 functional logout. Keep each story small enough to complete fully, then try it together and refine with hands-on feedback.
 - New features must include an Admin UI demonstration and synchronized, accurate user-story documentation.
 
 

@@ -35,18 +35,29 @@ export function BisView({ context }: { context: BisContext }) {
   const busy = ['loading','creating','saving','resetting','logging-out','restoring','restore-saving'].includes(state.phase);
   const restoring = ['restore-entry','restoring','restore-saving','restore-error'].includes(state.phase);
   const logout = ['logout-confirmation','logging-out','logout-error'].includes(state.phase);
+  const details = state.phase === 'active' && state.accountDetails;
+  const menu = state.phase === 'active' && !details;
   const recovery = state.phase === 'recovery' || state.phase === 'saving';
   useEffect(() => {
     if (state.view === 'account') heading.current?.focus();
     if (state.view === 'account-button') button.current?.focus();
-  }, [state.view, state.phase]);
+  }, [state.view, state.phase, state.accountDetails]);
   if (state.view === 'empty') return null;
-  const title = restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Account Recovery' : state.phase === 'creating' ? 'Create Account' : 'Account';
+  const title = details ? 'Account Details' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Account Recovery' : state.phase === 'creating' ? 'Create Account' : 'Account';
   return <div className={`bis-layer ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
       <section className="bis-card" role="dialog" aria-labelledby={titleId} aria-describedby={descriptionId}>
         <h2 ref={heading} tabIndex={-1} id={titleId}>{title}</h2>
-        <p id={descriptionId} role="status">{state.error ?? (restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Did you back up your wallet?' : state.phase === 'loading' ? 'Opening your account…' : state.phase === 'resetting' ? 'Resetting your account…' : state.hasProfile ? <>You are now logged in as<br />Account ID: <code>{state.profileId ? state.profileId.slice(0, 4) + '…' + state.profileId.slice(-4) : ''}</code>.</> : recovery ? 'Save these words privately.' : state.phase === 'creating' ? 'Creating your test account…' : 'You are not logged in.')}</p>
+        <p id={descriptionId} role="status">{state.error ?? (restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Did you back up your wallet?' : state.phase === 'loading' ? 'Opening your account…' : state.phase === 'resetting' ? 'Resetting your account…' : state.hasProfile ? <>You are now logged in.<br />Account ID: <code>{state.profileId ? state.profileId.slice(0, 4) + '…' + state.profileId.slice(-4) : ''}</code><br />Network: Signet</> : recovery ? 'Save these words privately.' : state.phase === 'creating' ? 'Creating your test account…' : 'You are not logged in.')}</p>
+        {details && <>
+          <div className="bis-balance" role="status" aria-live="polite" aria-atomic="true">
+            {state.balance.status === 'ready' ? <>
+              <span className="bis-balance-label">Available balance:</span>
+              <strong className="bis-balance-amount">{state.balance.availableSats.toLocaleString('en-US')} <span>sats</span></strong>
+              <span className="bis-balance-total">Total balance: {state.balance.totalSats.toLocaleString('en-US')} sats</span>
+            </> : state.balance.status === 'unavailable' ? <><strong>Balance unavailable</strong><span>Unable to retrieve current wallet data.</span></> : <span>Loading balance...</span>}
+          </div>
+        </>}
         {logout && <>
           <p className="bis-warning">Your saved account will be cleared from this browser. This cannot be undone here. You will need your saved recovery phrase to restore access.</p>
           <label className="bis-backup-check"><input type="checkbox" checked={state.logoutBackupAcknowledged} disabled={busy} onChange={event => context.setLogoutBackupAcknowledged(event.target.checked)} /><span>I have backed up my wallet</span></label>
@@ -55,7 +66,9 @@ export function BisView({ context }: { context: BisContext }) {
         {recovery && <ol className="bis-recovery" aria-label="Private recovery phrase">{getControls(context).recovery()?.split(' ').map((word,index)=><li key={index}><span aria-hidden="true">{index+1}.</span> {word}</li>)}</ol>}
         {busy && <div className="bis-progress" role="status"><span className="bis-lightning" aria-hidden="true">⚡</span><span>{state.phase === 'logging-out' ? 'Logging out…' : state.phase === 'saving' ? 'Saving account…' : 'Please wait…'}</span></div>}
         {restoring ? <RestoreAccount context={context} phase={state.phase} /> : <div className="bis-actions">
-          {logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : '⚡ Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>⚡ Log Out</button> : recovery ? <><CopyRecoveryButton context={context} disabled={busy} /><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
+          {details && <button className="bis-button" disabled={state.balance.status === 'loading' || state.balance.status === 'idle'} onClick={()=>void context.refreshBalance()}>⚡ Refresh</button>}
+          {menu && <button className="bis-button" onClick={()=>context.openAccountDetails()}>⚡ Account Details</button>}
+          {details ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : '⚡ Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>⚡ Log Out</button> : recovery ? <><CopyRecoveryButton context={context} disabled={busy} /><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
             <button className="bis-button bis-primary" onClick={()=>void context.createAccount()}>⚡ Create Account</button>
             <button className="bis-button" onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button>
           </>}

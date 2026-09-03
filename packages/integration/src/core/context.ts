@@ -1,11 +1,15 @@
 import { createAccount, restoreAccount, identify, type AccountSecret } from '../arkade/account.ts';
 import { phraseWords, validRecovery } from './recovery-validation.ts';
 import { createAccountStorage, type AccountStorage, type StoredAccount } from './account-storage.ts';
+import { loadBalance, type BalanceAmounts } from '../arkade/balance.ts';
+export type BisBalance = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready'; availableSats: number; totalSats: number }>;
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
   phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error' | 'restore-entry' | 'restoring' | 'restore-saving' | 'restore-error';
   logoutBackupAcknowledged: boolean;
   profileId?: string; error?: string; canReset: boolean;
+  balance: BisBalance;
+  accountDetails: boolean;
 }>;
 export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }>;
 export interface BisContext {
@@ -14,7 +18,9 @@ export interface BisContext {
   onEvent(listener: (event: BisEvent) => void): () => void;
   ready(): Promise<void>;
   openAccountDialog(): void;
+  openAccountDetails(): void;
   closeAccount(): void;
+  refreshBalance(): Promise<void>;
   createAccount(): Promise<void>;
   openRestoreAccount(): void;
   continueAccount(): Promise<void>;
@@ -34,8 +40,9 @@ export function getControls(context: BisContext): Controls {
   return result;
 }
 // Private dependency seam for isolated tests; not exported by the package.
-export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount): BisContext {
-  let state: BisState = Object.freeze({view:'empty',hasProfile:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false});
+export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance): BisContext {
+  const idleBalance: BisBalance = Object.freeze({status:'idle'});
+  let state: BisState = Object.freeze({view:'empty',hasProfile:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,balance:idleBalance,accountDetails:false});
   let previous: BisState['view'] = 'empty';
   let disposed = false, version = 0, generation = 0;
   let pending: AccountSecret | undefined;
@@ -45,13 +52,25 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   let confirmedProfile: string | undefined;
   let logoutTarget: { profileId: string; generation: number } | undefined;
   let storageRevision = 0;
+  let balanceVersion = 0;
+  let balanceOperation = new AbortController();
+  const balanceVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && s.accountDetails;
+  const cancelBalance = () => { balanceVersion++; balanceOperation.abort(); balanceOperation=new AbortController(); };
   const listeners = new Set<() => void>();
   const events = new Set<(event: BisEvent)=>void>();
   const assertAlive = () => { if(disposed) throw new Error('BIS context is disposed.'); };
   const update = (patch: Partial<BisState>) => {
     if(disposed) return;
+    const before=state;
     state=Object.freeze({...state,...patch});
+    if(state.view!=='account'||state.phase!=='active'||!state.hasProfile) state=Object.freeze({...state,accountDetails:false});
+    const entering=balanceVisible(state) && (!balanceVisible(before) || before.profileId!==state.profileId);
+    if (!balanceVisible(state) || entering) {
+      cancelBalance();
+      state=Object.freeze({...state,balance:idleBalance});
+    }
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
+    if(entering) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle') void context.refreshBalance();});
   };
   const invalidate = () => {version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
@@ -133,6 +152,28 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     onEvent(listener) {assertAlive();events.add(listener);return ()=>{events.delete(listener);};},
     ready:()=>initialization,
     openAccountDialog() {assertAlive();if(state.view==='account') return;previous=state.view;update({view:'account'});},
+    openAccountDetails() {
+      assertAlive();
+      if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountDetails) update({accountDetails:true});
+    },
+    async refreshBalance() {
+      assertAlive();
+      if(!balanceVisible(state)||state.balance.status==='loading')return;
+      cancelBalance();
+      const request=balanceVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
+      const signal=balanceOperation.signal;
+      const current=()=>!disposed && !signal.aborted && request===balanceVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && balanceVisible(state);
+      update({balance:Object.freeze({status:'loading'})});
+      let saved: StoredAccount;
+      try { saved=await readStable(accountVersion); }
+      catch { if(current()) fail('load','Your saved account could not be opened. Retry or use Reset Client in the demo.'); return; }
+      if(!current())return;
+      if(!saved.account || saved.generation!==accountGeneration || saved.account.profileId!==profileId) {initialization=hydrate();return;}
+      try {
+        const amounts=await readBalance(saved.account,signal);
+        if(current())update({balance:Object.freeze({status:'ready',...amounts})});
+      } catch { if(current())update({balance:Object.freeze({status:'unavailable'})}); }
+    },
     openRestoreAccount() {
       assertAlive();if(state.phase!=='idle'||state.hasProfile)return;
       context.openAccountDialog();invalidate();failure=undefined;
@@ -140,6 +181,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     },
     closeAccount() {
       assertAlive();if(state.view!=='account'||state.phase==='resetting'||state.phase==='logging-out'||state.phase==='restore-saving') return;
+      if(state.accountDetails) {update({accountDetails:false});return;}
       if(['restore-entry','restoring','restore-error'].includes(state.phase)) {
         invalidate();initialization=hydrate();return;
       }
@@ -222,7 +264,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       else if(failure==='save')await context.continueAccount();
       else {failure=undefined;update({phase:'idle',error:undefined});await context.createAccount();}
     },
-    dispose() {if(disposed)return;disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
+    dispose() {if(disposed)return;cancelBalance();state=Object.freeze({...state,balance:idleBalance});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
   };
   controls.set(context,{
     assertAlive,

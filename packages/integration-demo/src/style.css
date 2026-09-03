@@ -19,6 +19,7 @@ body { margin: 0; background: #11151c; }
 .story-button, .reset-button { font: inherit; font-size: 13px; cursor: pointer; border-radius: 9px; }
 .story-button { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border: 1px solid #344052; background: #1e2632; color: #dce5ef; text-align: left; }
 .story-button > span:first-child { color: #93a6bb; font-size: 10px; }
+.story-button + .story-button { margin-top: 8px; }
 .story-arrow { margin-left: auto; }
 .story-button[aria-pressed=true] { border-color: #789d90; background: #24352f; }
 .story-button:disabled { opacity: .45; cursor: not-allowed; }

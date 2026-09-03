@@ -5,8 +5,8 @@
 - [A. Account](#a-account)
   - [A1. Open Account](#a1-open-the-game-then-account) ✓
   - [A2. Create Account](#a2-create-a-new-disposable-test-account)
-  - [A3. Restore Account](#a3-restore-an-account-from-this-experience)
-  - [A4. Account Menu](#a4-open-account-with-an-active-profile)
+  - [A3. Restore Account](#a3-restore-an-account-from-this-experience) ✓
+  - [A4. Account Balance](#a4-open-account-with-an-active-profile)
   - [A5. View Activity](#a5-inspect-activity)
   - [A6. Log Out](#a6-log-out-and-return-to-ordinary-gameplay)
 - [B. Pay-to-play](#b-pay-to-play)
@@ -28,13 +28,14 @@
 | A1. Open Account ✓ | Account / Account Button | Complete: no-profile Account button, Account dialogue, and Back. Active-profile opening belongs to A4. |
 | A2. Create Account | Account / Create Account | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
 | A3 | Account / Restore Account | Account-access restoration implemented; see A3 verification evidence. |
-| A4-A5 | Not listed | Full account menu and activity remain planned. |
+| A4. Account Balance | Account / Account Balance | Implemented and browser-verified with real zero balance; funded Signet verification pending. |
+| A5 | Not listed | Activity/history deferred to a separate feature. |
 | A6. Log Out | Account / Log Out | Implemented; core and isolated browser checks pass. Manual real-storage logout verification pending. |
 | B1-B4, C1-C5 | Not listed | Planned; their categories are hidden. |
 
-The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, enabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows "You are now logged in as Account ID: <first 4 characters>…<last 4 characters>.", enabled Log Out, and Back. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
+The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, enabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows the title Account with Account Details, Log Out, and Back. Account Details shows the identity, Signet, available/total balances, Refresh, and Back to Account; it has no Log Out button. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
 
-Stories are sized to be completed independently. A1 covers entry; A2 owns creation and the minimal active dialogue, A3 restoration, and A4 the full account menu. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
+Stories are sized to be completed independently. A1 covers entry; A2 owns creation and the minimal active dialogue, A3 restoration, and A4 the lean balance dialog. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
 
 ## Reading these diagrams
 
@@ -81,7 +82,7 @@ Status: complete. Precondition: no active profile. The host decides where to pla
 - No decorative title icon, coming-soon explanation, Escape handling, backdrop dismissal, wallet initialization, or network operation is part of A1.
 - The production context owns state. The mounted production UI renders the dialogue and restores focus to Account after Back. The game owns its own menus and gameplay policy.
 - Admin observes public state and disables the story action while the dialogue is open. Reset Client clears selection, runtime state, and BIS-owned saved account material, returning to the Game Viewport placeholder. Preview scaling preserves the active flow.
-- Opening Account with an active profile now uses A2's minimal dialogue; the full menu remains A4. Creating and restoring profiles are A2 and A3.
+- Opening Account with an active profile now uses the shared A4 balance dialog; A2 originally supplied its minimal account-access endpoint. Creating and restoring profiles are A2 and A3.
 
 ### A2. Create a new disposable test account
 
@@ -90,7 +91,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
 ```text
 [A2.11] Host opens the production Account dialogue
   |
-  +--> [A2.12] Saved active account --> minimal logged-in Account dialogue (A2.14)
+  +--> [A2.12] Saved active account --> shared Account dialogue (A2.14 / A4)
   |
   +--> [A2.13] No saved account --> Account: You are not logged in.
   |      Create Account / enabled Restore Account / Back
@@ -144,7 +145,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
 - Game receives account state, not recovery material or Arkade-specific types. Creating an account does not itself mean the wallet is funded or a payment succeeded.
 - Service: UI explains and displays recovery; Core orchestrates activation; Arkade owns SDK identity/wallet setup and any required connectivity. SDK 0.4.67 creation has been verified against the live Signet operator with explicit transient repositories.
 - Confirmed: persist the completed account on this browser across refreshes and restarts until Log Out (future A6), Admin Reset Client, or loss of browser data. Do not resume an unfinished creation after reopening. The admin selection resets on refresh; the viewport stays empty until a story is selected.
-- Confirmed: the minimal logged-in dialogue hides Create/Restore and shows enabled Log Out plus working Back. A4 owns the full account menu; A6 owns functional logout. Admin Reset Client is the first-run reset available in this slice, replacing the previous preserve-persisted-data behavior when A2 is implemented.
+- Confirmed: the minimal logged-in dialogue hides Create/Restore and shows enabled Log Out plus working Back. A4 owns the lean balance dialog; A6 owns functional logout. Admin Reset Client is the first-run reset available in this slice, replacing the previous preserve-persisted-data behavior when A2 is implemented.
 - Implemented default: Continue is immediately available without a mandatory backup checkbox or phrase verification, consistent with optional external saving. The linked design records the implemented storage protection, SDK evidence, and failure behavior.
 - Security: warn never to enter or reuse a real-funds recovery phrase. Keep recovery material out of game callbacks, logs, analytics, demo event history, and verification captures. Account creation does not imply funding or network availability.
 
@@ -183,34 +184,35 @@ Status: implemented for account access only. Verification is recorded in [A3_VER
 - Empty words are neutral, valid words green, and invalid words red. All-green words with an invalid checksum show a phrase-level error and keep Restore disabled.
 - A successful Signet connection is required before persistence/activation. Success returns directly to Account without Continue. Network failure retains the phrase temporarily for Retry; Back clears it. Save failures reconcile before retry, and stale work cannot overwrite another account.
 - Restoration preserves the same profile ID and survives reload/browser restart. The supported phrase format is the experience's twelve English words; validity does not prove where a phrase originated. Never enter a real-funds phrase.
-- Wallet balances, achievements, the full A4 menu, and gameplay checkpoints are outside A3. The former wallet/asset loading at A3.07 is deferred.
+- Wallet balances, achievements, other account menu features, and gameplay checkpoints are outside A3. The former wallet/asset loading at A3.07 is deferred.
 
 ### A4. Open Account with an active profile
 
-Status: planned. This story owns opening Account when a real active profile exists, including profile-state routing and the account menu. It is separate from the completed no-profile A1 flow. A2 includes only the minimal logged-in Account dialogue (status, enabled Log Out, Back); this story owns the full menu.
+Status: implemented as the lean Account Balance slice. Real zero-balance, refresh/failure, and plain-host/browser checks passed; funded Signet verification remains pending. See [A4 verification](A4_VERIFICATION.md). A2/A3 enter this shared dialog after account activation; their account-access behavior remains separate.
 
 ```text
 [A4.01] Player: Gear --> Account
                    |
-                   v
 [A4.02] Game --> Core: openAccountDialog()
                    |
-                   v
-[A4.03] UI: account menu
+[A4.03] UI: Account menu --> Account Details
   |
-  +--> [A4.04] Profile / connection status
-  +--> [A4.05] Wallet details / balance when available
-  +--> [A4.06] View Achievements ------------------> C4
-  +--> [A4.07] Activity ---------------------------> A5
-  +--> [A4.08] Log Out ----------------------------> A6
-  +--> [A4.09] Close ------------------------------> Game
+  +--> [A4.04] Details: existing Account ID / Network: Signet
+  +--> [A4.05] Available balance / Total balance (sats)
+  |             Refresh --> loading --> success / unavailable
+  +--> [A4.06] DEFERRED: achievements/assets --> C4
+  +--> [A4.07] DEFERRED: activity/history ----> A5
+  +--> [A4.08] Log Out ----------------------> A6
+  +--> [A4.09] Back: Details --> Account --> Game
 
-[A4.10] Core --> Arkade SDK --> available wallet state --> UI
+[A4.10] Core --> fresh bounded Arkade wallet read --> UI
 ```
 
-- Game delegates account presentation to the service; it does not need its own wallet UI or SDK dependency.
-- Service: UI presents the menu; Core distinguishes active identity from operation availability; Arkade supplies wallet details/balance. Unknown or failed balances must not be presented as zero.
-- Complexity: refresh timing and offline/stale-state presentation need design. The confirmed A2 plan remembers completed accounts across browser restarts; full menu data loading and refresh remain A4 work.
+- A4.06 and A4.07 retain their IDs as deferred branches; no placeholder buttons appear. Receiving/funding details and custom asset rendering are separate future features.
+- Load on each Account Details entry and Refresh; no continuous UI updates. Available balance is prominent, total secondary. Neither failures nor unknown values become zero.
+- Starting a read clears prior amounts. Failure shows "Balance unavailable" and "Unable to retrieve current wallet data." with Refresh available. No balance is persisted or reused after closing/reloading; no stale values or update timestamps are shown.
+- Account ID is locally verified identity; Signet is configured network, not a connection indicator. Balance failure does not log out the account or block Back; Log Out remains on the Account menu. Missing/unreadable keys follow account-access errors.
+- Leaving, logout confirmation, reset, account replacement, and disposal invalidate pending balance work. Cancelling logout returns to Account without a balance read; reopening Account Details starts a new read. Temporary SDK resources are disposed after the bounded request.
 
 ### A5. Inspect Activity
 
