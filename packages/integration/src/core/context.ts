@@ -1,8 +1,9 @@
-import { createAccount, identify, type AccountSecret } from '../arkade/account.ts';
+import { createAccount, restoreAccount, identify, type AccountSecret } from '../arkade/account.ts';
+import { phraseWords, validRecovery } from './recovery-validation.ts';
 import { createAccountStorage, type AccountStorage, type StoredAccount } from './account-storage.ts';
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
-  phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error';
+  phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error' | 'restore-entry' | 'restoring' | 'restore-saving' | 'restore-error';
   logoutBackupAcknowledged: boolean;
   profileId?: string; error?: string; canReset: boolean;
 }>;
@@ -15,6 +16,7 @@ export interface BisContext {
   openAccountDialog(): void;
   closeAccount(): void;
   createAccount(): Promise<void>;
+  openRestoreAccount(): void;
   continueAccount(): Promise<void>;
   openLogoutConfirmation(): void;
   setLogoutBackupAcknowledged(acknowledged: boolean): void;
@@ -24,7 +26,7 @@ export interface BisContext {
   dispose(): void;
 }
 export function accountDestination(hasProfile: boolean) { return hasProfile ? 'account-menu' : 'account-chooser'; }
-type Controls = { present(): void; reset(): Promise<void>; assertAlive(): void; recovery(): string | undefined };
+type Controls = { present(): void; reset(): Promise<void>; assertAlive(): void; recovery(): string | undefined; restore(phrase: string): Promise<void> };
 const controls = new WeakMap<BisContext, Controls>();
 export function getControls(context: BisContext): Controls {
   const result = controls.get(context);
@@ -32,11 +34,12 @@ export function getControls(context: BisContext): Controls {
   return result;
 }
 // Private dependency seam for isolated tests; not exported by the package.
-export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify): BisContext {
+export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount): BisContext {
   let state: BisState = Object.freeze({view:'empty',hasProfile:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false});
   let previous: BisState['view'] = 'empty';
   let disposed = false, version = 0, generation = 0;
   let pending: AccountSecret | undefined;
+  let restorePhrase: string | undefined;
   let operation = new AbortController();
   let failure: 'load' | 'create' | 'save' | undefined;
   let confirmedProfile: string | undefined;
@@ -50,7 +53,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     state=Object.freeze({...state,...patch});
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
   };
-  const invalidate = () => {version++;operation.abort();operation=new AbortController();pending=undefined;};
+  const invalidate = () => {version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
   const emit = (event: BisEvent, current: number) => {
     for (const listener of [...events]) {
@@ -84,14 +87,62 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     } catch {if(!disposed&&version===current) fail('load','Your saved account could not be opened. Retry or use Reset Client in the demo.');}
   }
   let initialization: Promise<void>;
+  function activateRestored(account: AccountSecret, current: number) {
+    if (disposed || version !== current) return;
+    pending=undefined; restorePhrase=undefined; failure=undefined; confirmedProfile=account.profileId;
+    update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
+    emit({type:'accountConnected',profileId:account.profileId},current);
+  }
+  async function runRestore(input: string) {
+    assertAlive();
+    if (!['restore-entry','restore-error'].includes(state.phase) || state.hasProfile || !validRecovery(input)) return;
+    restorePhrase=phraseWords(input).join(' ');
+    const current=version;
+    update({phase:pending?'restore-saving':'restoring',error:undefined,canReset:true});
+    try {
+      // Reconcile an uncertain prior save or another tab's account before any new work.
+      const loaded=await readStable(current);
+      if(disposed||version!==current) return;
+      if(loaded.generation!==generation || loaded.account) {
+        if(loaded.generation===generation && pending && loaded.account?.profileId===pending.profileId) activateRestored(pending,current);
+        else { pending=undefined;restorePhrase=undefined;acceptLoaded(loaded,current); }
+        return;
+      }
+      if(!pending) {
+        const restored=await restore(restorePhrase,operation.signal);
+        if(disposed||version!==current) return;
+        pending=restored;
+      }
+      const account=pending;
+      update({phase:'restore-saving'});
+      await storage.save(account,generation,operation.signal);
+      if(disposed||version!==current) return;
+      const saved=await readStable(current);
+      if(disposed||version!==current) return;
+      if(saved.generation!==generation || saved.account?.profileId!==account.profileId) {
+        pending=undefined;restorePhrase=undefined;acceptLoaded(saved,current);return;
+      }
+      activateRestored(account,current);
+    } catch {
+      if(!disposed&&version===current) update({phase:'restore-error',error:pending?'Your account could not be confirmed saved. Retry or go Back.':'The test service could not be reached. Retry or go Back.'});
+    }
+  }
   const context: BisContext = {
     getState:()=>state,
     subscribe(listener) {assertAlive();listeners.add(listener);return ()=>{listeners.delete(listener);};},
     onEvent(listener) {assertAlive();events.add(listener);return ()=>{events.delete(listener);};},
     ready:()=>initialization,
     openAccountDialog() {assertAlive();if(state.view==='account') return;previous=state.view;update({view:'account'});},
+    openRestoreAccount() {
+      assertAlive();if(state.phase!=='idle'||state.hasProfile)return;
+      context.openAccountDialog();invalidate();failure=undefined;
+      update({phase:'restore-entry',error:undefined,canReset:true});
+    },
     closeAccount() {
-      assertAlive();if(state.view!=='account'||state.phase==='resetting'||state.phase==='logging-out') return;
+      assertAlive();if(state.view!=='account'||state.phase==='resetting'||state.phase==='logging-out'||state.phase==='restore-saving') return;
+      if(['restore-entry','restoring','restore-error'].includes(state.phase)) {
+        invalidate();initialization=hydrate();return;
+      }
       if(state.phase==='logout-confirmation'||state.phase==='logout-error') {context.cancelLogout();return;}
       if(pending||state.phase==='creating'||state.phase==='saving'||failure==='create'||failure==='save') {
         invalidate();failure=undefined;update({phase:'idle',error:undefined,canReset:false});
@@ -164,6 +215,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       }
     },
     async retry() {
+      assertAlive();if(state.phase==='restore-error'&&restorePhrase){await runRestore(restorePhrase);return;}
       assertAlive();if(state.phase==='logout-error'){await context.confirmLogout();return;}
       assertAlive();if(state.phase!=='error')return;
       if(failure==='load'){initialization=hydrate();await initialization;}
@@ -174,6 +226,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   };
   controls.set(context,{
     assertAlive,
+    restore:runRestore,
     recovery:()=>pending?.phrase,
     present() {assertAlive();if(state.view!=='account')update({view:'account-button'});},
     async reset() {

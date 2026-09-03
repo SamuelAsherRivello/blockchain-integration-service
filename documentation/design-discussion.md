@@ -1,5 +1,16 @@
 # Design discussion
 
+## A3 confirmed behavior and implementation
+
+- Any word field accepts multiple space-separated words and fills sequential fields starting there. Typing a separating space advances focus; overflow beyond field twelve preserves the existing grid with an error.
+
+- Account access only: restore the same twelve-word English identity, require a successful Signet connection, save using existing encrypted persistence, and immediately return to the Account dialogue showing "You are now logged in as Account ID: <first 4 characters>…<last 4 characters>." No Continue step, balances, achievements, or full A4 menu.
+- Use a numbered grid with manual entry. Initially hide nonempty fields with one `*` per character. One Show checkbox reveals/hides the entire grid.
+- Paste from Clipboard first unchecks Show, then fills all twelve fields. Wrong word counts preserve the grid and show an error. Clipboard access is explicit; permission failure permits manual entry.
+- Empty fields are neutral; valid English BIP39 words have green indicators and invalid words red. Restore requires the complete checksum to pass. Valid words remain green when a phrase-level checksum error appears.
+- Connection failure retains the phrase temporarily and hidden for Retry; Back clears it. Save failures reconcile before retry. Cancellation and concurrent account changes cannot allow stale restoration to overwrite stored state.
+- Implemented production flow and Admin demonstration; live Signet restoration, same-identity persistence, browser restart, and isolated failure/UI checks are recorded in `A3_VERIFICATION.md`. Earlier manual A2/A6 storage-clearing checks remain separate.
+
 ## Confirmed decisions
 
 - Repository name: blockchain-integration-service (user decision, 2026-09-03).
@@ -44,7 +55,7 @@ These questions and recommendations are not approved design decisions. The next 
 
 - Create Account is enabled when logged out. Recovery display is immediate; optional external saving does not block Continue. Only Continue commits and activates the account.
 - The real host and Runtime Preview use identical production persistence. Completed accounts survive refresh/browser restart on the same origin/browser profile. Interrupted creation restarts from the beginning.
-- Active Account shows "You are now logged in.", enabled Log Out, and Back, with Create/Restore hidden. Admin Reset Client remains the separate first-run reset; A6 provides production logout.
+- Active Account shows "You are now logged in as Account ID: <first 4 characters>…<last 4 characters>.", enabled Log Out, and Back, with Create/Restore hidden. Admin Reset Client remains the separate first-run reset; A6 provides production logout.
 - Refresh clears admin selection and leaves the viewport empty; selecting A2 recognizes a saved account. Story IDs do not dictate development order.
 - SDK creation, reload/restart persistence, and plain-host parity have been verified. Manual real-storage reset checks remain before A2 is reported complete.
 

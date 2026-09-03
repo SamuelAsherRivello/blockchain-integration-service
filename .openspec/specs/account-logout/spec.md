@@ -20,7 +20,7 @@ The active account's Log Out action SHALL open a confirmation titled "Account Lo
 - **AND** the reopened checkbox is unchecked
 
 ### Requirement: Confirmed local logout
-Confirmed logout SHALL clear only integration-owned remembered account material and end the active local session. It SHALL preserve unrelated browser data and wallet assets and SHALL NOT depend on operator connectivity. On confirmed success the Account dialogue SHALL remain open with Create Account / Restore Account visible; Restore SHALL remain disabled while A3 is unimplemented. Back SHALL restore the preceding host presentation. Ordinary gameplay SHALL remain available.
+Confirmed logout SHALL clear only integration-owned remembered account material and end the active local session. It SHALL preserve unrelated browser data and wallet assets and SHALL NOT depend on operator connectivity. On confirmed success the Account dialogue SHALL remain open with Create Account / Restore Account visible; Restore SHALL be enabled and open A3 restoration. Back SHALL restore the preceding host presentation. Ordinary gameplay SHALL remain available.
 
 #### Scenario: Successful logout and reload
 - **WHEN** a player confirms logout and clearing succeeds

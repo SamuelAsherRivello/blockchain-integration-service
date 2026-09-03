@@ -23,8 +23,8 @@ The player SHALL be able to save the phrase externally or proceed without saving
 
 #### Scenario: Complete A2.09 and A2.10
 - **WHEN** the player selects Continue and saving succeeds
-- **THEN** the account becomes active and the Account dialogue shows "You are now logged in."
-- **AND** it contains disabled lightning-prefixed Log Out and enabled Back, with Create Account and Restore Account hidden
+- **THEN** the account becomes active and the Account dialogue shows the logged-in message with shortened public Account ID and a line break after "as", as specified by account-entry
+- **AND** it contains enabled lightning-prefixed Log Out opening the A6 backup confirmation and enabled Back, with Create Account and Restore Account hidden
 
 #### Scenario: Saving fails
 - **WHEN** storage cannot commit the account
@@ -67,7 +67,7 @@ Creation failures SHALL offer a sanitized explanation, explicit Retry, and Back 
 - **THEN** the player can retry explicitly or return without an active account or blocked gameplay
 
 ### Requirement: One-click recovery phrase copy
-The recovery screen SHALL show Copy to Clipboard immediately above Continue. An explicit click SHALL copy the complete phrase as plain text, with single spaces between words and no numbering or extra formatting. Success SHALL be announced only after the clipboard write succeeds. Failure SHALL show a safe retry/manual-copy message and SHALL NOT block Continue or activate the account. The application SHALL NOT read the clipboard as part of this action. Future A3 restoration SHALL accept this whitespace-separated phrase format; a Paste from Clipboard action remains A3 work.
+The recovery screen SHALL show Copy to Clipboard immediately above Continue. An explicit click SHALL copy the complete phrase as plain text, with single spaces between words and no numbering or extra formatting. Success SHALL be announced only after the clipboard write succeeds. Failure SHALL show a safe retry/manual-copy message and SHALL NOT block Continue or activate the account. The application SHALL NOT read the clipboard as part of this action. A3 restoration SHALL accept this whitespace-separated phrase format through its Paste from Clipboard action.
 
 #### Scenario: Copy recovery phrase
 - **WHEN** the player clicks Copy to Clipboard and the clipboard write succeeds

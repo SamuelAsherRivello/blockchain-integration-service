@@ -1,9 +1,9 @@
-# User Story Diagrams
+﻿# User Story Diagrams
 
 ## Table of contents
 
 - [A. Account](#a-account)
-  - [A1. Open Account](#a1-open-the-game-then-account) ✅
+  - [A1. Open Account](#a1-open-the-game-then-account) ✓
   - [A2. Create Account](#a2-create-a-new-disposable-test-account)
   - [A3. Restore Account](#a3-restore-an-account-from-this-experience)
   - [A4. Account Menu](#a4-open-account-with-an-active-profile)
@@ -25,13 +25,14 @@
 
 | Story | Admin UI demonstration | Status |
 | --- | --- | --- |
-| A1. Open Account ✅ | Account / Account Button | Complete: no-profile Account button, Account dialogue, and Back. Active-profile opening belongs to A4. |
+| A1. Open Account ✓ | Account / Account Button | Complete: no-profile Account button, Account dialogue, and Back. Active-profile opening belongs to A4. |
 | A2. Create Account | Account / Create Account | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
-| A3-A5 | Not listed | Planned; no restoration, full account menu, or activity yet. |
+| A3 | Account / Restore Account | Account-access restoration implemented; see A3 verification evidence. |
+| A4-A5 | Not listed | Full account menu and activity remain planned. |
 | A6. Log Out | Account / Log Out | Implemented; core and isolated browser checks pass. Manual real-storage logout verification pending. |
 | B1-B4, C1-C5 | Not listed | Planned; their categories are hidden. |
 
-The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, disabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows "You are now logged in.", enabled Log Out, and Back. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
+The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, enabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows "You are now logged in as Account ID: <first 4 characters>…<last 4 characters>.", enabled Log Out, and Back. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
 
 Stories are sized to be completed independently. A1 covers entry; A2 owns creation and the minimal active dialogue, A3 restoration, and A4 the full account menu. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
 
@@ -39,7 +40,7 @@ Stories are sized to be completed independently. A1 covers entry; A2 owns creati
 
 Based on [the original brief](BGS_PROJECT_BRIEF.md), especially sections 4, 5, 7, 8, and 14, and [confirmed design decisions](design-discussion.md).
 
-These are intended user journeys for discussion, not implemented features or verified SDK capabilities. The current demo implements account entry and A2 creation/persistence; real stored-data reset verification is pending. Other wallet flows remain planned. API names and events below come from the brief's proposed contract; additional behavior is marked as proposed or unresolved.
+These are intended user journeys for discussion, not implemented features or verified SDK capabilities. The current demo implements account entry, A2 creation/persistence, A3 account restoration, and A6 logout; real stored-data reset/logout verification remains pending. Other wallet flows remain planned. API names and events below come from the brief's proposed contract; additional behavior is marked as proposed or unresolved.
 
 Diagram key: `Game` = the separate Babylon.js game; `UI`, `Core`, and `Arkade` = internal layers of `packages/integration`. UI uses React + TypeScript; Core owns workflows/state/events; Arkade wraps `@arkade-os/sdk` and public Signet infrastructure. The demo app substitutes for the game host, using the same public integration surface.
 
@@ -72,11 +73,11 @@ Status: complete. Precondition: no active profile. The host decides where to pla
   State: You are not logged in.
   |
   +--> [A1.06] Create Account  [enabled; A2]
-  +--> [A1.07] Restore Account [disabled; A3]
+  +--> [A1.07] Restore Account [enabled; A3]
   +--> [A1.08] Back --> Account button, profile unchanged
 ```
 
-- Create Account is enabled and primary; Restore Account is disabled and secondary; Back is enabled and secondary. All three action buttons have equal width and padding. Only Create/Restore carry lightning icons. Disabled actions have the prohibited cursor and perform no operation.
+- Create Account is enabled and primary; Restore Account is enabled and secondary; Back is enabled and secondary. All three action buttons have equal width and padding. Only Create/Restore carry lightning icons. Disabled actions have the prohibited cursor and perform no operation.
 - No decorative title icon, coming-soon explanation, Escape handling, backdrop dismissal, wallet initialization, or network operation is part of A1.
 - The production context owns state. The mounted production UI renders the dialogue and restores focus to Account after Back. The game owns its own menus and gameplay policy.
 - Admin observes public state and disables the story action while the dialogue is open. Reset Client clears selection, runtime state, and BIS-owned saved account material, returning to the Game Viewport placeholder. Preview scaling preserves the active flow.
@@ -92,7 +93,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
   +--> [A2.12] Saved active account --> minimal logged-in Account dialogue (A2.14)
   |
   +--> [A2.13] No saved account --> Account: You are not logged in.
-  |      Create Account / disabled Restore Account / Back
+  |      Create Account / enabled Restore Account / Back
   v
 [A2.01] Player: Create Account
   |
@@ -126,7 +127,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
   v
 [A2.14] Account dialogue
   Title: Account
-  State: You are now logged in.
+  State: You are now logged in as Account ID: <first 4 characters>…<last 4 characters>.
   |
   +--> [A2.15] Log Out [opens A6 confirmation]
   +--> [A2.16] Back --> preceding host presentation
@@ -139,7 +140,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
 [A2.20] Empty Game Viewport; next A2 entry starts at A2.13
 ```
 
-- Copy to Clipboard appears above Continue and copies only on an explicit click. Future A3 Paste from Clipboard should consume the same plain, space-separated phrase; restoration is not implemented here.
+- Copy to Clipboard appears above Continue and copies only on an explicit click. A3 Paste from Clipboard consumes the same plain, space-separated phrase.
 - Game receives account state, not recovery material or Arkade-specific types. Creating an account does not itself mean the wallet is funded or a payment succeeded.
 - Service: UI explains and displays recovery; Core orchestrates activation; Arkade owns SDK identity/wallet setup and any required connectivity. SDK 0.4.67 creation has been verified against the live Signet operator with explicit transient repositories.
 - Confirmed: persist the completed account on this browser across refreshes and restarts until Log Out (future A6), Admin Reset Client, or loss of browser data. Do not resume an unfinished creation after reopening. The admin selection resets on refresh; the viewport stays empty until a story is selected.
@@ -149,39 +150,44 @@ Status: implemented, with manual real-storage Reset Client verification pending.
 
 ### A3. Restore an account from this experience
 
+Status: implemented for account access only. Verification is recorded in [A3_VERIFICATION.md](A3_VERIFICATION.md).
+
 ```text
 [A3.01] Player: Restore Account
   |
   v
-[A3.02] UI: test-only warning + private recovery-phrase input
+[A3.02] UI: warning + 12 numbered word fields
+        One * per character; one Show checkbox; Paste from Clipboard
   |
   v
-[A3.03] Core --> Arkade: validate and restore via SDK
-                   |
-                   +--> [A3.04] Invalid input --> UI: correction
-                   |
-                   v
-             [A3.05] Reconnect to Signet infrastructure
-                   |
-                   +--> [A3.06] Unavailable --> UI: retry / close
-                   |
-                   v
-             [A3.07] Reload wallet state + achievement assets
-                   |
-                   v
-[A3.08] Core: same profile active --> accountConnected --> Game
-                   |
-                   v
-[A3.09] UI: account menu
+[A3.03] Validate English BIP39 words + complete checksum
+  |
+  +--> [A3.04] Invalid: red word / phrase error; Restore disabled
+  |
+  v
+[A3.05] Core --> Arkade: restore same identity + connect to Signet
+  |
+  +--> [A3.06] Unavailable: hide retained phrase; Retry / Back
+  |
+  v
+[A3.07] Save account access in existing encrypted persistence
+  |
+  v
+[A3.08] Same profile active --> accountConnected --> Game
+  |
+  v
+[A3.09] Account dialogue: You are now logged in as Account ID: <first 4 characters>…<last 4 characters>. / Log Out / Back
 ```
 
-- Game only learns that the account is connected. This restores wallet identity and available assets, not game checkpoints or saved gameplay progress.
-- Service: React UI collects the phrase privately in the app; Core coordinates loading/errors; Arkade reconstructs the compatible identity and queries available state. Use the lightning loader while restoring/reconnecting.
-- Boundary: support BGS/Arkade-compatible test profiles created for this experience, not arbitrary wallet seeds. Partial restore behavior, unavailable asset queries, and recovery compatibility need verification.
+- Show starts unchecked. Manual typing remains available while hidden. Paste unchecks Show before filling all twelve fields. Wrong word count leaves existing words unchanged with an error; clipboard denial allows manual entry.
+- Empty words are neutral, valid words green, and invalid words red. All-green words with an invalid checksum show a phrase-level error and keep Restore disabled.
+- A successful Signet connection is required before persistence/activation. Success returns directly to Account without Continue. Network failure retains the phrase temporarily for Retry; Back clears it. Save failures reconcile before retry, and stale work cannot overwrite another account.
+- Restoration preserves the same profile ID and survives reload/browser restart. The supported phrase format is the experience's twelve English words; validity does not prove where a phrase originated. Never enter a real-funds phrase.
+- Wallet balances, achievements, the full A4 menu, and gameplay checkpoints are outside A3. The former wallet/asset loading at A3.07 is deferred.
 
 ### A4. Open Account with an active profile
 
-Status: planned. This story owns opening Account when a real active profile exists, including profile-state routing and the account menu. It is separate from the completed no-profile A1 flow. Planned A2 includes only the minimal logged-in Account dialogue (status, enabled Log Out, Back); this story owns the full menu.
+Status: planned. This story owns opening Account when a real active profile exists, including profile-state routing and the account menu. It is separate from the completed no-profile A1 flow. A2 includes only the minimal logged-in Account dialogue (status, enabled Log Out, Back); this story owns the full menu.
 
 ```text
 [A4.01] Player: Gear --> Account
@@ -274,7 +280,7 @@ Optional educational view.
 - Service: Core owns session transition and pending-work policy; UI explains consequences; Arkade handles SDK-specific lifecycle cleanup. Logout is not an on-chain transaction and does not erase wallet assets.
 - Confirmed scope: use the supplied Arkade Reset wallet screenshots as the behavioral reference for a backup confirmation, with our heading "Account Log Out" and action "Log Out". Ask "Did you back up your wallet?" and warn that clearing the account from this browser cannot be undone locally; restoring access requires the saved recovery phrase. This confirmation is permanent A6 behavior, independent of A3 restoration availability.
 - The "I have backed up my wallet" checkbox starts unchecked every time the confirmation opens. Log Out is disabled until checked and becomes disabled again if unchecked. Checking the box alone does not log out; the player must press Log Out. Back cancels without clearing account material or ending the session.
-- The Admin Log Out demonstration opens the real Account dialogue, recognizing a saved account or showing the chooser if none exists. Successful logout preserves selection and shows Create Account / Restore Account (Restore remains disabled). Back restores the preceding host presentation.
+- The Admin Log Out demonstration opens the real Account dialogue, recognizing a saved account or showing the chooser if none exists. Successful logout preserves selection and shows Create Account / Restore Account (Restore is enabled). Back restores the preceding host presentation.
 - Failures retain the confirmation with Retry. No success is reported until storage clearing is confirmed; retries reconcile ambiguous completion and never clear a replacement account using an old confirmation. Other live contexts reconcile confirmed logout. Arkade wallets are already disposed after creation, so this slice has no additional network cleanup.
 - A6 offers no recovery-phrase access. Pending-payment handling is deferred until payments exist. Game-specific mid-run policy is also deferred; the brief's connected-run eligibility rule is unchanged.
 
@@ -555,7 +561,3 @@ Optional stretch goal; a test-sat payout, distinct from the Final Extraction ach
 - Game owns the win condition and keeps the victory valid regardless of payout. Receiving currency is separate from owning the Final Extraction achievement; neither implies the other succeeded.
 - Service: UI presents receive status; Core orchestrates eligibility/status and a still-undefined game callback; Arkade handles the real Signet receive workflow and balance refresh. Never display a fabricated reward transaction.
 - Complexity: identify a funded sender, payout authorization, replay limits, and supported receive infrastructure without exposing credentials or adding a custom server. This remains a non-cheat-resistant proof of concept and follows the core account/payment/achievement flows.
-
-
-
-

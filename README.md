@@ -1,4 +1,4 @@
-<!-- AI may update existing content; add or remove content only when requested. -->
+﻿<!-- AI may update existing content; add or remove content only when requested. -->
 
 # Blockchain Integration Service
 
@@ -10,11 +10,11 @@
 
 Current release: **v0.10.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
 
-In the current local implementation, Account / Account Button demonstrates entry and Account / Create Account opens the real Signet creation flow. Continue remembers the new account across refreshes and browser restarts. The logged-in dialogue shows enabled Log Out and working Back. Reset Client is implemented as a first-run reset; its real stored-data check remains manual. Restore, the full account menu, payments, and achievements remain unavailable. A6 logout is implemented with manual storage verification pending. The deployed release may lag the local checkout.
+In the current local implementation, Account / Account Button demonstrates entry and Account / Create Account opens the real Signet creation flow. Continue remembers the new account across refreshes and browser restarts. The logged-in dialogue shows enabled Log Out and working Back. Reset Client is implemented as a first-run reset; its real stored-data check remains manual. A3 Restore Account supports a hidden twelve-word grid, Show checkbox, clipboard paste, word/checksum validation, and Signet-gated persistent restoration. The full account menu, payments, and achievements remain unavailable. A6 logout is implemented with manual storage verification pending. The deployed release may lag the local checkout.
 
 ## Table of Contents
 
-**Completed:** [A1. Open Account](documentation/User%20Story%20Diagrams.md#a1-open-the-game-then-account) ✅ — Account button → Account dialogue → Back.
+**Completed:** [A1. Open Account](documentation/User%20Story%20Diagrams.md#a1-open-the-game-then-account) ✓ — Account button → Account dialogue → Back.
 
 1. [Live Demo](#live-demo)
 2. [Getting Started](#getting-started)
@@ -106,7 +106,7 @@ With OpenSpec CLI installed, run `./.openspec/setup.ps1` using PowerShell 7 afte
 
 ## Troubleshooting
 
-If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. The local Account demo supports the no-profile chooser; real account setup and the active-profile menu remain planned. If the local port is busy, use the URL printed by Vite.
+If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. The local Account demo supports creation and account-access restoration; the full active-profile menu remains planned. If the local port is busy, use the URL printed by Vite.
 
 ## Resources
 
@@ -131,6 +131,3 @@ If publishing fails, inspect the Actions run. Pages source must be **GitHub Acti
 
 Provided as-is under the MIT License.
 Copyright © 2026 Rivello Multimedia Consulting, LLC.
-
-
-

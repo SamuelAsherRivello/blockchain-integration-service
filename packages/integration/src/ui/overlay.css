@@ -35,3 +35,17 @@
 .bis-backup-check input:focus-visible { outline: 3px solid #30977f; outline-offset: 3px; }
 .bis-danger { background: #be3535; color: #fff; border-color: #a82b2b; }
 .bis-danger:hover:not(:disabled) { background: #a82b2b; }
+.bis-restore-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.bis-word { display: flex; align-items: center; gap: 4px; padding: 4px 6px; min-width: 0; border: 1px solid #c8d7dc; background: #fff; border-radius: 8px; }
+.bis-word:focus-within { outline: 2px solid #30977f; outline-offset: 1px; }
+.bis-word-number { font-size: 10px; color: #667a84; }
+.bis-word-input { position: relative; flex: 1; min-width: 0; }
+.bis-word-input input { width: 100%; min-width: 0; height: 36px; border: 0; outline: 0; background: transparent; font: inherit; font-size: 12px; padding: 4px 0; color: #182d39; }
+/* Native password editing retains caret/selection behavior; each character gets an asterisk. */
+.bis-word-hidden input { color: transparent; -webkit-text-fill-color: transparent; caret-color: #294650; }
+.bis-word-hidden input::selection { color: transparent; background: #d7e8e2; }
+.bis-word-mask { position: absolute; inset: 0; display: flex; align-items: center; pointer-events: none; font-size: 12px; overflow: hidden; white-space: nowrap; }
+.bis-word-indicator { font-size: 13px; color: #84969c; }
+.bis-word-valid .bis-word-indicator { color: #16804c; }
+.bis-word-invalid .bis-word-indicator { color: #bf3333; }
+.bis-show-check { justify-content: center; padding: 8px; }
