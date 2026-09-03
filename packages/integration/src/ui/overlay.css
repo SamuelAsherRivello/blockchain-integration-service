@@ -9,7 +9,8 @@
 .bis-button:disabled { color: #72858c; background: #edf2f3; cursor: not-allowed; }
 .bis-primary:disabled { color: #285e50; background: #c1e5d8; border-color: #87bba8; box-shadow: none; }
 .bis-button:focus-visible { outline: 3px solid #30977f; outline-offset: 4px; }
-.bis-card { width: min(100%, 320px); max-height: 100%; overflow: auto; text-align: center; padding: 28px 20px 20px; border-radius: 22px; border: 1px solid #fff; background: #f8fbfc; box-shadow: 0 20px 55px #0004; }
+.bis-card { position: relative; width: min(100%, 320px); max-height: 100%; overflow: auto; text-align: center; padding: 28px 20px 20px; border-radius: 22px; border: 1px solid #fff; background: #f8fbfc; box-shadow: 0 20px 55px #0004; }
+.bis-network-label { margin: -28px -20px 12px; padding: 11px 20px 9px; border-bottom: 1px solid #e5b536; background: #fff0b8; color: #785317; font-size: 10px; font-weight: 750; letter-spacing: .06em; line-height: 1.2; text-transform: uppercase; }
 .bis-card h2 { margin: 0 0 10px; font: inherit; font-size: 24px; font-weight: 650; letter-spacing: -.04em; }
 .bis-actions { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .bis-actions .bis-button { width: 100%; }
@@ -54,3 +55,30 @@
 .bis-balance-label, .bis-balance-total { color: #526b74; font-size: 11px; }
 .bis-balance-amount { font-size: 26px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .bis-balance-amount span { font-size: 13px; font-weight: inherit; }
+.bis-addresses { margin-bottom: 14px; font-size: 12px; }
+.bis-address-row { display: flex; flex-wrap: wrap; align-items: end; gap: 6px; text-align: left; margin-bottom: 10px; }
+.bis-copy-field-heading { display: flex; align-items: center; gap: 4px; width: 100%; font-size: 12px; }
+.bis-copy-field-heading label { min-width: 0; }
+.bis-copy-field-heading h3 { margin: 0; font: inherit; font-weight: 600; }
+.bis-recovery-heading { margin-bottom: 6px; text-align: left; }
+.bis-saved-recovery-heading { display: flex; align-items: center; }
+.bis-saved-recovery-heading .bis-copy-field-heading { flex: 1; }
+.bis-copy-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 26px; width: 26px; height: 26px; padding: 4px; border: 0; border-radius: 5px; background: transparent; color: #526b74; cursor: pointer; }
+.bis-copy-icon:hover:not(:disabled) { color: #175a4c; background: #e0f4ed; }
+.bis-copy-icon:focus-visible { outline: 2px solid #30977f; outline-offset: 2px; }
+.bis-copy-icon:disabled { opacity: .4; cursor: not-allowed; }
+.bis-dialog-heading { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
+.bis-dialog-heading h2 { margin: 0; }
+.bis-title-icon { flex-basis: 32px; width: 32px; height: 32px; }
+.bis-refresh-image { flex: 0 0 32px; width: 32px; height: 32px; background: currentColor; mask: url('./assets/refresh.png') center / contain no-repeat; transform: rotate(90deg); }
+.bis-address-row input { width: 100%; min-width: 0; padding: 8px; border: 1px solid #c8d7dc; border-radius: 6px; font: 11px ui-monospace, monospace; color: #294650; background: #fff; }
+.bis-address-row input:focus-visible { outline: 2px solid #30977f; }
+.bis-address-row .bis-copy-status { flex-basis: 100%; font-size: 10px; }
+.bis-activity { min-width: 0; margin-bottom: 10px; text-align: left; }
+.bis-activity .bis-copy-field-heading { margin-bottom: 6px; }
+.bis-activity textarea { display: block; width: 100%; max-width: 100%; height: 190px; resize: vertical; padding: 10px; border: 1px solid #c8d7dc; border-radius: 6px; background: #fff; color: #294650; font: 11px/1.7 ui-monospace, monospace; overflow: auto; }
+.bis-activity textarea:focus-visible { outline: 2px solid #30977f; }
+.bis-activity p { min-height: 16px; margin: 6px 0 0; font-size: 11px; }
+
+.bis-transfer-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.bis-transfer-actions .bis-button { min-width: 0; padding-inline: 10px; }

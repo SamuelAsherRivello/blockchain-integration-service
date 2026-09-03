@@ -13,9 +13,9 @@ let context: BisContext | undefined;
 let ui: ReturnType<typeof createBisUi> | undefined;
 const tick=()=>new Promise(resolve=>setTimeout(resolve,40));
 const check=(ok:unknown,message:string)=>{if(!ok)throw Error(message);};
-const action=(text:string)=>Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find(b=>b.textContent?.trim()===text)!;
+const action=(text:string)=>Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find(b=>b.textContent?.trim()===text||b.getAttribute('aria-label')===text)!;
 const fields=()=>Array.from(host.querySelectorAll<HTMLInputElement>('.bis-word-input input'));
-const show=()=>host.querySelector<HTMLInputElement>('.bis-show-check input')!;
+const show=()=>host.querySelector<HTMLButtonElement>('.bis-visibility-toggle')!;
 function input(index:number,value:string){const field=fields()[index];Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(field,value);field.dispatchEvent(new Event('input',{bubbles:true}));}
 async function mount(next:BisContext){ui?.unmount();context?.dispose();context=next;ui=createBisUi(next);ui.mount(host);await next.ready();next.openAccountDialog();await tick();}
 async function waitFor(predicate:()=>boolean){for(let i=0;i<1000;i++){if(predicate())return;await tick();}throw Error('Operation did not finish');}
@@ -28,14 +28,18 @@ document.getElementById('run')!.onclick=async()=>{
   try{
     const c=createContext({load:async()=>({account,generation:0}),save:async a=>{account=a;saves++;},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=> 'isolated-public-id',async phrase=>{connects++;if(fail)throw Error('unavailable');return {phrase,profileId:'isolated-public-id'};});
     await mount(c);c.openRestoreAccount();await tick();
-    check(fields().length===12&&!show().checked,'Initial grid');check(action('⚡ Restore').disabled,'Empty disabled');
+    check(host.querySelector('.bis-restore-grid')?.previousElementSibling?.querySelector('h3')?.textContent==='Seed words','Seed words header above fields');
+    check(!host.querySelector('.bis-show-check')&&!host.querySelector('.bis-actions [aria-label="Paste from Clipboard"]'),'No separate Show or paste controls');
+    check(fields().length===12&&show().getAttribute('aria-pressed')==='false','Initial grid');check(action('⚡ Restore').disabled,'Empty disabled');
     input(3,'blah blah');await tick();check(fields()[3].value==='blah'&&fields()[4].value==='blah'&&fields()[2].value==='', 'Sequential words start at selected input');
     input(11,'too many');await tick();check(fields()[11].value===''&&host.textContent?.includes('Only 1 word fields remain'),'Overflow preserves words');
     input(3,'');input(4,'');await tick();
     input(0,'wrongword');await tick();check(host.querySelectorAll('.bis-word-invalid').length===1,'Invalid red');
     input(0,wordlist[0]);await tick();check(host.querySelectorAll('.bis-word-valid').length===1,'Valid green');
-    show().click();await tick();check(fields()[0].type==='text','Show reveals');
-    action('Paste from Clipboard').click();await tick();check(!show().checked&&fields().every(f=>f.type==='password'),'Paste hides');check(!action('⚡ Restore').disabled,'Valid paste enables');
+    show().click();await tick();check(fields()[0].type==='text'&&show().getAttribute('aria-pressed')==='true','Eye reveals');
+    show().click();await tick();check(fields()[0].type==='password'&&show().getAttribute('aria-pressed')==='false','Eye hides');
+    show().click();await tick();
+    action('Paste from Clipboard').click();await tick();check(show().getAttribute('aria-pressed')==='false'&&fields().every(f=>f.type==='password'),'Paste hides');check(!action('⚡ Restore').disabled,'Valid paste enables');
     check(Array.from(host.querySelectorAll('.bis-word-mask')).every((e,i)=>e.textContent==='*'.repeat(fields()[i].value.length)),'One asterisk per character');
     const words=clipboard.split(' ');let i=0;do{words[11]=wordlist[i++];}while(validRecovery(words.join(' ')));
     clipboard=words.join(' ');action('Paste from Clipboard').click();await tick();
@@ -44,7 +48,7 @@ document.getElementById('run')!.onclick=async()=>{
     denied=true;action('Paste from Clipboard').click();await tick();check(host.textContent?.includes('Could not read'),'Clipboard denial');denied=false;
     let release!:()=>void;delay=new Promise<void>(r=>release=r);clipboard=generateMnemonic(wordlist);action('Paste from Clipboard').click();await tick();input(0,'manualedit');await tick();release();await tick();check(fields()[0].value==='manualedit','Late paste cannot overwrite edit');delay=undefined;
     action('Paste from Clipboard').click();await tick();action('⚡ Restore').click();await waitFor(()=>c.getState().phase==='restore-error');await tick();
-    check(!show().checked&&saves===0&&fields().length===12,'Failure retains hidden entry');fail=false;action('Retry').click();await waitFor(()=>c.getState().phase==='active');await tick();
+    check(show().getAttribute('aria-pressed')==='false'&&saves===0&&fields().length===12,'Failure retains hidden entry');fail=false;action('Retry').click();await waitFor(()=>c.getState().phase==='active');await tick();
     check(connects===2&&saves===1&&host.textContent?.includes('Account Details')&&!host.querySelector('.bis-restore-grid'),'Immediate Account destination');
     // New isolated client verifies Back clears entry and never affects real storage.
     const empty=createContext({load:async()=>({account:null,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}});

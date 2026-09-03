@@ -9,9 +9,19 @@ body { margin: 0; background: #11151c; }
 .brand-mark { display: grid; place-items: center; width: 31px; height: 31px; background: #a9d9c3; color: #19362a; border-radius: 8px; font-size: 24px; }
 .version-tag { font-size: 10px; color: #8795a8; white-space: nowrap; }
 .workspace { min-height: calc(100svh - 50px); display: grid; grid-template-columns: minmax(260px, 32%) minmax(0, 1fr); }
-.admin-panel { padding: 16px 28px; border-right: 1px solid #2b303a; background: #171c25; display: flex; flex-direction: column; gap: 30px; }
+.admin-panel { box-sizing: border-box; height: calc(100svh - 50px); min-height: 0; min-width: 0; padding: 16px 28px; border-right: 1px solid #2b303a; background: #171c25; display: flex; flex-direction: column; gap: 30px; }
+.admin-panel > .panel-title { flex-shrink: 0; }
+.demo-app .admin-panel .admin-scroll { min-height: 0; flex: 1; overflow-y: scroll; overflow-x: hidden; scrollbar-width: auto; scrollbar-color: #71849b #1e2632; scrollbar-gutter: stable; padding-right: 12px; display: flex; flex-direction: column; gap: 30px; }
+.admin-scroll > * { flex-shrink: 0; }
+.demo-app .admin-panel .admin-scroll::-webkit-scrollbar { display: block; width: 10px; }
+.demo-app .admin-panel .admin-scroll::-webkit-scrollbar-track { background: #1e2632; border-radius: 5px; }
+.demo-app .admin-panel .admin-scroll::-webkit-scrollbar-thumb { background: #71849b; border-radius: 5px; }
+.admin-scroll:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 3px; }
+.admin-console { box-sizing: border-box; width: 100%; min-height: 130px; resize: vertical; padding: 12px; border: 1px solid #394657; border-radius: 9px; background: #11151c; color: #bec9d7; font: 12px/1.6 Consolas, 'Cascadia Code', monospace; }
+.admin-console:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 3px; }
 .demo-app .panel-title { font-size: 22px; font-weight: 500; letter-spacing: -.03em; margin: 0; }
 .category-title { font-size: 12px; color: #a9b6c7; font-weight: 500; margin: 0 0 12px; }
+.funding-status { color: #a9b6c7; font-size: 12px; line-height: 1.5; margin: 10px 0 0; overflow-wrap: anywhere; }
 .admin-section-title { font-size: 16px; color: #dce5ef; font-weight: 500; margin: 0 0 16px; }
 .documentation-link { color: #a9d9c3; font-size: 13px; text-decoration: none; }
 .documentation-link:hover { text-decoration: underline; }

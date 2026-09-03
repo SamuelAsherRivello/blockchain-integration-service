@@ -24,14 +24,16 @@ document.getElementById('run')!.onclick = async () => {
     writeText: async () => { calls++; if (delayCopy) await new Promise<void>(resolve => { releaseCopy = resolve; }); if (fail) throw Error('denied'); },
   } });
   try {
-    const button = host.querySelector<HTMLButtonElement>('.bis-copy-button')!;
-    const indicator = () => button.querySelector('.bis-copy-indicator')!;
+    const button = host.querySelector<HTMLButtonElement>('.bis-copy-field-heading .bis-copy-icon')!;
+    assert(host.querySelector('.bis-copy-field-heading h3')?.textContent === 'Seed words', 'seed words heading exists');
+    assert(host.querySelector('.bis-recovery')?.previousElementSibling?.querySelector('h3')?.textContent === 'Seed words', 'heading directly precedes words');
+    assert(!host.querySelector('.bis-actions .bis-copy-button'), 'separate copy button removed');
+    const indicator = () => button.querySelector('svg')!;
     assert(button && indicator(), 'unchecked indicator exists inside copy button');
-    assert(!indicator().classList.contains('bis-copy-indicator-checked'), 'initially unchecked');
+    assert(button.title !== 'Copied', 'initially unchecked');
     for (let i = 1; i <= 3; i++) {
       button.click(); await tick();
-      assert(calls === i && indicator().classList.contains('bis-copy-indicator-checked'), 'repeated copy stays checked');
-      assert(getComputedStyle(indicator()).backgroundColor === 'rgb(23, 128, 82)', 'success is green');
+      assert(calls === i && button.title === 'Copied', 'repeated copy stays checked');
       assert(!host.querySelector('.bis-copy-status'), 'no separate success line');
     }
     const label = button.textContent;
@@ -47,7 +49,7 @@ document.getElementById('run')!.onclick = async () => {
     fail = true; button.click(); await tick();
     assert(host.querySelector('.bis-copy-status')?.textContent?.includes('Could not copy'), 'failure remains actionable');
     fail = false; button.click(); await tick();
-    assert(indicator().classList.contains('bis-copy-indicator-checked') && !host.querySelector('.bis-copy-status'), 'retry succeeds');
-    result.textContent = 'PASS: unchecked/green check, repeat copy has stable text and colors, duplicate guard, failure and retry.';
+    assert(button.title === 'Copied' && !host.querySelector('.bis-copy-status'), 'retry succeeds');
+    result.textContent = 'PASS: Seed words header, inline copy icon, no separate button, repeat copy, duplicate guard, failure and retry.';
   } catch (error) { result.textContent = `FAIL: ${error instanceof Error ? error.message : 'copy checks'}`; }
 };

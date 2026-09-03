@@ -1,12 +1,28 @@
 # Design discussion
 
+## Recovery Phrase access
+
+- Account Details includes Recovery Phrase at the bottom, above Back. The separate Recovery Phrase dialog immediately reads the saved active identity and opens the numbered seed-word layout, with the warning "Anyone with this phrase can access your account." and the existing Signet-only warning.
+- The words are masked by default. `Seed words`, inline Copy, and an off-state visibility eye appear above the numbered layout after the local read succeeds; there is no separate Show Recovery Phrase or Copy Recovery Phrase button. Recovery material is never included in public state or events.
+- Account Log Out includes View Recovery Phrase. Back returns to that confirmation with the backup checkbox unchecked; entering from Account Details returns to Account Details.
+- Back, account changes, reset, UI unmount, and disposal clear the revealed value and invalidate delayed reads. Reopening always starts hidden. Read and clipboard failures use generic messages and allow retry.
+- Verification uses invalid placeholder words and in-memory storage; no real recovery material was accessed. The core suite and isolated browser recovery checks cover reveal/copy, navigation, narrow layout, and lifecycle cleanup.
+
+## Account Send and Receive
+
+- Account has side-by-side Send and Receive buttons immediately above Log Out. Send opens a coming-soon dialog; real sending is deferred as D3.
+- Receive includes the active account's Arkade address and Bitcoin boarding address, each with a Copy button and selectable full value. Signet test funds only.
+- Addresses load only on Receive entry and Refresh. Account Details loads balances only. Back, account replacement, logout, and disposal clear them and invalidate pending results. Refresh clears prior addresses; failures offer retry without logging the user out.
+- This supersedes the A4 deferral only for these two addresses. Lightning invoice generation remains deferred as D2 in User Story Diagrams; no new swap dependency or invoice UI is included.
+- The existing A4 Admin demonstration uses the same production account menu, with address fields reached through Receive.
+
 ## A4 confirmed scope and implementation
 
 - Both Account and Account Details show the same three-line information block below the title: "You are now logged in.", "Account ID: <first 4>…<last 4>" (ID in code styling), and "Network: Signet".
-- Account is a menu titled Account with Account Details, Log Out and Back. Account Details has its own title, identity/network information, available/total balances and only Refresh/Back actions. Back returns to Account. No balance request runs merely from opening Account.
+- Account is a menu titled Account with Account Details, Account Activity, Log Out and Back. Account Details has its own title, identity/network information, available/total balances and only Refresh/Back actions. Back returns to Account. No balance request runs merely from opening Account.
 - Load on Account Details entry/manual refresh only. Clear amounts when loading or unavailable. Do not persist balances, reuse prior dialog values, or show stale amounts after failure, even within the same dialog. This supersedes the earlier tentative stale-value policy.
 - Balance failure retains verified account access. Missing/unreadable keys remain an account-access error; Signet is not a connectivity indicator.
-- A5 activity/history, C4 assets/achievements, custom rendering, and receiving/funding details are separate deferred features with no placeholder buttons in A4.
+- A5 Account Activity is a separate implemented dialog; C4 assets/achievements and custom rendering remain separate. Receiving addresses are covered by the later address decision above.
 - Adapter/core/UI/demo are implemented. Real zero balance and browser failure/recovery checks passed; funded Signet verification remains pending. See A4_VERIFICATION.md. Earlier A2/A6 manual storage checks remain pending.
 
 ## A3 confirmed behavior and implementation
@@ -78,3 +94,11 @@ These questions and recommendations are not approved design decisions. The next 
 - A6 offers no recovery-phrase access. Pending-payment handling is deferred until payment features exist; game-specific mid-run eligibility remains outside this slice. A3 restoration and a future backup-access feature remain separate.
 - Public methods are `openLogoutConfirmation()`, `setLogoutBackupAcknowledged(boolean)`, `confirmLogout()`, and `cancelLogout()`. `retry()` handles logout errors. Each observing active context receives `accountDisconnected` with its former public profile ID only after confirmed absence; disposal stops notifications.
 - Production UI and the A6 Admin story are implemented. Core storage-double and isolated browser verification are recorded in `A6_VERIFICATION.md`; real-storage deletion checks remain manual and pending.
+
+
+## A5 Account Activity
+
+- Account Activity appears immediately below Account Details. Its dialog shows Account ID, then Transactions with one Copy button and one read-only text area containing all Arkade-provided history, one transaction per line, newest first.
+- Incoming, outgoing, confirmed, and spent records remain visible when supplied by Arkade. Each line includes sats, direction, supported status, and available transaction/output identifiers. Copy copies the whole list.
+- A read-only SDK wallet supplies history, coin metadata, and notifications; periodic SDK reconciliation catches missed events and stale connections. No payments or settlement run. Data and observation are transient and cleared on leaving or account change.
+- Live pending receipt and automatic refresh, isolated browser checks, and package tests pass. Live confirmation and outgoing/spent evidence remain pending; see A5_VERIFICATION.md.

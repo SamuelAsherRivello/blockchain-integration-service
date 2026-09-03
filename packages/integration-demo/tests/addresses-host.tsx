@@ -1,0 +1,48 @@
+import { createContext } from '../../integration/src/core/context';
+import { createBisUi } from '@bis/integration';
+import '@bis/integration/style.css';
+const host=document.getElementById('host')!,result=document.getElementById('result')!;
+const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+const check=(ok:unknown,label:string)=>{if(!ok)throw Error(label);};
+const waitFor=async(predicate:()=>boolean)=>{const end=Date.now()+2000;while(!predicate()){if(Date.now()>end)throw Error('UI update timed out');await tick();}};
+let cleanup=()=>{};
+document.getElementById('run')!.onclick=async()=>{
+  cleanup();result.textContent='Running';
+  const account={phrase:'isolated-placeholder',profileId:'1234567890abcdef'};
+  const addresses={arkadeAddress:'tark1'+ 'a'.repeat(150),bitcoinAddress:'tb1p'+'b'.repeat(58)};
+  let fail=false,copyFail=false,copied='';
+  const original=Object.getOwnPropertyDescriptor(navigator,'clipboard');
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(value:string)=>{if(copyFail)throw Error('denied');copied=value;}}});
+  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,totalSats:0}),undefined,async()=>{if(fail)throw Error('private');return addresses;});
+  const ui=createBisUi(c);ui.mount(host);
+  cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
+  try {
+    await c.ready();c.openAccountDialog();c.openAccountReceive();await tick();await tick();
+    const addressInputs=()=>host.querySelectorAll<HTMLInputElement>('input[aria-label="Arkade address"], input[aria-label="Bitcoin address"]');
+    const inputs=addressInputs();
+    check(inputs.length===2 && inputs[0].value===addresses.arkadeAddress && inputs[1].value===addresses.bitcoinAddress,'Full address values');
+    (host.querySelector('[aria-label="Copy Arkade address"]') as HTMLButtonElement).click();await tick();
+    await waitFor(()=>!!host.textContent?.includes('Arkade address copied.'));
+    check(copied===addresses.arkadeAddress,'Exact copy and success');
+    copyFail=true;(host.querySelector('[aria-label="Copy Bitcoin address"]') as HTMLButtonElement).click();await tick();
+    await waitFor(()=>!!host.textContent?.includes('Could not copy.'));
+    const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No horizontal overflow');
+    fail=true;await c.refreshBalance();await tick();check([...addressInputs()].every(input=>input.value==='Addresses unavailable'),'No stale addresses');
+    fail=false;await c.refreshBalance();await tick();check(addressInputs()[0].value===addresses.arkadeAddress && addressInputs()[1].value===addresses.bitcoinAddress,'Retry recovery');
+    c.closeAccount();await tick();check(host.querySelectorAll('input').length===0,'Back clears addresses');
+    const click = (label: string) => { const button = [...host.querySelectorAll('button')].find(b => b.textContent?.trim() === label); check(button, `Missing ${label}`); button!.click(); };
+    const menuButtons = [...host.querySelectorAll('.bis-actions button')].map(b => b.textContent?.trim());
+    check(JSON.stringify(menuButtons) === JSON.stringify(['⚡ Account Details', '⚡ Account Activity', '⚡ Send', '⚡ Receive', '⚡ Log Out', 'Back']), 'Account button order');
+    const transfer = [...host.querySelectorAll('.bis-transfer-actions button')].map(b => b.getBoundingClientRect());
+    check(transfer.length === 2 && transfer[0].top === transfer[1].top && transfer[0].right < transfer[1].left, 'Send and Receive side by side');
+    click('⚡ Send');await tick();check(host.querySelector('h2')?.textContent === 'Send' && host.textContent?.includes('Coming soon.'), 'Send placeholder');
+    click('Back');await tick();click('⚡ Account Details');await tick();await tick();
+    check(addressInputs().length === 0 && host.querySelectorAll('input').length === 3, 'Details has balances and network only');
+    check(JSON.stringify([...host.querySelectorAll('.bis-actions button')].map(b => b.textContent?.trim())) === JSON.stringify(['⚡ Recovery Phrase','Back']), 'Recovery at bottom of Details');
+    click('⚡ Recovery Phrase');await tick();check(host.querySelector('h2')?.textContent === 'Recovery Phrase', 'Recovery dialog');
+    click('Back');await tick();check(host.querySelector('h2')?.textContent === 'Account Details', 'Recovery Back returns to Details');
+    click('Back');await tick();click('⚡ Receive');await tick();await tick();
+    check(!host.textContent?.includes('Lightning invoice'),'No deferred invoice UI');
+    result.textContent='PASS: exact address values, copy, clipboard failure, narrow layout, refresh failure/retry, Back, Send placeholder, Details recovery navigation, side-by-side actions, no invoice UI.';
+  } catch(error) {result.textContent=`FAIL: ${error instanceof Error?error.message:'address checks'}`;}
+};
