@@ -26,18 +26,19 @@
 | Story | Admin UI demonstration | Status |
 | --- | --- | --- |
 | A1. Open Account ✅ | Account / Account Button | Complete: no-profile Account button, Account dialogue, and Back. Active-profile opening belongs to A4. |
-| A2-A6 | Not listed | Planned; no account creation, restoration, menu, activity, or logout yet. |
+| A2. Create Account | Account / Create Account | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
+| A3-A6 | Not listed | Planned; no restoration, full account menu, activity, or functional logout yet. |
 | B1-B4, C1-C5 | Not listed | Planned; their categories are hidden. |
 
-The demo starts empty. Selecting Account Button renders the production button; clicking it shows the production Account dialogue: Account title, "You are not logged in." state text, disabled lightning-prefixed Create Account and Restore Account, and Back. No coming-soon copy or decorative heading icon is shown. Create Account and Restore Account remain disabled. Reset Client clears selection and transient client/UI state, preserving persisted data and leaving runtime content empty.
+The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, disabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows "You are now logged in.", disabled Log Out, and Back. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
 
-Stories are sized to be completed independently. A1 covers no-profile entry only; A2 owns creation, A3 restoration, and A4 active-profile opening. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
+Stories are sized to be completed independently. A1 covers entry; A2 owns creation and the minimal active dialogue, A3 restoration, and A4 the full account menu. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
 
 ## Reading these diagrams
 
 Based on [the original brief](BGS_PROJECT_BRIEF.md), especially sections 4, 5, 7, 8, and 14, and [confirmed design decisions](design-discussion.md).
 
-These are intended user journeys for discussion, not implemented features or verified SDK capabilities. The current demo implements the no-profile account entry described below; other wallet flows remain planned. API names and events below come from the brief's proposed contract; additional behavior is marked as proposed or unresolved.
+These are intended user journeys for discussion, not implemented features or verified SDK capabilities. The current demo implements account entry and A2 creation/persistence; real stored-data reset verification is pending. Other wallet flows remain planned. API names and events below come from the brief's proposed contract; additional behavior is marked as proposed or unresolved.
 
 Diagram key: `Game` = the separate Babylon.js game; `UI`, `Core`, and `Arkade` = internal layers of `packages/integration`. UI uses React + TypeScript; Core owns workflows/state/events; Arkade wraps `@arkade-os/sdk` and public Signet infrastructure. The demo app substitutes for the game host, using the same public integration surface.
 
@@ -57,7 +58,7 @@ Status: complete. Precondition: no active profile. The host decides where to pla
 [A1.01] Host mounts BIS UI (initially empty)
   |
 [A1.02] Host requests Account button presentation
-  |  Demo: Admin > Interactivity > Account > Account Button
+  |  Demo: Admin > Account > Account Button
   v
 [A1.03] Player clicks Account
   |
@@ -69,20 +70,20 @@ Status: complete. Precondition: no active profile. The host decides where to pla
   Title: Account
   State: You are not logged in.
   |
-  +--> [A1.06] Create Account  [disabled; A2]
+  +--> [A1.06] Create Account  [enabled; A2]
   +--> [A1.07] Restore Account [disabled; A3]
   +--> [A1.08] Back --> Account button, profile unchanged
 ```
 
-- Create Account is primary; Restore Account and Back are secondary. All three action buttons have equal width and padding. Only Create/Restore carry lightning icons. Disabled actions have the prohibited cursor and perform no operation.
+- Create Account is enabled and primary; Restore Account is disabled and secondary; Back is enabled and secondary. All three action buttons have equal width and padding. Only Create/Restore carry lightning icons. Disabled actions have the prohibited cursor and perform no operation.
 - No decorative title icon, coming-soon explanation, Escape handling, backdrop dismissal, wallet initialization, or network operation is part of A1.
 - The production context owns state. The mounted production UI renders the dialogue and restores focus to Account after Back. The game owns its own menus and gameplay policy.
-- Admin observes public state and disables the story action while the dialogue is open. Reset Client clears the selection and runtime state, returning to the Game Viewport placeholder. Preview scaling preserves the active flow.
-- Opening Account with an active profile is A4, not an unfinished branch of A1. Creating and restoring profiles are A2 and A3.
+- Admin observes public state and disables the story action while the dialogue is open. Reset Client clears selection, runtime state, and BIS-owned saved account material, returning to the Game Viewport placeholder. Preview scaling preserves the active flow.
+- Opening Account with an active profile now uses A2's minimal dialogue; the full menu remains A4. Creating and restoring profiles are A2 and A3.
 
 ### A2. Create a new disposable test account
 
-Status: planned. Confirmed scope is captured in [add-a2-account-creation](../.openspec/changes/add-a2-account-creation/proposal.md); this diagram does not claim implementation. Game and Runtime Preview share production persistence behavior. Story IDs identify scope, not development order.
+Status: implemented, with manual real-storage Reset Client verification pending. Confirmed scope is captured in [add-a2-account-creation](../.openspec/changes/archive/2026-09-03-add-a2-account-creation/proposal.md); the change task list records outstanding verification. Game and Runtime Preview share production persistence behavior. Story IDs identify scope, not development order.
 
 ```text
 [A2.11] Host opens the production Account dialogue
@@ -107,6 +108,9 @@ Status: planned. Confirmed scope is captured in [add-a2-account-creation](../.op
   |
   v
 [A2.06] UI: immediately show recovery phrase + test-only warning
+  |
+  +--> [A2.21] Copy to Clipboard --> all 12 words, single-space-separated text
+  |      Success feedback, or retry/manual copy on failure
   |
   +--> [A2.07] Player saves phrase privately outside the app
   |
@@ -134,11 +138,12 @@ Status: planned. Confirmed scope is captured in [add-a2-account-creation](../.op
 [A2.20] Empty Game Viewport; next A2 entry starts at A2.13
 ```
 
+- Copy to Clipboard appears above Continue and copies only on an explicit click. Future A3 Paste from Clipboard should consume the same plain, space-separated phrase; restoration is not implemented here.
 - Game receives account state, not recovery material or Arkade-specific types. Creating an account does not itself mean the wallet is funded or a payment succeeded.
-- Service: UI explains and displays recovery; Core orchestrates activation; Arkade owns SDK identity/wallet setup and any required connectivity. Exact SDK steps require validation before implementation.
+- Service: UI explains and displays recovery; Core orchestrates activation; Arkade owns SDK identity/wallet setup and any required connectivity. SDK 0.4.67 creation has been verified against the live Signet operator with explicit transient repositories.
 - Confirmed: persist the completed account on this browser across refreshes and restarts until Log Out (future A6), Admin Reset Client, or loss of browser data. Do not resume an unfinished creation after reopening. The admin selection resets on refresh; the viewport stays empty until a story is selected.
 - Confirmed: the minimal logged-in dialogue hides Create/Restore and shows disabled Log Out plus working Back. A4 owns the full account menu; A6 owns functional logout. Admin Reset Client is the first-run reset available in this slice, replacing the previous preserve-persisted-data behavior when A2 is implemented.
-- Proposed default: Continue is immediately available without a mandatory backup checkbox or phrase verification, consistent with optional external saving. Storage protection, SDK compatibility, and failure details are specified as technical proposals/checkpoints in the linked change.
+- Implemented default: Continue is immediately available without a mandatory backup checkbox or phrase verification, consistent with optional external saving. The linked design records the implemented storage protection, SDK evidence, and failure behavior.
 - Security: warn never to enter or reuse a real-funds recovery phrase. Keep recovery material out of game callbacks, logs, analytics, demo event history, and verification captures. Account creation does not imply funding or network availability.
 
 ### A3. Restore an account from this experience

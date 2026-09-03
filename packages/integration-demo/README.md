@@ -2,7 +2,9 @@
 
 Admin UI is a dark, lean navigator of implemented BIS demonstrations. Categories with no implemented stories are hidden. Initially nothing is selected and Runtime Preview UI is empty.
 
-Choose **Account / Account Button**, then click the centered production **Account** button. Create Account and Restore Account are disabled. Back restores Account; Reset Client recreates the session, clears selection, and leaves runtime content empty. The story action is disabled while Account is open. Reset preserves persisted data.
+Choose **Account / Account Button** for entry or **Account / Create Account** to open the production dialogue directly. Create Account generates a real Signet identity, displays the private recovery phrase, and saves/activates only on Continue. Saved accounts survive reload and browser restart; the admin selection does not. The minimal logged-in dialogue contains disabled Log Out and Back. Restore and functional logout remain unavailable.
+
+Reset Client clears BIS account storage and transient state, recreates the session, clears selection, and leaves runtime content empty. It remains enabled for a saved account even without a selected story. Real deletion-based reset checks must be completed manually under the repository database rule; reset lifecycle tests use isolated in-memory doubles.
 
 - `src/admin`: explicit story catalog and Admin UI controls.
 - `src/preview`: a single 9:16 host container; no simulated game menus.

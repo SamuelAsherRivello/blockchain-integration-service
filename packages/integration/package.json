@@ -26,6 +26,7 @@
     "react-dom": "^19.2.8"
   },
   "dependencies": {
-    "@arkade-os/sdk": "0.4.67"
+    "@arkade-os/sdk": "0.4.67",
+    "@scure/bip39": "2.0.1"
   }
 }

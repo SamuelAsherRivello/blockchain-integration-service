@@ -9,7 +9,7 @@
 - Track planning files under `.openspec/`, with an ignored local `openspec` compatibility link for the stock CLI.
 - Grill Me is optional and user-invoked before or after proposal creation. It is not a schema prerequisite; retain `spec-driven`.
 - Approved: one integration package under `packages/integration`, with `core`, `ui`, and `arkade` internals; one consuming app under `packages/integration-demo`, with `admin` and `preview` folders.
-- Initial baseline was a coming-soon Account overlay. The current account-entry implementation and public contract are described below; no Arkade integration yet.
+- Initial baseline was a coming-soon Account overlay. The current account-entry implementation and public contract are described below; A2 now adds real Signet creation and encrypted account persistence, pending manual reset verification.
 - GitHub Pages publishes the demo app. Local development uses the React development server when needed.
 
 ## Questions for iteration
@@ -32,10 +32,18 @@ These questions and recommendations are not approved design decisions. The next 
 - Production factories: `createBisContext()`, `createBisAdminContext(context)`, `createBisUi(context)`. UI exposes `mount(container)`, `showAccountButton()`, and `unmount()`; context exposes opening/closing, immutable state, subscriptions, and disposal.
 - Runtime Preview UI consumes production API only. Admin UI consumes production state first and uses admin context only for transient reset. No private imports or security bypasses.
 - Demo styles own the dark surrounding page/frame; integration styles own light centered production content. Hosts choose the mount container; future multi-container layouts are deferred.
-- Admin shows implemented demonstrations and nonempty categories only. Initial selection is empty. Reset recreates clients, clears selected story, preserves persisted data, and leaves runtime content empty.
-- A1 is complete: Account button > Account dialogue > Back, without a profile. A2 owns creation, A3 restoration, and A4 active-profile opening. Keep each story small enough to complete fully, then try it together and refine with hands-on feedback.
+- Admin shows implemented demonstrations and nonempty categories only. Initial selection is empty. Reset recreates clients, clears selected story and BIS-owned persisted account material, and leaves runtime content empty. This supersedes the A1 preserve-storage behavior; live reset verification remains manual.
+- A1 is complete: Account button > Account dialogue > Back. A2 owns creation and the minimal active Account dialogue; A3 owns restoration, A4 the full account menu, and A6 functional logout. Keep each story small enough to complete fully, then try it together and refine with hands-on feedback.
 - New features must include an Admin UI demonstration and synchronized, accurate user-story documentation.
 
 
 
 
+
+## A2 confirmed behavior and implementation status
+
+- Create Account is enabled when logged out. Recovery display is immediate; optional external saving does not block Continue. Only Continue commits and activates the account.
+- The real host and Runtime Preview use identical production persistence. Completed accounts survive refresh/browser restart on the same origin/browser profile. Interrupted creation restarts from the beginning.
+- Active Account shows "You are now logged in.", disabled Log Out, and Back, with Create/Restore hidden. Admin Reset Client provides the first-run reset until A6 exists.
+- Refresh clears admin selection and leaves the viewport empty; selecting A2 recognizes a saved account. Story IDs do not dictate development order.
+- SDK creation, reload/restart persistence, and plain-host parity have been verified. Manual real-storage reset checks remain before A2 is reported complete.

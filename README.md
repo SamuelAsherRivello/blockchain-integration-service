@@ -10,7 +10,7 @@
 
 Current release: **v0.10.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
 
-In the current local implementation, select Account / Account Button in Admin UI, then click the production Account button. Back returns to the button; Reset Client clears selection and runtime content. Create/Restore, payments, and achievements remain unavailable. The deployed release may lag the local checkout.
+In the current local implementation, Account / Account Button demonstrates entry and Account / Create Account opens the real Signet creation flow. Continue remembers the new account across refreshes and browser restarts. The logged-in dialogue shows disabled Log Out and working Back. Reset Client is implemented as a first-run reset; its real stored-data check remains manual. Restore, working logout, the full account menu, payments, and achievements remain unavailable. The deployed release may lag the local checkout.
 
 ## Table of Contents
 
@@ -56,7 +56,7 @@ Signet-only, Arkade-only integration with no custom application server. The sepa
 
 ### Configuration
 
-React 19.2.8 + TypeScript, npm workspaces, and Vite. React was verified against the npm latest tag when this slice was created. The official Arkade SDK (`@arkade-os/sdk` 0.4.67) is installed in `packages/integration` but not initialized. No wallet or network operations run.
+React 19.2.8 + TypeScript, npm workspaces, and Vite. React was verified against the npm latest tag when this slice was created. The official Arkade SDK (`@arkade-os/sdk` 0.4.67) creates genuine Signet wallets in `packages/integration`. The integration owns encrypted browser persistence; recovery material never enters public state or events. No payments or funding run.
 
 ### Dependencies
 

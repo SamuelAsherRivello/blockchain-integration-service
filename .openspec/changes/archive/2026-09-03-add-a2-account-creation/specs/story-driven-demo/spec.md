@@ -1,24 +1,4 @@
-# story-driven-demo Specification
-
-## Purpose
-
-Keep the demo a lean, truthful navigator of available integration demonstrations with explicit production boundaries and synchronized story documentation.
-
-## Requirements
-
-### Requirement: Demo identification and preview framing
-The demo SHALL display "Blockchain Integration Service - Demo" in its header, a version prefixed with "v", and a GitHub icon linking to the repository. The panels SHALL be labeled "Admin" and "Runtime Preview" with matching heading typography. An empty preview SHALL show a centered demo-owned "Game Viewport" placeholder, hidden when production content is rendered.
-
-#### Scenario: Empty preview identification
-- **WHEN** the demo starts or Reset Client clears runtime content
-- **THEN** the Game Viewport placeholder is visible and no production Account button is shown
-
-### Requirement: Preview content scale
-The demo SHALL offer 100%, 50%, and 25% content scale beside the 9:16 indicator, defaulting to 50%. Scaling SHALL keep the outer frame fixed, give the production mount region inversely proportional layout dimensions, and scale the DOM presentation to fit. It SHALL NOT require production styling changes or remount/reset the current account flow.
-
-#### Scenario: Change scale with dialogue open
-- **WHEN** a user changes the preview scale while the Account dialogue is open
-- **THEN** the dialogue remains open and centered, its content scales, and its enabled controls remain interactive
+## MODIFIED Requirements
 
 ### Requirement: Implemented demonstrations only
 The Admin UI SHALL show only implemented demonstrations and categories containing at least one such demonstration. It SHALL start without a selected story, including after refresh. This slice SHALL expose Account / Account Button and Account / Create Account after A2 is implemented, and omit Pay-to-play and Achievements.
@@ -59,13 +39,6 @@ Reset Client SHALL clear transient state and integration-owned persisted account
 - **WHEN** there is no selection, pending operation, or persisted account state after hydration
 - **THEN** Reset Client is disabled
 
-### Requirement: Visually distinct package-owned styles
-Demo-owned page/navigation/frame styling SHALL remain dark. Production integration content SHALL use an independently owned light visual design. Demo styling SHALL NOT override production component styling.
-
-#### Scenario: Independent host
-- **WHEN** the production UI is mounted in a plain host without demo CSS
-- **THEN** its typography, colors, sizing, and behavior remain usable and visually consistent
-
 ### Requirement: User stories remain truthful
 User-story documentation SHALL retain stable story and step IDs and distinguish complete, partial, and planned behavior. Every new runtime feature SHALL include an Admin demonstration and synchronized documentation before completion is reported. A1 SHALL document entry, A2 creation and the minimal active dialogue, A4 the full active-account menu, and A6 functional logout. Story numbering SHALL NOT mandate development order.
 
@@ -78,4 +51,3 @@ User-story documentation SHALL retain stable story and step IDs and distinguish 
 - **WHEN** the completed A1 slice is described alongside A2
 - **THEN** documentation maps A1 to Account Button and explains its entry path
 - **AND** it distinguishes A2 creation from still-planned restoration and the full active-profile menu
-

@@ -1,11 +1,15 @@
+/* Demo chrome owns its scrollbar defaults; production UI owns its own styles. */
+html, body, .demo-app, .demo-app *:not(.runtime-container *) { scrollbar-width: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar, .demo-app::-webkit-scrollbar,
+.demo-app *:not(.runtime-container *)::-webkit-scrollbar { display: none; }
 body { margin: 0; background: #11151c; }
 .demo-app { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #eef1f6; font-synthesis: none; -webkit-font-smoothing: antialiased; }
-.app-header { box-sizing: border-box; height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 36px; border-bottom: 1px solid #2b303a; background: #151a22; gap: 20px; }
+.app-header { box-sizing: border-box; height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 0 36px; border-bottom: 1px solid #2b303a; background: #151a22; gap: 20px; }
 .identity { display: flex; align-items: center; gap: 13px; font-size: 14px; font-weight: 600; }
 .brand-mark { display: grid; place-items: center; width: 31px; height: 31px; background: #a9d9c3; color: #19362a; border-radius: 8px; font-size: 24px; }
 .version-tag { font-size: 10px; color: #8795a8; white-space: nowrap; }
-.workspace { min-height: calc(100svh - 76px); display: grid; grid-template-columns: minmax(260px, 32%) minmax(0, 1fr); }
-.admin-panel { padding: 36px 28px; border-right: 1px solid #2b303a; background: #171c25; display: flex; flex-direction: column; gap: 30px; }
+.workspace { min-height: calc(100svh - 50px); display: grid; grid-template-columns: minmax(260px, 32%) minmax(0, 1fr); }
+.admin-panel { padding: 16px 28px; border-right: 1px solid #2b303a; background: #171c25; display: flex; flex-direction: column; gap: 30px; }
 .demo-app .panel-title { font-size: 22px; font-weight: 500; letter-spacing: -.03em; margin: 0; }
 .category-title { font-size: 12px; color: #a9b6c7; font-weight: 500; margin: 0 0 12px; }
 .admin-section-title { font-size: 16px; color: #dce5ef; font-weight: 500; margin: 0 0 16px; }
@@ -22,18 +26,18 @@ body { margin: 0; background: #11151c; }
 .reset-button:disabled { opacity: .35; cursor: not-allowed; }
 .story-button:hover:not(:disabled), .reset-button:hover:not(:disabled) { border-color: #a9d9c3; }
 .story-button:focus-visible, .reset-button:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 4px; }
-.preview-panel { padding: 27px 36px; min-width: 0; }
-.preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.preview-controls { display: flex; align-items: center; gap: 8px; }
+.preview-panel { padding: 16px 36px; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; }
+.preview-heading { grid-area: 1 / 1; align-self: start; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; pointer-events: none; }
+.preview-controls { pointer-events: auto; position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; }
 .preview-scale { font: inherit; font-size: 12px; color: #dce5ef; background: #1e2632; border: 1px solid #394657; border-radius: 5px; padding: 5px 8px; cursor: pointer; color-scheme: dark; }
 .preview-scale:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 3px; }
 .runtime-scale-layer { position: absolute; top: 0; left: 0; transform-origin: top left; }
 
 .aspect-tag { color: #9aa9bd; border: 1px solid #303a49; border-radius: 5px; padding: 5px 9px; font-size: 10px; }
-.preview-stage { display: flex; justify-content: center; padding-top: 24px; }
-.game-viewport { position: relative; aspect-ratio: 9 / 16; width: min(100%, 390px, calc((100svh - 190px) * .5625)); isolation: isolate; background-color: #19222c; background-image: linear-gradient(#29354440 1px, transparent 1px), linear-gradient(90deg, #29354440 1px, transparent 1px); background-size: 32px 32px; border: 1px solid #394657; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 64px #0004; }
+.preview-stage { grid-area: 1 / 1; align-self: start; display: flex; justify-content: center; }
+.game-viewport { position: relative; aspect-ratio: 9 / 16; width: min(100%, 390px, calc((100svh - 130px) * .5625)); isolation: isolate; background-color: #19222c; background-image: linear-gradient(#29354440 1px, transparent 1px), linear-gradient(90deg, #29354440 1px, transparent 1px); background-size: 32px 32px; border: 1px solid #394657; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 64px #0004; }
 .runtime-container { position: absolute; inset: 0; }
-@media (max-width: 700px) { .app-header { height: 64px; padding: 0 18px; } .identity { font-size: 12px; gap: 9px; } .version-tag { display: none; } .workspace { grid-template-columns: 1fr; } .admin-panel { padding: 24px; gap: 20px; border-right: 0; border-bottom: 1px solid #2b303a; } .reset-button { margin-top: 0; } .preview-panel { padding: 24px; } .game-viewport { width: min(100%, 360px); } }
+@media (max-width: 700px) { .app-header { height: 50px; padding: 0 18px; } .identity { font-size: 12px; gap: 9px; } .version-tag { display: none; } .workspace { grid-template-columns: 1fr; } .admin-panel { padding: 16px 24px; gap: 20px; border-right: 0; border-bottom: 1px solid #2b303a; } .reset-button { margin-top: 0; } .preview-panel { padding: 16px 24px; } .game-viewport { width: min(100%, 360px); } }
 
 .game-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px; justify-content: center; align-items: center; color: #78899e; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; pointer-events: none; }
 .game-placeholder span { font-size: 30px; font-weight: 200; color: #56677d; line-height: 1; }
@@ -44,4 +48,7 @@ body { margin: 0; background: #11151c; }
 .github-link { display: inline-flex; color: #aab8ca; padding: 4px; border-radius: 4px; }
 .github-link:hover { color: #eef1f6; }
 .github-link:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 3px; }
-@media (max-width: 700px) { .app-header { height: auto; min-height: 64px; flex-wrap: wrap; padding-top: 12px; padding-bottom: 12px; gap: 10px; } }
+@media (max-width: 700px) { .app-header { height: auto; min-height: 50px; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; gap: 10px; } }
+
+/* Stack the heading on small screens where the three items cannot fit side by side. */
+@media (max-width: 700px) { .preview-heading { grid-area: auto; } .preview-stage { grid-area: auto; padding-top: 12px; } }

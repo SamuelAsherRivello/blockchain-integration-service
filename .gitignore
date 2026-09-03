@@ -4,3 +4,6 @@
 node_modules/
 dist/
 /openspec
+
+.playwright-cli/
+output/playwright/

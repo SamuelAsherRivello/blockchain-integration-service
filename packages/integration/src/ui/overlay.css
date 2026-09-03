@@ -1,5 +1,7 @@
 .bis-layer { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; pointer-events: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #182d39; color-scheme: light; line-height: 1.5; }
-.bis-layer, .bis-layer * { box-sizing: border-box; }
+/* Keep overflowing production UI scrollable without visible scrollbars. */
+.bis-layer, .bis-layer * { box-sizing: border-box; scrollbar-width: none; }
+.bis-layer::-webkit-scrollbar, .bis-layer *::-webkit-scrollbar { display: none; }
 .bis-layer-open { pointer-events: auto; background: #14233044; }
 .bis-button { pointer-events: auto; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.4; width: fit-content; max-width: 100%; padding: 12px 20px; border: 1px solid #c8d7dc; border-radius: 12px; background: #f6fafb; color: #294650; cursor: pointer; }
 .bis-primary { background: #f5fffc; color: #175a4c; border-color: #b5d9ce; box-shadow: 0 8px 32px #0003; }
@@ -7,8 +9,20 @@
 .bis-button:disabled { color: #72858c; background: #edf2f3; cursor: not-allowed; }
 .bis-primary:disabled { color: #285e50; background: #c1e5d8; border-color: #87bba8; box-shadow: none; }
 .bis-button:focus-visible { outline: 3px solid #30977f; outline-offset: 4px; }
-.bis-card { width: min(100%, 320px); max-height: 100%; overflow: clip; text-align: center; padding: 28px 20px 20px; border-radius: 22px; border: 1px solid #fff; background: #f8fbfc; box-shadow: 0 20px 55px #0004; }
+.bis-card { width: min(100%, 320px); max-height: 100%; overflow: auto; text-align: center; padding: 28px 20px 20px; border-radius: 22px; border: 1px solid #fff; background: #f8fbfc; box-shadow: 0 20px 55px #0004; }
 .bis-card h2 { margin: 0 0 10px; font: inherit; font-size: 24px; font-weight: 650; letter-spacing: -.04em; }
 .bis-actions { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .bis-actions .bis-button { width: 100%; }
 .bis-card p { margin: 0 0 24px; font-size: 12px; line-height: 1.6; color: #667a84; }
+
+.bis-card h2:focus { outline: none; }
+.bis-card .bis-warning { font-size: 11px; color: #785317; background: #fff4d9; border: 1px solid #ecd7a7; border-radius: 10px; padding: 10px; margin-bottom: 14px; }
+.bis-recovery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; list-style: none; padding: 0; margin: 0 0 18px; text-align: left; }
+.bis-recovery li { background: #e9f1ef; border: 1px solid #d7e5df; padding: 6px 8px; border-radius: 7px; font-size: 12px; }
+.bis-recovery li span { color: #667a84; font-size: 10px; }
+.bis-progress { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 18px; font-size: 12px; }
+.bis-lightning { display: inline-block; font-size: 28px; animation: bis-turn 1.5s ease-in-out infinite; }
+@keyframes bis-turn { 0% { transform: rotate(0deg); } 65%, 100% { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .bis-lightning { animation: none; } }
+
+.bis-copy-status { font-size: 12px; color: #526b74; }

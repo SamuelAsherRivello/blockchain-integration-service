@@ -3,8 +3,8 @@ context: |
   Repository: blockchain-integration-service.
   Source baseline: documentation/BGS_PROJECT_BRIEF.md. Later decisions: documentation/design-discussion.md.
   Approved structure: packages/integration (core, ui, arkade) and packages/integration-demo (admin, preview).
-  Current implementation scope: split-screen React demo with Account / Feature coming soon / OK.
-  Arkade SDK installed but not initialized; no wallet operations in the initial slice; broader contracts remain in planning.
+  Current implementation: A1 entry and A2 creation, recovery, encrypted persistence, minimal active Account, and demo first-run reset; manual reset verification pending.
+  Arkade SDK creates real Signet identities with transient repositories. A3 restoration, full A4 menu, and A6 logout remain planned.
   React + TypeScript. Game is a separate repository.
   Signet only. Arkade SDK only for v1. No custom application server.
   No simulated transaction outcomes; the harness may simulate game events only.
