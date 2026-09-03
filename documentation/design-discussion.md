@@ -3,9 +3,11 @@
 ## Confirmed decisions
 
 - Repository name: blockchain-integration-service (user decision, 2026-09-03).
-- Source baseline: BGS_PROJECT_BRIEF.md, imported from the supplied Google Doc.
+- Source baseline: documentation/BGS_PROJECT_BRIEF.md, imported from the supplied Google Doc.
 - Use OpenSpec and settle naming, folder structure, and integration contracts before implementation.
 - Preserve the brief's separate game repository and frontend/core/Arkade responsibilities.
+- Track planning files under `.openspec/`, with an ignored local `openspec` compatibility link for the stock CLI.
+- Grill Me is optional and user-invoked before or after proposal creation. It is not a schema prerequisite; retain `spec-driven`.
 
 ## Questions for iteration
 

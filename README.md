@@ -22,7 +22,7 @@ Planning placeholder only; wallet, payment, and achievement features are not imp
 
 ## Getting Started
 
-Read the [project brief](BGS_PROJECT_BRIEF.md) and [design discussion](docs/design-discussion.md). Open `site/index.html` to preview the WIP page. No application dependencies are installed yet.
+Read the [project brief](documentation/BGS_PROJECT_BRIEF.md) and [design discussion](documentation/design-discussion.md). Open `site/index.html` to preview the WIP page. No application dependencies are installed yet.
 
 ### Release Workflow
 
@@ -44,8 +44,8 @@ Signet-only, Arkade-only integration with no custom application server. The sepa
 
 ### Documentation
 
-- [Brief](BGS_PROJECT_BRIEF.md): original BGS design baseline.
-- [Design discussion](docs/design-discussion.md): pending architecture and naming decisions.
+- [Brief](documentation/BGS_PROJECT_BRIEF.md): original BGS design baseline.
+- [Design discussion](documentation/design-discussion.md): pending architecture and naming decisions.
 
 ### Configuration
 
@@ -53,13 +53,17 @@ Planned: React + TypeScript. Application tooling and package boundaries remain W
 
 ### Structure
 
-`openspec/` holds specification configuration, `.agents/skills/` holds OpenSpec workflows, and `site/` holds the temporary Pages site. Application structure is undecided.
+`.openspec/` holds specification configuration, `.agents/skills/` holds OpenSpec workflows, and `site/` holds the temporary Pages site. Application structure is undecided.
 
 ## Project Details
 
 ### OpenSpec
 
 All core and optional workflows from [OpenSpec profiles](https://openspec.dev/docs/profiles) are installed as Codex skills. Invoke with `$openspec-...`.
+
+With OpenSpec CLI installed, run `./scripts/setup-openspec.ps1` using PowerShell 7 after checkout. It creates an ignored local `openspec` compatibility link to `.openspec/`, because OpenSpec 1.11 expects the original directory name. Files are tracked only under `.openspec/`; the link is recreated on each machine. Run CLI commands from the repository root.
+
+[Grill Me](.agents/skills/open-spec-grill-me/SKILL.md) is optional and user-invoked with `$open-spec-grill-me`. Use it before a proposal to clarify the idea, or afterward to refine planning artifacts. It is not a schema prerequisite and never starts implementation.
 
 | # | Name | Skill | Comment |
 | --- | --- | --- | --- |
@@ -83,7 +87,7 @@ If publishing fails, inspect the Actions run. Pages source must be **GitHub Acti
 ## Resources
 
 - [OpenSpec](https://openspec.dev/)
-- [Source brief](BGS_PROJECT_BRIEF.md)
+- [Source brief](documentation/BGS_PROJECT_BRIEF.md)
 
 ## Credits
 
