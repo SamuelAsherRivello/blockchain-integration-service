@@ -1,6 +1,6 @@
 # Integration package
 
-Reusable runtime integration consumed by host applications, including `apps/demo`.
+Reusable runtime integration consumed by host applications, including `packages/integration-demo`.
 
 - `src/ui`: production React overlays.
 - `src/core`: future workflows, state, and events.

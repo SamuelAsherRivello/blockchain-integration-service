@@ -23,14 +23,21 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Verify WIP site
-        run: test -s site/index.html
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Check types and build integration and demo
+        run: npm run build
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Upload WIP site
+      - name: Upload demo
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: packages/integration-demo/dist
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

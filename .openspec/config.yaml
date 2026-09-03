@@ -2,7 +2,9 @@ schema: spec-driven
 context: |
   Repository: blockchain-integration-service.
   Source baseline: documentation/BGS_PROJECT_BRIEF.md. Later decisions: documentation/design-discussion.md.
-  Planning phase: settle folder structure, names, and integration points before implementation.
+  Approved structure: packages/integration (core, ui, arkade) and packages/integration-demo (admin, preview).
+  Current implementation scope: split-screen React demo with Account / Feature coming soon / OK.
+  No Arkade SDK or wallet operations in the initial slice; broader contracts remain in planning.
   React + TypeScript. Game is a separate repository.
   Signet only. Arkade SDK only for v1. No custom application server.
   No simulated transaction outcomes; the harness may simulate game events only.

@@ -1,0 +1,16 @@
+{
+  "name": "@bis/integration-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@bis/integration": "0.0.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}

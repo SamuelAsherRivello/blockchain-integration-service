@@ -2,13 +2,13 @@
 
 # Blockchain Integration Service
 
-**WIP** — reusable BTC Lightning integration for browser games. Architecture and naming are being refined before implementation.
+**WIP** — reusable BTC Lightning integration for browser games. The first React demo provides a split-screen admin and portrait runtime preview.
 
 ## Live Demo
 
-[View the WIP site](https://samuelasherrivello.github.io/blockchain-integration-service/)
+[Open the demo](https://samuelasherrivello.github.io/blockchain-integration-service/)
 
-Planning placeholder only; wallet, payment, and achievement features are not implemented.
+Select ⚡ Account in the 9:16 preview, then dismiss “Feature coming soon” with OK. Wallet, payment, and achievement features are not implemented.
 
 ## Table of Contents
 
@@ -22,12 +22,12 @@ Planning placeholder only; wallet, payment, and achievement features are not imp
 
 ## Getting Started
 
-Read the [project brief](documentation/BGS_PROJECT_BRIEF.md) and [design discussion](documentation/design-discussion.md). Open `site/index.html` to preview the WIP page. No application dependencies are installed yet.
+Read the [project brief](documentation/BGS_PROJECT_BRIEF.md) and [design discussion](documentation/design-discussion.md). With Node.js 24 or newer installed, run `npm ci`, then `npm run dev`. Open the printed localhost URL. The host HTML is `packages/integration-demo/index.html`; serve it through Vite rather than opening the source as a file URL.
 
 ### Release Workflow
 
-1. Review the documentation and WIP page.
-2. Commit and push to `main`; **Deploy live demo** publishes `site/` through GitHub Actions.
+1. Run `npm ci` and `npm run build` to check types and build both workspaces.
+2. Commit and push to `main`; **Deploy live demo** builds the integration package and publishes `packages/integration-demo/dist/` through GitHub Actions.
 3. Check the [workflow](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml) and live site. Manual redeployment is also available.
 
 ### More Commands
@@ -36,7 +36,10 @@ Read the [project brief](documentation/BGS_PROJECT_BRIEF.md) and [design discuss
 | --- | --- | --- | --- |
 | 1 | Changes | `openspec list` | List active changes. |
 | 2 | Specs | `openspec list --specs` | List agreed specifications. |
-| 3 | Setup | `./scripts/setup-openspec.ps1` | Install all workflows locally. |
+| 3 | Setup | `./.openspec/setup.ps1` | Install all workflows locally. |
+| 4 | Dev | `npm run dev` | Run the local React demo. |
+| 5 | Build | `npm run build` | Check types and build both workspaces. |
+| 6 | Preview | `npm run preview` | Serve the production demo locally. |
 
 ## Project Overview
 
@@ -49,11 +52,17 @@ Signet-only, Arkade-only integration with no custom application server. The sepa
 
 ### Configuration
 
-Planned: React + TypeScript. Application tooling and package boundaries remain WIP.
+React 19.2.8 + TypeScript, npm workspaces, and Vite. React was verified against the npm latest tag when this slice was created. No Arkade SDK is installed.
 
 ### Structure
 
-`.openspec/` holds specification configuration, `.agents/skills/` holds OpenSpec workflows, and `site/` holds the temporary Pages site. Application structure is undecided.
+- `packages/integration/src/`: public entry point, production UI, and reserved core/Arkade boundaries.
+- `packages/integration-demo/src/`: admin panel, portrait preview, and split-screen composition.
+- `documentation/`: brief and decisions.
+- `.openspec/`: specification configuration.
+- `.agents/skills/`: OpenSpec workflows.
+
+The demo imports the integration package through its public exports. The runtime UI does not depend on the demo. On narrow screens, the admin and preview stack vertically.
 
 ## Project Details
 
@@ -61,7 +70,7 @@ Planned: React + TypeScript. Application tooling and package boundaries remain W
 
 All core and optional workflows from [OpenSpec profiles](https://openspec.dev/docs/profiles) are installed as Codex skills. Invoke with `$openspec-...`.
 
-With OpenSpec CLI installed, run `./scripts/setup-openspec.ps1` using PowerShell 7 after checkout. It creates an ignored local `openspec` compatibility link to `.openspec/`, because OpenSpec 1.11 expects the original directory name. Files are tracked only under `.openspec/`; the link is recreated on each machine. Run CLI commands from the repository root.
+With OpenSpec CLI installed, run `./.openspec/setup.ps1` using PowerShell 7 after checkout. It creates an ignored local `openspec` compatibility link to `.openspec/`, because OpenSpec 1.11 expects the original directory name. Files are tracked only under `.openspec/`; the link is recreated on each machine. Run CLI commands from the repository root.
 
 [Grill Me](.agents/skills/open-spec-grill-me/SKILL.md) is optional and user-invoked with `$open-spec-grill-me`. Use it before a proposal to clarify the idea, or afterward to refine planning artifacts. It is not a schema prerequisite and never starts implementation.
 
@@ -82,7 +91,7 @@ With OpenSpec CLI installed, run `./scripts/setup-openspec.ps1` using PowerShell
 
 ## Troubleshooting
 
-If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. Wallet and game controls are not available during this planning phase.
+If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. Only the Account coming-soon prompt is available in this initial slice. If the local port is busy, use the URL printed by Vite.
 
 ## Resources
 
@@ -93,9 +102,17 @@ If publishing fails, inspect the Actions run. Pages source must be **GitHub Acti
 
 ### Created By
 
-[Samuel Asher Rivello](https://github.com/SamuelAsherRivello)
+- Samuel Asher Rivello
+- Over 25 years of game development experience as of 2026
 
 ### Contact
 
-[Portfolio](https://www.SamuelAsherRivello.com)
+- Twitter: <https://twitter.com/srivello/>
+- Git: <https://github.com/SamuelAsherRivello/>
+- Resume and portfolio: <http://www.SamuelAsherRivello.com>
+- LinkedIn: <https://Linkedin.com/in/SamuelAsherRivello>
 
+### License
+
+Provided as-is under the MIT License.
+Copyright © 2026 Rivello Multimedia Consulting, LLC.

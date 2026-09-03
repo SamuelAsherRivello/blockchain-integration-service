@@ -1,0 +1,21 @@
+{
+  "name": "blockchain-integration-service",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @bis/integration-demo",
+    "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-demo",
+    "typecheck": "tsc --noEmit",
+    "preview": "npm run preview --workspace @bis/integration-demo"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
+  }
+}

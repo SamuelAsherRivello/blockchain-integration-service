@@ -3,7 +3,7 @@
 ## OpenSpec directory
 
 - The canonical, tracked planning directory is `.openspec/`.
-- Run `./scripts/setup-openspec.ps1` with PowerShell 7 before using OpenSpec on a fresh checkout. OpenSpec CLI must already be installed.
+- Run `./.openspec/setup.ps1` with PowerShell 7 before using OpenSpec on a fresh checkout. OpenSpec CLI must already be installed.
 - The setup script creates an ignored local `openspec` junction on Windows or symbolic link on other systems, pointing to `.openspec/` for stock CLI compatibility.
 - Run OpenSpec commands from the repository root. CLI-reported `openspec/...` paths refer to the same files as `.openspec/...`.
 - Make edits and stage planning files through `.openspec/`. Never force-add the compatibility link or create a second planning directory.
@@ -21,4 +21,5 @@
 ## Project scope
 
 - Follow `documentation/BGS_PROJECT_BRIEF.md` and later confirmed decisions in `documentation/design-discussion.md`.
-- Application architecture, folder structure, and integration contracts remain in planning.
+- Approved structure: `packages/integration` owns runtime UI and future core/Arkade layers; `packages/integration-demo` consumes its public API and owns admin/preview composition.
+- Current slice: React split-screen demo, 9:16 preview, and an Account button opening a coming-soon dialog. No Arkade or wallet operations yet.

@@ -8,12 +8,15 @@
 - Preserve the brief's separate game repository and frontend/core/Arkade responsibilities.
 - Track planning files under `.openspec/`, with an ignored local `openspec` compatibility link for the stock CLI.
 - Grill Me is optional and user-invoked before or after proposal creation. It is not a schema prerequisite; retain `spec-driven`.
+- Approved: one integration package under `packages/integration`, with `core`, `ui`, and `arkade` internals; one consuming app under `packages/integration-demo`, with `admin` and `preview` folders.
+- Initial demo: admin on the left, 9:16 host preview on the right, production Account overlay. Account opens "Feature coming soon" with an OK button. No Arkade integration yet.
+- GitHub Pages publishes the demo app. Local development uses the React development server when needed.
 
 ## Questions for iteration
 
 1. Retain Blockchain Gaming Services / BGS as product and API names, or align with Blockchain Integration Service?
-2. One distributed library with internal layers or multiple packages? Initial recommendation: one package with explicit internal boundaries.
-3. Where should source, harness, tests, and docs live? Decide after package boundaries.
+2. Resolved: one integration package with explicit internal layers, consumed by the demo app.
+3. Resolved: source under packages/integration/src and packages/integration-demo/src; docs under documentation. Test organization can grow with behavior.
 4. Who mounts the React overlay and owns its container, styling, focus, resizing, and disposal?
 5. Define initialization, availability, account lifecycle, request methods, events, and subscription cleanup.
 6. When is connected mode fixed for a run? What happens after logout or account change?

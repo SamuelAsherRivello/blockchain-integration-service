@@ -1,0 +1,12 @@
+.bis-overlay { position: absolute; inset: 0; pointer-events: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #f4f6fb; }
+.bis-overlay:has(dialog[open])::before { content: ''; position: absolute; inset: 0; background: #050810a6; backdrop-filter: blur(3px); }
+.bis-account, .bis-ok { pointer-events: auto; font: inherit; font-size: 13px; font-weight: 600; border-radius: 9px; cursor: pointer; }
+.bis-account { position: absolute; top: 18px; right: 18px; padding: 11px 16px; color: #f4f6fb; background: #202937; border: 1px solid #3c4859; box-shadow: 0 3px 12px #0003; }
+.bis-account:hover { background: #2c384a; }
+.bis-account span { color: #efd18a; margin-right: 4px; }
+.bis-dialog { box-sizing: border-box; position: fixed; margin: 0; transform: translate(-50%, -50%); padding: 28px 24px 22px; color: #f4f6fb; background: #1c2533; border: 1px solid #435063; border-radius: 15px; box-shadow: 0 24px 64px #0008; pointer-events: auto; text-align: center; }
+.bis-dialog::backdrop { background: transparent; }
+.bis-dialog h2 { margin: 0 0 26px; font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+.bis-ok { width: 100%; padding: 11px; color: #17221f; background: #a9d9c3; border: 1px solid #b8ead3; }
+.bis-ok:hover { background: #c0e8d7; }
+.bis-account:focus-visible, .bis-ok:focus-visible { outline: 2px solid #f3d48c; outline-offset: 4px; }
