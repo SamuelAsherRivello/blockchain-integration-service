@@ -85,7 +85,7 @@ function BisScreen({ context }: { context: BisContext }) {
   const failure = state.error || (!assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
   usePendingNotice(state.view !== 'empty' && (busy || pageLoading || recoveryLoading), phaseLabels[state.phase] ?? 'Loading...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
   if (state.view === 'empty') return null;
-  const title = assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Account Transfer' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Recovery Phrase' : activity ? 'Transactions' : details ? 'Account Details' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Account Recovery' : state.phase === 'creating' ? 'Create Account' : 'Account';
+  const title = assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Account Transfer' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Recovery Phrase' : activity ? 'Transactions' : details ? 'Balance' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Account Recovery' : state.phase === 'creating' ? 'Create Account' : 'Account';
   return <div className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
       <section className={`bis-card${assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}`} role="dialog" aria-labelledby={titleId} aria-describedby={descriptionId}>
@@ -121,7 +121,7 @@ function BisScreen({ context }: { context: BisContext }) {
         </div>}
         {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <ol className="bis-recovery" aria-label="Private recovery phrase">{getControls(context).recovery()?.trim().split(/\s+/).map((word,index)=><li key={index}><span aria-hidden="true">{index+1}.</span> <span className="bis-recovery-word">{savedRecovery && !showSavedRecovery ? '*'.repeat(word.length) : word}</span></li>)}</ol>}
         {assets || transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : <div className="bis-actions">
-          {menu && <button className="bis-button" onClick={()=>context.openAccountDetails()}>Account Details</button>}
+          {menu && <button className="bis-button" onClick={()=>context.openAccountDetails()}>Balance</button>}
           {menu && <button className="bis-button" onClick={()=>context.openAccountActivity()}>Transactions</button>}
           {menu && <button className="bis-button" onClick={()=>context.openAccountAssets()}>Assets</button>}
           {details && <button className="bis-button" onClick={()=>context.openAccountRecovery()}>Recovery Phrase</button>}
