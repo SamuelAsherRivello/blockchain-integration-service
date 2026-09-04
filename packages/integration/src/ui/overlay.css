@@ -107,8 +107,8 @@
 .bis-recovery-details .bis-copy-field-heading { margin-top: 10px; }
 .bis-recovery-details textarea { box-sizing: border-box; overflow-wrap: anywhere; white-space: pre-wrap; height: 240px; }
 
-.bis-transfer-actions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 6px; width: calc(100% + 16px); }
-.bis-transfer-actions .bis-button { min-width: 0; padding-inline: 6px; white-space: nowrap; }
+.bis-transfer-actions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 6px; width: 100%; }
+.bis-transfer-actions .bis-button { min-width: 0; padding-inline: 2px; white-space: nowrap; }
 
 .bis-balance-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .bis-balance-columns .bis-address-row { min-width: 0; align-content: start; }
