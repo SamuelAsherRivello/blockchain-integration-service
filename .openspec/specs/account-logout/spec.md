@@ -42,12 +42,12 @@ Confirmed logout SHALL clear only integration-owned remembered account material 
 - **AND** Back and ordinary navigation remain available
 
 ### Requirement: Truthful failure and retry
-While logout is pending the UI SHALL prevent duplicate submission and cancellation of that operation. If clearing fails or cannot be confirmed, it SHALL retain the dialogue, explain the failure without exposing secrets, and offer Retry. It SHALL NOT claim success or emit a successful-disconnection event before confirmed clearing. Retry SHALL retry the acknowledged logout without opening recovery UI. An unchecked acknowledgement SHALL prevent a further destructive submission.
+While logout is pending the Pending Operation Dialog SHALL show Logging out... and prevent duplicate submission and cancellation of that operation. If clearing fails or cannot be confirmed, it SHALL show the failure without exposing secrets and offer only OK in the Pending Operation Dialog. It SHALL NOT claim success or emit a successful-disconnection event before confirmed clearing. OK SHALL close the dialog and the failed logout page, reconcile the account state, and require a fresh confirmation before another cleanup attempt. An unchecked acknowledgement SHALL prevent a further destructive submission.
 
 #### Scenario: Clearing fails
 - **WHEN** clearing rejects or completion cannot be verified
-- **THEN** the player sees the error and Retry in the same dialogue, with no success claim
-- **AND** a successful retry completes the normal logged-out destination
+- **THEN** the player sees the error and OK in the operation dialog, with no success claim
+- **AND** OK leaves the failed confirmation and a separately confirmed successful operation completes the normal logged-out destination
 
 #### Scenario: Repeated submission
 - **WHEN** the player submits again while logout is pending

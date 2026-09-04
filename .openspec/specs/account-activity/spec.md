@@ -6,17 +6,21 @@ Allow players and host applications to inspect and copy all Signet transaction h
 ## Requirements
 
 ### Requirement: Bounded loading and asset history
-Initial Activity loading SHALL stop within 15 seconds and expose Refresh if history cannot be obtained. History reads SHALL begin without awaiting notification subscription setup. Polling SHALL remain available when subscription setup fails or stalls. Cleanup SHALL NOT delay failure reporting, and late results after cancellation SHALL be ignored.
+Initial Activity loading SHALL allow 75 seconds per attempt and automatically retry once under the Pending Operation Dialog. After two failures, the dialog SHALL show an error and only OK, which closes it and the source page. History reads SHALL begin without awaiting notification subscription setup. Polling SHALL remain available when subscription setup fails or stalls. Cleanup SHALL NOT delay failure reporting, and late results after cancellation SHALL be ignored.
 
-Transactions SHALL retain SDK asset mint, receive, and transfer entries, including asset identifiers and exact integer quantities. Quantities without known decimal metadata SHALL be labeled base units. Account-scoped saved mint and transfer operations MAY supplement SDK history, with explicit pending or recorded statuses rather than fabricated confirmation, timestamps, or sats. Matching known transaction references SHALL avoid duplicate local mint entries. On live history failure, saved operations MAY remain visible with a notice that live history is unavailable; Copy SHALL remain available for that displayed text.
+Transactions SHALL retain SDK asset mint, receive, and transfer entries, including asset identifiers and exact signed integer quantities. Negative outgoing asset deltas, including burns, SHALL remain valid history and preserve their sign without rounding. Quantities without known decimal metadata SHALL be labeled base units. Account-scoped saved mint and transfer operations MAY supplement SDK history, with explicit pending or recorded statuses rather than fabricated confirmation, timestamps, or sats. Matching known transaction references SHALL avoid duplicate local mint entries. On live history failure, saved operations MAY remain visible with a notice that live history is unavailable; Copy SHALL remain available for that displayed text.
 
 #### Scenario: Subscription or cleanup never completes
 - **WHEN** notification setup stalls or wallet cleanup never resolves
-- **THEN** initial history can load independently and failures restore Refresh without waiting for cleanup
+- **THEN** initial history can load independently and exhausted foreground failures show the operation error and OK without waiting for cleanup
 
 #### Scenario: Asset amount exceeds safe JavaScript integer range
 - **WHEN** SDK history includes an asset quantity larger than the safe integer range
 - **THEN** Transactions and Copy preserve every digit alongside the asset ID and supported status
+
+#### Scenario: Outgoing asset delta
+- **WHEN** history includes a negative asset quantity for an outgoing transaction or burn
+- **THEN** the history loads successfully and displayed or copied details retain its exact signed quantity alongside other records
 
 ### Requirement: Arkade-supplied transaction history
 The integration SHALL obtain network transaction history only through the Arkade SDK and display all transaction history it supplies, including incoming and outgoing, pending and confirmed, and spent entries. It SHALL NOT filter history to current UTXOs or pending deposits, truncate available history to a recent-only subset, or remove a record solely because its output is spent. Its built-in providers MAY supply underlying Bitcoin data. The application SHALL NOT introduce a separate explorer client, custom server, simulated transaction results, or infer receipt from a balance change. Delivery SHALL require verification that the wallet API exposes existing unconfirmed deposits and subsequent updates. Completeness SHALL mean all history available from Arkade, without claiming records the SDK does not provide.
@@ -60,7 +64,7 @@ Transactions SHALL be ordered newest first using available SDK transaction times
 - **THEN** undated pending entries appear first, timestamped entries follow newest first, and other undated entries follow in SDK order
 
 ### Requirement: Public state and freshness
-The public integration API SHALL expose normalized incoming and outgoing transaction history and loading, ready, and unavailable states without SDK-specific types or secrets. Opening Activity SHALL load existing history and enable automatic updates while open. A successful empty result SHALL say No transactions found and be distinguishable from an unavailable read. Subscription failure alone SHALL permit polling fallback. The Transactions text area SHALL show exactly Loading... during initial load and manual refresh; no separate loading paragraph or More Information field SHALL be added. Account Activity SHALL show a lightning-prefixed Refresh button immediately above Back, disabled while loading, matching Account Details. Unavailable state SHALL offer Refresh and SHALL NOT present prior data as current.
+The public integration API SHALL expose normalized incoming and outgoing transaction history and loading, ready, and unavailable states without SDK-specific types or secrets. Opening Activity SHALL load existing history and enable automatic updates while open. A successful empty result SHALL say No transactions found and be distinguishable from an unavailable read. Subscription failure alone SHALL permit polling fallback. Initial load and manual refresh SHALL be covered immediately by the Pending Operation Dialog with no inline loading text. Only prepared content SHALL be revealed; final loading errors and OK SHALL close the source page. Transactions SHALL provide an explicitly labeled Refresh control, disabled while loading, matching Account Details. Unavailable foreground loads SHALL use the Pending Operation Dialog failure contract and SHALL NOT present prior data as current.
 
 #### Scenario: Arrival while open
 - **WHEN** a new incoming or outgoing transaction is reported while Activity is open

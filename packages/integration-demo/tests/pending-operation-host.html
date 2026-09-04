@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pending Operation Dialog - isolated checks</title>
+<style>body{margin:0;padding:20px;background:#17202c;color:#eaf0f6;font:14px system-ui}button{margin:4px;padding:8px}#host{position:relative;width:360px;height:640px;background:#26384a;border:1px solid #687686}#result{white-space:pre-wrap}main{display:flex;gap:24px;flex-wrap:wrap}</style>
+<h1>Pending Operation Dialog</h1><p>Isolated fixtures only. No saved account, network wallet operations, or real asset burns.</p>
+<main><div><button id="run">Run checks</button><button id="lifecycle">Run lifecycle checks</button><button id="loading">Show Loading</button><button id="burning">Show Burning</button><button id="failure">Show Error</button><button id="admin">Admin remains usable</button><pre id="result">Ready</pre></div><div id="host"></div></main>
+<script type="module" src="./pending-operation-host.tsx"></script></html>

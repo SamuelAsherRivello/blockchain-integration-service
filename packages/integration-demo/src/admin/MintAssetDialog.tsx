@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { validateMint, type BisMintAssetRequest, type BisMintAssetResult } from '@bis/integration';
 import './assets.css';
 import { achievementPresets } from './achievement-presets';
@@ -8,7 +8,17 @@ export function MintAssetDialog({ initial, onMint, onClose }: {initial?: BisMint
   const [pending, setPending] = useState(false);
   const [locked, setLocked] = useState(!!initial);
   const [result, setResult] = useState<BisMintAssetResult>();
-  useEffect(() => { const el = dialog.current!; el.showModal(); return () => el.close(); }, []);
+  useLayoutEffect(() => {
+    const el = dialog.current!;
+    const previousFocus = document.activeElement;
+    el.showModal();
+    // Close while the dialog is still connected so native focus restoration
+    // runs before React removes the modal from the document.
+    return () => {
+      el.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, []);
   let validation = '';
   try { validateMint(form); } catch { validation = 'Enter a name, ticker, positive amount and 0–18 decimals. Amount must fit the selected precision; an optional icon must use HTTPS.'; }
   const done = result?.status === 'minted' || result?.status === 'already-minted';

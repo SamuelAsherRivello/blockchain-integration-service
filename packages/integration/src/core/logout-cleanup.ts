@@ -1,7 +1,8 @@
+import {assertNoPendingContinue,continuationPrefix} from './continuation.ts';
 export const browserMutationLock = 'bis-signet-browser-mutation';
 export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
 type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
-const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1'];
+const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1'];
 const owns = (key: string) => journalPrefixes.some(prefix => key === prefix || key.startsWith(`${prefix}:`)) ||
   ['bis.integration-demo.admin-split-percent', 'bis.integration-demo.preview-scale'].includes(key);
 function keys(storage: WebStorage) {
@@ -10,6 +11,7 @@ function keys(storage: WebStorage) {
 export function pendingLogoutOperations(storage: WebStorage | undefined = globalThis.localStorage): LogoutOperations {
   const pending = new Set<string>();
   if (storage) for (const key of keys(storage)) {
+    if(key.startsWith(continuationPrefix))assertNoPendingContinue(decodeURIComponent(key.slice(continuationPrefix.length)),storage);
     const prefix = journalPrefixes.find(prefix => key === prefix || key.startsWith(`${prefix}:`));
     if (!prefix) continue;
     const raw = storage.getItem(key);

@@ -28,8 +28,8 @@ The player SHALL be able to save the phrase externally or proceed without saving
 
 #### Scenario: Saving fails
 - **WHEN** storage cannot commit the account
-- **THEN** the integration reports the error and offers Retry or Back without publishing activation
-- **AND** Retry uses the same transient identity
+- **THEN** the Pending Operation Dialog reports the error with only OK without publishing activation
+- **AND** OK closes the failed source page and reconciles any uncertain saved account before returning
 
 ### Requirement: Completed accounts survive reopening
 A completed account SHALL remain available in the same browser profile and origin across refreshes and browser restarts while its stored data remains available. Opening the account flow SHALL recognize it without creating another account or requiring phrase entry. Ordinary disposal SHALL preserve committed identity. Unfinished creation SHALL NOT be restored after reopening. No unlock step SHALL be required in this test-only slice.
@@ -56,7 +56,7 @@ Recovery material SHALL appear only in the private production recovery UI, scope
 - **THEN** the host and Admin receive only non-secret state and events
 
 ### Requirement: Failures and stale work do not activate accounts
-Creation failures SHALL offer a sanitized explanation, explicit Retry, and Back to the logged-out Account dialogue. Abandoning a transient flow SHALL not activate it. Reset or disposal SHALL invalidate pending work so its late completion cannot notify old consumers or persist an abandoned account.
+Creation SHALL be covered by Creating... in the Pending Operation Dialog. Failures SHALL offer a sanitized explanation and only OK, which closes the failed source page and returns to the logged-out Account dialogue unless reconciliation finds a committed account. Abandoning a transient flow SHALL not activate it. Reset or disposal SHALL invalidate pending work so its late completion cannot notify old consumers or persist an abandoned account.
 
 #### Scenario: Reset during creation
 - **WHEN** Reset Client completes while creation was pending and the old request later succeeds
@@ -64,7 +64,7 @@ Creation failures SHALL offer a sanitized explanation, explicit Retry, and Back 
 
 #### Scenario: Creation failure
 - **WHEN** account creation fails
-- **THEN** the player can retry explicitly or return without an active account or blocked gameplay
+- **THEN** OK closes the failed source page without claiming activation or blocking ordinary gameplay
 
 ### Requirement: One-click recovery phrase copy
 The recovery screen SHALL show Copy to Clipboard immediately above Continue. An explicit click SHALL copy the complete phrase as plain text, with single spaces between words and no numbering or extra formatting. Success SHALL be announced only after the clipboard write succeeds. Failure SHALL show a safe retry/manual-copy message and SHALL NOT block Continue or activate the account. The application SHALL NOT read the clipboard as part of this action. A3 restoration SHALL accept this whitespace-separated phrase format through its Paste from Clipboard action.

@@ -61,8 +61,8 @@ test('on-open/manual refresh clears old values, failure remains retryable, no st
   next=deferred();const work=context.refreshBalance();assert.deepEqual(context.getState().balance,{status:'loading'});await tick();
   next.reject(Error('private source failure'));await work;assert.deepEqual(context.getState().balance,{status:'unavailable'});assert.equal(context.getState().phase,'active');
   next=deferred();const retry=context.refreshBalance();await tick();next.resolve({availableSats:0,totalSats:0});await retry;
-  assert.equal(context.getState().balance.availableSats,0);assert.equal(writes(),0);assert.equal(calls,3);
-  context.closeAccount();assert.deepEqual(context.getState().balance,{status:'idle'});context.openAccountDialog();context.openAccountDetails();await tick();assert.equal(calls,4);context.dispose();
+  assert.equal(context.getState().balance.availableSats,0);assert.equal(writes(),0);assert.equal(calls,4);
+  context.closeAccount();assert.deepEqual(context.getState().balance,{status:'idle'});context.openAccountDialog();context.openAccountDetails();await tick();assert.equal(calls,5);context.dispose();
 });
 
 test('Back and logout cancellation discard pending work and request fresh balances',async()=>{

@@ -1,10 +1,12 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { formatTransactionDetail, formatTransactionSummary, transactionExplorerUrl, type BisActivity } from '../core/activity';
+import { usePendingNotice } from './PendingOperationDialog';
+import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react';
+import { formatTransactionDetail, transactionExplorerUrl, type BisActivity } from '../core/activity';
+import { shortAssetId } from '../core/asset-presentation';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import type { BisContext } from '../core/context';
 import { openRecoveryWindow } from './recovery-window';
 
-export function AccountActivity({ activity, onDetailChange }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer'> }) {
+export function AccountActivity({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity'> }) {
   const id = useId();
   const [recoveryBlocked, setRecoveryBlocked] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
@@ -15,10 +17,17 @@ export function AccountActivity({ activity, onDetailChange }: { activity: BisAct
   const text = opened ? formatTransactionDetail(opened) : '';
   const explorerUrl = opened ? transactionExplorerUrl(opened) : undefined;
   const buttons = useRef(new Map<string, HTMLButtonElement>());
-  useEffect(() => { onDetailChange(!!opened); }, [opened?.id, onDetailChange]);
-  useEffect(() => { if (!selected) { setSelectedId(undefined); setDetailOpen(false); } }, [selected?.id]);
+  useLayoutEffect(() => { onDetailChange(detailOpen); }, [detailOpen, onDetailChange]);
+  useLayoutEffect(() => { if (activity.status==='ready' && !selected) { setSelectedId(undefined); setDetailOpen(false); } }, [selected?.id,activity.status]);
   useEffect(() => () => onDetailChange(false), [onDetailChange]);
   const loading = activity.status === 'idle' || activity.status === 'loading';
+  const foreground=useRef(true);
+  if(loading)foreground.current=true;
+  if(activity.status==='ready')foreground.current=false;
+  usePendingNotice(loading,'Loading...', foreground.current && !rows.length && activity.status==='unavailable'?'Transactions could not be loaded.':undefined,()=>{
+    if(detailOpen){setDetailOpen(false);setSelectedId(undefined);void context?.refreshActivity();}
+    else context?.closeAccount();
+  });
   const currentText = useRef(text); currentText.current = text;
   const [copy, setCopy] = useState<{ text: string; status: 'copying' | 'copied' | 'failed' }>();
   async function copyAll() {
@@ -36,7 +45,7 @@ export function AccountActivity({ activity, onDetailChange }: { activity: BisAct
       {status === 'failed' && <p role="status">Could not copy. Select the text and copy it manually.</p>}
       <div className="bis-actions bis-transaction-back">
         {opened.transfer?.status === 'pending' && <button type="button" className="bis-button" onClick={() => setRecoveryBlocked(!openRecoveryWindow(opened.transfer!))}>View Recovery Info</button>}
-        <button type="button" className="bis-button" disabled={!explorerUrl} aria-describedby={!explorerUrl ? `${id}-explorer-unavailable` : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open explorer</button>
+        <button type="button" className="bis-button" disabled={!explorerUrl} aria-describedby={!explorerUrl ? `${id}-explorer-unavailable` : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>
         <button className="bis-button" onClick={() => {
         const previous = opened.id;
         setDetailOpen(false); setCopy(undefined); onDetailChange(false);
@@ -45,16 +54,15 @@ export function AccountActivity({ activity, onDetailChange }: { activity: BisAct
       {recoveryBlocked && <p role="status">Allow pop-up windows to view recovery info, then try again.</p>}
       {!explorerUrl && <p id={`${id}-explorer-unavailable`}>Explorer unavailable: no transaction ID has been reported yet.</p>}
     </> : <>
-      <h3 id={id} className="bis-transactions-heading">Transactions</h3>
-      <ul className="bis-transaction-list" aria-labelledby={id} aria-busy={loading}>
-        {loading && <li><p role="status">Loading...</p></li>}
+      {activity.status === 'unavailable' && rows.length > 0 && <p role="status">Showing available records. Full transaction history could not be refreshed. Use Refresh to retry.</p>}
+      <ul className="bis-transaction-list" aria-label="Transactions" aria-busy={loading}>
+
         {rows.map(row => <li key={row.id}><button type="button" className="bis-transaction-row" aria-pressed={selectedId === row.id} ref={element => { if (element) buttons.current.set(row.id, element); else buttons.current.delete(row.id); }} onClick={() => {
           setSelectedId(row.id); setRecoveryBlocked(false);
           setDetailOpen(true);
-        }}>{formatTransactionSummary(row)}</button></li>)}
+        }}><strong>{row.satsUnknown?'Sats unknown':`${row.amountSats.toLocaleString('en-US')} sats`} · {row.direction}</strong><span>{row.status}</span><code title={row.identifier}>{shortAssetId(row.identifier)}</code></button></li>)}
       </ul>
-      {!loading && (activity.status === 'unavailable' || !rows.length) && <p role="status">{activity.status === 'unavailable' ? (rows.length ? 'Live transaction history unavailable. Showing saved operation status only. Use Refresh to retry.' : 'Transactions unavailable. Use Refresh to retry.') : 'No transactions found.'}</p>}
+      {!loading && !rows.length && <p role="status">{activity.status === 'unavailable' ? 'Transactions unavailable. Use Refresh to retry.' : 'No transactions found.'}</p>}
     </>}
   </div>;
 }
-

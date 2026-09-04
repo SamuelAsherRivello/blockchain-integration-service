@@ -24,7 +24,7 @@ context.dispose();
 
 The demo rebuilds all handles after reset, clears selection, and leaves runtime content empty. `getState()` returns an immutable snapshot; `subscribe()` returns cleanup. `closeAccount()` restores the prior presentation. Mounting twice in the same container is idempotent; unmount before changing containers. Calling actions on a disposed context throws. `GameOverlay` remains a compatibility wrapper around the same UI.
 
-The Account chooser enables Create Account and Restore Account. A3 uses twelve numbered word inputs, initially masked with one asterisk per character, with one Show checkbox and explicit Paste from Clipboard. Word-list and checksum validation gate Restore; successful Signet connection and durable saving return directly to Account. `openRestoreAccount()` opens entry when logged out; recovery submission stays inside the private production UI/Core boundary. Creation uses the real Signet SDK with memory repositories; Continue commits encrypted identity to origin-scoped IndexedDB. Refresh before Continue forgets unfinished creation. The active Account menu shows Account Details, Account Activity, side-by-side Send and Receive, Log Out, and Back. Account Details shows identity/network and available/total balances with Refresh and Back to Account; A6 is implemented with manual storage verification pending. `ready()` awaits hydration, `createAccount()` and `continueAccount()` drive creation, and `onEvent()` exposes safe `accountConnected` and `accountDisconnected` payloads. Public state never contains the phrase or SDK types. Ordinary disposal preserves saved identity. Browser storage is test-only, automatically accessible to this origin, and does not protect against compromised same-origin code. Live deletion-based reset verification remains manual under the repository rules.
+The Account chooser enables Create Account and Restore Account. A3 uses twelve numbered word inputs, initially masked with one asterisk per character, with one Show checkbox and explicit Paste from Clipboard. Word-list and checksum validation gate Restore; successful Signet connection and durable saving return directly to Account. `openRestoreAccount()` opens entry when logged out; recovery submission stays inside the private production UI/Core boundary. Creation uses the real Signet SDK with memory repositories; Continue commits encrypted identity to origin-scoped IndexedDB. Refresh before Continue forgets unfinished creation. The active Account menu shows Account Details, Transactions, side-by-side Send and Receive, Log Out, and Back. Account Details shows identity/network and available/total balances with Refresh and Back to Account; A6 is implemented with manual storage verification pending. `ready()` awaits hydration, `createAccount()` and `continueAccount()` drive creation, and `onEvent()` exposes safe `accountConnected` and `accountDisconnected` payloads. Public state never contains the phrase or SDK types. Ordinary disposal preserves saved identity. Browser storage is test-only, automatically accessible to this origin, and does not protect against compromised same-origin code. Live deletion-based reset verification remains manual under the repository rules.
 
 The active Account action opens Account Log Out. The backup checkbox is always required. When locally saved pending transfer, send, or mint operations exist, a second initially unchecked checkbox reads exactly `I accept losing my (5) pending transactions.` with the actual count. It is hidden for zero pending operations. `setLogoutPendingAcknowledged(boolean)` controls this additional gate; `logoutPendingCount` is null if counting fails, which blocks cleanup rather than assuming zero. The pending set is rechecked at confirmation and inside the cleanup lock.
 
@@ -41,9 +41,9 @@ A4 exposes provider-neutral `state.balance` (idle/loading/ready/unavailable) and
 Admin context also exposes `fund1000Sats()` for explicit Signet test funding. It derives the active account's public Arkade address internally and submits it with amount 1000 to the official wallet's configured Signet faucet. It returns an acknowledgement message or rejects with a sanitized error; it does not expose recovery material, update balance state, or automatically retry. This is a demo/admin utility, not a production gameplay API.
 
 
-## Account Activity (A5)
+## Transactions (A5)
 
-Account Activity appears below Account Details. The dialog shows Account ID and one read-only Transactions text area with Copy for the entire list. It includes all incoming/outgoing history Arkade supplies, including spent records, newest first. Each line contains sats, direction, supported status, and available transaction/output identifiers.
+Transactions appears below Account Details. It lists all SDK-provided incoming/outgoing history, including spent records, newest first. Rows match asset sizing: bold sats/direction, a status line and shortened ID line, without icons. Selecting a row opens Transaction Detail with the full selectable report and Copy; Back returns to the list.
 
 Public context methods: openAccountActivity() and refreshActivity(); getState().activity exposes idle/loading/ready/unavailable and normalized transactions. accountActivity identifies the open route. Existing subscribe() delivers updates. refreshActivity() observes until the view is closed or its operation is cancelled; UI callers use it without awaiting the subscription lifetime. BisActivity and BisTransaction are public types with no SDK types or credentials.
 
@@ -62,12 +62,57 @@ D5a read-only transfer recovery: pending Account Transfer offers **Recovery deta
 
 ## Asset minting and listing
 
+### Runtime asset inspection
+
+The active Account menu includes **Assets** immediately below Transactions. `context.openAccountAssets()` opens the production list and `context.refreshAssets()` reads fresh holdings. Public state exposes `accountAssets` and `assets: BisAssets` (`idle`, `loading`, `ready`, or `unavailable`). Calling `listAssets()` directly remains UI-independent.
+
+Selecting a holding opens **Asset Detail** with exact quantity, the metadata icon image, a single-line full Asset ID with Copy, and a **Details** heading with Copy above Name/Ticker/Decimals. HTTPS icons use no referrer; missing, invalid or failed images use neutral artwork. Back restores list selection, scroll and focus. Refresh clears old values and has a 30-second deadline. Missing decimals display base units. Leaving the flow or changing accounts invalidates presentation reads without cancelling independent API callers. Supply and verification badges remain absent.
+
+**Burn**, above Back, opens the reusable **Confirmation** dialog: **Are you sure?**, **OK**, **Cancel**. OK burns the entire selected owned quantity; Cancel or Escape does nothing. `context.burnAsset({operationId, assetId, quantity})` accepts an exact base-unit string and returns `BisBurnAssetResult`. It rechecks holdings, uses existing wallet mutation locks, and journals intent before SDK submission. Completed same-operation retries are idempotent; uncertain submission remains pending and blocks new spending. There is no automatic retry or burn reconciliation. Success refreshes Assets; pending burns count toward logout warnings. Tests use controlled SDK/browser fixtures; no live asset was burned for verification.
+
+### Mint and list APIs
+
 The UI-independent public API is `context.mintAsset({ operationId, name, ticker, amount, decimals, iconUrl? })`, `context.listAssets()`, and `context.getPendingAssetMint()`. Use a fresh operation ID for an intentional new mint and reuse the exact request for a retry. `validateMint(request)` provides the same form validation without a wallet operation.
 
-Amount is a human-readable decimal string; returned quantity is a base-unit decimal string. Supply is positive, exact, and bounded to unsigned 64-bit units; decimals is 0–18. Control assets and reissuance are not exposed. All positive wallet assets are listed, including assets without BIS metadata. Optional icon URLs are returned as text, never fetched automatically.
+Amount is a human-readable decimal string; returned quantity is a base-unit decimal string. BIS accepts positive, exact supply capped at unsigned 64-bit units and decimals 0–18; these are application input limits, not claimed protocol maxima. Control assets and reissuance are not exposed. All positive wallet assets are listed, including assets without BIS metadata. Listing returns optional icon URLs as text; runtime asset views render those images.
 
 Minting uses the active wallet and its spendable Signet funds. Results are `minted`, `already-minted`, or a safe typed error; listing returns `success` with an assets array or an error. These calls never mount UI or change account navigation. No game-specific semantics exist in BIS.
 
-A public local journal binds operation IDs to complete requests and survives ordinary refresh and Admin Reset; explicit complete logout erases it. Unresolved operations prevent new mints for that account. Same-origin wallet locking coordinates with transfers and account clearing; cross-device exactly-once behavior is not guaranteed. A registered unresolved transfer also blocks minting. An `already-minted` result records the prior issuance; call `listAssets()` for current ownership.
+A public local journal binds operation IDs to complete requests and survives ordinary refresh and Admin Reset; explicit complete logout erases it. Unresolved operations prevent new mints for that account. Same-origin wallet locking coordinates with transfers and account clearing; cross-device exactly-once behavior is not guaranteed. A registered unresolved transfer also blocks minting. An `already-minted` result records the prior issuance; call `listAssets()` for current ownership. Known accepted transaction IDs survive a later finalization failure and reconciliation. After abort or closure, SDK finalization may continue but journal writes stop; a later locked retry reconciles the original intent without resubmission.
 
-Implementation verification: `.openspec/changes/add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md`. Live mint/list round-trip verification is pending resolution of the existing wallet transfer.
+The real Admin mint/list round trip passed on 2026-09-04 with SDK 0.4.67: the same wallet retained its externally minted Level 1 asset and received a distinct BIS-minted Level 1 asset, each quantity 1. The earlier transfer blocker was not reproduced or bypassed. [C1/C4 verification](../../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md) records public identifiers, reference-wallet comparison and isolated versus live evidence. Broad independent-spending/recovery changes remain separate.
+
+
+## Pending Operation Dialog
+
+Runtime pages render immediately underneath a host-scoped covering layer. Loading..., Creating..., Saving..., Restoring..., Sending..., Transferring..., Burning..., Checking... and Logging out... appear above the spinning bolt. The backdrop keeps the page inert while data, rendering and required images finish; Admin remains usable. There is no inline loading/progress/completion text.
+
+Read failures retry once automatically with existing deadlines (Transactions 75 seconds per attempt, Assets 30 seconds; otherwise 30 seconds where missing). Final errors show only OK, closing the prompt and source page. Mutation submissions are never automatically repeated. Unconfirmed outcomes retain recovery records and show truthful feedback with OK. Burning... remains through holdings refresh; success reveals refreshed Assets without Asset burned. Background reconciliation does not open a loading prompt.
+
+`/tests/pending-operation-host.html` exercises production components with delayed isolated reads and callbacks, including Burn/refresh, errors, source-page closure, lifecycle operations, keyboard containment and host sizing. It performs no live wallet mutations. See `.openspec/changes/archive/2026-09-04-add-pending-operation-dialog/verification.md` for results.
+
+
+### B1 Request Continue
+
+`context.requestContinue({operationId, sats, context: runId})` initiates one Signet sink payment. Use a stable, host-generated operation ID for each attempt and an opaque run/context string. Whole sats from 1,000 through 10,000 are accepted; invalid input throws before submission. The default Admin price is 1,000 sats, with exactly zero additional fee. A changed operator fee schedule, insufficient funds, or subdust change prevents payment.
+
+The recipient is a freshly generated transient wallet. Its secret is never saved or activated, and the existing player remains logged in. `mechanism: 'sink-payment'` describes the result truthfully: this is not proof of Bitcoin destruction. D1 recipient-wallet management and D6 USD pricing remain deferred.
+
+Only `status: 'succeeded'` means confirmed completion. `pending` means the outcome remains unknown; `failed` means preparation did not submit. Both promise results and `getContinueStatus(operationId?)` retain the original profile, amount and run context. A submitted payment is never automatically retried. Reuse the same ID to reconcile or retrieve the original result; changed amount/context is rejected. A confirmed pre-submission failure also keeps its ID; start a deliberately new attempt with a new ID after resolving the cause.
+
+```ts
+const request = { operationId: crypto.randomUUID(), sats: 1000, context: runId };
+// Persist request in the host before calling. Do not generate a new ID on timeout.
+const result = await bis.requestContinue(request);
+if (result.status === 'succeeded' && result.context === currentRunId &&
+    result.profileId === bis.getState().profileId && !handled.has(result.operationId)) {
+  handled.add(result.operationId);
+  // The host owns the continuation action and durable deduplication.
+}
+// Later/reload: await bis.getContinueStatus(request.operationId)
+```
+
+Continuation records live separately from ordinary sends and survive normal logout/reset. Unresolved or unreadable continuation state blocks spending and account clearing. Browser storage removal still destroys local recovery; this is client-side validation, not fail-safe or cheat-resistant game authorization. No entitlement or separate consume operation is stored. Account/network errors do not automatically open UI or fund the player.
+
+
+B1 can spend SDK-eligible outputs carrying assets. It retains enough sat change and verifies an exact asset extension returning every original asset quantity to the player's change output; none may go to the sink. The quote fingerprint binds the input assets as well as sats. Pending recovery additionally checks the asset-free recipient and the expected player change (script, sats and complete asset manifest). Ordinary Account Send keeps its prior asset-free selection policy.

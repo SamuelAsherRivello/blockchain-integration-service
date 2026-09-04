@@ -11,7 +11,9 @@ export function normalizeHistory(history: readonly ArkTransaction[], coins: read
     if (!Number.isSafeInteger(tx.amount) || tx.amount < 0 || !['RECEIVED', 'SENT'].includes(tx.type)) throw Error('Activity unavailable.');
     const { boardingTxid, commitmentTxid, arkTxid } = tx.key;
     const assets=tx.assets?.map(asset=>{
-      if(typeof asset.assetId!=='string'||!asset.assetId||typeof asset.amount!=='bigint'||asset.amount<0n)throw Error('Asset history unavailable.');
+      // History uses signed deltas (change minus spent), unlike unsigned holdings.
+      // Preserve the SDK sign and exact integer for outgoing assets and burns.
+      if(typeof asset.assetId!=='string'||!asset.assetId||typeof asset.amount!=='bigint')throw Error('Asset history unavailable.');
       return Object.freeze({assetId:asset.assetId,quantity:asset.amount.toString()});
     });
     const kind=assets?.length ? assetMintResolver().resolve(tx)?.[0]?.label ?? 'Asset transfer' : undefined;

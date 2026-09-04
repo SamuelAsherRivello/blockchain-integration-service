@@ -27,7 +27,7 @@ document.getElementById('run')!.onclick=async()=>{
   check(host.querySelectorAll('.bis-transaction-row').length===2,'One pending row alongside history');
   (host.querySelector('.bis-transaction-row') as HTMLButtonElement).click();await tick();
   check(host.querySelector('textarea')?.value.includes(record.id),'One click opens transfer details');
-  check(button('Open explorer')?.disabled,'Pending operation keeps explorer button visible but disabled');
+  check(button('Open On Explorer')?.disabled,'Pending operation keeps explorer button visible but disabled');
   check(host.textContent?.includes('Explorer unavailable: no transaction ID has been reported yet.'),'Missing transaction ID is explained');
   check(!button('Check Status')&&!host.querySelector('details'),'No inline recovery actions or report');
   check(!host.textContent?.includes('Completion has not been verified.')&&!host.textContent?.includes('Cancel and undo'),'Removed inline guidance');

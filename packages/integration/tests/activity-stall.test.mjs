@@ -35,6 +35,28 @@ test('asset history retains exact quantities and identifiers in Transactions and
  assert.match(formatTransactions(rows),/9007199254740993 base units.*asset-example/);
 });
 
+test('Transactions loads signed SDK asset deltas after a burn without retrying valid history',async()=>{
+ const {createContext}=await import('../src/core/context.ts');
+ const account={profileId:'signed-history-fixture',phrase:'isolated-placeholder'};
+ let reads=0;
+ // SDK subtractAssets computes change minus spent: outgoing asset deltas can be negative.
+ const history=[tx,{...tx,key:{...tx.key,arkTxid:'b'.repeat(64)},type:'SENT',settled:true,
+   assets:[{assetId:'burned-asset',amount:-9007199254740993n},{assetId:'minted-asset',amount:1n}]}];
+ const c=createContext({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,
+   (_account,signal,publish)=>observeActivityWallet(Promise.resolve({...wallet(),getTransactionHistory:async()=>{reads++;return history;}}),signal,publish));
+ try {
+   await c.ready();c.openAccountDialog();c.openAccountActivity();
+   await new Promise(resolve=>setImmediate(resolve));
+   const activity=c.getState().activity;
+   assert.equal(activity.status,'ready','a valid signed asset delta must not fail the whole history page');
+   assert.equal(reads,1,'valid history must not consume the automatic retry');
+   assert.equal(activity.transactions.length,2,'ordinary transactions are retained alongside asset history');
+   const outgoing=activity.transactions.find(row=>row.direction==='Outgoing');
+   assert.deepEqual(outgoing.assets,[{assetId:'burned-asset',quantity:'-9007199254740993'},{assetId:'minted-asset',quantity:'1'}]);
+   assert.match(formatTransactions(activity.transactions),/-9007199254740993 base units/);
+ } finally {c.dispose();}
+});
+
 test('Activity leaves Loading and ignores late results when its observer never settles',async t=>{
  t.mock.timers.enable({apis:['setTimeout']});
  const {createContext}=await import('../src/core/context.ts');
@@ -44,7 +66,7 @@ test('Activity leaves Loading and ignores late results when its observer never s
  await c.ready();c.openAccountDialog();c.openAccountActivity();await new Promise(r=>setImmediate(r));
  assert.equal(c.getState().activity.status,'loading');t.mock.timers.tick(15000);
  assert.equal(c.getState().activity.status,'loading');t.mock.timers.tick(60000);
- assert.equal(c.getState().activity.status,'unavailable');assert.equal(signal.aborted,true);
+ await new Promise(r=>setImmediate(r));assert.equal(c.getState().activity.status,'loading');t.mock.timers.tick(75000);await new Promise(r=>setImmediate(r));assert.equal(c.getState().activity.status,'unavailable');assert.equal(signal.aborted,true);
  publish(normalizeHistory([tx],[]));assert.equal(c.getState().activity.status,'unavailable');
  c.closeAccount();assert.equal(c.getState().accountActivity,false);c.dispose();
 });
@@ -57,4 +79,20 @@ test('mint operations show exact decimal quantities, pending status, and dedupli
  const sdk=normalizeHistory([{...tx,assets:[{assetId:'asset-id',amount:9007199254740993n}]}],[]);
  const merged=withMintActivity(sdk,[{...record,status:'succeeded',transactionId:tx.key.arkTxid,asset:{assetId:'asset-id',quantity:'9007199254740993'}}]);
  assert.equal(merged.length,1);assert.equal(merged[0].kind,'Asset mint');assert.equal(merged[0].status,'Pending offchain');
+});
+
+test('a failed activity refresh preserves the last successful transaction snapshot',async()=>{
+ const {createContext}=await import('../src/core/context.ts');
+ const account={profileId:'history-preservation',phrase:'isolated-placeholder'};
+ let rejectRead;
+ const rows=normalizeHistory([tx],[]);
+ const c=createContext({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,
+  async(_account,signal,publish)=>{publish(rows);await new Promise((resolve,reject)=>{rejectRead=reject;signal.addEventListener('abort',resolve,{once:true});});});
+ try {
+  await c.ready();c.openAccountDialog();c.openAccountActivity();await new Promise(r=>setImmediate(r));
+  assert.equal(c.getState().activity.status,'ready');
+  rejectRead(Error('network'));await new Promise(r=>setImmediate(r));
+  assert.equal(c.getState().activity.status,'unavailable');
+  assert.deepEqual(c.getState().activity.transactions,rows,'loaded records remain usable during a network failure');
+ } finally {c.dispose();}
 });

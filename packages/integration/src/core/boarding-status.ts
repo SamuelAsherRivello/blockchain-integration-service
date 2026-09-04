@@ -20,7 +20,7 @@ export function formatTransferRecoveryReport(status: BisTransferStatus): string 
     `Verification: ${status.verification === 'unavailable' ? 'Unavailable' : status.verification === 'live' ? 'Latest check returned; completion remains unverified' : 'Unknown'}`,
     `Diagnostic: ${diagnostic}`,
     '',
-    'This is a status snapshot, not proof of cancellation or failure. Refresh Account Activity and reopen Recovery Info for the latest available details.',
+    'This is a status snapshot, not proof of cancellation or failure. Refresh Transactions and reopen Recovery Info for the latest available details.',
     'Do not resubmit. Log Out and Reset remain blocked while the transfer is unresolved.',
     'Status checks cannot resume interrupted signing. Copying this report does not cancel the transfer or contact the operator.',
     '',

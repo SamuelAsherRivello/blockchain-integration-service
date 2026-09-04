@@ -1,6 +1,9 @@
+import {createRoot} from 'react-dom/client';
+import {AccountActivity} from '../../integration/src/ui/AccountActivity';
+import {PendingOperations} from '../../integration/src/ui/PendingOperationDialog';
 import { createContext } from '../../integration/src/core/context';
 import { createBisUi } from '@bis/integration';
-import { formatTransactionDetail, formatTransactionSummary, type BisTransaction } from '../../integration/src/core/activity';
+import { formatTransactionDetail, type BisTransaction } from '../../integration/src/core/activity';
 import '@bis/integration/style.css';
 const host=document.getElementById('host')!,result=document.getElementById('result')!;
 const tick=()=>new Promise(r=>setTimeout(r,0));
@@ -23,16 +26,19 @@ document.getElementById('run')!.onclick=async()=>{
   try{
     await c.ready();c.openAccountDialog();await tick();
     const buttons=[...host.querySelectorAll('button')];const details=buttons.findIndex(b=>b.textContent?.includes('Account Details'));
-    check(buttons[details+1]?.textContent?.includes('Account Activity'),'menu order');buttons[details+1].click();
+    check(buttons[details+1]?.textContent?.includes('Transactions'),'menu order');buttons[details+1].click();
     await wait(()=>host.querySelectorAll('.bis-transaction-row').length===24);
     check(!host.querySelector('textarea'),'list instead of text area');
-    check(host.querySelector('.bis-transaction-row')?.textContent===formatTransactionSummary(rows[0]),'compact row text');
+    check(host.querySelector('h2')?.textContent==='Transactions','Transactions heading');
+    const row=host.querySelector('.bis-transaction-row')!;
+    check(row.children.length===3&&row.querySelector('strong')?.textContent==='100 sats · Incoming'&&row.querySelector('span')?.textContent==='Pending'&&row.querySelector('code')?.getAttribute('title')===rows[0].identifier,'three-line row layout');
+    check(!row.querySelector('svg,img'),'transaction rows have no icon');
     const activityHeight=host.querySelector('.bis-card')!.getBoundingClientRect().height;
     check(activityHeight===480,'fixed activity height');
     const list=host.querySelector<HTMLElement>('.bis-transaction-list')!;
     check(getComputedStyle(list).overflowY==='scroll' && getComputedStyle(list).scrollbarWidth!=='none','always visible list scrollbar');
     check(list.scrollHeight>list.clientHeight,'long list scrolls internally');
-    check(getComputedStyle(host.querySelector('.bis-transaction-row')!).whiteSpace==='nowrap','rows never wrap');
+    check([...row.children].every(child=>getComputedStyle(child).whiteSpace==='nowrap'),'each row line never wraps');
     check(!list.textContent?.includes('fixture-asset'),'asset metadata only in details');
     host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();
     await tick();
@@ -43,7 +49,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(host.querySelector('textarea')?.value.includes('Waiting for the first block'),'pending wait guidance');
     check(host.querySelector('textarea')?.value.includes('Timestamp (UTC): 1970-01-01 00:00:00'),'recorded timestamp in detail');
     check(host.querySelectorAll('textarea').length===1,'one text area');
-    const explorer=[...host.querySelectorAll('button')].find(b=>b.textContent==='Open explorer');
+    const explorer=[...host.querySelectorAll('button')].find(b=>b.textContent==='Open On Explorer');
     check(explorer && !explorer.disabled,'transaction detail exposes enabled explorer button');
     check(host.querySelector('.bis-card')!.getBoundingClientRect().height===activityHeight,'detail matches activity height');
     await wait(()=>host.querySelector('h2')?.textContent==='Transaction Detail');
@@ -58,14 +64,26 @@ document.getElementById('run')!.onclick=async()=>{
     await wait(()=>host.querySelectorAll('.bis-transaction-row').length===24);
     check(host.querySelector('.bis-transaction-row')?.getAttribute('aria-pressed')==='true','Back retains selection');
     rejectRead(Error('private failure'));await wait(()=>c.getState().activity.status==='unavailable');await tick();
-    check(!host.querySelector('.bis-transaction-row') && !host.querySelector('textarea'),'clear stale text');
+    check(host.querySelectorAll('.bis-transaction-row').length===24 && !host.querySelector('.bis-pending-dialog'),'loaded records remain accessible');
+    check(host.textContent?.includes('Full transaction history could not be refreshed.'),'incomplete history is explained inline');
     data=[];void c.refreshActivity();await wait(()=>host.textContent?.includes('No transactions found.')===true);
     check(host.querySelector('.bis-card')!.getBoundingClientRect().height===activityHeight,'empty list keeps dialog height');
     check(getComputedStyle(host.querySelector('.bis-transaction-list')!).overflowY==='scroll','empty list retains scrollbar');
     c.closeAccount();await tick();check(!host.querySelector('textarea'),'Back to menu');
     data=rows;c.openAccountActivity();await wait(()=>host.querySelectorAll('.bis-transaction-row').length===24);
     check(host.querySelectorAll('[aria-pressed="true"]').length===0,'reopen clears selection');
-    result.textContent='PASS: compact single-line rows, fixed height, persistent scrollbar, selection/open/Back, detailed copy, clipboard failure, empty/unavailable/retry, reopen, 360px layout. Fixtures only.';
+    const partialHost=document.createElement('div');host.append(partialHost);
+    const partialRoot=createRoot(partialHost);
+    try {
+      partialRoot.render(<PendingOperations><AccountActivity activity={{status:'unavailable',transactions:[rows[0]]}} onDetailChange={()=>{}} /></PendingOperations>);
+      await wait(()=>!!partialHost.querySelector('.bis-transaction-row'));
+      check(!partialHost.querySelector('.bis-pending-dialog'),'initial partial history must not open a blocking failure');
+      check(!!partialHost.querySelector('[role="status"]'),'partial history is labelled');
+      partialHost.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();
+      await wait(()=>!!partialHost.querySelector('textarea'));
+      check(!partialHost.querySelector('.bis-pending-dialog'),'partial transaction details remain accessible');
+    } finally {partialRoot.unmount();partialHost.remove();}
+    result.textContent='PASS: three-line rows without icons, Transactions title, fixed height, persistent scrollbar, selection/open/Back, detailed copy, clipboard failure, empty/unavailable/retry, reopen, 360px layout. Fixtures only.';
   }catch(error){result.textContent='FAIL: '+(error instanceof Error?error.message:'checks');}
 };
 window.addEventListener('pagehide',()=>cleanup());

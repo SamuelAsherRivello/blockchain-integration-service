@@ -21,6 +21,12 @@ BIS SHALL accept an operation ID, name, ticker, amount as an exact decimal strin
 - **WHEN** no active account exists or spendable funds are insufficient
 - **THEN** BIS returns account-required or insufficient-funds respectively without fabricated success or automatic funding
 
+#### Scenario: Mint alongside an externally created holding
+- **WHEN** the active wallet owns an asset minted outside BIS and explicitly requests a new mint with the same metadata using eligible funding
+- **THEN** successful issuance returns minted with a new asset ID distinct from the external holding
+- **AND** a fresh list contains both holdings with their exact quantities and metadata, preserving the external asset
+- **AND** matching names or tickers do not satisfy or suppress the new operation
+
 ### Requirement: Mint-operation retry protection
 BIS SHALL bind each operation ID to its complete request and account. Repeating that operation SHALL NOT issue another asset. Reusing an ID with different inputs SHALL be rejected. Names and tickers SHALL NOT define uniqueness: separate intentional operations may mint distinct assets with identical metadata when independently funded. An unresolved mint SHALL reserve all its inputs until reconciled; independently funded new mints SHALL be permitted only when the adapter can enforce disjoint inputs, including fee inputs. An older pending record without a complete input set SHALL prevent new spending until that set or a terminal outcome is verified; a missing asset alone SHALL NOT authorize resubmission. Missing coordination or durable storage SHALL prevent submission.
 
@@ -52,6 +58,11 @@ BIS SHALL return every positive owned asset holding as JSON-safe records with as
 #### Scenario: Restored identity
 - **WHEN** the same identity is restored with fresh wallet repositories
 - **THEN** its assets are listed without a browser-local asset catalog
+
+#### Scenario: External-wallet interoperability
+- **WHEN** the same identity owns an asset minted in the Arkade Signet wallet without BIS-specific operation metadata
+- **THEN** BIS lists its asset ID, exact quantity, and available name, ticker, decimals, and icon URL without requiring a local mint record
+- **AND** the external holding is not evidence of successful completion of a different BIS mint request
 
 ### Requirement: Account isolation and safe public output
 Asset operations SHALL expose no recovery material, signing keys, raw SDK exceptions, or vendor-specific public types. Results SHALL identify the originating account and operation where known. Account changes/disposal SHALL prevent late pre-submission work from submitting and prevent results being attributed to another account. Submitted operations SHALL NOT be represented as cancelled merely because a client closes. Metadata SHALL be treated as untrusted text; listing SHALL not fetch icon URLs.

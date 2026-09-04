@@ -59,7 +59,7 @@
 .bis-address-row { display: flex; flex-wrap: wrap; align-items: end; gap: 6px; text-align: left; margin-bottom: 10px; }
 .bis-copy-field-heading { display: flex; align-items: center; gap: 4px; width: 100%; font-size: 12px; }
 .bis-copy-field-heading label { min-width: 0; }
-.bis-copy-field-heading h3 { margin: 0; font: inherit; font-weight: 600; }
+.bis-copy-field-heading h3 { margin: 0; font: inherit; }
 .bis-recovery-heading { margin-bottom: 6px; text-align: left; }
 .bis-saved-recovery-heading { display: flex; align-items: center; }
 .bis-saved-recovery-heading .bis-copy-field-heading { flex: 1; }
@@ -85,7 +85,9 @@
 .bis-layer .bis-transaction-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 6px; }
 .bis-layer .bis-transaction-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 6px; border: 2px solid #e7eef0; }
 .bis-transaction-list li + li { margin-top: 6px; }
-.bis-transaction-row { display: block; width: 100%; padding: 10px 8px; border: 1px solid #c8d7dc; border-radius: 6px; background: #fff; color: #294650; text-align: left; font: 11px/1.7 Inter, ui-sans-serif, system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.bis-transaction-row { display: grid; gap: 3px; width: 100%; padding: 11px 9px; border: 1px solid #c8d7dc; border-radius: 8px; background: #fff; color: #294650; text-align: left; font: 12px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+.bis-transaction-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bis-transaction-row span, .bis-transaction-row code { font-size: 10px; color: #667a84; }
 .bis-transaction-row:hover { background: #e0f4ed; }
 .bis-transaction-row[aria-pressed="true"] { background: #d4eee4; border-color: #258369; box-shadow: inset 3px 0 #258369; }
 .bis-transaction-row:focus-visible { outline: 2px solid #30977f; outline-offset: -2px; }
@@ -105,23 +107,31 @@
 .bis-recovery-details .bis-copy-field-heading { margin-top: 10px; }
 .bis-recovery-details textarea { box-sizing: border-box; overflow-wrap: anywhere; white-space: pre-wrap; height: 240px; }
 
-.bis-transfer-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
-.bis-transfer-actions .bis-button { min-width: 0; padding-inline: 10px; }
+.bis-transfer-actions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 6px; width: calc(100% + 16px); }
+.bis-transfer-actions .bis-button { min-width: 0; padding-inline: 6px; white-space: nowrap; }
 
 .bis-balance-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .bis-balance-columns .bis-address-row { min-width: 0; align-content: start; }
 .bis-balance-columns .bis-copy-field-heading { font-size: 11px; gap: 2px; }
 .bis-balance-columns .bis-copy-icon { flex-basis: 22px; width: 22px; }
 .bis-account-balances > .bis-address-row input { text-align: center; }
+.bis-transfer-balances { margin-bottom: 16px; }
+.bis-transfer-balances .bis-account-balances { display: grid; gap: 16px; margin-bottom: 0; }
+.bis-transfer-balances .bis-address-row { margin-bottom: 0; }
+.bis-transfer-balances .bis-copy-status:empty { display: none; }
 .bis-transfer-form { text-align: left; font-size: 12px; }
-.bis-transfer-form fieldset { border: 1px solid #d7e5df; border-radius: 10px; padding: 8px 10px; margin: 0 0 14px; }
-.bis-transfer-form fieldset label { display: flex; align-items: center; gap: 6px; padding: 5px 0; }
-.bis-transfer-form input[type=radio] { accent-color: #175a4c; }
+.bis-transfer-direction { min-width: 0; border: 0; padding: 0; margin: 0 0 16px; }
+.bis-transfer-direction legend { padding: 0; margin-bottom: 4px; }
+.bis-transfer-directions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.bis-transfer-directions .bis-button { width: 100%; min-width: 0; padding: 8px 4px; border-radius: 7px; font-size: 11px; }
+.bis-transfer-directions .bis-button[aria-pressed="true"] { background: #d4eee4; color: #175a4c; border-color: #258369; box-shadow: inset 0 0 0 1px #258369; }
+.bis-transfer-direction:disabled .bis-button { opacity: .6; cursor: not-allowed; }
 .bis-transfer-amount { display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px 42px; gap: 5px; margin-top: 5px; }
 .bis-transfer-amount .bis-button { width: 100%; padding: 7px 2px; border-radius: 7px; font-size: 12px; }
 .bis-transfer-amount input { min-width: 0; width: 100%; padding: 7px; border: 1px solid #c8d7dc; border-radius: 7px; font: inherit; text-align: center; background: #fff; color: #294650; }
 .bis-transfer-amount input:focus-visible { outline: 2px solid #30977f; }
 .bis-card .bis-transfer-help { font-size: 10px; margin: 6px 0 14px; }
+.bis-card .bis-transfer-direction-help { height: 2lh; min-height: 2lh; max-height: 2lh; overflow-y: auto; }
 .bis-card .bis-transfer-status { overflow-wrap: anywhere; }
 .bis-card .bis-transfer-status p { color: inherit; font-size: inherit; margin: 0 0 8px; }
 .bis-card .bis-transfer-status p:last-child { margin-bottom: 0; }
@@ -146,3 +156,66 @@
 .bis-invoice-options .bis-button { width: 100%; min-width: 0; padding: 9px 6px; font-size: 12px; }
 .bis-card .bis-invoice-status { margin: 10px 0 4px; color: #785317; font-weight: 600; }
 .bis-card .bis-invoice-help { margin: 0; font-size: 11px; }
+
+.bis-layer-assets { grid-template-rows: minmax(0, 1fr); }
+.bis-card-assets { height: 480px; min-height: 0; display: flex; flex-direction: column; }
+.bis-card-asset-detail { height: 540px; }
+.bis-card-assets > * { flex-shrink: 0; }
+.bis-card-assets > p { margin-bottom: 12px; }
+.bis-card-assets .bis-assets { flex: 1; min-height: 0; }
+.bis-assets { display: flex; flex-direction: column; gap: 12px; min-width: 0; text-align: left; font-size: 12px; }
+.bis-assets-content { flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; display: flex; flex-direction: column; }
+.bis-asset-list { flex: 1; min-height: 60px; margin: 0; padding: 0 5px 0 0; list-style: none; overflow: auto; }
+.bis-layer .bis-asset-list, .bis-layer .bis-assets-content { scrollbar-width: thin; scrollbar-color: #8da6ae #e7eef0; }
+.bis-asset-list li + li { margin-top: 7px; }
+.bis-asset-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 9px; border: 1px solid #c8d7dc; border-radius: 8px; background: #fff; color: #294650; text-align: left; font: inherit; cursor: pointer; }
+.bis-asset-row:hover { background: #e0f4ed; }
+.bis-asset-row[aria-pressed=true] { background: #d4eee4; border-color: #258369; box-shadow: inset 3px 0 #258369; }
+.bis-asset-row:focus-visible { outline: 2px solid #30977f; outline-offset: -2px; }
+.bis-asset-row-text { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.bis-asset-row-text strong { font-size: 12px; }
+.bis-asset-row-text span, .bis-asset-row-text code { font-size: 10px; color: #667a84; }
+.bis-asset-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 36px; color: #367260; background: #e8f3ee; border: 1px solid #cce2d7; border-radius: 10px; }
+.bis-asset-summary { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 2px; padding: 6px 0 14px; text-align: left; overflow-wrap: anywhere; }
+.bis-asset-summary .bis-asset-icon { grid-row: 1 / 3; width: 48px; height: 48px; }
+.bis-asset-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.bis-asset-id input { display: block; width: 100%; min-width: 0; margin-bottom: 12px; padding: 8px; border: 1px solid #c8d7dc; border-radius: 6px; background: #fff; color: #294650; font: 11px/1.6 ui-monospace, monospace; }
+.bis-asset-id input:focus-visible { outline: 2px solid #30977f; }
+.bis-confirmation { position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); margin: 0; box-sizing: border-box; width: min(280px, calc(100vw - 32px)); padding: 24px; border: 1px solid #d7e5df; border-radius: 18px; background: #f8fbfc; color: #182d39; text-align: center; font: 14px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; box-shadow: 0 20px 55px #0004; }
+.bis-confirmation::backdrop { background: #14233088; }
+.bis-confirmation h2 { margin: 0 0 12px; font-size: 24px; }
+.bis-confirmation p { margin: 0 0 20px; }
+.bis-confirmation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bis-confirmation-actions .bis-button { width: 100%; }
+.bis-asset-quantity { font-size: 24px; font-variant-numeric: tabular-nums; max-width: 100%; }
+.bis-asset-summary > span:last-child { color: #667a84; }
+.bis-asset-detail { min-width: 0; }
+.bis-assets textarea { display: block; width: 100%; max-width: 100%; resize: none; padding: 8px; border: 1px solid #c8d7dc; border-radius: 6px; background: #fff; color: #294650; font: 11px/1.6 ui-monospace, monospace; overflow-wrap: anywhere; }
+.bis-assets textarea:focus-visible { outline: 2px solid #30977f; }
+.bis-asset-metadata { margin: 6px 0 0; padding: 10px; background: #edf4f1; border-radius: 8px; }
+.bis-asset-metadata > div { display: grid; grid-template-columns: 65px minmax(0,1fr); gap: 8px; margin: 6px 0; }
+.bis-asset-metadata dt { color: #667a84; }
+.bis-asset-metadata dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.bis-assets p { margin: 8px 0; font-size: 11px; }
+.bis-assets .bis-actions { flex-shrink: 0; }
+.bis-assets .bis-asset-detail-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+.bis-asset-detail-actions > :first-child { grid-column: 1 / -1; }
+
+/* The operation layer belongs to this runtime host, not the surrounding Admin app. */
+.bis-runtime, .bis-runtime-content { position: absolute; inset: 0; }
+.bis-runtime { isolation: isolate; }
+.bis-pending-backdrop { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: #142330b8; pointer-events: auto; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #182d39; color-scheme: light; }
+.bis-pending-dialog { box-sizing: border-box; width: min(280px, 100%); max-height: 100%; overflow: auto; padding: 28px 24px; border: 1px solid #d7e5df; border-radius: 18px; background: #f8fbfc; box-shadow: 0 20px 55px #0004; text-align: center; outline: none; }
+.bis-pending-dialog h2 { margin: 0 0 18px; font-size: 20px; font-weight: 650; }
+.bis-pending-dialog p { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; margin: 0 0 20px; }
+.bis-pending-dialog .bis-lightning { font-size: 36px; }
+.bis-pending-dialog .bis-button { width: 100%; }
+
+.bis-balance-columns-with-direction { grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); column-gap: 6px; row-gap: 6px; }
+.bis-balance-columns-with-direction .bis-address-row { display: grid; grid-template-rows: subgrid; grid-row: 1 / 4; gap: 6px; }
+.bis-balance-columns-with-direction .bis-address-row:first-child { grid-column: 1; }
+.bis-balance-columns-with-direction .bis-address-row:last-child { grid-column: 3; }
+.bis-balance-columns-with-direction .bis-copy-field-heading { grid-row: 1; }
+.bis-balance-columns-with-direction input { grid-row: 2; }
+.bis-balance-columns-with-direction .bis-copy-status { grid-row: 3; }
+.bis-balance-columns-with-direction .bis-balance-direction { grid-column: 2; grid-row: 2; align-self: stretch; min-width: 0; width: 100%; padding: 0; border-radius: 7px; font-size: 18px; }

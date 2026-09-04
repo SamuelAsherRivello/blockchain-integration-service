@@ -10,10 +10,10 @@
   - [A5. View Activity](#a5-inspect-activity)
   - [A6. Log Out](#a6-log-out-and-return-to-ordinary-gameplay)
 - [B. Pay-to-play](#b-pay-to-play)
-  - [B1. Death Choices](#b1-die-and-choose-restart-or-paid-continuation)
-  - [B2. Pay to Continue](#b2-review-the-price-and-pay-to-continue)
-  - [B3. Payment Problems](#b3-handle-insufficient-funds-or-a-failed-payment)
-  - [B4. Pending Payments](#b4-leave-a-slow-payment-without-losing-track-of-it)
+  - [B1. MVP Request Continue](#b1-mvp-request-continue)
+  - [B2. Game death screen and continuation integration](#b2-game-death-screen-and-continuation-integration)
+  - [B3. Optional payment review and guidance UI](#b3-optional-payment-review-and-guidance-ui)
+  - [B4. Extended pending-payment and recovery UI](#b4-extended-pending-payment-and-recovery-ui)
 - [C. Assets](#c-assets)
   - [C1. Mint Asset](#c1-mint-asset)
   - [C2. Claim Asset](#c2-claim-the-asset)
@@ -30,8 +30,12 @@
   - [D5. Cancel Pending Transfer](#d5-cancel-pending-transfer)
     - [D5a. Inspect and Copy Transfer Recovery Details](#d5a-inspect-and-copy-transfer-recovery-details)
     - [D5b. Cancel Pending Transfer](#d5b-cancel-pending-transfer)
+  - [D6. USD relative sats pricing?](#d6-usd-relative-sats-pricing)
 
 ## Current implementation
+
+**Shared runtime operation presentation:** Page loads and user-triggered async operations immediately cover their rendered source page with the Pending Operation Dialog. An `ing...` label appears above the spinning bolt until data, refresh and rendering are ready. Read failure retries once; final failure shows only OK, closing the prompt and failed source page. Keep existing read deadlines (Transactions 75 seconds per attempt, Assets 30 seconds; otherwise 30 seconds where missing). Burn submits once and stays covered through refresh, then reveals Assets without a completion message. Background checks and Admin-only operations stay unobtrusive. These rules supersede older inline async and Retry/Back illustrations below.
+
 
 Within the Status column, ✓ marks the completed portion described beside it; any pending work still prevents whole-story completion.
 
@@ -41,12 +45,13 @@ Within the Status column, ✓ marks the completed portion described beside it; a
 | A2. Create Account | Account / Create Account | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
 | A3 | Account / Restore Account | Account-access restoration implemented; see A3 verification evidence. |
 | A4. Account Balance | Account / Account Balance | Implemented and browser-verified with real zero balance; funded Signet verification pending. |
-| A5. View Activity | Account / Inspect Activity | ✓ SDK history, Account Activity UI, Copy-all, lifecycle handling, and production demo implemented. Live confirmation-transition/outgoing-spent evidence and final documentation reconciliation remain pending. |
+| A5. View Activity | Account / Inspect Activity | ✓ SDK history, Transactions UI, Copy-all, lifecycle handling, and production demo implemented. Live confirmation-transition/outgoing-spent evidence and final documentation reconciliation remain pending. |
 | A6. Log Out | Account / Log Out | Implemented; core and isolated browser checks pass. Manual real-storage logout verification pending. |
 | C1, C4 | Mint Asset / List Assets | ✓ Generic mint/list contracts, exact quantities, Signet adapter, and example presets implemented. Retry/lifecycle safeguards, Admin acceptance, and live mint/list verification remain pending. |
-| B1-B4, C2, C3, C5 | Not implemented | Deferred. |
+| B1 | Implemented and verified | Live 1,000-sat sink payment verified; all three assets preserved in player change. |
+| B2-B4, C2, C3, C5 | Not implemented | Deferred. |
 | D4. Account Transfer | Account / Account Transfer | ✓ Both directions, Max, quotes, explicit confirmation, and unresolved-operation guards implemented. A registered transfer remains unresolved; remaining recovery coverage and live completion verification are pending. |
-| D5a. Inspect and Copy Transfer Recovery Details | Account Activity → Transaction Detail → Recovery details | ✓ Implemented and verified: one-click pending entry, Check Status, copy/manual fallback. Cancellation remains separate and blocked. |
+| D5a. Inspect and Copy Transfer Recovery Details | Transactions → Transaction Detail → Recovery details | ✓ Implemented and verified: one-click pending entry, Check Status, copy/manual fallback. Cancellation remains separate and blocked. |
 | D5b. Cancel Pending Transfer | Not implemented | Blocked on verified operator cancellation scope and terminal-outcome guarantees; no cancellation UI or live cancellation delivered. |
 | D1. Game-controlled wallet or issuer | Not listed | Future refactor; further specification required. |
 | D2a. Receive funds using addresses | Account / Receive Funds | Complete: address journey, dedicated demo, isolated error checks, and real-account demo/independent-host verification. D2b remains blocked. |
@@ -188,7 +193,7 @@ Status: implemented for account access only. Verification is recorded in [A3_VER
   v
 [A3.05] Core --> Arkade: restore same identity + connect to Signet
   |
-  +--> [A3.06] Unavailable: hide retained phrase; Retry / Back
+  +--> [A3.06] Unavailable: operation error + OK; close Restore page
   |
   v
 [A3.07] Save account access in existing encrypted persistence
@@ -219,7 +224,7 @@ Status: implemented as the lean Account Balance slice. Real zero-balance, refres
   |
   +--> [A4.04] Details: existing Account ID / Network: Signet
   +--> [A4.05] Available balance / Total balance (sats)
-  |             Refresh --> loading --> success / unavailable
+  |             Refresh --> Pending Operation Dialog --> ready / error + OK
   +--> [A4.06] DEFERRED: Assets --> C4
   +--> [A4.07] DEFERRED: activity/history ----> A5
   +--> [A4.08] Log Out ----------------------> A6
@@ -230,7 +235,7 @@ Status: implemented as the lean Account Balance slice. Real zero-balance, refres
 
 - A4.06 and A4.07 retain their IDs as deferred branches; no placeholder buttons appear. Receiving/funding details and custom asset rendering are separate future features.
 - Load on each Account Details entry and Refresh; no continuous UI updates. Available balance is prominent, total secondary. Neither failures nor unknown values become zero.
-- Starting a read clears prior amounts. Failure shows "Balance unavailable" and "Unable to retrieve current wallet data." with Refresh available. No balance is persisted or reused after closing/reloading; no stale values or update timestamps are shown.
+- Starting a read clears prior amounts. Failure retries once under the Pending Operation Dialog, then shows an error and OK that closes Account Details. No balance is persisted or reused after closing/reloading; no stale values or update timestamps are shown.
 - Account ID is locally verified identity; Signet is configured network, not a connection indicator. Balance failure does not log out the account or block Back; Log Out remains on the Account menu. Missing/unreadable keys follow account-access errors.
 - Leaving, logout confirmation, reset, account replacement, and disposal invalidate pending balance work. Cancelling logout returns to Account without a balance read; reopening Account Details starts a new read. Temporary SDK resources are disposed after the bounded request.
 
@@ -287,7 +292,7 @@ Optional educational view.
                        v
             [A6.05] Clear remembered account material; end active service session
                  |     |
-                 |     +--> [A6.12] Failure/unconfirmed --> same dialogue: Retry
+                 |     +--> [A6.12] Failure/unconfirmed --> operation error + OK; close page
                  |                                          |
                  |                         reconcile <------+
                  v
@@ -306,134 +311,79 @@ Optional educational view.
 - Confirmed scope: use the supplied Arkade Reset wallet screenshots as the behavioral reference for a backup confirmation, with our heading "Account Log Out" and action "Log Out". Ask "Did you back up your wallet?" and warn that clearing the account from this browser cannot be undone locally; restoring access requires the saved recovery phrase. This confirmation is permanent A6 behavior, independent of A3 restoration availability.
 - The "I have backed up my wallet" checkbox starts unchecked every time the confirmation opens. Log Out is disabled until checked and becomes disabled again if unchecked. Checking the box alone does not log out; the player must press Log Out. Back cancels without clearing account material or ending the session.
 - The Admin Log Out demonstration opens the real Account dialogue, recognizing a saved account or showing the chooser if none exists. Successful logout preserves selection and shows Create Account / Restore Account (Restore is enabled). Back restores the preceding host presentation.
-- Failures retain the confirmation with Retry. No success is reported until storage clearing is confirmed; retries reconcile ambiguous completion and never clear a replacement account using an old confirmation. Other live contexts reconcile confirmed logout. Arkade wallets are already disposed after creation, so this slice has no additional network cleanup.
+- Failures show an operation error with OK closing the confirmation page. No success is reported until storage clearing is confirmed; retries reconcile ambiguous completion and never clear a replacement account using an old confirmation. Other live contexts reconcile confirmed logout. Arkade wallets are already disposed after creation, so this slice has no additional network cleanup.
 - A6 offers no recovery-phrase access. Pending-payment handling is deferred until payments exist. Game-specific mid-run policy is also deferred; the brief's connected-run eligibility rule is unchanged.
 
 ## B. Pay-to-play
 
-An optional way to pay currency to make up for a lack of skill. The concrete v1 mechanic is paying test sats to continue from a checkpoint after dying, not paying an entry fee to play the game. Restarting normally remains free.
+The first deliverable is B1 only: a complete minimal continuation request demonstrated through Admin and Console. B2-B4 are separate future enhancements, not partial deliverables of the MVP. Restarting ordinary gameplay remains free.
 
-### B1. Die and choose restart or paid continuation
+### B1. MVP Request Continue
+
+**Status:** Complete: tests, browser verification and one live 1,000-sat sink payment passed, preserving all three assets in player change. See [B1 verification](../.openspec/changes/archive/2026-09-04-add-b-pay-to-continue-mvp/VERIFICATION.md).
 
 ```text
-[B1.01] Player dies
+[B1.01] Admin: Request Continue, visible default 1,000 sats
   |
   v
-[B1.02] Game: death screen + checkpoint context
+[B1.02] Public API: validate amount, account and operation identity
   |
-  +--> [B1.03] Restart Game --> ordinary No-chain restart
-  |
-  +--> [B1.04] Continue
-         |
-         v
-       [B1.05] Game checks service availability + run eligibility
-         |
-         +--> [B1.06] Unavailable --> disabled + explanation
-         |                    |
-         |                    v
-         |              [B1.07] Restart; connect for a future run
-         |
-         +--> [B1.08] Available --> requestContinue(checkpointId, priceSats)
-                              |
-                              v
-                         [B1.09] Core --> UI: payment overlay (B2)
-```
-
-- Game owns death, checkpoints, the test-sat price, and the free restart path. It requests a continuation through the public API rather than initiating an SDK payment itself.
-- Service: Core checks account/operation availability and coordinates the React payment overlay. No payment occurs merely because the player died or opened the overlay.
-- Complexity: account presence alone is not proof of connectivity or run eligibility. The brief's explanation points disconnected players toward a future connected run; the exact run/account switching rules remain unresolved.
-
-### B2. Review the price and pay to continue
-
-```text
-[B2.01] UI: show checkpoint + price in test sats
-  |
-  +--> [B2.02] Player backs out --> Game: death screen, no payment
-  |
-  +--> [B2.03] Player confirms payment
-         |
-         v
-       [B2.04] Core: begin continuation workflow
-         |
-         v
-       [B2.05] Arkade SDK / Signet infrastructure
-       [B2.06] Prepare --> Pay --> Confirm
-         |          [UI: lightning loader]
-         |
-         +--> [B2.07] Failure / pending --> B3 / B4
-         |
-         v
-       [B2.08] SDK reports successful completion
-         |
-         v
-       [B2.09] Core: continuePurchased(checkpointId, sats)
-         |
-         v
-       [B2.10] Game: resume matching checkpoint
-```
-
-- Game revives the player only after actual success, never after clicking Pay or submitting a transaction. The confirmation step is a proposed explicit authorization within the brief's payment overlay.
-- Service: UI owns price/context and progress; Core owns orchestration and the success event; Arkade owns the real Signet BTC Lightning workflow. Whether a step is off-Chain or on-chain depends on the actual operation, not its button label.
-- Complexity: payment recipient, request creation, fees, and current Arkade Intents/solver availability need validation. Run/operation identifiers must prevent double charges and stale events; the brief's minimal example API does not yet define those fields.
-
-### B3. Handle insufficient funds or a failed payment
-
-```text
-[B3.01] Player attempts to pay
+  +--> Invalid / unavailable / insufficient funds --> Console error; no submission
   |
   v
-[B3.02] Core --> Arkade: check/execute payment workflow
-                   |
-                   +--> [B3.03] Insufficient funds
-                   |      |
-                   |      v
-                   |    [B3.04] UI: explain test-sat shortfall
-                   |
-                   +--> [B3.05] Confirmed failure
-                   |      |
-                   |      v
-                   |    [B3.06] UI: explain failure
-                   |
-                   +--> [B3.07] Outcome unknown --> B4: reconcile first
-
-[B3.08] UI: known failure / shortfall
+[B1.03] Submit verified test-sat sink payment once
   |
-  +--> [B3.09] Back --> Game: Restart Game remains available
-  |
-  +--> [B3.10] Retry when resolved --> Core: safe new attempt
+  +--> Confirmed success --> Console result with original request context
+  +--> Confirmed failure --> Console error
+  +--> Unknown / pending --> Console pending; retain request for reconciliation
 ```
 
-- Game stays on the death/restart path; insufficient funds and failed operations never grant continuation. A failed network response must not be treated as proof that no payment happened.
-- Service: Arkade supplies the operation outcome; Core distinguishes failure from uncertainty and reports failure through the proposed `operationFailed` contract; UI gives a useful explanation instead of leaving the loader running forever.
-- Complexity: how a new wallet obtains test sats is not specified yet. Do not invent an automatic faucet or pretend retry funds the wallet; resolve funding and safe-retry rules before implementation.
+- One initiating call; no separate consume call, stored continuation entitlement, second confirmation overlay, or Runtime Preview changes. Admin simulates the request, not transaction success.
+- Demo default is **1,000 sats**. API accepts numeric whole-sat amounts from **1,000 through 10,000 inclusive** and throws before submission for invalid values.
+- Add a code comment that this local validation is not fail-safe or cheat-resistant. The accepted server-free demo does not establish trusted price enforcement.
+- Core owns request identity, account association, status and recovery; the adapter owns verified sink payment. Invalid input, insufficient funds, confirmed failures, pending tracking, reload reconciliation, and duplicate protection all belong to B1.
+- Repeating the same request must not pay twice. A timeout is not proof of failure. Results retain the original context so a future host can ignore obsolete runs; BIS does not revive a player itself.
+- Native-sat burning was not established. The user authorized a freshly generated recipient wallet fallback. Only its public address is retained; player login is unchanged. Report sink payment, not proven destruction of Bitcoin. No automatic funding or refund is promised.
+- D1's game wallet and D6's USD-relative pricing remain deferred.
 
-### B4. Leave a slow payment without losing track of it
+<!-- B1 pricing validation is not fail-safe: client-controlled checks do not establish trusted price enforcement. Carry this explanation into API validation comments. -->
+
+### B2. Game death screen and continuation integration
+
+**Status:** Future, outside the B1 MVP proposal.
+
+Connect B1 to an actual game's death screen, checkpoints and run lifecycle. The game owns the visible free Restart and paid Continue choices, price and eligibility, and resumes only the matching run after confirmed success. Handle account switching, disconnected-run eligibility and late results against real game state. B1 supplies the operation contract; this story adds the actual game integration and UI.
 
 ```text
-[B4.01] Payment still pending
-  |
-  +--> [B4.02] Around 10 seconds --> UI: still processing
-  |
-  +--> [B4.03] Longer threshold (example: 30-60 seconds)
-         |
-         v
-       [B4.04] UI: allow return to Restart
-         |
-         +--> [B4.05] Player keeps waiting
-         |
-         +--> [B4.06] Player restarts --> Game: new run
-                                  |
-                                  v
-       [B4.07] Core + Arkade: continue resolving original operation
-         |
-         +--> [B4.08] Success, original context valid --> continue event
-         +--> [B4.09] Late success, context obsolete --> record / explain
-         +--> [B4.10] Failure / recovery needed --> status / recovery UI
+[B2.01] Player dies --> Game death screen
+  +--> Restart --> Free new run
+  +--> Continue --> B1 request --> Confirmed success --> Resume matching run
 ```
 
-- Game can restart without waiting indefinitely. Proposed safeguard: success for an abandoned run must not revive the new run or move it to an old checkpoint.
-- Service: UI shows the lightning loader and slower-processing copy; Core tracks the pending operation independently of overlay visibility; Arkade checks completion and performs supported wallet recovery. Closing UI is not transaction cancellation.
-- Complexity: durable pending state, reload recovery, and what to do about payment succeeding after restart are unresolved. Do not promise an automatic refund; compensation/recovery depends on the payment design and verified SDK support.
+### B3. Optional payment review and guidance UI
+
+**Status:** Future, outside the B1 MVP proposal; no mandatory second confirmation is introduced by B1.
+
+Consider reusable player-facing UI for hosts that want a checkpoint/price review before submitting, plus explanations for unavailable service, insufficient funds and confirmed failure. Back returns to the game without initiating payment. Retry uses B1's safe operation semantics; UI must not imply that retry funds a wallet. This adds presentation choices, not the underlying error handling already required by B1.
+
+```text
+[B3.01] Host opts into review --> Show context and price
+  +--> Back --> No payment
+  +--> Confirm --> B1 request --> Player-facing outcome/guidance
+```
+
+### B4. Extended pending-payment and recovery UI
+
+**Status:** Future, outside the B1 MVP proposal.
+
+Add timed slow-processing messages, a player-facing choice to keep waiting or return to free restart, and an interface to inspect late outcomes or supported recovery. B1 already persists and reconciles pending operations; this story adds the player-facing experience. Timing thresholds, abandoned-run compensation and any refund policy remain undecided. Closing UI is not transaction cancellation, and no automatic refund is promised.
+
+```text
+[B4.01] B1 operation pending --> Slow-processing UI
+  +--> Keep waiting
+  +--> Return to game / restart --> Original operation remains tracked
+[B4.02] Late outcome --> Explain original result without reviving a new run
+```
 
 ## C. Assets
 
@@ -533,9 +483,24 @@ Current BIS/Admin flow (supersedes the earlier game-opportunity flow):
 [C4.10] Console: safe error; explicit retry available
 ```
 
-- No game-specific filtering, Account navigation, or production asset overlay. Missing optional metadata does not hide an asset; failed required reads are errors.
+- C4 itself performs no game-specific filtering, Account navigation, or production asset overlay changes. Missing optional metadata does not hide an asset; failed required reads are errors.
 - Ownership comes from a fresh wallet query, not the earlier mint response or a local asset catalog. Icon URLs remain metadata and are not fetched.
 - Live empty-list behavior is verified. A nonempty mint/list and restored-wallet round trip remain pending while the existing transfer is unresolved.
+#### Runtime Assets and Asset Detail
+
+The separate production inspection flow is reached through Account. C4 keeps its existing IDs and console-only behavior.
+
+```text
+Account -> Assets -> select owned asset -> Asset Detail
+           ^                                  |
+           +--------------- Back -------------+
+Account <----------- Back from Assets
+```
+
+Assets lists all positive holdings by asset ID, including non-BIS assets and duplicate names. Each row shows the metadata icon image (neutral fallback if unavailable), name or ID fallback, exact quantity, ticker and shortened ID. Asset Detail shows the same image and quantity, a single-line full Asset ID with Copy, and Details with inline Copy above Name/Ticker/Decimals. Missing decimals use base units; owned quantity is not total supply.
+
+Entry and Refresh read fresh holdings with a 30-second deadline; loading/failure hide old amounts. An absent selected asset returns to the fresh list with a notice. Back preserves row selection, scroll and focus; leaving Assets clears presentation state. HTTPS icon URLs render as images with no referrer. Burn above Back opens Confirmation with Are you sure? and OK/Cancel. OK burns the full confirmed holding after a fresh quantity check; Cancel and Escape do nothing. Busy actions are disabled, success refreshes Assets and uncertain submissions block another spend. Production artwork/navigation were checked read-only; SDK and browser burn outcomes use controlled fixtures, without destroying live holdings.
+
 ### C5. Receive a victory reward
 
 Optional stretch goal within Assets; a test-sat payout, distinct from the Final Extraction asset.
@@ -579,7 +544,14 @@ D1-D3 were restored from surviving planning references. D1 remains a possible fu
 
 **Status:** Brief future idea only; further specification required. The current achievement proposal uses player-wallet self-issuance. A later refactor could introduce a game-controlled issuer and define who funds awards, authorizes them, and establishes trusted asset identity. No issuer credentials may be embedded in the public browser client. Hosting, funding, trust, and the no-custom-server constraint must be resolved before designing or implementing this feature. No executable D1 Admin demonstration is proposed yet.
 
-Source: [achievement proposal](../.openspec/changes/add-achievement-opportunities-and-collection/proposal.md) and [design](../.openspec/changes/add-achievement-opportunities-and-collection/design.md).
+**Discussion direction (2026-09-04):** Admin could explicitly create and retain a separate demo game wallet, independently of the active player account. Do not automatically create a second wallet for every player. The existing wallet adapter constructs identities with separate in-memory SDK repositories, but application account persistence currently has one active-account slot. A second wallet therefore needs isolated persistent storage and lifecycle handling, including protection from player logout cleanup; two-wallet operation has not been live-verified.
+
+- For the Runtime Preview, Admin can supply the wallet's public receiving address through game configuration. BIS can use that configured recipient for a payment without exposing recipient signing credentials to the game.
+- A separately loaded game cannot rely on the Admin browser's local storage. Its public recipient address would need to be supplied in deployment/runtime configuration, which can be static and does not itself require a custom server. Address publication and updates remain to be designed. Freeze the recipient for each pending payment attempt.
+- The demo wallet should persist across reloads; temporary means demo-only, not discarding keys after a session. A browser-held demo wallet does not establish a trusted, independently controlled production issuer. Keep that distinction from D1's future achievement-issuer responsibility.
+- D1 remains deferred. B1 is authorized to create a minimal transient recipient for its sink-payment fallback; that does not implement independent Admin wallet management. The existing player remains the sole saved and logged-in wallet.
+
+Source: [achievement proposal](../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/proposal.md) and [design](../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/design.md).
 
 ### D2. Lightning invoice receiving
 
@@ -830,7 +802,7 @@ D5 is split into two independently deliverable stories and proposals. D5a provid
 **Status:** Implemented and verified with unit tests and an isolated real-browser fixture. [Proposal](../.openspec/changes/archive/2026-09-04-add-transfer-recovery-report/proposal.md). No cancellation SDK capability is needed and no live transaction is required for this story's acceptance.
 
 ```text
-[D5a.01] Account Transfer one-line pending notice --> Account Activity --> click pending transaction
+[D5a.01] Account Transfer one-line pending notice --> Transactions --> click pending transaction
 [D5a.02] Read known public IDs, direction, amount, phase and verification availability
 [D5a.03] Copy recovery details --> copy exactly the displayed report
 [D5a.04] Clipboard denied --> select text and copy manually
@@ -866,8 +838,16 @@ D5 is split into two independently deliverable stories and proposals. D5a provid
 - Cancellation targets only the reviewed same-account operation. It does not resume signing, resubmit the payment, cancel all wallet intents or undo completed transfers.
 - Opening, Back, navigation, account restoration and Check Status never sign or cancel. Only Confirm Cancellation authorizes the cancellation request.
 - Unknown outcomes survive restart and keep new wallet mutations, Log Out and Reset blocked. Missing history, elapsed time, unspent inputs and an ambiguous acknowledgement are not cancellation proof.
-- Verified cancellation preserves the original public operation record and appears in Account Activity and Copy Transactions. No refund, blockchain transaction or timestamp is invented.
+- Verified cancellation preserves the original public operation record and appears in Transactions and Copy Transactions. No refund, blockchain transaction or timestamp is invented.
 - A later transfer requires a fresh quote and explicit confirmation. Resolving D5 does not automatically log out, reset, mint or transfer funds.
 - Real Signet cancellation requires separate explicit user confirmation and evidence of terminal resolution; fixtures do not count as live acceptance.
 
-**Boundary:** D5b and its `cancel-pending-transfer` proposal are independent of D5a read-only reporting and D3a new sending; cancellation feasibility is not a development prerequisite for either. It does not introduce a separate Admin shortcut or bypass; the planned recovery entry is Account Activity transaction details. Existing story IDs and the D5 umbrella anchor are preserved.
+**Boundary:** D5b and its `cancel-pending-transfer` proposal are independent of D5a read-only reporting and D3a new sending; cancellation feasibility is not a development prerequisite for either. It does not introduce a separate Admin shortcut or bypass; the planned recovery entry is Transactions transaction details. Existing story IDs and the D5 umbrella anchor are preserved.
+
+### D6. USD relative sats pricing?
+
+**Status:** Open question for future discussion; outside the current B pay-to-play step. No pricing or display change is approved yet.
+
+- Could BIS consistently present prices in USD and convert those prices to sats for payment? Keeping the USD price stable while the sat amount changes with the exchange rate might give users a more stable, familiar pricing experience as Bitcoin's price fluctuates.
+- Distinguish USD-denominated pricing from merely showing a USD estimate beside a fixed sat price: only the former aims to keep the USD cost stable. Consider showing the exact payable sats alongside the USD price so users can understand the wallet debit.
+- Later decisions include the exchange-rate source, freshness, whole-sat rounding, and how long a quoted amount remains fixed. The current B demo retains its 1,000-sat default and inclusive 1,000–10,000-sat API range.

@@ -12,6 +12,6 @@ The icons match the Stealth Grid pixel-art style and preserve the same trophy ar
 
 Quick fill uses these absolute URLs in local development and on the live site, with amount 1 and decimals 0. Fields remain editable; selecting a preset does not mint. The initial form still has a blank optional Icon URL. BIS stores the URL as metadata and does not fetch it when listing assets.
 
-Published in [trophy-assets-v1](https://github.com/SamuelAsherRivello/blockchain-integration-service/releases/tag/trophy-assets-v1), with all three PNGs also attached to the release. Deployment and browser evidence are recorded in [C1/C4 verification](../../../../../.openspec/changes/add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md#numbered-trophy-assets-and-preset-urls--2026-09-04).
+Published in [trophy-assets-v1](https://github.com/SamuelAsherRivello/blockchain-integration-service/releases/tag/trophy-assets-v1), with all three PNGs also attached to the release. Deployment and browser evidence are recorded in [C1/C4 verification](../../../../../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md#numbered-trophy-assets-and-preset-urls--2026-09-04).
 
 Keep these files at their original paths and preserve their contents: minted metadata can reference them indefinitely. Publish revised artwork in a new version directory. Availability depends on retaining this repository and its GitHub Pages deployment.

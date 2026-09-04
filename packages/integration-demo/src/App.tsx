@@ -7,12 +7,41 @@ import { selectAccountStory } from './admin/selectAccountStory';
 import { GamePreview } from './preview/GamePreview';
 import { SplitWorkspace } from './SplitWorkspace';
 import { version } from '../package.json';
+import arkadeLogo from './assets/arkade-logo.png';
 
-export function App() {
+// Private demo test seam; normal hosts keep the public BIS factory by default.
+export function App({ contextFactory = createBisContext }: { contextFactory?: typeof createBisContext } = {}) {
   const container = useRef<HTMLDivElement>(null);
   const session = useRef<ReturnType<typeof start> | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [state, setState] = useState<BisState>();
+  const continueRunning=useRef(false);
+  const continueAttempt=useRef<import('@bis/integration').BisContinueRequest | undefined>(undefined);
+  const continueRecovered=useRef(false);
+  const [continueBusy,setContinueBusy]=useState(false);
+  async function requestContinue() {
+    const current=session.current;if(!current || continueRunning.current)return;
+    const startingProfile=current.context.getState().profileId;
+    continueRunning.current=true;setContinueBusy(true);
+    try {
+      const history=await current.context.getContinueStatus();
+      if(session.current!==current || current.context.getState().profileId!==startingProfile)return;
+      const prior=continueAttempt.current ? history.find(r=>r.operationId===continueAttempt.current!.operationId) : !continueRecovered.current ? history.at(-1) : undefined;
+      continueRecovered.current=true;
+      if(prior) {
+        logAsset('Request Continue',prior);
+        continueAttempt.current=prior.status==='pending'?prior:undefined;
+        return;
+      }
+      const request= {operationId:crypto.randomUUID(),sats:1000,context:crypto.randomUUID()};
+      continueAttempt.current=request;
+      logAsset('Request Continue',{status:'pending',operationId:request.operationId,context:request.context});
+      const result=await current.context.requestContinue(request);
+      if(result.status!=='pending')continueAttempt.current=undefined;
+      if(session.current===current && current.context.getState().profileId===result.profileId)logAsset('Request Continue',result);
+    } catch(error) {if(session.current===current)logAsset('Request Continue',{status:'error',message:error instanceof Error?error.message:'Continue unavailable.'});}
+    finally {continueRunning.current=false;if(session.current===current)setContinueBusy(false);}
+  }
   const [funding, setFunding] = useState(false);
   const [assetBusy, setAssetBusy] = useState(false);
   const [mintOpen, setMintOpen] = useState(false);
@@ -68,7 +97,7 @@ export function App() {
     } finally { if (session.current === current) setFunding(false); }
   }
   function start() {
-    const context = createBisContext();
+    const context = contextFactory();
     const adminContext = createBisAdminContext(context);
     const ui = createBisUi(context);
     const unsubscribe = context.subscribe(() => setState(context.getState()));
@@ -98,9 +127,9 @@ export function App() {
     } catch { /* No API return value is available to display. */ }
   }
   return <div className="demo-app">
-    <header className="app-header"><div className="identity"><span className="brand-mark" aria-hidden="true">↗</span>Blockchain Integration Service - Demo</div><div className="version-tag"><span>v{version}</span><a className="github-link" href="https://github.com/SamuelAsherRivello/blockchain-integration-service" target="_blank" rel="noopener noreferrer" aria-label="View repository on GitHub"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.23c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.23 1.84 1.23 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.93.43.37.81 1.1.81 2.22v3.3c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z" /></svg></a></div></header>
+    <header className="app-header"><div className="identity"><span className="brand-mark" aria-hidden="true">↗</span>Blockchain Integration Service - Demo</div><div className="version-tag"><span>v{version}</span><a className="github-link" href="https://github.com/SamuelAsherRivello/blockchain-integration-service" target="_blank" rel="noopener noreferrer" aria-label="View repository on GitHub"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.23c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.23 1.84 1.23 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.93.43.37.81 1.1.81 2.22v3.3c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z" /></svg></a><a className="github-link" href="https://docs.arkadeos.com/" target="_blank" rel="noopener noreferrer" aria-label="View Arkade documentation" title="Arkade documentation"><img src={arkadeLogo} width="18" height="18" alt="" /></a></div></header>
     <SplitWorkspace>
-      <AdminPanel onMint={()=>void openMint()} onListAssets={()=>void listAssets()} assetBusy={assetBusy} consoleOutput={consoleLines.join("\n\n")} selected={selected} accountOpen={state?.view === 'account' || state?.phase === 'loading' || state?.phase === 'resetting'} canReset={state?.phase !== 'loading' && state?.phase !== 'resetting' && (!!selected || !!state?.canReset)} onSelect={selectStory} onReset={()=>void reset()} canFund={!!state?.hasProfile && state?.phase === 'active'} funding={funding} onFund={()=>void fundAccount()} onExplorer={()=>void fundAccount(true)} />
+      <AdminPanel onContinue={()=>void requestContinue()} continueBusy={continueBusy} onMint={()=>void openMint()} onListAssets={()=>void listAssets()} assetBusy={assetBusy} consoleOutput={consoleLines.join("\n\n")} selected={selected} accountOpen={state?.view === 'account' || state?.phase === 'loading' || state?.phase === 'resetting'} canReset={state?.phase !== 'loading' && state?.phase !== 'resetting' && (!!selected || !!state?.canReset)} onSelect={selectStory} onReset={()=>void reset()} canFund={!!state?.hasProfile && state?.phase === 'active'} funding={funding} onFund={()=>void fundAccount()} onExplorer={()=>void fundAccount(true)} />
       <GamePreview containerRef={container} />
     </SplitWorkspace>
     {mintOpen && <MintAssetDialog initial={pendingMint} onMint={mint} onClose={()=>setMintOpen(false)} />}

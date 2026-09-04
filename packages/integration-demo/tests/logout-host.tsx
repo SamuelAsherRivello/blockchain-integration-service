@@ -75,12 +75,16 @@ document.getElementById('run')!.onclick=async()=>{
       pendingCheck=target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1];
       if(pendingCount){assert(!pendingCheck.checked,'pending acknowledgement resets');pendingCheck.click();await tick();}
       f.failNext();button(target,'Log Out').click();await tick();
-      assert(f.context.getState().phase==='logout-error' && button(target,'Retry'),'error retry');
-      button(target,'Retry').click();await tick();
+      assert(f.context.getState().phase==='logout-error' && target.querySelector('.bis-pending-dialog'),'error prompt');
+      button(target,'OK').click();await tick();
+      assert(f.context.getState().phase==='active' && !target.querySelector('.bis-pending-dialog'),'OK closes failed logout page');
+      button(target,'Log Out').click();await tick();target.querySelector<HTMLInputElement>('input[type=checkbox]')!.click();await tick();
+      if(pendingCount){target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1].click();await tick();}
+      button(target,'Log Out').click();await tick();
       assert(!f.context.getState().hasProfile && f.clears()===1,'confirmed success');
-      assert(!button(target,'⚡ Restore Account').disabled && button(target,'⚡ Create Account'),'chooser destination');
-      button(target,'Back').click();await tick();assert(button(target,'⚡ Account'),'prior host destination');
+      assert(!target.querySelector('[role="dialog"]') && !button(target,'⚡ Create Account') && !button(target,'⚡ Restore Account'),'success closes without chooser');
+      assert(button(target,'⚡ Account'),'prior host destination');
     }
-    output.textContent=`PASS: ${targets.length} host(s), ${pendingCount} pending — checkbox, cancellation, reopening, failure/Retry, success, destination, no recovery access.`;
+    output.textContent=`PASS: ${targets.length} host(s), ${pendingCount} pending — checkbox, cancellation, reopening, failure/OK, fresh confirmation, success, destination, no recovery access.`;
   }catch(error){output.textContent=`FAIL: ${error instanceof Error?error.message:'component checks'}`;}
 };

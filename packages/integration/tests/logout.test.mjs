@@ -47,7 +47,7 @@ test('logout requires acknowledgement, cancels, resets checkbox and preserves ho
   c.openLogoutConfirmation(); assert.equal(c.getState().logoutBackupAcknowledged, false);
   c.setLogoutBackupAcknowledged(true); c.setLogoutBackupAcknowledged(false); await c.confirmLogout(); assert.equal(f.clears(), 0);
   c.setLogoutBackupAcknowledged(true); await c.confirmLogout();
-  assert.equal(c.getState().hasProfile, false); assert.equal(c.getState().view, 'account');
+  assert.equal(c.getState().hasProfile, false); assert.equal(c.getState().view, 'account-button');
   c.closeAccount(); assert.equal(c.getState().view, 'account-button');
   const reload = f.make(); await reload.ready(); assert.equal(reload.getState().hasProfile, false);
   c.dispose(); reload.dispose();
@@ -132,6 +132,23 @@ test('generation guard rejects replacement after preflight and stale account sav
   await confirm(c);await c.confirmLogout();assert.equal(c.getState().phase,'logout-error');assert.equal(f.clears(),0);
   await c.retry();assert.equal(c.getState().profileId,'profile-b');assert.equal(f.clears(),0);
   await assert.rejects(f.storage.save(identity,0,new AbortController().signal));c.dispose();
+});
+
+test('successful logout never publishes a create/restore dialog, including reconciled retry', async () => {
+  for (const presented of [false, true]) for (const ambiguous of [false, true]) {
+    const f = fixture(), c = f.make(), reset = f.storage.reset;
+    if (ambiguous) f.storage.reset = async (...args) => { await reset(...args); throw Error('after commit'); };
+    await c.ready();
+    if (presented) getControls(c).present();
+    await confirm(c);
+    const states = [];
+    c.subscribe(() => states.push(c.getState()));
+    await c.confirmLogout();
+    if (ambiguous) await c.retry();
+    assert.equal(states.some(s => !s.hasProfile && s.view === 'account'), false);
+    assert.equal(c.getState().view, presented ? 'account-button' : 'empty');
+    c.dispose();
+  }
 });
 
 test('five pending operations require the additional acknowledgement and reopening resets it', async () => {

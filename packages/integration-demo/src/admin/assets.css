@@ -1,4 +1,4 @@
-.mint-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0 28px 26px; border: 1px solid #303036; border-radius: 22px; background: #101011; color: #f5f5f6; box-shadow: 0 28px 100px #0009; overflow-y: auto; }
+.mint-dialog { box-sizing: border-box; width: min(720px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0 28px 26px; border: 1px solid #303036; border-radius: 22px; background: #101011; color: #f5f5f6; box-shadow: 0 28px 100px #0009; overflow-y: auto; }
 .mint-dialog::backdrop { background: #050508bd; backdrop-filter: blur(5px); }
 .mint-header { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #262629; padding:20px 0; margin-bottom:24px; }
 .mint-header h2 { margin:0; font-size:26px; letter-spacing:-1px; }

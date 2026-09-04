@@ -19,10 +19,9 @@ export function AddressRow({ label, address, disabled = false }: { label: string
 }
 export function AccountAddresses({ addresses }: { addresses: BisAddresses }) {
   const ready = addresses.status === 'ready';
-  const placeholder = addresses.status === 'unavailable' ? 'Addresses unavailable' : 'Loading...';
+  const placeholder = '';
   return <div className="bis-addresses">
     <AddressRow label="Bitcoin address" address={ready ? addresses.bitcoinAddress : placeholder} disabled={!ready} />
     <AddressRow label="Arkade address" address={ready ? addresses.arkadeAddress : placeholder} disabled={!ready} />
-    <span className="bis-sr-only" role="status">{addresses.status === 'unavailable' ? 'Addresses unavailable. Use Refresh to retry.' : ready ? 'Addresses loaded.' : 'Loading...'}</span>
   </div>;
 }
