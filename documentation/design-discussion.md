@@ -119,6 +119,8 @@ These questions and recommendations are not approved design decisions. The next 
 
 ## Bitcoin presentation precedence
 
+- Bitcoin receipt Transaction Detail includes confirmations computed from the live chain tip and the confirmed output block height, the available block height, and a Signet explorer URL. Unconfirmed outputs show 0 and first-block waiting guidance without a promised ETA. Missing confirmation evidence is explicitly unavailable; off-chain records do not claim Bitcoin confirmations. These fields update with existing Activity reconciliation and are included in Copy.
+
 - Present Bitcoin before Arkade wherever balances, receiving methods, or functionality are listed together. Receive lists Bitcoin address first; balance breakdowns list Bitcoin first after the combined total; transfer entry and direction choices list Bitcoin first.
 - This is a presentation convention, not a change to balance calculations or payment routing.
 
@@ -136,6 +138,22 @@ Important correction: SDK 0.4.67 signing-wallet defaults can automatically board
 
 ## C1/C4 generic assets — 2026-09-04
 
-The latest user decision replaces BIS-level achievement semantics with generic asset minting/listing. C1 Mint Asset uses an Admin-owned modal with Name, Ticker, Amount, Decimals, Icon URL and fixed Control Asset None. Three editable Admin presets use Achievement: Level 1/2/3, LVL1/2/3, amount 1, decimals 0 and blank icon URL. These are example data only. C4 List Assets prints all positive holdings to Console. Neither uses Runtime Preview.
+The latest user decision replaces BIS-level achievement semantics with generic asset minting/listing. C1 Mint Asset uses an Admin-owned modal with Name, Ticker, Amount, Decimals, Icon URL and fixed Control Asset None. Three editable Admin presets use Achievement: Level 1/2/3, LVL1/2/3, amount 1, decimals 0 and the matching hosted numbered trophy icon URL. These are example data only. The three 64 by 64 transparent numbered trophy PNGs use versioned GitHub Pages URLs; preserve their published paths and bytes for existing mint metadata. See [trophy assets and public URLs](../packages/integration-demo/public/assets/achievements/README.md). C4 List Assets prints all positive holdings to Console. Neither uses Runtime Preview.
 
 Mint request IDs provide retry protection; names do not imply uniqueness. APIs are mintAsset, listAssets, getPendingAssetMint and validateMint. No control-asset or reissuance feature is included. An existing registered unresolved wallet transfer currently blocks live mint verification. This supersedes the earlier C1 opportunity-only, game-filtered listing and name-based duplicate assumptions. C2/C3 broader game workflows, B, C5 and D1 remain deferred.
+
+## D3a sending separated from transfer recovery — 2026-09-04
+
+The user explicitly requested two proposals and stories, starting with Send. D3a `add-d3a-address-sending` now delivers Arkade-to-Arkade only: recipient/Paste, spendable funds, sats/Max, exact review and explicit confirmation. Bitcoin source/destination selectors and Lightning/QR/fiat controls are excluded. The production flow and API are implemented with isolated adapter/core/browser tests; live payment acceptance needs selected clean Signet accounts and remains pending. D5 recovery in its separate proposal is not a development prerequisite. Existing pending-transfer locks and concurrent D5 work remain intact; no cancellation or account clearing occurs as part of D3a.
+
+
+## Wallet isolation — 2026-09-04
+
+The app instance considers only the currently logged-in wallet. Transfer and send journals, status reconciliation, Activity evidence, pending-operation guards, and mutation locks are scoped by profile ID. Existing legacy journals remain intact and are read only for their identified owner; new records use wallet-specific keys. Restoring a wallet restores access to its recovery records. Account changes invalidate reviews and transient UI state; late operation callbacks remain bound to their originating wallet. Funding requests from a previous account cannot block the current account.
+
+
+## Complete logout cleanup — 2026-09-04
+
+The user explicitly requested complete app-owned browser cleanup on logout. Keep the existing backup acknowledgement. Only when there are more than zero locally saved pending transfers, sends, or mints, show a second required checkbox with the exact text `I accept losing my (5) pending transactions.` using the actual count. Reopening resets it; a changed pending set requires new acknowledgement. Explain separately that submitted transactions may still complete and logout removes recovery information rather than cancelling network transactions.
+
+Complete logout clears the encrypted account and generation records, all BIS journals across saved wallets, and demo preferences; the empty IndexedDB schema may remain. All live BIS tabs reload to discard session state. Unrelated host/browser data is preserved. Current SDK repositories are explicitly in-memory. This supersedes earlier decisions to preserve transfer journals or prohibit logout for pending sends, but does not relax spending or Admin Reset guards. Preview scale and split layout are now session-only so reload does not recreate persisted preferences. Ordinary refresh retains account access and recovery journals. UI and core checks use storage doubles; destructive live-wallet verification is not performed.

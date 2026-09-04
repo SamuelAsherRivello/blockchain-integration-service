@@ -6,7 +6,7 @@ A registered transfer can remain unresolved after interrupted signing, blocking 
 
 **D5b — Cancel Pending Transfer:** As an account holder with an unresolved transfer, I want to explicitly cancel that operation when safely supported, so I can use the account again without risking duplicate spending.
 
-D5a. Inspect and Copy Transfer Recovery Details is independently delivered by [add-transfer-recovery-report](../add-transfer-recovery-report/proposal.md). D5a is a read-only handoff, not partial cancellation implementation; it does not depend on this feasibility gate or resolve the pending transfer. D5 remains the documentation umbrella for these two stories.
+D5a. Inspect and Copy Transfer Recovery Details is independently delivered by [add-transfer-recovery-report](../archive/2026-09-04-add-transfer-recovery-report/proposal.md). D5a is a read-only handoff, not partial cancellation implementation; it does not depend on this feasibility gate or resolve the pending transfer. D5 remains the documentation umbrella for these two stories.
 
 This proposal does not implement D3a new sending. D3a in `add-d3a-address-sending` is delivered independently using clean accounts/isolated tests; the existing pending account remains protected. No D5 feasibility gate is a prerequisite for writing or testing D3a. D5 is not being implemented as part of the current D3a apply.
 

@@ -22,12 +22,29 @@ C1 Mint Asset SHALL open an Admin-owned form with Name, Ticker, Amount, Decimals
 - **THEN** no mint is submitted and relevant validation or ordinary Admin controls remain available
 
 ### Requirement: Admin example presets
-The Admin mint form SHALL offer three quick-fill buttons labeled Achievement: Level 1, Achievement: Level 2, and Achievement: Level 3. Each SHALL populate the matching name, ticker LVL1/LVL2/LVL3 respectively, amount 1, decimals 0, blank icon URL, and Control Asset None. Fields SHALL remain editable. Presets SHALL only modify the form and SHALL NOT submit, query, or establish ownership. They SHALL be disabled during submission or while an unresolved request must remain immutable. Example labels SHALL remain in the demo; BIS SHALL apply no achievement-specific meaning or rules.
+The Admin mint form SHALL offer three quick-fill buttons labeled Achievement: Level 1, Achievement: Level 2, and Achievement: Level 3. Each SHALL populate the matching name, ticker LVL1/LVL2/LVL3 respectively, amount 1, decimals 0, the matching absolute HTTPS trophy icon URL under https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-{level}-trophy.png (with {level} replaced by 1, 2, or 3), and Control Asset None. Fields SHALL remain editable. Presets SHALL only modify the form and SHALL NOT submit, query, or establish ownership. They SHALL be disabled during submission or while an unresolved request must remain immutable. Example labels SHALL remain in the demo; BIS SHALL apply no achievement-specific meaning or rules.
 
 #### Scenario: Use a preset
 - **WHEN** the user selects Achievement: Level 2 in an idle form
-- **THEN** the form contains that name, LVL2, amount 1, decimals 0, empty icon URL, and None
+- **THEN** the form contains that name, LVL2, amount 1, decimals 0, icon URL https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-2-trophy.png, and None
 - **AND** nothing is submitted until the user separately clicks Mint
+
+#### Scenario: Preset URLs work across origins
+- **WHEN** any of the three presets is selected in the local demo or the published demo
+- **THEN** its icon URL points to the matching public GitHub Pages PNG rather than a localhost or relative URL
+- **AND** the initial form before preset selection still has a blank optional icon URL
+
+### Requirement: Published numbered trophy icons
+The demo SHALL provide three 64 by 64 pixel PNG trophy icons with actual transparent backgrounds, matching the Stealth Grid pixel-art style. They SHALL use the same trophy artwork outside the numbered area, with only the corresponding digit 1, 2, or 3 on the cup and no other text. The three preset URLs SHALL serve the corresponding files publicly through GitHub Pages. Published v1 paths and file contents SHALL be retained across releases; revised artwork SHALL use a new version directory so existing mint metadata retains its original reference.
+
+#### Scenario: Published trophy assets
+- **WHEN** a client requests each preset icon URL after deployment
+- **THEN** it receives the corresponding 64 by 64 transparent PNG, identical to the project asset
+
+#### Scenario: Later artwork revision
+- **WHEN** a later release introduces revised trophy artwork
+- **THEN** the existing v1 URLs and image contents remain available and unchanged, and revised artwork uses new versioned URLs
+- **AND** hosting continuity depends on retaining the repository and GitHub Pages deployment
 
 ### Requirement: Admin list and preview isolation
 C4 List Assets SHALL call the generic production listing API and show its actual result in Admin Console, including an explicit empty array. Neither C1 nor C4 SHALL navigate, mount, clear, or change Runtime Preview. Existing account-flow restrictions SHALL be preserved. A mint form SHALL be outside the runtime container and use accessible labels, focus containment/restoration, idle dismissal, and responsive scrolling.

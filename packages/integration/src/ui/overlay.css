@@ -96,6 +96,9 @@
 .bis-card-activity .bis-activity textarea { flex: 1; min-height: 0; height: auto; resize: none; }
 .bis-card-activity .bis-activity > :not(textarea):not(.bis-transaction-list) { flex-shrink: 0; }
 .bis-activity p { min-height: 16px; margin: 6px 0 0; font-size: 11px; }
+.bis-card-activity .bis-activity-recovery { overflow-y: auto; }
+.bis-activity-recovery textarea { box-sizing: border-box; }
+.bis-card-activity .bis-activity-recovery textarea { flex: none; height: 190px; min-height: 190px; }
 .bis-recovery-details { min-width: 0; margin: 12px 0; text-align: left; font-size: 12px; }
 .bis-recovery-details summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .bis-recovery-details summary:focus-visible { outline: 2px solid #30977f; outline-offset: 2px; }
@@ -130,6 +133,15 @@
 .bis-transfer-review dd { margin: 0; overflow-wrap: anywhere; text-align: right; }
 
 .bis-invoice { border-top: 1px solid #d7e5df; padding-top: 10px; margin-bottom: 12px; text-align: left; }
+.bis-send { min-width: 0; text-align: left; font-size: 12px; }
+.bis-send-form { display: grid; gap: 10px; margin-bottom: 16px; }
+.bis-send-form label { display: grid; gap: 6px; }
+.bis-send-form input { box-sizing: border-box; min-width: 0; width: 100%; padding: 10px; border: 1px solid #c8d7dc; border-radius: 7px; background: white; color: #294650; font: inherit; }
+.bis-send-form input:focus-visible { outline: 2px solid #30977f; }
+.bis-send-form > .bis-button { justify-self: end; padding: 7px 14px; }
+.bis-send .bis-send-address { overflow-wrap: anywhere; user-select: text; text-align: left; font: 11px/1.6 ui-monospace, monospace; padding: 9px; background: #edf5f1; border-radius: 7px; }
+.bis-send-status { overflow-wrap: anywhere; }
+.bis-send .bis-warning { overflow-wrap: anywhere; }
 .bis-invoice-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .bis-invoice-options .bis-button { width: 100%; min-width: 0; padding: 9px 6px; font-size: 12px; }
 .bis-card .bis-invoice-status { margin: 10px 0 4px; color: #785317; font-weight: 600; }

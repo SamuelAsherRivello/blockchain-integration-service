@@ -29,6 +29,17 @@ async function confirm(context) {
   context.setLogoutBackupAcknowledged(true);
 }
 
+test('logout passes the reviewed operation snapshot to complete cleanup', async () => {
+  const f = fixture(), c = f.make(), reset = f.storage.reset;
+  f.storage.reset = async (generation, options) => {
+    assert.deepEqual(options, { purpose: 'logout', profileId:identity.profileId, operations: {count:0,fingerprint:'[]'} });
+    await reset(generation);
+  };
+  await confirm(c); await c.confirmLogout();
+  assert.equal(c.getState().phase, 'idle');
+  c.dispose();
+});
+
 test('logout requires acknowledgement, cancels, resets checkbox and preserves host destination', async () => {
   const f = fixture(), c = f.make(); await c.ready(); getControls(c).present(); c.openAccountDialog();
   c.openLogoutConfirmation(); await c.confirmLogout(); assert.equal(f.clears(), 0);
@@ -121,4 +132,35 @@ test('generation guard rejects replacement after preflight and stale account sav
   await confirm(c);await c.confirmLogout();assert.equal(c.getState().phase,'logout-error');assert.equal(f.clears(),0);
   await c.retry();assert.equal(c.getState().profileId,'profile-b');assert.equal(f.clears(),0);
   await assert.rejects(f.storage.save(identity,0,new AbortController().signal));c.dispose();
+});
+
+test('five pending operations require the additional acknowledgement and reopening resets it', async () => {
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  const data=new Map([['bis-signet-mints-v1:profile-a',JSON.stringify({operations:Array.from({length:5},(_,i)=>({request:{operationId:String(i)},status:'pending'}))})]]);
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return data.size;},key:i=>[...data.keys()][i]??null,getItem:key=>data.get(key)??null}});
+  const f=fixture(),c=f.make();
+  try {
+    await confirm(c);
+    assert.equal(c.getState().logoutPendingCount,5);
+    assert.equal(c.getState().logoutPendingAcknowledged,false);
+    await c.confirmLogout();assert.equal(f.clears(),0);
+    c.setLogoutPendingAcknowledged(true);c.cancelLogout();
+    c.openLogoutConfirmation();assert.equal(c.getState().logoutPendingAcknowledged,false);
+    c.setLogoutBackupAcknowledged(true);c.setLogoutPendingAcknowledged(true);
+    await c.confirmLogout();assert.equal(f.clears(),1);
+  } finally {c.dispose();if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
+});
+
+test('changed pending operations invalidate consent even when their count stays the same', async () => {
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  let id='first';
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{length:1,key:()=> 'bis-signet-mints-v1:profile-a',getItem:key=>key==='bis-signet-mints-v1:profile-a'?JSON.stringify({operations:[{request:{operationId:id},status:'pending'}]}):null}});
+  const f=fixture(),c=f.make();
+  try {
+    await confirm(c);c.setLogoutPendingAcknowledged(true);id='replacement';
+    await c.confirmLogout();assert.equal(f.clears(),0);
+    assert.equal(c.getState().logoutPendingAcknowledged,false);
+    assert.equal(c.getState().logoutPendingCount,1);
+    c.setLogoutPendingAcknowledged(true);await c.confirmLogout();assert.equal(f.clears(),1);
+  } finally {c.dispose();if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
 });

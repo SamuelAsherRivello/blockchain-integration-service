@@ -1,3 +1,5 @@
+import {readWalletRecord, walletRecordKey} from './wallet-record.ts';
+import { withBrowserMutation } from './logout-cleanup.ts';
 import type { BoardingQuote } from './boarding-quote.ts';
 
 export type BoardingRecord = {
@@ -30,62 +32,60 @@ function validate(r: BoardingRecord): BoardingRecord {
       (r.status==='not-submitted' && r.phase!=='prepared')) throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.');
   return r;
 }
-export function readBoardingRecord(): BoardingRecord | undefined {
-  if (!globalThis.localStorage) throw new BoardingBlockedError('Transfer storage is unavailable.');
-  const raw = localStorage.getItem(key);
-  if (!raw) return;
-  try { return validate(JSON.parse(raw)); }
+export function readBoardingRecord(profileId: string | undefined): BoardingRecord | undefined {
+  try { return readWalletRecord(key, profileId, validate); }
   catch { throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.'); }
 }
 export function writeBoardingRecord(record: BoardingRecord) {
   validate(record);
   const raw=JSON.stringify(record);
-  localStorage.setItem(key,raw);
-  if (localStorage.getItem(key)!==raw) throw new BoardingBlockedError('Transfer state could not be saved.');
+  const scopedKey=walletRecordKey(key,record.profileId);
+  localStorage.setItem(scopedKey,raw);
+  if (localStorage.getItem(scopedKey)!==raw) throw new BoardingBlockedError('Transfer state could not be saved.');
 }
 // Every caller performing reconciliation or clearing must hold this lock too.
-export function withWalletMutation<T>(work:()=>Promise<T>):Promise<T> {
+export function withWalletMutation<T>(work:()=>Promise<T>, profileId: string | undefined):Promise<T> {
   if (!globalThis.navigator?.locks) return Promise.reject(Error('This browser cannot safely coordinate wallet transfers.'));
-  return navigator.locks.request('bis-signet-wallet-mutation', {ifAvailable:true}, lock=> {
+  return withBrowserMutation(() => navigator.locks.request(`bis-signet-wallet-mutation:${encodeURIComponent(profileId ?? 'no-account')}`, {ifAvailable:true}, lock=> {
     if(!lock)throw new BoardingBlockedError('Another wallet operation is in progress.');
     return work();
-  });
+  }));
 }
-export function assertNoPendingBoarding() {
-  if(readBoardingRecord()?.status==='pending')throw new BoardingBlockedError('A transfer is unresolved. Open Account Transfer and check its status before starting another transfer or clearing this account.');
+export function assertNoPendingBoarding(profileId: string | undefined) {
+  if(readBoardingRecord(profileId)?.status==='pending')throw new BoardingBlockedError('A transfer is unresolved. Open Account Transfer and check its status before starting another transfer or clearing this account.');
 }
-export function updateBoardingRecord(id:string, patch:Partial<BoardingRecord>) {
-  const record=readBoardingRecord();
+export function updateBoardingRecord(id:string, patch:Partial<BoardingRecord>, profileId: string) {
+  const record=readBoardingRecord(profileId);
   if (!record || record.id!==id || record.status!=='pending') throw new BoardingBlockedError('The transfer operation changed.');
   const next={...record,...patch};writeBoardingRecord(next);return next;
 }
 // Safe only while holding the mutation lock: no active attempt can register.
 export function recoverPreparedBoarding(record:BoardingRecord) {
   return record.status==='pending' && record.phase==='prepared'
-    ? updateBoardingRecord(record.id,{status:'not-submitted'}) : record;
+    ? updateBoardingRecord(record.id,{status:'not-submitted'},record.profileId) : record;
 }
 // The provider wrapper calls beforeRegister synchronously immediately before its
 // network call. A durable submitting marker is required, even if response is lost.
-export function createBoardingAttempt(id:string, isCurrent:()=>boolean, deadline:number, now=Date.now) {
+export function createBoardingAttempt(id:string, isCurrent:()=>boolean, deadline:number, profileId: string, now=Date.now) {
   let open=true;
   return {
     beforeRegister() {
-      const record=readBoardingRecord();
+      const record=readBoardingRecord(profileId);
       if(!open || !isCurrent() || now()>=deadline || record?.id!==id || record.status!=='pending' || record.phase!=='prepared') throw Error('Transfer details changed. Review again.');
-      updateBoardingRecord(id,{phase:'submitting'});
+      updateBoardingRecord(id,{phase:'submitting'},profileId);
     },
-    registered(intentId:string) {updateBoardingRecord(id,{phase:'registered',intentId});},
+    registered(intentId:string) {updateBoardingRecord(id,{phase:'registered',intentId},profileId);},
     committed(commitmentTxid:string) {
-      const record=readBoardingRecord();
-      if(record?.id===id && record.status==='pending')updateBoardingRecord(id,{commitmentTxid});
+      const record=readBoardingRecord(profileId);
+      if(record?.id===id && record.status==='pending')updateBoardingRecord(id,{commitmentTxid},profileId);
     },
     interrupted(diagnostic:NonNullable<BoardingRecord['diagnostic']>) {
-      const record=readBoardingRecord();
-      if(record?.id===id && record.status==='pending')updateBoardingRecord(id,{diagnostic});
+      const record=readBoardingRecord(profileId);
+      if(record?.id===id && record.status==='pending')updateBoardingRecord(id,{diagnostic},profileId);
     },
     close() {
       open=false;
-      const record=readBoardingRecord();
+      const record=readBoardingRecord(profileId);
       if(record?.id===id)recoverPreparedBoarding(record);
     },
   };

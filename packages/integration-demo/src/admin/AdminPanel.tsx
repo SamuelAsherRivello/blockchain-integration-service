@@ -1,7 +1,7 @@
 const userStoriesUrl = './documentation/user-stories/';
 const categories = [{ name: 'Account', title: 'A. Account' }, { name: 'Pay-to-play', title: 'B. Pay-to-play' }, { name: 'Assets', title: 'C. Assets' }];
 
-const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A2', category: 'Account', label: 'Create Account' }, { id: 'A3', category: 'Account', label: 'Restore Account' }, { id: 'A4', category: 'Account', label: 'Account Balance' }, { id: 'A5', category: 'Account', label: 'Inspect Activity' }, { id: 'A6', category: 'Account', label: 'Log Out' }, { id: 'D2a', category: 'Account', label: 'Receive Funds' }, { id: 'D4', category: 'Account', label: 'Account Transfer' }] as const;
+const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A2', category: 'Account', label: 'Create Account' }, { id: 'A3', category: 'Account', label: 'Restore Account' }, { id: 'A4', category: 'Account', label: 'Account Balance' }, { id: 'A5', category: 'Account', label: 'Inspect Activity' }, { id: 'A6', category: 'Account', label: 'Log Out' }, { id: 'D2a', category: 'Account', label: 'Receive Funds' }, { id: 'D3a', category: 'Account', label: 'Send Funds' }, { id: 'D4', category: 'Account', label: 'Account Transfer' }] as const;
 export function AdminPanel({ selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onMint, onListAssets, assetBusy, consoleOutput }: {
   selected: string | null; accountOpen: boolean; canReset: boolean; onSelect(id: string): void; onReset(): void;
   canFund: boolean; funding: boolean; onFund(): void; onExplorer(): void;

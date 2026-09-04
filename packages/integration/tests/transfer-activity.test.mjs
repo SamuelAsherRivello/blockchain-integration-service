@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import {withTransferActivity,formatTransactions} from '../src/core/activity.ts';
 const record={id:'operation-1',profileId:'account-1',status:'pending',phase:'registered',intentId:'intent-1',quote:{amountSats:1000,direction:'to-bitcoin'}};
 const row={id:'history-1',amountSats:250,direction:'Incoming',status:'Confirmed',identifier:'unrelated-tx',createdAt:100};
+
+test('local transfer rows carry public recovery metadata, including merged SDK rows',()=>{
+ for(const rows of [[],[{...row,identifier:'commitment:abc'}]]) {
+  const result=withTransferActivity(rows,{...record,commitmentTxid:'abc',phrase:'PRIVATE_SENTINEL'},'account-1');
+  assert.equal(result[0].transfer?.operationId,record.id);
+  assert.equal(result[0].transfer?.phase,'registered');
+  assert.equal(result[0].transfer?.verification,undefined);
+  assert.ok(!JSON.stringify(result).includes('PRIVATE_SENTINEL'));
+ }
+ assert.equal(withTransferActivity([row],record,'other')[0].transfer,undefined);
+});
 test('registered transfer appears first before SDK history, with copyable explicit status and IDs',()=>{
  const rows=withTransferActivity([row],record,'account-1');
  assert.equal(rows.length,2);assert.equal(rows[0].createdAt,undefined);

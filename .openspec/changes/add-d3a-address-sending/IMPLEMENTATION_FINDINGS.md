@@ -1,5 +1,7 @@
 # D3a implementation prerequisite findings — 2026-09-04
 
+> Historical findings below describe the earlier three-route proposal. Superseded by the user-authorized Arkade-to-Arkade scope and implementation recorded in `VERIFICATION.md`. Bitcoin-source findings remain relevant only to future Bitcoin sending work; D5 recovery is independent.
+
 Apply paused during task 1.1. No production edits, tests, signing, submission or balance migration were performed. Task 1.1 remains unchecked because full fee/recovery verification is incomplete.
 
 ## Material source-balance mismatch

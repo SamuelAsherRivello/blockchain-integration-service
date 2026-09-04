@@ -18,11 +18,11 @@ test('review invalidates changed inputs, fees, account, amount, projections and 
   assert.throws(()=>assertQuoteUnchanged(q,q,2000));
 });
 
-test('direct API confirmation requires usable transfer storage before any wallet operation',async()=>{
+test('direct API confirmation requires an active wallet before any wallet operation',async()=>{
   assert.equal(boardingSubmissionEnabled,true);
   const c=createContext({load:async()=>({generation:0}),subscribe:()=>()=>{}});
   await c.ready();
-  await assert.rejects(c.confirmAccountTransfer({}),/Transfer storage is unavailable|safely coordinate wallet transfers/);
+  await assert.rejects(c.confirmAccountTransfer({}),/An active account is required|safely coordinate wallet transfers/);
   c.dispose();
 });
 

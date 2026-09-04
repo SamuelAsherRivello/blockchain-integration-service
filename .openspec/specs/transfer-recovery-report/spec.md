@@ -5,8 +5,15 @@ Let a player inspect and manually copy a privacy-limited recovery handoff for an
 
 ## Requirements
 
+### Requirement: Activity owns pending transfer recovery
+Account Transfer SHALL show a single pending-transfer notice directing the player to Account Activity. Account Activity SHALL include the same-account saved pending transfer even without SDK history, deduplicate a matching commitment, and open transaction details on one click. Only pending transfer details SHALL offer Check Status and the recovery report; unrelated rows SHALL not offer transfer recovery. A check returning a different operation SHALL request an Activity refresh without displaying the other operation's data. Cancel or undo SHALL not be offered without supported cancellation guarantees.
+
+#### Scenario: Pending transfer blocks another transfer
+- **WHEN** a saved pending transfer blocks new transfers
+- **THEN** Account Transfer explains the block in one sentence, and the pending Activity row provides read-only recovery actions without resubmission or clearing the journal
+
 ### Requirement: Pending transfer recovery report
-Pending Account Transfer SHALL offer expandable Recovery details with a read-only, selectable report showing Signet, direction, sats amount, transfer ID, operator intent ID, known commitment ID, recorded phase and verification availability. Missing or invalid values SHALL be identified as unknown or unavailable, never invented. The report SHALL explain that it is a status snapshot, not proof of cancellation or failure, and ask the operator for the intent's batch/commitment outcome or authoritative terminal-failure evidence excluding later settlement.
+Pending transfer details in Account Activity SHALL offer expandable Recovery details with a read-only, selectable report showing Signet, direction, sats amount, transfer ID, operator intent ID, known commitment ID, recorded phase and verification availability. Missing or invalid values SHALL be identified as unknown or unavailable, never invented. The report SHALL explain that it is a status snapshot, not proof of cancellation or failure, and ask the operator for the intent's batch/commitment outcome or authoritative terminal-failure evidence excluding later settlement.
 
 #### Scenario: Registered transfer
 - **WHEN** a registered pending operation is displayed

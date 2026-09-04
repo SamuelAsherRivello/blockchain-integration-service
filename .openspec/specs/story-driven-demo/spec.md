@@ -21,11 +21,12 @@ The demo SHALL offer 100%, 50%, and 25% content scale beside the 9:16 indicator,
 - **THEN** the dialogue remains open and centered, its content scales, and its enabled controls remain interactive
 
 ### Requirement: Implemented demonstrations only
-The Admin UI SHALL show only implemented demonstrations and nonempty categories. It SHALL begin without a selected story, including after refresh. Existing implemented Account demonstrations SHALL remain available. This slice SHALL add Assets / C1 Mint Asset and C4 List Assets and omit unimplemented categories and stories. The Admin heading SHALL be followed by User Stories and a working Documentation link in development and production builds. It SHALL NOT show Interactivity.
+The Admin UI SHALL show only implemented demonstrations and nonempty categories. It SHALL begin without a selected story, including after refresh. Existing implemented Account demonstrations SHALL remain available, including Account Button, Create Account, Restore Account, Account Balance, Inspect Activity, and Log Out. Assets / C1 Mint Asset and C4 List Assets SHALL remain available alongside them. Unimplemented categories and stories, including Pay-to-play and game-specific Achievements, SHALL be omitted. The Admin heading SHALL be followed by User Stories and a Documentation link to bundled user-story Markdown that works in development and production builds. It SHALL NOT show Interactivity.
 
 #### Scenario: Initial demo
 - **WHEN** the demo loads
-- **THEN** existing account demonstrations and C1/C4 asset controls are available with empty Runtime Preview and no filler cards or empty categories
+- **THEN** Account Button, Create Account, Restore Account, Account Balance, Inspect Activity, and Log Out are available under Account alongside C1/C4 asset controls, with empty Runtime Preview
+- **AND** no filler cards, introduction, WIP badges, or empty categories appear
 
 ### Requirement: Production controls and state
 Selecting Account Button SHALL render the real production entry button. Selecting Create Account SHALL open the production Account dialogue without automatically creating an identity. Runtime Preview SHALL use only production APIs and components, including the same persistence behavior as a game host. Admin SHALL observe public production state and SHALL NOT introspect for unimplemented APIs or receive recovery material. Story actions SHALL be disabled while an account flow is open.
@@ -161,12 +162,17 @@ C1 Mint Asset SHALL open an Admin-owned form with Name, Ticker, Amount, Decimals
 - **THEN** no mint is submitted and relevant validation or ordinary Admin controls remain available
 
 ### Requirement: Admin example presets
-The Admin mint form SHALL offer three quick-fill buttons labeled Achievement: Level 1, Achievement: Level 2, and Achievement: Level 3. Each SHALL populate the matching name, ticker LVL1/LVL2/LVL3 respectively, amount 1, decimals 0, blank icon URL, and Control Asset None. Fields SHALL remain editable. Presets SHALL only modify the form and SHALL NOT submit, query, or establish ownership. They SHALL be disabled during submission or while an unresolved request must remain immutable. Example labels SHALL remain in the demo; BIS SHALL apply no achievement-specific meaning or rules.
+The Admin mint form SHALL offer three quick-fill buttons labeled Achievement: Level 1, Achievement: Level 2, and Achievement: Level 3. Each SHALL populate the matching name, ticker LVL1/LVL2/LVL3 respectively, amount 1, decimals 0, the matching absolute HTTPS trophy icon URL under https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-{level}-trophy.png (with {level} replaced by 1, 2, or 3), and Control Asset None. Fields SHALL remain editable. Presets SHALL only modify the form and SHALL NOT submit, query, or establish ownership. They SHALL be disabled during submission or while an unresolved request must remain immutable. Example labels SHALL remain in the demo; BIS SHALL apply no achievement-specific meaning or rules.
 
 #### Scenario: Use a preset
 - **WHEN** the user selects Achievement: Level 2 in an idle form
-- **THEN** the form contains that name, LVL2, amount 1, decimals 0, empty icon URL, and None
+- **THEN** the form contains that name, LVL2, amount 1, decimals 0, icon URL https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-2-trophy.png, and None
 - **AND** nothing is submitted until the user separately clicks Mint
+
+#### Scenario: Preset URLs work across origins
+- **WHEN** any of the three presets is selected in the local demo or the published demo
+- **THEN** its icon URL points to the matching public GitHub Pages PNG rather than a localhost or relative URL
+- **AND** the initial form before preset selection still has a blank optional icon URL
 
 ### Requirement: Admin list and preview isolation
 C4 List Assets SHALL call the generic production listing API and show its actual result in Admin Console, including an explicit empty array. Neither C1 nor C4 SHALL navigate, mount, clear, or change Runtime Preview. Existing account-flow restrictions SHALL be preserved. A mint form SHALL be outside the runtime container and use accessible labels, focus containment/restoration, idle dismissal, and responsive scrolling.
@@ -259,3 +265,15 @@ Documentation SHALL retain D3 as the sending parent and distinguish D3a address 
 - **WHEN** Send delivery is documented
 - **THEN** D3a evidence identifies each verified route and missing checks explicitly
 - **AND** D3b is not reported implemented or made a prerequisite for D3a
+
+### Requirement: Published numbered trophy icons
+The demo SHALL provide three 64 by 64 pixel PNG trophy icons with actual transparent backgrounds, matching the Stealth Grid pixel-art style. They SHALL use the same trophy artwork outside the numbered area, with only the corresponding digit 1, 2, or 3 on the cup and no other text. The three preset URLs SHALL serve the corresponding files publicly through GitHub Pages. Published v1 paths and file contents SHALL be retained across releases; revised artwork SHALL use a new version directory so existing mint metadata retains its original reference.
+
+#### Scenario: Published trophy assets
+- **WHEN** a client requests each preset icon URL after deployment
+- **THEN** it receives the corresponding 64 by 64 transparent PNG, identical to the project asset
+
+#### Scenario: Later artwork revision
+- **WHEN** a later release introduces revised trophy artwork
+- **THEN** the existing v1 URLs and image contents remain available and unchanged, and revised artwork uses new versioned URLs
+- **AND** hosting continuity depends on retaining the repository and GitHub Pages deployment

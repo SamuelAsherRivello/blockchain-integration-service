@@ -49,3 +49,15 @@ The Admin funding button now opens https://signetfaucet.com/ rather than calling
 ### Still pending
 
 Real minted/nonempty list round trip, restored-identity holdings after issuance, actual same-ID issuance retry, adapter submission timeout/concurrency fault injection, mobile layout/focus checks, and full console reset/late-result browser checks. The registered transfer must be resolved before attempting another mint. Unchecked tasks remain explicit; the change is not ready to archive.
+
+## Numbered trophy assets and preset URLs — 2026-09-04
+
+This follow-up supersedes the earlier blank-Icon-URL preset observation only; the initial form still starts with a blank optional URL.
+
+- Created level-1-trophy.png, level-2-trophy.png and level-3-trophy.png under packages/integration-demo/public/assets/achievements/v1/. Each is 64 by 64 with 2,456 fully transparent pixels, retaining the original trophy pixels outside the digit area.
+- Browser-checked each local and live quick-fill button: matching Achievement: Level 1/2/3 and LVL1/2/3, amount 1, decimals 0, and the corresponding absolute public PNG URL. No Mint action was performed in this follow-up.
+- Asset commit: 1dcbfb87a336a69a33d969aad0cd3fd320e28acd. [Asset release](https://github.com/SamuelAsherRivello/blockchain-integration-service/releases/tag/trophy-assets-v1) contains all three PNG attachments.
+- The first Pages run was superseded by a concurrent application update. [Deployment 33857397435](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/runs/33857397435) for 1d67c8e0dfebf26b49dde6f857550317659b0416 completed successfully and included the updated live dialog.
+- All three public URLs returned HTTP 200; each remote SHA-256 matched its corresponding local PNG.
+- Local build passed; all 7 focused asset tests passed. The broader local suite at the time had 113 passes and 3 failures in the unfinished sending API; those results are a historical snapshot, not current verification of that separate work.
+- Artwork publication and preset verification do not prove asset issuance, ownership, retry safety, or restoration; outstanding C1/C4 live checks remain pending.

@@ -5,6 +5,15 @@ import { createContext } from '../src/core/context.ts';
 import { formatTransactions } from '../src/core/activity.ts';
 const tick=()=>new Promise(r=>setImmediate(r));
 const tx=(id,createdAt=0,extra={})=>({key:{boardingTxid:id,arkTxid:'',commitmentTxid:''},amount:100,type:'RECEIVED',settled:false,createdAt,...extra});
+test('confirmation counts use chain tip and confirmed height, never timestamps',()=>{
+ const coin={txid:'a',vout:0,value:100,status:{confirmed:true,block_height:100}};
+ assert.deepEqual(normalizeHistory([tx('a')],[coin],102)[0].bitcoin,{txid:'a',confirmations:3,blockHeight:100});
+ assert.equal(normalizeHistory([tx('a')],[{...coin,status:{confirmed:false}}],102)[0].bitcoin.confirmations,0);
+ assert.equal(normalizeHistory([tx('a')],[coin])[0].bitcoin.confirmations,undefined);
+ assert.equal(normalizeHistory([tx('a')],[coin],99)[0].bitcoin.confirmations,undefined);
+ assert.equal(normalizeHistory([tx('a',123)],[],102)[0].bitcoin.confirmations,undefined);
+ assert.equal(normalizeHistory([tx('',0,{key:{arkTxid:'offchain'},settled:true})],[],102)[0].bitcoin,undefined);
+});
 test('all SDK history retained; newest first with undated pending first, outgoing and spent records',()=>{
   const rows=normalizeHistory([tx('old',100,{settled:true}),tx('new',200),tx('pending'),tx('',0,{key:{boardingTxid:'',arkTxid:'send',commitmentTxid:''},type:'SENT',settled:true})],[]);
   assert.deepEqual(rows.map(r=>r.identifier),['pending','new','old','ark:send']);
@@ -30,6 +39,19 @@ test('wallet watcher reconciles snapshots and stops on abort',async()=>{
   assert.equal(results.at(-1).length,2);assert.equal(results.at(-1)[1].status,'Confirmed');
   history=[];notify({});await tick();assert.equal(results.at(-1).length,0);
   controller.abort();await run;assert.equal(stopped,1);assert.equal(disposed,1);
+});
+
+test('watcher refreshes confirmations and retains history when chain tip fails or stalls',async()=>{
+ let notify,mode='live',height=100;
+ const controller=new AbortController(),results=[];
+ const wallet={getTransactionHistory:async()=>[tx('a')],getBoardingUtxos:async()=>[{txid:'a',vout:0,value:100,status:{confirmed:true,block_height:100}}],onchainProvider:{getChainTip:async()=>{if(mode==='fail')throw Error('unavailable');if(mode==='stall')return new Promise(()=>{});return {height};}},getProviderConnectionState:()=>({mode:'online',source:'live'}),notifyIncomingFunds:async cb=>{notify=cb;return()=>{};},dispose:async()=>{}};
+ const run=observeActivityWallet(Promise.resolve(wallet),controller.signal,r=>results.push(r),()=>true,10000,100);
+ try {
+  await tick();assert.equal(results.at(-1)[0].bitcoin.confirmations,1);
+  height=102;notify({});await tick();assert.equal(results.at(-1)[0].bitcoin.confirmations,3);
+  mode='fail';notify({});await tick();assert.equal(results.at(-1)[0].bitcoin.confirmations,undefined);
+  mode='stall';notify({});await new Promise(r=>setTimeout(r,70));assert.equal(results.length,4);assert.equal(results.at(-1)[0].bitcoin.confirmations,undefined);
+ } finally {controller.abort();await run;}
 });
 test('failure after success clears observer, rejects and disposes; late acquisition disposes',async()=>{
   let notify,fail=false,disposed=0;

@@ -8,5 +8,6 @@ export function selectAccountStory(id: string, session: StorySession | null) {
   session.context.openAccountDialog();
   if (id === 'D4') session.context.openAccountTransfer();
   const state = session.context.getState();
+  if (id === 'D3a' && state.hasProfile && state.phase === 'active') session.context.openAccountSend();
   if (id === 'D2a' && state.hasProfile && state.phase === 'active') session.context.openAccountReceive();
 }

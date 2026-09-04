@@ -7,7 +7,7 @@ export type BisListAssetsResult = Readonly<{ status: 'success'; profileId: strin
 export type BisPendingMintResult = Readonly<{ status: 'success'; profileId: string; request: BisMintAssetRequest | null }> | BisAssetError;
 const messages: Record<BisAssetErrorCode, string> = {
   'account-required': 'An active account is required.', 'invalid-input': 'Check the asset fields and operation ID. Amount must be positive and exactly representable.',
-  'insufficient-funds': 'Insufficient spendable funds to mint an asset.', unavailable: 'Assets are unavailable. Try again.',
+  'insufficient-funds': 'Insufficient spendable Arkade balance to mint an asset.', unavailable: 'Assets are unavailable. Try again.',
   'outcome-unknown': 'The mint is unresolved. Retry the same request to reconcile it; no new mint will be submitted.',
   'account-changed': 'The account changed during the request.', disposed: 'This client has been disposed.',
   'unsupported-environment': 'This browser cannot safely coordinate asset operations.', busy: 'Another wallet operation is in progress.',

@@ -6,7 +6,7 @@ import { CopyFieldLabel } from './CopyFieldLabel';
 export function TransferRecoveryDetails({ status, busy }: { status: BisTransferStatus; busy: boolean }) {
   const text = formatTransferRecoveryReport(status);
   // Changing reports remounts the copy state, preventing even A -> B -> A races.
-  return text ? <details className="bis-recovery-details">
+  return text ? <details className="bis-recovery-details" open>
     <summary>Recovery details</summary>
     <RecoveryReport key={text} text={text} busy={busy} />
   </details> : null;

@@ -5,6 +5,18 @@ import { GamePreview } from '../src/preview/GamePreview';
 import '@bis/integration/style.css';
 
 // Dedicated test-only fixture. Never imported by the demo application.
+// All journal reads use an in-memory storage double, never real browser storage.
+const pendingCount = new URLSearchParams(location.search).has('pending') ? 5 : 0;
+const journal = new Map<string,string>();
+Object.defineProperty(window, 'localStorage', {configurable:true, value:{
+  get length(){return journal.size;}, key:(i:number)=>[...journal.keys()][i]??null,
+  getItem:(key:string)=>journal.get(key)??null,
+}});
+function seedPending() {
+  journal.clear();
+  if(pendingCount)journal.set('bis-signet-mints-v1:component-test',JSON.stringify({operations:Array.from({length:pendingCount},(_,i)=>({request:{operationId:String(i)},status:'pending'}))}));
+}
+seedPending();
 function fixture() {
   let account: {phrase:string;profileId:string} | null = {phrase:'not-a-wallet',profileId:'component-test'};
   let generation=0, fail=false, clears=0;
@@ -39,26 +51,36 @@ document.getElementById('run')!.onclick=async()=>{
   const output=document.getElementById('result')!;
   try {
     for(let i=0;i<targets.length;i++){
-      const target=targets[i], f=fixtures[i];
-      button(target,'⚡ Log Out').click();await tick();
+      const target=targets[i], f=fixtures[i];seedPending();
+      button(target,'Log Out').click();await tick();
       let check=target.querySelector<HTMLInputElement>('input[type=checkbox]')!;
-      assert(!check.checked && button(target,'⚡ Log Out').disabled,'unchecked gate');
+      assert(!check.checked && button(target,'Log Out').disabled,'unchecked gate');
       assert(check.labels?.[0]?.textContent?.includes('I have backed up my wallet'),'checkbox label');
       assert(!target.querySelector('.bis-recovery') && !target.textContent?.includes('Copy to Clipboard'),'no recovery access');
-      check.click();await tick();assert(!button(target,'⚡ Log Out').disabled,'checked gate');
-      check.click();await tick();assert(button(target,'⚡ Log Out').disabled,'unchecked again');
+      check.click();await tick();
+      let pendingCheck=target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1];
+      assert(!!pendingCheck === (pendingCount>0),'pending checkbox visibility');
+      if(pendingCount){
+        assert(pendingCheck.labels?.[0]?.textContent==='I accept losing my (5) pending transactions.','exact pending label');
+        assert(button(target,'Log Out').disabled,'pending consent required');pendingCheck.click();await tick();
+      }
+      assert(!button(target,'Log Out').disabled,'checked gate');
+      check.click();await tick();assert(button(target,'Log Out').disabled,'unchecked again');
       check.click();await tick();button(target,'Back').click();await tick();
       assert(f.clears()===0 && f.context.getState().phase==='active','cancel preserves account');
-      button(target,'⚡ Log Out').click();await tick();
+      button(target,'Log Out').click();await tick();
       check=target.querySelector<HTMLInputElement>('input[type=checkbox]')!;
       assert(!check.checked,'reopening resets acknowledgement');
-      check.click();await tick();f.failNext();button(target,'⚡ Log Out').click();await tick();
+      check.click();await tick();
+      pendingCheck=target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1];
+      if(pendingCount){assert(!pendingCheck.checked,'pending acknowledgement resets');pendingCheck.click();await tick();}
+      f.failNext();button(target,'Log Out').click();await tick();
       assert(f.context.getState().phase==='logout-error' && button(target,'Retry'),'error retry');
       button(target,'Retry').click();await tick();
       assert(!f.context.getState().hasProfile && f.clears()===1,'confirmed success');
-      assert(button(target,'⚡ Restore Account').disabled && button(target,'⚡ Create Account'),'chooser destination');
+      assert(!button(target,'⚡ Restore Account').disabled && button(target,'⚡ Create Account'),'chooser destination');
       button(target,'Back').click();await tick();assert(button(target,'⚡ Account'),'prior host destination');
     }
-    output.textContent=`PASS: ${targets.length} host(s) — checkbox, cancellation, reopening, failure/Retry, success, destination, no recovery access.`;
+    output.textContent=`PASS: ${targets.length} host(s), ${pendingCount} pending — checkbox, cancellation, reopening, failure/Retry, success, destination, no recovery access.`;
   }catch(error){output.textContent=`FAIL: ${error instanceof Error?error.message:'component checks'}`;}
 };

@@ -3,8 +3,8 @@ import { requireSignet, SIGNET_OPERATOR, type AccountSecret } from './account.ts
 import { validRecovery } from '../core/recovery-validation.ts';
 import type { BisTransaction } from '../core/activity.ts';
 
-type Coin = { txid: string; vout: number; value: number; status: { confirmed: boolean } };
-export function normalizeHistory(history: readonly ArkTransaction[], coins: readonly Coin[]): readonly BisTransaction[] {
+type Coin = { txid: string; vout: number; value: number; status: { confirmed: boolean; block_height?: number } };
+export function normalizeHistory(history: readonly ArkTransaction[], coins: readonly Coin[], tipHeight?: number): readonly BisTransaction[] {
   // Preserve SDK records (including same-transaction outputs); reconcile snapshots, never append notifications.
   const occurrences = new Map<string, number>();
   const rows = history.map((tx): BisTransaction => {
@@ -21,6 +21,9 @@ export function normalizeHistory(history: readonly ArkTransaction[], coins: read
     const matches = coins.filter(c => c.txid === boardingTxid && c.value === tx.amount);
     // A unique match proves an outpoint. Ambiguous/spent history keeps only known IDs.
     const coin = matches.length === 1 ? matches[0] : undefined;
+    const blockHeight = coin?.status.confirmed && Number.isSafeInteger(coin.status.block_height) && coin.status.block_height! > 0 ? coin.status.block_height : undefined;
+    const confirmations = coin?.status.confirmed === false ? 0 : blockHeight !== undefined && Number.isSafeInteger(tipHeight) && tipHeight! >= blockHeight ? tipHeight! - blockHeight + 1 : undefined;
+    const bitcoin = boardingTxid ? Object.freeze({txid:boardingTxid, confirmations, blockHeight}) : undefined;
     const createdAt = Number.isFinite(tx.createdAt) && tx.createdAt > 0 ? tx.createdAt : undefined;
     const offchain = !!arkTxid && !boardingTxid;
     const status: BisTransaction['status'] = boardingTxid
@@ -28,14 +31,14 @@ export function normalizeHistory(history: readonly ArkTransaction[], coins: read
       : offchain ? (tx.settled ? 'Settled offchain' : 'Pending offchain') : 'Status unavailable';
     const refs = [boardingTxid && (coin ? `${boardingTxid}:${coin.vout}` : boardingTxid),
       commitmentTxid && `commitment:${commitmentTxid}`, arkTxid && `ark:${arkTxid}`].filter(Boolean);
-    return Object.freeze({ id: `${key}:${occurrence}`, amountSats: tx.amount, direction: tx.type === 'SENT' ? 'Outgoing' : 'Incoming', status, identifier: refs.join(' ') || 'Identifier unavailable', ...(createdAt ? { createdAt } : {}),...(assets?.length?{assets:Object.freeze(assets),kind}:{}) });
+    return Object.freeze({ id: `${key}:${occurrence}`, amountSats: tx.amount, direction: tx.type === 'SENT' ? 'Outgoing' : 'Incoming', status, identifier: refs.join(' ') || 'Identifier unavailable', ...(bitcoin ? {bitcoin} : {}), ...(createdAt ? { createdAt } : {}),...(assets?.length?{assets:Object.freeze(assets),kind}:{}) });
   });
   const group = (t: BisTransaction) => t.createdAt ? 1 : t.status.startsWith('Pending') ? 0 : 2;
   rows.sort((a, b) => group(a) - group(b) || (b.createdAt ?? 0) - (a.createdAt ?? 0));
   return Object.freeze(rows);
 }
 
-export type ActivityWallet = Pick<ReadonlyWallet, 'getTransactionHistory' | 'getBoardingUtxos' | 'getProviderConnectionState' | 'notifyIncomingFunds' | 'dispose'>;
+export type ActivityWallet = Pick<ReadonlyWallet, 'getTransactionHistory' | 'getBoardingUtxos' | 'getProviderConnectionState' | 'notifyIncomingFunds' | 'dispose'> & Partial<Pick<ReadonlyWallet, 'onchainProvider'>>;
 // History fans out across boarding addresses and sequential historical outspend
 // lookups. Give the complete SDK read a bounded minute, not one HTTP timeout.
 export async function observeActivityWallet(pending: Promise<ActivityWallet>, signal: AbortSignal, publish: (rows: readonly BisTransaction[]) => void, healthy = () => true, intervalMs = 15000, requestTimeoutMs = 60000): Promise<void> {
@@ -46,9 +49,9 @@ export async function observeActivityWallet(pending: Promise<ActivityWallet>, si
   const finished = new Promise<void>((resolve, reject) => { finish = resolve; fail = reject; });
   const abort = () => { ended = true; finish(); };
   const failure = () => { ended = true; fail(Error('Activity unavailable.')); };
-  const bounded = async <T,>(work: Promise<T>): Promise<T> => {
+  const bounded = async <T,>(work: Promise<T>, timeoutMs = requestTimeoutMs): Promise<T> => {
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    try { return await Promise.race([work, finished.then(() => { throw Error('Activity stopped.'); }), new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(Error('Activity timed out.')), requestTimeoutMs); })]); }
+    try { return await Promise.race([work, finished.then(() => { throw Error('Activity stopped.'); }), new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(Error('Activity timed out.')), timeoutMs); })]); }
     finally { clearTimeout(timeout); }
   };
   signal.addEventListener('abort', abort, { once: true });
@@ -63,10 +66,12 @@ export async function observeActivityWallet(pending: Promise<ActivityWallet>, si
     try {
       do {
         dirty = false;
-        const [history, coins] = await bounded(Promise.all([wallet!.getTransactionHistory(), wallet!.getBoardingUtxos()]));
+        // A failed tip lookup must not hide otherwise valid transaction history.
+        const tipRead = wallet!.onchainProvider ? bounded(Promise.resolve().then(() => wallet!.onchainProvider!.getChainTip()), Math.min(5000, requestTimeoutMs / 2)).catch(() => undefined) : Promise.resolve(undefined);
+        const [history, coins, tip] = await bounded(Promise.all([wallet!.getTransactionHistory(), wallet!.getBoardingUtxos(), tipRead]));
         const connection = wallet!.getProviderConnectionState();
         if (!healthy() || connection.mode !== 'online' || connection.source !== 'live') throw Error('Activity unavailable.');
-        if (!ended) publish(normalizeHistory(history, coins));
+        if (!ended) publish(normalizeHistory(history, coins, tip?.height));
       } while (dirty && !ended);
     } catch { if (!ended) failure(); }
     finally { reading = false; if (!ended) timer = setTimeout(() => void read(), intervalMs); }

@@ -8,11 +8,12 @@ test('D2a selects Receive only for active accounts and preserves other story rou
     const { selectAccountStory } = await server.ssrLoadModule('/packages/integration-demo/src/admin/selectAccountStory.ts');
     for (const [id, active, expected] of [
       ['D2a', true, ['account', 'receive']], ['D2a', false, ['account']],
+      ['D3a', true, ['account', 'send']], ['D3a', false, ['account']],
       ['A1', true, ['button']], ['A4', true, ['account']], ['D4', true, ['account', 'transfer']],
     ]) {
       const calls = [];
       const session = {
-        context: { getState: () => ({ hasProfile: active, phase: active ? 'active' : 'idle' }), openAccountDialog: () => calls.push('account'), openAccountReceive: () => calls.push('receive'), openAccountTransfer: () => calls.push('transfer') },
+        context: { getState: () => ({ hasProfile: active, phase: active ? 'active' : 'idle' }), openAccountDialog: () => calls.push('account'), openAccountReceive: () => calls.push('receive'), openAccountSend: () => calls.push('send'), openAccountTransfer: () => calls.push('transfer') },
         ui: { showAccountButton: () => calls.push('button') },
       };
       selectAccountStory(id, session);

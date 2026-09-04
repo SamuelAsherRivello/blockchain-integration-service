@@ -1,5 +1,14 @@
 # D5a verification — 2026-09-04
 
+## Follow-up: recovery moved into Account Activity
+
+The following supersedes the original placement below: Account Transfer shows one pending notice; one click on the saved pending Activity row opens transaction details with Check Status and expanded Copy recovery details. Same-account metadata is attached to both standalone and deduplicated history rows. A different operation returned by a check requests Refresh Account Activity and is never substituted into the selected report. Unsupported cancellation/undo remains absent and guards remain intact.
+
+- Test-first: the new transfer-activity metadata test failed (missing operationId), then passed after the public projection was added.
+- All 122 integration/demo unit and documentation tests passed. Production build and typecheck passed (existing chunk-size/HMR-port advisories).
+- Real-browser fixtures passed: activity-recovery-host (one-line placement, one-click details, explicit check/copy, clipboard denial, failed checks, operation isolation, ordinary rows and no mutation); recovery-report-host (stale copy, terminal/remount, 360px no-overflow); activity-host (production navigation/fixed height); transfer-host (review flow and pending guards).
+- No live transfer was submitted, cancelled, cleared or claimed resolved. Browser fixtures use isolated doubles.
+
 ## Delivered
 
 Pending Account Transfer now has expandable Recovery details, a read-only wrapped report, explicit Copy recovery details, success/failure feedback and manual selection fallback. Failed status checks mark preserved pending information as verification unavailable. The report is an allowlisted projection of public status, not a wallet serialization. No new public API, dependency, storage migration, signing or cancellation was added.

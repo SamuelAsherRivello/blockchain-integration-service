@@ -1,4 +1,5 @@
 import { AccountBalances } from './AccountBalances';
+import { AccountSend } from './AccountSend';
 import { AccountTransfer } from './AccountTransfer';
 import { AccountActivity } from './AccountActivity.tsx';
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
@@ -71,14 +72,17 @@ export function BisView({ context }: { context: BisContext }) {
             <span className="bis-refresh-image" aria-hidden="true" />
           </button>}
         </div>
-        <p id={descriptionId} role="status">{state.error ?? (send ? 'Coming soon.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Did you back up your wallet?' : state.phase === 'loading' ? 'Opening your account…' : state.phase === 'resetting' ? 'Resetting your account…' : state.hasProfile ? (details || transfer || activity ? <>Account ID: <code>{state.profileId ? state.profileId.slice(0, 4) + '…' + state.profileId.slice(-4) : ''}</code></> : 'You are logged in.') : recovery ? 'Save these words privately.' : state.phase === 'creating' ? 'Creating your test account…' : 'You are not logged in.')}</p>
-        {activity && <AccountActivity key={state.profileId} activity={state.activity} onDetailChange={setTransactionOpen} />}
+        <p id={descriptionId} role="status">{state.error ?? (send ? 'Send Signet test funds to another Arkade address.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout clears transaction recovery data but does not cancel transactions.' : state.phase === 'loading' ? 'Opening your account…' : state.phase === 'resetting' ? 'Resetting your account…' : state.hasProfile ? (details || transfer || activity ? <>Account ID: <code>{state.profileId ? state.profileId.slice(0, 4) + '…' + state.profileId.slice(-4) : ''}</code></> : 'You are logged in.') : recovery ? 'Save these words privately.' : state.phase === 'creating' ? 'Creating your test account…' : 'You are not logged in.')}</p>
+        {activity && <AccountActivity key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
         {details && <AccountBalances balance={state.balance} />}
         {transfer && <AccountTransfer context={context} key={state.profileId} balance={state.balance} onBack={() => context.closeAccount()} />}
         {receive && <AccountAddresses addresses={state.addresses} />}
+        {send && <AccountSend context={context} key={state.profileId} />}
         {logout && <>
-          <p className="bis-warning">Your saved account will be cleared from this browser. This cannot be undone here. You will need your saved recovery phrase to restore access.</p>
           <label className="bis-backup-check"><input type="checkbox" checked={state.logoutBackupAcknowledged} disabled={busy} onChange={event => context.setLogoutBackupAcknowledged(event.target.checked)} /><span>I have backed up my wallet</span></label>
+          {state.logoutPendingCount !== null && state.logoutPendingCount > 0 && <>
+            <label className="bis-backup-check"><input type="checkbox" checked={state.logoutPendingAcknowledged} disabled={busy} onChange={event => context.setLogoutPendingAcknowledged(event.target.checked)} /><span>I accept losing my ({state.logoutPendingCount}) pending transactions.</span></label>
+          </>}
         </>}
         {(savedRecovery || recovery || state.phase === 'creating') && <p className="bis-warning">Test wallet only. Never enter or reuse a recovery phrase from a wallet containing real funds.</p>}
         {recovery && <div className="bis-recovery-heading"><CopyRecoveryButton context={context} disabled={busy} inline /></div>}
@@ -93,13 +97,13 @@ export function BisView({ context }: { context: BisContext }) {
         {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <ol className="bis-recovery" aria-label="Private recovery phrase">{getControls(context).recovery()?.trim().split(/\s+/).map((word,index)=><li key={index}><span aria-hidden="true">{index+1}.</span> <span className="bis-recovery-word">{savedRecovery && !showSavedRecovery ? '*'.repeat(word.length) : word}</span></li>)}</ol>}
         {savedRecovery && state.recoveryStatus === 'unavailable' && <p role="status">Your recovery phrase could not be opened. Try again.</p>}
         {busy && <div className="bis-progress" role="status"><span className="bis-lightning" aria-hidden="true">⚡</span><span>{state.phase === 'logging-out' ? 'Logging out…' : state.phase === 'saving' ? 'Saving account…' : 'Please wait…'}</span></div>}
-        {transfer ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : <div className="bis-actions">
+        {transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : <div className="bis-actions">
           {menu && <button className="bis-button" onClick={()=>context.openAccountDetails()}>Account Details</button>}
           {menu && <button className="bis-button" onClick={()=>context.openAccountActivity()}>Account Activity</button>}
           {details && <button className="bis-button" onClick={()=>context.openAccountTransfer()}>Bitcoin ↔ Arkade</button>}
           {details && <button className="bis-button" onClick={()=>context.openAccountRecovery()}>Recovery Phrase</button>}
           {menu && <div className="bis-transfer-actions"><button className="bis-button" onClick={()=>context.openAccountSend()}>⚡ Send</button><button className="bis-button" onClick={()=>context.openAccountReceive()}>⚡ Receive</button></div>}
-{savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
+{savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || state.logoutPendingCount === null || (state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
             <button className="bis-button bis-primary" onClick={()=>void context.createAccount()}>⚡ Create Account</button>
             <button className="bis-button" onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button>
           </>}

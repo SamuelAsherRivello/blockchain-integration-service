@@ -31,7 +31,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(host.textContent?.includes('0 sats'),'Real zero presentation');
     button('Back').click();await tick();check(!host.textContent?.includes('sats'),'Close clears');
     button('⚡ Account Details').click();await tick();await tick();check(calls===4&&c.getState().balance.status==='loading','Reopen fetches');
-    button('Back').click();await tick();button('⚡ Log Out').click();await tick();check(host.textContent?.includes('Did you back up your wallet?'),'Logout available');
+    button('Back').click();await tick();button('⚡ Log Out').click();await tick();check(host.textContent?.includes('Back up your recovery phrase. Logout clears transaction recovery data but does not cancel transactions.'),'Logout available');
     resolve({availableSats:999,totalSats:999});await tick();check(!host.textContent?.includes('999'),'Late result ignored');
     button('Back').click();await tick();check(calls===4,'Logout returns to menu without fetching');button('⚡ Account Details').click();await tick();await tick();resolve({availableSats:1000,totalSats:1500});await tick();await tick();
     check(writes===0,'No persistence');

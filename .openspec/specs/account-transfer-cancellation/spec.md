@@ -6,11 +6,11 @@ Allow players to explicitly request cancellation of an unresolved same-account t
 ## Requirements
 
 ### Requirement: Feasibility-first delivery
-Safe exact-operation cancellation and authoritative terminal-outcome semantics SHALL be established before cancellation code or UI is built. If these cannot be established for the supported operator, implementation SHALL stop and report the blocker. Disabled cancellation UI SHALL NOT count as delivery. D5. Cancel Pending Transfer SHALL be documented as a separate story with its own status, flow and acceptance criteria and linked from D4 without renumbering existing stories.
+Safe exact-operation cancellation and authoritative terminal-outcome semantics SHALL be established before cancellation code or UI is built. If these cannot be established for the supported operator, cancellation implementation SHALL stop and report the blocker; independent spending and read-only recovery UI SHALL proceed without claiming cancellation delivery. Disabled cancellation UI SHALL NOT count as delivery. D5b. Cancel Pending Transfer SHALL be documented as a separate story with its own status, flow and acceptance criteria, linked from D4 under the D5 umbrella. Independently deliverable D5a read-only recovery reporting SHALL NOT be blocked by cancellation feasibility and SHALL NOT be represented as cancellation.
 
 #### Scenario: Operator guarantees unproven
 - **WHEN** exact cancellation targeting or terminal-outcome guarantees cannot be verified
-- **THEN** the change remains blocked before cancellation implementation, and D5 documentation states the blocker without claiming delivered cancellation
+- **THEN** cancellation implementation remains blocked, while independent spending and recovery inspection proceed; D5b documentation states the blocker without claiming delivered cancellation
 
 ### Requirement: Explicit cancellation review
 Account Transfer SHALL offer Cancel Pending Transfer for an eligible unresolved operation belonging to the active account. Opening it SHALL show a separate confirmation with direction, sats amount, transfer ID and operator intent ID, explain that cancellation cannot undo a completed transfer and may remain unverified, and provide Confirm Cancellation and Back. Opening, leaving, refreshing or checking status SHALL NOT sign or request cancellation. Confirmation SHALL be bound to the reviewed operation and account.
@@ -62,14 +62,14 @@ The system SHALL report verified cancellation only from authoritative evidence t
 
 #### Scenario: Ambiguous operator response
 - **WHEN** cancellation returns a timeout, not-found response or acknowledgement without a verified finality guarantee
-- **THEN** the system reports cancellation unverified and retains all unresolved-transfer guards
+- **THEN** the system reports cancellation unverified and retains the affected input reservations and account-clearing protection while permitting independently funded operations
 
 ### Requirement: Guard release and subsequent actions
-While cancellation is in progress or unverified, new wallet mutations, Log Out and Reset SHALL remain blocked by the unresolved-transfer protection. Only durably verified cancellation or existing verified transfer completion SHALL release that protection. Release SHALL NOT itself log out, reset, mint, send or retry a transfer; existing confirmations and a fresh transfer review SHALL still be required.
+While cancellation is in progress or unverified, the affected inputs, Log Out and Reset SHALL remain protected; independently funded wallet mutations SHALL remain available. Only durably verified cancellation or existing verified transfer completion SHALL release the affected reservations. Account-clearing protection SHALL remain while any unresolved operation exists. Release SHALL NOT itself log out, reset, mint, send or retry a transfer; existing confirmations and a fresh transfer review SHALL still be required.
 
 #### Scenario: Verified cancellation unlocks review
 - **WHEN** cancellation is verified and durably recorded
-- **THEN** the player can start a fresh transfer review or the normal logout/reset flow without any automatic action
+- **THEN** the released inputs can be used in a fresh transfer review; normal logout/reset is available only if no other unresolved operation remains, without any automatic action
 
 #### Scenario: Persistence failure
 - **WHEN** saving terminal cancellation evidence fails

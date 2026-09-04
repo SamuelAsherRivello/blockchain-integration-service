@@ -55,10 +55,10 @@ document.getElementById('run')!.onclick = async () => {
     check(button('Confirm Transfer')?.disabled || button('Review Transfer')?.disabled,'Unknown status blocks another confirmation until checked');
     c.checkAccountTransfer=async()=>({status:'pending',phase:'registered',direction:'to-bitcoin',amountSats:1000,operationId:'test-operation',intentId:'test-intent',verification:'unavailable'});
     button('Check Status').click();await tick();
-    check(host.textContent?.includes('Verification is unavailable') && host.textContent?.includes('test-intent'),'Unavailable verification retains known attempt');
+    check(host.textContent?.includes('A pending transfer is blocking new transfers.') && !host.textContent?.includes('test-intent'),'Pending notice directs to Activity without recovery details');
     check((host.querySelectorAll('input[type="radio"]')[1] as HTMLInputElement).checked && button('Review Transfer').disabled,'Pending reverse operation is preserved');
     c.checkAccountTransfer=async()=>({status:'succeeded',direction:'to-bitcoin',amountSats:1000,operationId:'test-operation',commitmentTxid:'b'.repeat(64),verification:'live'});
-    button('Check Status').click();await tick();
+    button('Back').click();await tick();button('Bitcoin ↔ Arkade').click();await tick();
     check(host.textContent?.includes('Transfer verified') && !host.textContent?.includes('Log Out and Reset are blocked'),'Verified completion releases pending UI');
     const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No horizontal overflow');
     result.textContent='PASS: balance split, layout, directions, quote review, rejected confirmation without false pending, unavailable verification preserves operation, verified completion, no overflow. Isolated test doubles; no live submission.';

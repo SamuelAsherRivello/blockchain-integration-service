@@ -15,7 +15,7 @@ Planning updated 2026-09-04 for generic assets, an Admin mint modal, Control Ass
 ## 3. Admin demonstration
 
 - [ ] 3.1 Add Assets / C1 Mint Asset and C4 List Assets with an Admin-owned dark modal based on the reference, editable defaults, summary, fixed Control Asset None, validation, and explicit Mint; verify accessibility, responsive layout, account-flow restrictions, and unchanged Runtime Preview.
-- [x] 3.2 Add quick-fill buttons Achievement: Level 1/2/3 with LVL1/2/3, amount 1, decimals 0, blank Icon URL, and None; verify all three populate editable values without any API call and cannot mutate a pending/unresolved request.
+- [x] 3.2 Add quick-fill buttons Achievement: Level 1/2/3 with LVL1/2/3, amount 1, decimals 0, the matching hosted numbered trophy Icon URL, and None; verify all three populate editable values without any API call and cannot mutate a pending/unresolved request.
 - [ ] 3.3 Connect both actions to the existing always-visible Console with pending/public results/safe errors and bounded transient history; verify actual lists, empty arrays, no-account errors, scrolling, refresh/reset clearing, and suppression of obsolete client results.
 
 ## 4. Verification and documentation
@@ -23,3 +23,10 @@ Planning updated 2026-09-04 for generic assets, an Admin mint modal, Control Ass
 - [ ] 4.1 Verify in a real browser and UI-free host: mint then fresh list with matching asset ID/quantity, safe retry, separate intentional same-name mint semantics, fresh-wallet restoration/listing, failure cases, and preview isolation; record live evidence separately from fixtures and retain unperformed checks as pending.
 - [x] 4.2 Reconcile C1/C4 diagrams and superseded C2/C3 references, design discussion, package/API docs, and OpenSpec context; verify generic BIS terminology, Admin-only game example names, stable story IDs, working links, and unrelated deferrals remain accurate.
 - [x] 4.3 Run the build, relevant account/asset tests, and strict OpenSpec validation; record results and resolve concrete regressions before marking delivery complete.
+
+## 5. Numbered trophy assets (ad hoc follow-up)
+
+- [x] 5.1 Create three 64 by 64 transparent PNG trophies matching the original artwork outside the digit area, labeled 1/2/3; verify dimensions and alpha transparency.
+- [x] 5.2 Publish versioned project assets and wire all three editable presets to absolute GitHub Pages URLs; verify each local and live quick-fill value without minting.
+- [x] 5.3 Push the assets, publish trophy-assets-v1, and verify successful Pages deployment plus HTTP 200 and matching local/remote SHA-256 for all three PNGs.
+- [x] 5.4 Reconcile delta/main specs and related Markdown with hosted icon behavior, stable paths, and the distinction between artwork publication and actual issuance.

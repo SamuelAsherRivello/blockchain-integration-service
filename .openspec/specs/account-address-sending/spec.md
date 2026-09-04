@@ -35,11 +35,11 @@ A public transaction identity SHALL be durably recorded before submission. Pendi
 - **THEN** no submission occurs
 
 ### Requirement: Independent sending and recovery stories
-D3a SHALL be implemented independently of D5 pending-transfer recovery while respecting all existing spending locks. It SHALL NOT cancel or clear another operation. Automated/browser verification SHALL not depend on the user's existing locked account. Missing live-payment evidence SHALL be explicitly identified.
+D3a SHALL be implemented independently of D5 pending-transfer recovery while respecting reservations on conflicting inputs and duplicate-operation protection. It SHALL NOT cancel or clear another operation. Automated/browser verification SHALL not depend on the user's existing locked account. Missing live-payment evidence SHALL be explicitly identified.
 
 #### Scenario: Existing pending transfer
 - **WHEN** an account with a pending transfer opens Send
-- **THEN** its existing lock is explained and preserved without modifying the transfer
+- **THEN** the transfer's inputs remain reserved and Send can use verified unreserved inputs; insufficient unreserved funds are explained without modifying the transfer
 
 ### Requirement: Production presentation and real history
 The existing light production UI SHALL remain readable and keyboard accessible in narrow portrait hosts and use the lightning loader for asynchronous work. Real outcomes SHALL expose the transaction identifier and allow fresh balance/Activity reads. No fixture result or invented transaction SHALL appear in the production demo.

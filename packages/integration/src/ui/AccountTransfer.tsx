@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { BisBalance, BisContext, BisTransferStatus } from '../core/context';
 import { boardingSubmissionEnabled, type BoardingQuote } from '../core/boarding-quote';
 import { AccountBalances } from './AccountBalances';
-import { TransferRecoveryDetails } from './TransferRecoveryDetails';
+import { AmountChooserRow } from './AmountChooserRow';
 
 export function AccountTransfer({ context, balance, onBack }: { context: BisContext; balance: BisBalance; onBack(): void }) {
   const [direction, setDirection] = useState<'to-arkade' | 'to-bitcoin'>('to-arkade');
@@ -59,7 +59,6 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     if (review) reviewHeading.current?.focus(); else amountInput.current?.focus();
   }, [review]);
   function edit(value:string) {request.current++;setQuote(undefined);setReview(false);setError('');setAmount(value);}
-  const adjust = (step: number) => edit(String(Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, (Number.isSafeInteger(numeric) ? numeric : 0) + step))));
   async function loadQuote(max=false) {
     const current=++request.current;setBusy(true);setError('');setQuote(undefined);
     try {
@@ -100,38 +99,21 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
         <label><input type="radio" name={radioName} checked={direction === 'to-arkade'} onChange={() => {edit(amount);setDirection('to-arkade');}} /> Bitcoin → Arkade</label>
         <label><input type="radio" name={radioName} checked={direction === 'to-bitcoin'} onChange={() => {edit(amount);setDirection('to-bitcoin');}} /> Arkade → Bitcoin</label>
       </fieldset>
-      <label htmlFor={amountId}>Amount (sats)</label>
-      <div className="bis-transfer-amount">
-        <button type="button" className="bis-button" aria-label="Decrease amount" disabled={busy||blocked||numeric <= 0 || !Number.isSafeInteger(numeric)} onClick={() => adjust(-1)}>−</button>
-        <input ref={amountInput} disabled={busy||blocked} id={amountId} inputMode="numeric" autoComplete="off" value={amount} onChange={event => edit(event.target.value)} aria-describedby={`${amountId}-help`} />
-        <button type="button" className="bis-button" aria-label="Increase amount" disabled={busy||blocked||numeric >= Number.MAX_SAFE_INTEGER || !Number.isSafeInteger(numeric)} onClick={() => adjust(1)}>+</button>
-        <button type="button" className="bis-button" disabled={busy||blocked||balance.status!=='ready'} onClick={()=>void loadQuote(true)}>Max</button>
-      </div>
-      <p id={`${amountId}-help`} className="bis-transfer-help">{amount !== '0' && !valid ? 'Enter a positive whole number of sats.' : 'Review checks eligible funds and fees before confirmation.'}</p>
+      <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy||blocked} maxDisabled={balance.status!=='ready'} inputRef={amountInput} describedBy={amount !== '0' && !valid ? `${amountId}-help` : undefined} />
+      {amount !== '0' && !valid && <p id={`${amountId}-help`} className="bis-transfer-help">Enter a positive whole number of sats.</p>}
     </div>}
     {direction==='to-bitcoin' && <p className="bis-transfer-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}
     {!boardingSubmissionEnabled && <p className="bis-warning">Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.</p>}
-    {pending && <div className="bis-warning bis-transfer-status" role="status">
-      <p>{status.verification==='unavailable' ? 'Verification is unavailable. Check Status will retry without submitting another transfer.'
-        : status.commitmentTxid ? 'Settlement transaction recorded. Checking Bitcoin confirmation and received amounts.'
-        : status.phase==='registered' ? 'Registered with the operator. Transfer completion has not been verified.'
-        : status.phase==='prepared' ? 'Transfer preparation is awaiting recovery.'
-        : 'Submission outcome is unknown. Check Status will look for completion evidence.'}</p>
-      {status.diagnostic && <p>{status.diagnostic==='registration-unconfirmed'?'The registration response was not confirmed.':status.diagnostic==='deadline-exceeded'?'Transfer processing reached its time limit.':'Transfer processing was interrupted.'}</p>}
-      <p>Log Out and Reset are blocked until this transfer is resolved. Do not resubmit.</p>
-      <p>{status.operationId && <>Transfer ID: {status.operationId}. </>}{status.intentId && <>Operator intent: {status.intentId}. </>}{status.commitmentTxid && <>Bitcoin transaction: {status.commitmentTxid}.</>}</p>
-      {!status.commitmentTxid && <p>If status checks cannot verify completion, operator investigation is needed using these IDs. Status checks cannot resume interrupted signing.</p>}
-    </div>}
-    {pending && <TransferRecoveryDetails status={status} busy={busy} />}
+    {pending && <p className="bis-warning" role="status">A pending transfer is blocking new transfers. Open Account Activity to review it.</p>}
     {status.status==='not-submitted' && <p role="status">Transfer was not submitted. Review again to start a new transfer.</p>}
     {direction==='to-arkade' && balance.status==='ready' && balance.bitcoinSats===0 && <p role="status">No Bitcoin boarding funds. Funds already in Arkade do not need this transfer.</p>}
     {status.status==='succeeded' && <p role="status">Transfer verified. {balance.status==='unavailable'?'Balance refresh failed; use Refresh.':balance.status==='ready'?'Balances are refreshed from the wallet.':'Refreshing balances…'}</p>}
-    {error && <p className="bis-warning" role="alert">{error}</p>}
-    {busy && <p role="status">{submitting?'Submitting the reviewed transfer. Keep this tab open while the operator completes its session…':'Checking transfer…'}</p>}
+    {error && !pending && <p className="bis-warning" role="alert">{error}</p>}
+    {busy && !pending && <p role="status">{submitting?'Submitting the reviewed transfer. Keep this tab open while the operator completes its session…':'Checking transfer…'}</p>}
     <div className="bis-actions">
       {review ? <button className="bis-button bis-primary" disabled={!boardingSubmissionEnabled||!quote||expired||busy||blocked} onClick={()=>void confirm()}>Confirm Transfer</button>
         : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||balance.status!=='ready'} onClick={()=>void loadQuote()}>Review Transfer</button>}
-      {(pending||error) && <button className="bis-button" disabled={busy} onClick={()=>void check()}>Check Status</button>}
+      {error && !pending && <button className="bis-button" disabled={busy} onClick={()=>void check()}>Check Status</button>}
       <button className="bis-button" onClick={() => review ? (setReview(false),setQuote(undefined)) : onBack()}>Back</button>
     </div>
   </>;

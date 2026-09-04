@@ -91,11 +91,11 @@ export async function submitBoarding(account:AccountSecret,quote:BoardingQuote,i
       assertQuoteUnchanged(quote,fresh.quote);
       const record:BoardingRecord={version:1,id:crypto.randomUUID(),profileId:account.profileId,status:'pending',phase:'prepared',quote:fresh.quote,inputs:fresh.params.inputs.map(i=>{if(typeof i==='string')throw Error('Unexpected input.');return {txid:i.txid,vout:i.vout};}),bitcoinAddress:fresh.bitcoinAddress};
       writeBoardingRecord(record);
-      attempt=createBoardingAttempt(record.id,()=>active&&isCurrent(),Math.min(deadline,quote.expiresAt));
+      attempt=createBoardingAttempt(record.id,()=>active&&isCurrent(),Math.min(deadline,quote.expiresAt),account.profileId);
       try { attempt.committed(await wallet.settle(fresh.params)); }
-      catch { attempt.interrupted(readBoardingRecord()?.phase==='submitting'?'registration-unconfirmed':'settlement-interrupted'); }
+      catch { attempt.interrupted(readBoardingRecord(account.profileId)?.phase==='submitting'?'registration-unconfirmed':'settlement-interrupted'); }
       attempt.close();
-      return readBoardingRecord()!;
+      return readBoardingRecord(account.profileId)!;
     },timeout);
   } catch(error) {
     attempt?.interrupted(Date.now()>=deadline?'deadline-exceeded':'settlement-interrupted');
@@ -106,7 +106,7 @@ export async function submitBoarding(account:AccountSecret,quote:BoardingQuote,i
   }
 }
 export async function reconcileBoarding(account:AccountSecret,signal:AbortSignal):Promise<BoardingRecord|undefined> {
-  const record=readBoardingRecord();
+  const record=readBoardingRecord(account.profileId);
   if(!record||record.profileId!==account.profileId)return;
   if(record.status!=='pending')return record;
   if(record.phase==='prepared')return recoverPreparedBoarding(record);
@@ -116,13 +116,13 @@ export async function reconcileBoarding(account:AccountSecret,signal:AbortSignal
     const consumed=record.quote.direction==='to-bitcoin' ? (await new RestIndexerProvider(SIGNET_OPERATOR).getVtxos({outpoints:record.inputs})).vtxos : [];
     const commitmentTxid=verifiedBoardingCommitment(record,transactions,vtxos,consumed);
     if(commitmentTxid) {
-      const current=readBoardingRecord();
+      const current=readBoardingRecord(account.profileId);
       if(current?.id!==record.id)return current;
       return {...record,status:'succeeded' as const,commitmentTxid};
     }
     return record; // Unspent inputs or absent history do not prove failure.
   });
-  if(result?.status==='succeeded' && readBoardingRecord()?.id===result.id)writeBoardingRecord(result);
+  if(result?.status==='succeeded' && readBoardingRecord(account.profileId)?.id===result.id)writeBoardingRecord(result);
   return result;
 }
 

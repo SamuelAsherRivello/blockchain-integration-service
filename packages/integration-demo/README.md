@@ -39,8 +39,12 @@ D4 Account Transfer opens the production transfer UI for an active account and t
 D5a exposes **Recovery details** within the same pending transfer screen: inspect and explicitly copy a public-status handoff with manual-copy fallback. Nothing is sent and no transfer is cancelled. Isolated no-mutation checks: `/tests/recovery-report-host.html`. D5b actual cancellation is a separate feasibility-blocked proposal.
 ## C1 / C4 Assets
 
-C1 Mint Asset opens a dark Admin-only modal with Name, Ticker, Amount, Decimals, optional Icon URL, and Control Asset fixed to None. Three quick-fill buttons provide Achievement: Level 1/2/3, tickers LVL1/2/3, amount 1 and decimals 0. Presets are editable examples and do not submit. Mint is explicit. The asset summary is form input, not proof of ownership.
+C1 Mint Asset opens a dark Admin-only modal with Name, Ticker, Amount, Decimals, optional Icon URL, and Control Asset fixed to None. Three quick-fill buttons provide Achievement: Level 1/2/3, tickers LVL1/2/3, amount 1, decimals 0 and the matching absolute GitHub Pages trophy icon URL. Each icon is a 64 by 64 transparent PNG with digit 1, 2 or 3 on the same pixel-art trophy. See [trophy assets and public URLs](public/assets/achievements/README.md). The initial form still has a blank optional Icon URL. Presets are editable examples and do not submit. Mint is explicit. The asset summary is form input, not proof of ownership.
 
 C4 List Assets prints fresh generic wallet holdings to Console. Both actions use the public production context and leave Runtime Preview unchanged. Pending/results/errors are shown as public JSON. Console history is transient and bounded; refresh and successful Reset Client clear it. An unresolved mint reopens with the same request for status reconciliation.
 
 The form and listing were verified in Chrome. Live issuance remains pending because the current account has an unresolved registered transfer; minting does not bypass this wallet guard.
+
+## D3a Send Funds
+
+Admin **D3a Send Funds** opens the production Arkade-address Send flow for an active account or the usual account chooser when logged out. Recipient/Paste, sats/Max, exact fee review and explicit confirmation use public APIs. No accounts or payments are seeded. D5 recovery remains separate; existing spending locks are preserved. `/tests/send-host.html` is an isolated production-component fixture, not a live payment demonstration. Automated/browser checks pass; live sender/recipient acceptance remains pending.

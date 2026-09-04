@@ -46,12 +46,12 @@ Within the Status column, ✓ marks the completed portion described beside it; a
 | C1, C4 | Mint Asset / List Assets | ✓ Generic mint/list contracts, exact quantities, Signet adapter, and example presets implemented. Retry/lifecycle safeguards, Admin acceptance, and live mint/list verification remain pending. |
 | B1-B4, C2, C3, C5 | Not implemented | Deferred. |
 | D4. Account Transfer | Account / Account Transfer | ✓ Both directions, Max, quotes, explicit confirmation, and unresolved-operation guards implemented. A registered transfer remains unresolved; remaining recovery coverage and live completion verification are pending. |
-| D5a. Inspect and Copy Transfer Recovery Details | Account / Account Transfer → Recovery details | ✓ Report formatter and expandable UI, explicit copy/manual fallback, and focused unit/browser checks completed. Final story reconciliation and delivery verification remain pending; this does not resolve or cancel transfers. |
+| D5a. Inspect and Copy Transfer Recovery Details | Account Activity → Transaction Detail → Recovery details | ✓ Implemented and verified: one-click pending entry, Check Status, copy/manual fallback. Cancellation remains separate and blocked. |
 | D5b. Cancel Pending Transfer | Not implemented | Blocked on verified operator cancellation scope and terminal-outcome guarantees; no cancellation UI or live cancellation delivered. |
 | D1. Game-controlled wallet or issuer | Not listed | Future refactor; further specification required. |
 | D2a. Receive funds using addresses | Account / Receive Funds | Complete: address journey, dedicated demo, isolated error checks, and real-account demo/independent-host verification. D2b remains blocked. |
 | D2b. Receive funds using Lightning invoices | Not enabled | Blocked on a supported Arkade Signet receiving route and verified quote/recovery support. Live invoices, receipt processing, and related account-clearing guards are not implemented. |
-| D3. Sending funds | Account / Send coming-soon dialog | Real sending deferred; all send types require further specification. |
+| D3a. Send funds | Account / Send | Arkade-to-Arkade entry, exact review and explicit submission implemented; live payment acceptance pending. D5 recovery is separate. |
 
 The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, enabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows the title Account with Account Details, Log Out, and Back. Account Details shows the identity, Signet, available/total balances, Refresh, and Back to Account; it has no Log Out button. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
 
@@ -263,6 +263,9 @@ Optional educational view.
 
 ### A6. Log out and return to ordinary gameplay
 
+**Current logout behavior (2026-09-04):** Require the wallet-backup checkbox. If the locally saved pending transfer/send/mint count is greater than zero, also require `I accept losing my (5) pending transactions.` with the actual count. Zero pending operations hide the second checkbox. Complete logout erases all BIS-owned account records, operation journals and saved demo preferences, then reloads app tabs. Submitted transactions can still complete; local recovery information is discarded. This supersedes the earlier journal-preservation and pending-send-blocking behavior below. Ordinary refresh preserves login and recovery records. Isolated tests cover zero/five pending, cancellation, retry and changed-operation acknowledgement; live-wallet clearing remains unexecuted.
+
+
 ```text
 [A6.01] Player: Account --> Log Out
                        |
@@ -452,7 +455,7 @@ Current BIS/Admin flow (supersedes the earlier game-opportunity flow):
 [C1.09] Close idle form -> Admin; Runtime Preview unchanged
 ```
 
-- Presets only fill editable fields, with amount 1, decimals 0 and no icon. The game-specific names are Admin example data; BIS applies no accomplishment rules.
+- Presets only fill editable fields, with amount 1, decimals 0 and the matching hosted numbered trophy icon URL. The initial form still has a blank optional Icon URL. The game-specific names are Admin example data; BIS applies no accomplishment rules. The three 64 by 64 transparent numbered trophy PNGs use versioned GitHub Pages URLs; preserve their published paths and bytes for existing mint metadata. See [trophy assets and public URLs](../packages/integration-demo/public/assets/achievements/README.md).
 - Mint uses the active wallet's spendable Signet funds and no control asset. Operation-ID retries reconcile the original issuance; identical names on deliberate new operations are allowed.
 - A submitted but unresolved mint or transfer blocks additional minting. No implicit funding, boarding, or account dialog occurs.
 - UI and read-only listing are implemented; live mint-to-list verification is blocked by the account's existing unresolved registered transfer. See the C1/C4 verification record.
@@ -681,7 +684,17 @@ The original D2.01–D2.13 step IDs below are retained as legacy references for 
 
 **User story:** As a player, I want to send available Arkade test sats to another Arkade address after reviewing the recipient, exact amount, fees and total deducted.
 
-**Status:** Starting implementation from [add-d3a-address-sending](../.openspec/changes/add-d3a-address-sending/proposal.md). Recipient/Paste, live spendable funds, sats amount/Max, separate Review Send and explicit confirmation. Bitcoin destinations/source selectors, Lightning, QR and fiat controls are omitted. The existing pending account remains locked; isolated implementation tests and a separately selected clean account do not depend on D5 recovery.
+**Status:** Implemented with automated/browser verification; live payment acceptance remains pending. Proposal: [add-d3a-address-sending](../.openspec/changes/add-d3a-address-sending/proposal.md). Recipient/Paste, live spendable funds, sats amount/Max, separate Review Send and explicit confirmation. Bitcoin destinations/source selectors, Lightning, QR and fiat controls are omitted. The existing pending account remains locked; isolated implementation tests and a separately selected clean account do not depend on D5 recovery. See [verification](../.openspec/changes/add-d3a-address-sending/VERIFICATION.md).
+
+```text
+[D3a.01] Account / Send --> enter another Arkade address (or Paste)
+[D3a.02] Enter whole sats / Max --> Review Send (no payment yet)
+[D3a.03] Review exact recipient, amount, fee and total --> Back preserves draft
+[D3a.04] Confirm Send --> validate current review; save transaction identity; submit once
+[D3a.05] Finalized --> show transaction ID; fresh balances and Activity available
+[D3a.06] Unknown outcome --> preserve record; Check Status; no blind retry
+```
+
 
 #### D3b. Pay a Lightning invoice
 
@@ -814,10 +827,10 @@ D5 is split into two independently deliverable stories and proposals. D5a provid
 
 **User story:** As a player with an unresolved transfer, I want to inspect and copy its public recovery details so I can ask trusted operator support to investigate without exposing my recovery material.
 
-**Status:** Implemented and verified with unit tests and an isolated real-browser fixture. [Proposal](../.openspec/changes/add-transfer-recovery-report/proposal.md). No cancellation SDK capability is needed and no live transaction is required for this story's acceptance.
+**Status:** Implemented and verified with unit tests and an isolated real-browser fixture. [Proposal](../.openspec/changes/archive/2026-09-04-add-transfer-recovery-report/proposal.md). No cancellation SDK capability is needed and no live transaction is required for this story's acceptance.
 
 ```text
-[D5a.01] Account Transfer pending status --> expand Recovery details
+[D5a.01] Account Transfer one-line pending notice --> Account Activity --> click pending transaction
 [D5a.02] Read known public IDs, direction, amount, phase and verification availability
 [D5a.03] Copy recovery details --> copy exactly the displayed report
 [D5a.04] Clipboard denied --> select text and copy manually
@@ -857,4 +870,4 @@ D5 is split into two independently deliverable stories and proposals. D5a provid
 - A later transfer requires a fresh quote and explicit confirmation. Resolving D5 does not automatically log out, reset, mint or transfer funds.
 - Real Signet cancellation requires separate explicit user confirmation and evidence of terminal resolution; fixtures do not count as live acceptance.
 
-**Boundary:** D5b and its `cancel-pending-transfer` proposal are independent of D5a read-only reporting and D3a new sending; cancellation feasibility is not a development prerequisite for either. It does not introduce a separate Admin shortcut or bypass; the production entry remains Account Transfer. Existing story IDs and the D5 umbrella anchor are preserved.
+**Boundary:** D5b and its `cancel-pending-transfer` proposal are independent of D5a read-only reporting and D3a new sending; cancellation feasibility is not a development prerequisite for either. It does not introduce a separate Admin shortcut or bypass; the planned recovery entry is Account Activity transaction details. Existing story IDs and the D5 umbrella anchor are preserved.
