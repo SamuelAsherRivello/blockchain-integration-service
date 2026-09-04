@@ -1,59 +1,63 @@
 ## Context
 
-See proposal.md for motivation. The existing integration context owns account lifecycle and balance reads, and the demo invokes its public methods. Achievement methods must work even when createBisUi is never called. The current story document's opportunity/Claim/Account-list flow is superseded for this slice by direct player-wallet issuance and a host-owned result display.
+See proposal.md. The latest user direction is generic assets at BIS level, an Admin form resembling the supplied Mint Asset screenshot, console output, no Runtime Preview use, and Control Asset: None. The installed SDK 0.4.67 exposes issuance with bigint amount, optional immutable metadata, optional controlAssetId, and asset holdings/details. API availability is not live issuance evidence.
 
-Installed @arkade-os/sdk 0.4.67 declarations expose assetManager.issue with bigint amount and immutable metadata, issuance results containing assetId/arkTxId, getBalance asset holdings, and getAssetDetails. The official [asset guide](https://docs.arkadeos.com/wallets/operations/assets/get-started), checked 2026-09-03, documents issuance and balance queries; local installed types take precedence over examples that use numeric amounts. This proves API availability, not successful operation against https://signet.arkade.sh. A funded issuance, fresh metadata/list query, and same-identity restoration are the first implementation gate; do not substitute mocks for that evidence.
+Earlier funding-blocked notes predate the user's reported Arkade balance. Recheck spendable inputs when applying. Two unconnected draft source modules exist from the interrupted implementation; their reward-by-name semantics are superseded here.
 
 ## Goals / Non-Goals
 
-**Goals:** A small public API independent of rendering, wallet-derived ownership, conservative handling of repeated/uncertain submissions, and an Admin host demonstrating exactly that API.
+**Goals:** A useful generic mint/list public API, exact quantities, real wallet-derived ownership, retry safety, and a richer Admin demonstration.
 
-**Non-Goals:** A trusted award authority, cryptographic proof of gameplay, global exactly-once issuance across unrelated browsers/devices, transfers, burning, issuer infrastructure, or a general payment/recovery dashboard. Duplicate protection covers currently owned achievements and locally known pending submissions; lifetime single-award policy after an external transfer remains outside this slice.
+**Non-Goals:** Game accomplishments or eligibility, trusted issuer verification, transfers to another wallet, control assets, reissuance, burning, sat payouts, or any production asset overlay. Existing account/payment work keeps its scope.
 
 ## Decisions
 
-### Public contract and separation
+### Admin presentation
 
-Proposed additive methods on BisContext: earnAchievement(achievementId: string) and listAchievements(), returning promises of discriminated JSON-safe results. An achievement record contains achievementId, assetId, and quantity as a decimal string. Earn success returns status earned or already-owned, profileId, and the record; new issuance may include a generic transactionId. List success returns status success, profileId, and achievements. Errors use status error, a stable code, a safe message, and profileId when known. Codes cover account-required, invalid-input, insufficient-funds, unavailable, outcome-unknown, account-changed, disposed, and unsupported-environment. Export no SDK types or bigint values.
+Recommend a large in-page modal titled Mint Asset, centered over the demo with its own backdrop. Admin owns it; it is never mounted through createBisUi or inside Runtime Preview. This is preferable to a separate browser window because it preserves the same context and console and avoids popup/session synchronization. On narrow screens it fits the viewport and scrolls vertically.
 
-Core validates and snapshots the active account, coordinates calls, and maps errors. The Arkade adapter owns secret access, live Signet checks, wallet lifecycle, metadata and issuance. Admin consumes public results only. Existing UI state stays unchanged; achievement failure must not put the Account flow into its global error phase. Compared with an overlay-driven API, this permits a headless host and leaves presentation with the game.
+Match the reference's dark surfaces, rounded inputs, generous spacing, asset summary, Unverified badge, and purple Mint action. Name/Amount use the wide column; Ticker/Decimals use the narrow column; Icon URL spans the form. Back and Escape dismiss while idle and return focus to Mint Asset. Trap focus and label the dialog and validation messages. After submission, fields and dismissal are disabled until a result or bounded timeout; browser closure still does not imply cancellation.
 
-These API names and result shapes are proposed engineering choices. Confirmed product choices are player-wallet issuance, no runtime achievement UI, already-owned handling, account-required errors, and Admin-only controls/output.
+Defaults: Name is "an asset", Ticker is "ASSET", Amount is "1", Decimals is "0", Icon URL is empty. The summary is a local form summary, not proof of wallet ownership. Display a neutral initial/avatar; store an optional icon URL as metadata without fetching it in this slice. Control Asset is a read-only None field; do not offer Existing or New. The public request has no controlAssetId field.
 
-### Asset representation and recognition
+Add three quick-fill buttons above the fields: Achievement: Level 1, Achievement: Level 2, and Achievement: Level 3. Each sets that exact name and respectively LVL1, LVL2, or LVL3, with amount "1", decimals "0", empty icon URL, and None. These guessed example values are editable and can be corrected by the user. Presets make no API call, do not mint, and are disabled while submitting or reconciling an immutable pending request. Preset data belongs only to integration-demo; the BIS API treats the values as ordinary strings.
 
-Issue amount 1n with no controlAssetId and metadata containing name equal to the exact caller string, decimals 0, bisKind equal to achievement, bisSchemaVersion equal to 1, and bisAchievementId equal to the exact string. Preserve literal backticks in the confirmed demo argument: ``achievement-`level-one` ``. Reject whitespace-only input rather than silently changing identifiers.
+Name and ticker are required nonblank strings, preserved as entered; proposed limits are 128 and 16 characters. Decimals is an integer 0-18. Amount is a positive human-readable decimal string with no exponent, signs, or excess fractional places. Convert exactly with string/BigInt arithmetic to base units, within the supported unsigned 64-bit supply limit. No floating-point conversion or silent rounding. Optional Icon URL accepts only absolute HTTPS URLs without credentials; render metadata as text. Validate SDK/operator limits in the feasibility task and reject unsupported values explicitly.
 
-List positive wallet asset holdings and fetch their immutable details. Recognize only the supported BIS marker/version and a valid identifier; return records sorted by achievementId then assetId for stable output. Exclude unrelated or unsupported metadata. A required metadata request failure fails the list rather than silently omitting potential achievements. Never render metadata as HTML or automatically fetch icon URLs. Metadata recognition supports clean restoration without a local asset catalog, but is not proof of a trusted issuer: player-wallet self-issuance is deliberately forgeable. Prefix-only recognition and browser-only success flags are rejected.
+### Public API
 
-### Funding and live reads
+Proposed methods: mintAsset({ operationId, name, ticker, amount, decimals, iconUrl? }) and listAssets(). Inputs/results are JSON-safe; amount and quantity are strings. Mint result: status minted or already-minted, operationId, profileId, asset, and transactionId when known. List result: status success, profileId, assets. Asset records expose assetId, base-unit quantity, and optional name/ticker/decimals/iconUrl. An asset with absent metadata remains in the list.
 
-The current player's wallet supplies any required sats. No automatic funding, hidden secondary wallet, or balance seeding. Map insufficient funds to a public error; obtain actual requirements from the configured operator/SDK instead of assuming a fixed cost. Use fresh wallet state and guard against the SDK returning a cached repository after a provider error, as the balance adapter already does. A successful zero/empty result requires successful live reads. Reuse bounded temporary-wallet acquisition and cleanup, but audit transaction cleanup carefully: disposing a wallet or aborting a caller must not imply rollback of a submitted transaction.
+Errors use status error, a stable code, safe message, profileId and operationId where known. Codes include account-required, invalid-input, insufficient-funds, unavailable, outcome-unknown, account-changed, disposed, unsupported-environment, and busy. No SDK types or secret-bearing exceptions cross the API boundary. APIs never open account or asset UI and never change account navigation state.
 
-### Duplicate and uncertain-outcome protection
+### Supply and ownership
 
-Serialize issuance per profile across same-origin contexts/tabs with Web Locks; if unavailable, refuse issuance safely rather than degrading to duplicate-prone behavior. Check current holdings inside the lock and return already-owned on a matching identifier. Use a small BIS-owned non-secret operation journal keyed by network, profile and achievement to record intent before invoking issuance and append outcome records afterward. Store only public operation identifiers/status, never wallet credentials. Failure to persist the initial intent prevents submission.
+Issue the exact converted amount, omit controlAssetId, and set supplied generic metadata. Add a versioned BIS operation marker solely for restoration/retry reconciliation; do not use game names, accomplishment IDs, or achievement filters. List every positive owned asset, fetch its details, and sort by assetId. A failed required read fails the query rather than returning an empty or partial collection. Guard against SDK cached fallbacks after provider failure. Optional missing metadata is valid.
 
-After reload, a prior unresolved intent triggers reconciliation, not resubmission. A matching owned asset resolves it; a known transaction can be checked through supported SDK/indexer state. Only a positively established pre-submission/definitive failure permits another issue attempt. If the outcome cannot be proven, return outcome-unknown even when holdings are empty. This favors avoiding duplicates over automatic recovery. Keep public journal entries across account logout/reset; they neither reactivate accounts nor establish ownership. Account switching prevents additional submissions and results remain tagged to their originating account. Same-origin serialization cannot guarantee atomicity between unrelated devices or survive user-cleared browser storage; document that limit.
+No control asset means this mint supplies no reissuance authority. Separate intentional mints may share names/tickers; each creates a distinct asset ID. Names are not unique identifiers or proof of a trusted issuer. The Unverified badge must not suggest external validation exists.
 
-### Admin composition
+### Submission and recovery
 
-C1 is a styled noninteractive story container with one native Earn button; do not nest buttons. C4 is a View Achievements button. Preserve the current disabled-story behavior during an open Account flow. C1/C4 invoke the production context directly instead of the preview navigation handler; no selection should mount or clear preview content. Disable a pending action to discourage repeated clicks, while core still protects direct callers.
+Serialize wallet mutation using the existing same-origin wallet lock shared by transfers and account clearing. A non-secret durable journal is keyed by network/profile/operationId and binds the ID to the complete normalized request. Reject reusing an operation ID with different inputs. Before network submission, persist intent; failure to persist prevents submission. Latch submission at the provider boundary and prevent late pre-submission work after timeout/account replacement/disposal from submitting.
 
-Place Admin Console below story controls, always mounted. Append an operation label, pending state, and serialized public response; catch unexpected errors with sanitized output. Use a scrollable text region with a bounded transient history (proposed 100 entries). Clear history on refresh/Reset Client and ignore late completions from an earlier reset generation. Old entries may remain after ordinary logout but must retain their account label. No persistence, raw SDK logging, or extra console tools are needed.
+A repeated successful operation returns already-minted using the known asset. An uncertain operation reconciles fresh owned metadata and available transaction information before any further submission. An empty list alone does not prove failure; return outcome-unknown if no definitive answer is available. A new operation ID cannot be used to bypass an unresolved mint for the same account: block new mints until it is reconciled. The modal retains the operation ID/request for retry; refresh recovers the unresolved request from public journal data. A separately initiated mint after success receives a new ID even if its fields match. Journal records survive logout/reset and do not provide account access.
 
-### Story reconciliation
+Fresh restore/list does not rely on a local asset catalog. Account generation checks prevent stale responses being attached to a different account. Bounded temporary-wallet cleanup does not imply transaction rollback. Same-origin locking cannot guarantee cross-device exactly-once behavior; document this limit.
 
-Update C1/C4 diagrams during implementation with stable existing step IDs and explicit superseded/deferred annotations. C1 now earns directly; C4 returns data without Account navigation. C2's separate Claim UI is deferred, while duplicate/error handling required here is not deferred merely because C3 exists. Keep B and C5 out of scope. D1 is documentation only: a game-controlled wallet/issuer may replace player issuance later and needs more specification. Do not add a D Admin category or fully specify its design now.
+### Console and verification
+
+Use the existing Console region for Admin Console output, always mounted. Entries label operation/profile and show pending plus JSON-safe API results or sanitized failures. Keep up to 100 transient entries; clear on refresh or successful Reset Client; ignore results from a previous client generation. Neither list nor mint selects a preview story. Existing account-flow restrictions remain.
+
+Acceptance: open Mint Asset, submit a valid form, observe minted with an asset ID, close the modal, click List Assets, and observe that same asset ID and exact quantity in a fresh returned list. Then verify retry of the same operation creates no additional asset. Distinguish this from an intentional new mint. Verify restoration through a fresh SDK wallet derived locally from the saved identity without printing or exporting its recovery phrase, and retain any clean-profile/manual restoration checks as explicitly pending.
 
 ## Risks / Trade-offs
 
-- [Signet issuance or metadata support differs from the installed API] -> verify the funded round trip first; report a blocker instead of simulating delivery or adding an issuer server.
-- [Interrupted calls have ambiguous submission status] -> durable public intent and conservative outcome-unknown; never infer failure from absence alone.
-- [Self-issued metadata can be forged] -> describe this as a demonstration, with trusted issuance deferred to D1.
-- [External transfers or simultaneous independent devices defeat lifetime uniqueness] -> promise current-ownership checks and same-origin serialization only; no transfer feature or global award registry in this slice.
-- [New public records outlive logout] -> store public reconciliation data only, isolated by profile/network; never restore account access from them.
+- [Signet support or funding differs from the API] -> perform the funded round trip and document actual requirements; no simulated success.
+- [Ambiguous submission] -> durable intent, same operation retry, block further minting while unresolved.
+- [Numeric precision] -> strings and BigInt throughout conversion; boundary tests.
+- [Arbitrary metadata] -> safe text, optional icon metadata only, no automatic external requests.
+- [Modal adds Admin complexity] -> keep it in the demo and consume public APIs only.
 
 ## Migration Plan
 
-Add public methods without changing existing Account methods or stored credentials. Introduce a separate versioned public journal; no destructive migration is required. Implement and verify the adapter/core before adding Admin controls. Retain existing A-story pending evidence. If support fails, leave C1/C4 undelivered and existing Account behavior intact; any rollback uses additive changes and preserves issued assets and journal records.
+Reconcile the existing draft modules before exposing APIs. Preserve current account behavior and existing uncommitted work. Rename the historical new-capability directory to asset-api in the apply workflow and update the proposal reference before sync/archive. Implement adapter/core, then Admin controls, then real-browser verification. No destructive data migration or asset deletion. Rollback uses additive fixes and preserves public operation records and minted assets.

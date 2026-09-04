@@ -1,0 +1,66 @@
+import { createContext } from '../../integration/src/core/context';
+import { createBisUi } from '@bis/integration';
+import '@bis/integration/style.css';
+
+const host = document.getElementById('host')!;
+const result = document.getElementById('result')!;
+const tick = () => new Promise(resolve => setTimeout(resolve, 30));
+const check = (condition: unknown, label: string) => { if (!condition) throw Error(label); };
+let cleanup = () => {};
+document.getElementById('run')!.onclick = async () => {
+  cleanup(); result.textContent = 'Running';
+  const account = {phrase:'isolated-placeholder',profileId:'1234567890abcdef'};
+  let fail = false;
+  const c = createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}}, undefined, async()=>account.profileId, undefined,
+    async()=>{if(fail)throw Error('private');return {availableSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000};});
+  c.checkAccountTransfer=async()=>({status:'idle'});
+  c.quoteAccountTransfer=async(amount=500,direction='to-arkade')=>({profileId:account.profileId,direction,amountSats:amount,feeSats:0,netSats:amount,maxSats:500,bitcoinAfterSats:500-amount,arkadeAfterSats:1000+amount,totalAfterSats:1500,expiresAt:Date.now()+60000,fingerprint:'test-only'});
+  c.confirmAccountTransfer=async()=>{throw Error('Unexpected submission');};
+  const ui = createBisUi(c);ui.mount(host);cleanup=()=>{ui.unmount();c.dispose();};
+  const button = (name: string) => [...host.querySelectorAll('button')].find(b=>b.textContent===name)!;
+  const value = (name: string) => (host.querySelector(`input[aria-label="${name}"]`) as HTMLInputElement)?.value;
+  try {
+    await c.ready();c.openAccountDialog();c.openAccountDetails();await tick();
+    check(value('Total balance')==='1,500 sats' && value('Bitcoin balance')==='500 sats' && value('Arkade balance')==='1,000 sats', 'Correct full balance split');
+    check(!host.textContent?.includes('Available balance'), 'Old label removed');
+    const labels=[...host.querySelectorAll('input[readonly]')];
+    check(labels[0].getAttribute('aria-label')==='Total balance', 'Total first');
+    check(labels[1].getBoundingClientRect().top===labels[2].getBoundingClientRect().top, 'Split balances on same row');
+    check(button('Bitcoin ↔ Arkade').nextElementSibling===button('Recovery Phrase'),'Transfer before Recovery Phrase');
+    button('Bitcoin ↔ Arkade').click();await tick();
+    check(host.querySelector('h2')?.textContent==='Account Transfer','Transfer title');
+    check(button('Review Transfer').disabled && !button('Max').disabled,'Initial zero and forward Max enabled');
+    button('Max').click();await tick();
+    button('Review Transfer').click();await tick();
+    check(host.textContent?.includes('500 sats') && host.textContent.includes('After transfer (estimate)'),'Real quote fields rendered');
+    check(!button('Confirm Transfer').disabled,'Reviewed forward quote enables explicit confirmation');
+    button('Back').click();await tick();
+    (host.querySelector('[aria-label="Increase amount"]') as HTMLButtonElement).click();await tick();
+    check(!button('Review Transfer').disabled,'Positive amount review');
+    const reverse=host.querySelectorAll('input[type="radio"]')[1] as HTMLInputElement;reverse.click();await tick();
+    button('Review Transfer').click();await tick();
+    check(host.textContent?.includes('Review: Arkade → Bitcoin') && host.textContent.includes('501 sats'),'Reverse review');
+    check(!button('Confirm Transfer').disabled && host.textContent?.includes('After transfer (estimate)'),'Reviewed reverse quote enables explicit confirmation');
+    button('Back').click();await tick();check((host.querySelectorAll('input[type="radio"]')[1] as HTMLInputElement).checked,'Back retains direction');
+    button('Back').click();await tick();check(host.querySelector('h2')?.textContent==='Account Details','Back to Details');
+    button('Bitcoin ↔ Arkade').click();await tick();check(button('Review Transfer').disabled,'Reopen resets amount');
+    button('Back').click();await tick();fail=true;await c.refreshBalance();await tick();
+    check(value('Total balance')==='Balance unavailable' && value('Arkade balance')==='Balance unavailable','Failed refresh clears values');
+    check([...host.querySelectorAll('button[aria-label^="Copy"]')].every(b=>(b as HTMLButtonElement).disabled),'Failed copy disabled');
+    fail=false;await c.refreshBalance();await tick();
+    button('Bitcoin ↔ Arkade').click();await tick();button('Max').click();await tick();button('Review Transfer').click();await tick();
+    c.checkAccountTransfer=async()=>{throw Error('private status failure');};
+    button('Confirm Transfer').click();await tick();
+    check(!host.textContent?.includes('Transfer pending') && !host.textContent?.includes('Log Out and Reset are blocked'),'Rejected confirmation without a record must not invent a pending operation');
+    check(button('Confirm Transfer')?.disabled || button('Review Transfer')?.disabled,'Unknown status blocks another confirmation until checked');
+    c.checkAccountTransfer=async()=>({status:'pending',phase:'registered',direction:'to-bitcoin',amountSats:1000,operationId:'test-operation',intentId:'test-intent',verification:'unavailable'});
+    button('Check Status').click();await tick();
+    check(host.textContent?.includes('Verification is unavailable') && host.textContent?.includes('test-intent'),'Unavailable verification retains known attempt');
+    check((host.querySelectorAll('input[type="radio"]')[1] as HTMLInputElement).checked && button('Review Transfer').disabled,'Pending reverse operation is preserved');
+    c.checkAccountTransfer=async()=>({status:'succeeded',direction:'to-bitcoin',amountSats:1000,operationId:'test-operation',commitmentTxid:'b'.repeat(64),verification:'live'});
+    button('Check Status').click();await tick();
+    check(host.textContent?.includes('Transfer verified') && !host.textContent?.includes('Log Out and Reset are blocked'),'Verified completion releases pending UI');
+    const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No horizontal overflow');
+    result.textContent='PASS: balance split, layout, directions, quote review, rejected confirmation without false pending, unavailable verification preserves operation, verified completion, no overflow. Isolated test doubles; no live submission.';
+  } catch(error) {result.textContent=`FAIL: ${error instanceof Error ? error.message : 'transfer checks'}`;}
+};

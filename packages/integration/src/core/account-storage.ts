@@ -1,4 +1,5 @@
 import type { AccountSecret } from '../arkade/account.ts';
+import { assertNoPendingBoarding, withWalletMutation } from './boarding-record.ts';
 export type StoredAccount = { generation: number; account: AccountSecret | null };
 export interface AccountStorage {
   load(): Promise<StoredAccount>;
@@ -75,6 +76,8 @@ export function createAccountStorage(): AccountStorage {
       channel?.postMessage('changed');
     },
     async reset(expectedGeneration) {
+      await withWalletMutation(async () => {
+      assertNoPendingBoarding();
       await transaction<void>('readwrite',(store,set,tx)=> {
         const request=store.get('generation');
         request.onsuccess=()=> {
@@ -86,6 +89,7 @@ export function createAccountStorage(): AccountStorage {
         };
       });
       channel?.postMessage('changed'); notify();
+      });
     },
     subscribe(listener) {
       listeners.add(listener);

@@ -1,5 +1,14 @@
 # A5 Account Activity verification
 
+## Transactions lockup and asset history — 2026-09-04
+
+- Reproduced stalled notification setup blocking the first history read and unresolved wallet disposal blocking error reporting. Regression tests failed before the fix and passed afterward.
+- History now starts independently of notifications; polling continues as fallback. SDK requests are bounded, cleanup is nonblocking, and the Core initial-load deadline restores Refresh after 15 seconds while rejecting late updates.
+- SDK asset history now retains asset identifiers, mint/receive/transfer labels, and exact quantities. Saved account mint operations supplement history with explicit pending or recorded status; known transaction references deduplicate SDK rows. Missing sats and confirmation remain unknown.
+- Production build and all 95 integration tests passed. Five focused regressions cover both stalls, the Core deadline and late callbacks, exact asset quantities, and local mint reconciliation.
+- Chrome isolated production UI checks passed: exact asset quantity `9007199254740993`, all 24 rows, Copy-all, clipboard failure, empty/unavailable/retry, Back, reopening, and 360px layout. Asset examples are fixtures, not claims of a live mint.
+- Live saved-account Chrome check: loading ended with Refresh and Copy enabled. SDK history was unavailable; the Transactions field retained the saved 1000-sat Arkade-to-Bitcoin registered operation and explicitly stated that live history was unavailable. This verifies recovery from loading, not completion of that transfer. No financial operation was submitted.
+
 Date: 2026-09-03. SDK: @arkade-os/sdk 0.4.67. Implementation is present; live confirmation and outgoing/spent examples remain pending.
 
 ## Implemented behavior

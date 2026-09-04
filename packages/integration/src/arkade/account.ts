@@ -1,4 +1,4 @@
-import { MnemonicIdentity, Wallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
+import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { phraseWords, validRecovery } from '../core/recovery-validation.ts';
@@ -27,8 +27,8 @@ export async function restoreAccount(input: string, signal: AbortSignal): Promis
   // Validate the SDK's own configuration read as well as the initial fetch.
   const getInfo = provider.getInfo.bind(provider);
   provider.getInfo = async () => { const info = await getInfo(); requireSignet(info.network); return info; };
-  const pending = Wallet.create({
-    identity: MnemonicIdentity.fromMnemonic(phrase, { isMainnet: false }),
+  const pending = ReadonlyWallet.create({
+    identity: await MnemonicIdentity.fromMnemonic(phrase, { isMainnet: false }).toReadonly(),
     arkProvider: provider,
     storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
   });

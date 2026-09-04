@@ -21,14 +21,11 @@ The demo SHALL offer 100%, 50%, and 25% content scale beside the 9:16 indicator,
 - **THEN** the dialogue remains open and centered, its content scales, and its enabled controls remain interactive
 
 ### Requirement: Implemented demonstrations only
-The Admin UI SHALL show only implemented demonstrations and categories containing at least one such demonstration. It SHALL start without a selected story, including after refresh. This slice SHALL expose Account / Account Button, Account / Create Account, Account / Restore Account, Account / Account Balance, and Account / Log Out, and omit Pay-to-play and Achievements.
-
-The Admin heading SHALL be followed by User Stories and a Documentation link to bundled user-story Markdown, then Account and the implemented story actions. It SHALL NOT show Interactivity. The documentation link SHALL work in development and the built demo.
+The Admin UI SHALL show only implemented demonstrations and nonempty categories. It SHALL begin without a selected story, including after refresh. Existing implemented Account demonstrations SHALL remain available. This slice SHALL add Assets / C1 Mint Asset and C4 List Assets and omit unimplemented categories and stories. The Admin heading SHALL be followed by User Stories and a working Documentation link in development and production builds. It SHALL NOT show Interactivity.
 
 #### Scenario: Initial demo
-- **WHEN** the implemented demo loads
-- **THEN** Account Button, Create Account, Restore Account, Account Balance, and Log Out are available under Account and Runtime Preview content is empty
-- **AND** no filler cards, introduction, WIP badges, or empty categories appear
+- **WHEN** the demo loads
+- **THEN** existing account demonstrations and C1/C4 asset controls are available with empty Runtime Preview and no filler cards or empty categories
 
 ### Requirement: Production controls and state
 Selecting Account Button SHALL render the real production entry button. Selecting Create Account SHALL open the production Account dialogue without automatically creating an identity. Runtime Preview SHALL use only production APIs and components, including the same persistence behavior as a game host. Admin SHALL observe public production state and SHALL NOT introspect for unimplemented APIs or receive recovery material. Story actions SHALL be disabled while an account flow is open.
@@ -44,20 +41,29 @@ Selecting Account Button SHALL render the real production entry button. Selectin
 - **AND** no replacement account is created
 
 ### Requirement: Reset clears selection and transient state
-Reset Client SHALL clear transient state and integration-owned persisted account material, release old clients/UI/subscriptions, clear selection, and leave runtime content empty with a fresh logged-out client. It SHALL preserve unrelated origin/host data and SHALL NOT erase remote wallet assets or fabricate outcomes. Reset SHALL remain available when there is selected content, pending account work, or saved account state, even without a selected story. A failed reset SHALL report failure rather than claim a fresh start. Stale work in the current or another open instance SHALL NOT repopulate cleared account state.
+Reset Client SHALL clear transient state and integration-owned persisted account material, release old clients/UI/subscriptions, clear selection, and leave runtime content empty with a fresh logged-out client. It SHALL preserve unrelated origin/host data and SHALL NOT erase remote wallet assets or fabricate outcomes. Reset SHALL remain available when there is selected content, pending account work, or saved account state, even without a selected story, except while a send or transfer remains submitting, pending or uncertain, a Lightning invoice remains payable, or receipt processing or reconciliation is unresolved. In that case Reset SHALL be blocked in both UI and public command execution until reconciliation proves safe completion or failure; it SHALL retain recovery state across instances and restart. A failed reset SHALL report failure rather than claim a fresh start. Stale work in the current or another open instance SHALL NOT repopulate cleared account state.
 
 #### Scenario: Clear selected story
-- **WHEN** Reset Client succeeds while the Account dialogue is shown
+- **WHEN** Reset Client succeeds while the Account dialogue is shown and no send, transfer, payable invoice, or receipt processing/reconciliation is unresolved
 - **THEN** the fresh client has no saved account, selected story, or Account button
 - **AND** old subscriptions are released and the next account entry is logged out
 
 #### Scenario: No selected story
-- **WHEN** the demo has no selected story but a saved account exists
+- **WHEN** the demo has no selected story but a saved account exists and no send, transfer, payable invoice, or receipt processing/reconciliation is unresolved
 - **THEN** Reset Client is enabled and can clear it
 
 #### Scenario: Already fresh
 - **WHEN** there is no selection, pending operation, or persisted account state after hydration
 - **THEN** Reset Client is disabled
+
+#### Scenario: Unresolved send survives reset attempt
+- **WHEN** Reset Client is invoked while a send outcome is unresolved
+- **THEN** the reset is refused without clearing account or recovery state
+
+#### Scenario: Unfinished receiving operation
+- **WHEN** any invoice is payable or a receipt needs processing or reconciliation
+- **THEN** Reset Client is blocked, including without a selected story
+- **AND** it preserves the account and recovery state and explains the block
 
 ### Requirement: Visually distinct package-owned styles
 Demo-owned page/navigation/frame styling SHALL remain dark. Production integration content SHALL use an independently owned light visual design. Demo styling SHALL NOT override production component styling.
@@ -128,5 +134,128 @@ Selecting Account Balance SHALL open the production Account dialog for the actua
 
 #### Scenario: Report A4 complete
 - **WHEN** A4 delivery is documented
-- **THEN** existing story/step IDs remain stable, A4 scope is the lean balance dialog, and A5 history, C4 achievements/assets, and receiving details are explicitly deferred
+- **THEN** existing story/step IDs remain stable, A4 scope is the lean balance dialog, and A5 transaction history is a separate story, while C4 achievements/assets and receiving details remain outside A4
 - **AND** missing funded-wallet or other live checks remain explicitly pending instead of being inferred from fixtures or zero-balance checks
+
+### Requirement: A5 production demonstration and evidence
+The Account / Inspect Activity Admin demonstration SHALL open the real Account flow, where Account Activity appears directly below Account Details for an active account. Without an account it SHALL show the existing chooser without creating an account. Runtime Preview SHALL use production public APIs and UI. A5 documentation SHALL retain stable story and step IDs and describe all history supplied by Arkade, including incoming, outgoing, confirmed, and spent entries, without promising history unavailable from the SDK. The production dialog SHALL show one Transactions text area, newest first with one transaction per line, and one Copy button for the entire list. Completion SHALL require real Signet wallet evidence of existing pending deposits, automatic updates, and confirmation mapping, plus isolated full-history ordering, spent-entry retention, Copy-all, and failure/lifecycle tests and independent-host parity. Fixtures SHALL NOT be represented as live transactions.
+
+#### Scenario: Demonstrate Account Activity
+- **WHEN** Inspect Activity is selected with an active account
+- **THEN** the Account menu opens and Account Activity opens the production Account Activity dialog; story switching stays disabled while the flow is open
+
+#### Scenario: Missing live evidence
+- **WHEN** notification or confirmation behavior has not yet been observed through the real wallet SDK
+- **THEN** that verification remains explicitly pending and provider-only reads do not establish complete delivery
+
+### Requirement: Admin mint form
+C1 Mint Asset SHALL open an Admin-owned form with Name, Ticker, Amount, Decimals, optional Icon URL, an Unverified asset summary, and read-only Control Asset: None. Name/ticker/amount SHALL be required. The form SHALL use editable defaults of an asset, ASSET, 1, and 0 respectively, with blank Icon URL. Existing/New control-asset choices SHALL NOT be offered. Only an explicit valid Mint action SHALL call the generic production mint API. Pending/results/errors SHALL appear in Admin Console. Pending submission SHALL disable edits and duplicate submission; bounded unknown outcomes SHALL preserve the request and operation ID for reconciliation.
+
+#### Scenario: Edit and mint
+- **WHEN** the user opens C1, edits valid fields, and clicks Mint
+- **THEN** the public API receives those values with no control asset and Admin Console shows pending followed by the returned result
+- **AND** the form summary before success is not represented as wallet ownership
+
+#### Scenario: Invalid or cancelled form
+- **WHEN** inputs are invalid or the user dismisses the idle form
+- **THEN** no mint is submitted and relevant validation or ordinary Admin controls remain available
+
+### Requirement: Admin example presets
+The Admin mint form SHALL offer three quick-fill buttons labeled Achievement: Level 1, Achievement: Level 2, and Achievement: Level 3. Each SHALL populate the matching name, ticker LVL1/LVL2/LVL3 respectively, amount 1, decimals 0, blank icon URL, and Control Asset None. Fields SHALL remain editable. Presets SHALL only modify the form and SHALL NOT submit, query, or establish ownership. They SHALL be disabled during submission or while an unresolved request must remain immutable. Example labels SHALL remain in the demo; BIS SHALL apply no achievement-specific meaning or rules.
+
+#### Scenario: Use a preset
+- **WHEN** the user selects Achievement: Level 2 in an idle form
+- **THEN** the form contains that name, LVL2, amount 1, decimals 0, empty icon URL, and None
+- **AND** nothing is submitted until the user separately clicks Mint
+
+### Requirement: Admin list and preview isolation
+C4 List Assets SHALL call the generic production listing API and show its actual result in Admin Console, including an explicit empty array. Neither C1 nor C4 SHALL navigate, mount, clear, or change Runtime Preview. Existing account-flow restrictions SHALL be preserved. A mint form SHALL be outside the runtime container and use accessible labels, focus containment/restoration, idle dismissal, and responsive scrolling.
+
+#### Scenario: Mint then list
+- **WHEN** mint succeeds and the user then clicks List Assets for the same account
+- **THEN** a fresh returned list contains that same asset ID and exact quantity
+- **AND** Runtime Preview remains unchanged throughout
+
+#### Scenario: Logged-out request
+- **WHEN** an asset API is invoked without an account
+- **THEN** Admin Console displays account-required and no account dialog opens automatically
+
+### Requirement: Always-visible Admin Console
+The existing Console region SHALL remain visible from initial load and show labeled pending operations and public API responses or sanitized errors. It SHALL include originating account and operation IDs where known, render text safely, scroll, and retain bounded transient history. Refresh and successful Reset Client SHALL clear its history; stale completions from a previous client SHALL be ignored.
+
+#### Scenario: Reset with late output
+- **WHEN** a new client replaces an old client and the old request later completes
+- **THEN** the new console does not append that stale result
+
+### Requirement: Delivery evidence and documentation
+C1/C4 documentation SHALL describe generic mint/list APIs and Admin-only presets. Preserve story/step IDs with superseded annotations where necessary. Live mint/list, restoration, retry safety, exact amounts, independent-host parity, and browser behavior SHALL have supporting evidence before completion is claimed. Unperformed checks SHALL remain pending. B/C2/C3/C5 and D1 issuer scope SHALL remain deferred.
+
+#### Scenario: Report delivery
+- **WHEN** this slice is reported complete
+- **THEN** the revised behavior has supporting evidence and unrelated pending work is not reported complete
+
+### Requirement: D2a address receiving demonstration and evidence
+The Admin catalog SHALL include D2a, labeled Receive Funds, using the production public API and UI. With an active account it SHALL open Receive. Without an active account it SHALL open the ordinary account chooser; account creation/restoration and subsequent Receive navigation SHALL remain explicit player actions. The demonstration SHALL NOT auto-create an account, fund it, or fabricate transaction outcomes. Existing demonstrations SHALL remain intact.
+
+#### Scenario: Active account demonstration
+- **WHEN** D2a is selected with an active account
+- **THEN** the production Receive page opens with address fields and unavailable Lightning controls
+
+#### Scenario: Logged-out demonstration
+- **WHEN** D2a is selected without an account
+- **THEN** the normal account chooser opens without automatic creation, restoration, or funding
+
+### Requirement: Independent D2a delivery boundary
+D2a documentation SHALL distinguish implemented address receiving from blocked D2b live invoices, preserving D2a/D2b and unrelated story IDs. Completion evidence SHALL cover address loading, copying and errors, Refresh failure/retry, navigation, keyboard access, and readable 9:16 layout in the demo and an independent host. It SHALL include automated tests, typecheck, and build results. Test doubles SHALL remain isolated from production outcomes. D2a completion SHALL NOT imply delivery of Lightning invoices, recovery, Activity extensions, account-clearing guards, D3 sending, or D4 transfers.
+
+#### Scenario: D2a accepted while D2b blocked
+- **WHEN** D2a meets its acceptance criteria and evidence is recorded
+- **THEN** it can be reported complete independently of D2b
+- **AND** D2b and unrelated pending verification remain explicitly incomplete
+
+### Requirement: Invoice receiving demonstration and story synchronization
+The demo SHALL expose the implemented receiving presentation through the production account flow, without automatically creating an account, an invoice, or a payment. Runtime Preview SHALL use the same public integration API and UI as an independent host. Its documentation SHALL describe D2 as receiving, retain D3 as the separate all-send-types feature, preserve existing story and step IDs, and distinguish the unavailable presentation from verified live invoice receiving. This extends the catalog only with actually implemented demonstrations and SHALL NOT remove unrelated existing demonstrations.
+
+#### Scenario: Unavailable receiving demonstration
+- **WHEN** the demo demonstrates Receive without a verified Signet invoice-receiving route
+- **THEN** it shows the real address fields and the production Currently unavailable invoice section
+- **AND** documentation does not mark live invoice generation or receipt as complete
+
+#### Scenario: No active account
+- **WHEN** the receiving demonstration is selected without an active account
+- **THEN** the ordinary account chooser is shown without an automatically created profile or fabricated invoice
+
+#### Scenario: Delivery evidence
+- **WHEN** live invoice receiving is reported complete
+- **THEN** evidence covers fee review, actual Signet generation and receipt, expiry/Renew, toggling, navigation reset, restart recovery, Activity reconciliation, failure handling, and production-host/demo parity
+- **AND** isolated fixtures are not substituted for live payment evidence and unrelated A5 verification remains separately tracked
+
+### Requirement: D4 Account Transfer demonstration
+Admin SHALL provide a D4 Account Transfer demonstration using the production public API and UI. It SHALL preserve the logged-out Account flow and SHALL identify unavailable transfer execution without simulating successful transactions. Documentation SHALL distinguish delivered presentation from pending live transfers and preserve unrelated story IDs.
+
+#### Scenario: Active account demonstration
+- **WHEN** Admin D4 is selected with an active account
+- **THEN** Runtime Preview opens the production Account Transfer screen
+
+#### Scenario: No account
+- **WHEN** Admin D4 is selected without an account
+- **THEN** the normal account entry opens without creating an account or moving funds
+
+### Requirement: D3a production Send demonstration
+Admin SHALL offer Send using the production public Account Send flow with the actual saved profile. Logged-out selection SHALL show the existing chooser without automatically creating an account. The preview and independent host SHALL share UI, state, fee review, lifecycle protection and payment behavior. Fixtures SHALL remain isolated test evidence, never live demonstration transactions.
+
+#### Scenario: Open Send
+- **WHEN** Send is selected with an active account
+- **THEN** the production address-send form opens without preparing or submitting a payment automatically
+
+#### Scenario: No profile
+- **WHEN** Send is selected while logged out
+- **THEN** the normal chooser appears without fabricated balances or automatic account creation
+
+### Requirement: Separate non-Lightning and invoice sending stories
+Documentation SHALL retain D3 as the sending parent and distinguish D3a address sending from D3b paying a Lightning invoice. D5 pending-transfer recovery SHALL remain a separate proposal/story and SHALL NOT block D3a implementation or isolated testing. D3b SHALL remain deferred and unstarted, without enabled runtime controls or implementation tasks in D3a. D3a completion SHALL require synchronized diagrams and live verification for Arkade-to-Arkade, plus isolated error, navigation, accessibility, duplicate-send, restart and lifecycle-guard tests. Missing live evidence SHALL remain pending.
+
+#### Scenario: Report delivery status
+- **WHEN** Send delivery is documented
+- **THEN** D3a evidence identifies each verified route and missing checks explicitly
+- **AND** D3b is not reported implemented or made a prerequisite for D3a

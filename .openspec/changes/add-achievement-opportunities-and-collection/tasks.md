@@ -1,21 +1,25 @@
-## 1. Implementation feasibility gate
+## 1. Contract and feasibility
 
-- [ ] 1.1 Verify the installed SDK and configured Signet operator can issue one asset with the proposed metadata, return fresh holdings/details, and rediscover it under the restored identity; record actual funding requirements and public evidence in documentation/C1_C4_VERIFICATION.md. Keep credentials outside logs and stop with an explicit blocker if live support or funding is unavailable.
+Planning updated 2026-09-04 for generic assets, an Admin mint modal, Control Asset None, and three example presets. Generic APIs and Admin controls are now connected. Live mint verification remains blocked by the existing registered wallet transfer; see C1_C4_VERIFICATION.md.
+
+- [x] 1.1 Reconcile the draft modules with generic mint/list semantics and rename the historical achievement-api delta directory to asset-api during apply, updating the proposal reference; verify no game-specific public API/type names remain and strict OpenSpec validation passes.
+- [ ] 1.2 Verify fresh spendable Arkade funding, supported metadata/amount limits, and one real no-control-asset issuance/list round trip with fresh wallet repositories for the same identity; record public evidence and actual funding requirements in C1_C4_VERIFICATION.md, preserving the issued asset and reporting any unavailable live checks explicitly.
 
 ## 2. Public API and wallet integration
 
-- [ ] 2.1 Add JSON-safe public achievement/result types and UI-independent earn/list methods; verify an independent host can call them without mounting BIS UI and that logged-out/invalid-input calls return the specified errors.
-- [ ] 2.2 Implement the Signet asset adapter with exact identifier metadata, single-unit non-reissuable issuance, fresh ownership reads, and recognition/filtering; verify focused tests cover unrelated metadata, bigint serialization, insufficient funds, and failed reads versus empty holdings.
-- [ ] 2.3 Implement same-origin per-profile serialization and non-secret durable operation records with conservative reconciliation; verify concurrent calls, repeat after reload, unavailable locks/storage, and uncertain submission never cause automatic duplicate issuance.
-- [ ] 2.4 Integrate account generation/disposal checks and bounded wallet cleanup without falsely cancelling submitted transactions; verify account switching, logout, reset, timeout, and late completion cannot attribute results or new submissions to the wrong account.
+- [x] 2.1 Implement JSON-safe generic mintAsset/listAssets contracts and exact decimal-to-base-unit conversion; verify valid amounts, fractional precision, maximum supply, invalid/exponent input, optional URL validation, no-account errors, and a host without BIS UI.
+- [x] 2.2 Implement the Signet adapter issuing entered supply/metadata without controlAssetId and listing all positive holdings with optional metadata; verify non-BIS assets, metadata absence, bigint serialization, insufficient funds, failed live reads versus empty arrays, and no icon URL fetches.
+- [ ] 2.3 Implement request-bound operation IDs, shared wallet locking, durable public records, and conservative reconciliation; verify same-ID retry, changed payload rejection, independent same-name mints after completion, concurrent callers, unavailable storage/locks, reload, and unresolved-operation blocking.
+- [ ] 2.4 Integrate account generation/disposal and bounded adapter cleanup; verify account replacement, logout/reset coordination, timeout, and late completion cannot cause stale submissions or misattribute results, and submitted operations are not falsely cancelled.
 
-## 3. Admin demonstrations
+## 3. Admin demonstration
 
-- [ ] 3.1 Add the non-clickable C1 container with Earn and the C4 View Achievements control using public API calls and the exact agreed achievement string; verify container clicks do nothing, account-flow restrictions remain, and both actions leave Runtime Preview unchanged.
-- [ ] 3.2 Add the always-visible Admin Console with labeled pending/results/errors and bounded transient history; verify actual returned lists, empty arrays, already-owned and account-required output, safe text rendering, scrolling, refresh/reset clearing, and suppression of pre-reset late results.
+- [ ] 3.1 Add Assets / C1 Mint Asset and C4 List Assets with an Admin-owned dark modal based on the reference, editable defaults, summary, fixed Control Asset None, validation, and explicit Mint; verify accessibility, responsive layout, account-flow restrictions, and unchanged Runtime Preview.
+- [x] 3.2 Add quick-fill buttons Achievement: Level 1/2/3 with LVL1/2/3, amount 1, decimals 0, blank Icon URL, and None; verify all three populate editable values without any API call and cannot mutate a pending/unresolved request.
+- [ ] 3.3 Connect both actions to the existing always-visible Console with pending/public results/safe errors and bounded transient history; verify actual lists, empty arrays, no-account errors, scrolling, refresh/reset clearing, and suppression of obsolete client results.
 
-## 4. End-to-end verification and documentation
+## 4. Verification and documentation
 
-- [ ] 4.1 Verify in a real browser and a UI-free host: funded earn, list, repeat without another issuance, restored-account listing, no-account errors, query failures, and unchanged preview behavior; record live evidence separately from isolated fixtures and retain any unperformed checks as pending.
-- [ ] 4.2 Reconcile C1/C4 diagrams, affected C2/C3 references, design-discussion.md, package/API documentation, and OpenSpec context with the delivered API-only behavior while preserving story/step IDs and unrelated pending verification; verify D/D1 remains a brief documentation-only future issuer idea and B remains deferred.
-- [ ] 4.3 Run the repository's existing build and relevant account/achievement tests plus strict OpenSpec validation; record results and verify existing A-story behavior and documentation links still work before reporting completion.
+- [ ] 4.1 Verify in a real browser and UI-free host: mint then fresh list with matching asset ID/quantity, safe retry, separate intentional same-name mint semantics, fresh-wallet restoration/listing, failure cases, and preview isolation; record live evidence separately from fixtures and retain unperformed checks as pending.
+- [x] 4.2 Reconcile C1/C4 diagrams and superseded C2/C3 references, design discussion, package/API docs, and OpenSpec context; verify generic BIS terminology, Admin-only game example names, stable story IDs, working links, and unrelated deferrals remain accurate.
+- [x] 4.3 Run the build, relevant account/asset tests, and strict OpenSpec validation; record results and resolve concrete regressions before marking delivery complete.

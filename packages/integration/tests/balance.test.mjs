@@ -29,8 +29,8 @@ test('Account menu does not read balances; Details Back returns to menu before h
 
 test('adapter accepts real zero and maps available/total; rejects partial, invalid, degraded or failed reads',async()=>{
   for(const [available,total] of [[0,0],[1000,1500]]) {
-    const result=await readFreshBalance({getBalance:async()=>({available,total}),getProviderConnectionState:()=>({mode:'online',source:'live'})});
-    assert.deepEqual(result,{availableSats:available,totalSats:total});assert.ok(Object.isFrozen(result));
+    const result=await readFreshBalance({getBalance:async()=>({available,total,boarding:{total:total-available}}),getProviderConnectionState:()=>({mode:'online',source:'live'})});
+    assert.deepEqual(result,{availableSats:available,totalSats:total,bitcoinSats:total-available,arkadeSats:available});assert.ok(Object.isFrozen(result));
   }
   for(const b of [{available:-1,total:0},{available:1.5,total:2},{available:2,total:1},{available:0,total:NaN},{available:0},{available:0,total:Infinity}]) {
     await assert.rejects(readFreshBalance({getBalance:async()=>b,getProviderConnectionState:()=>({mode:'online',source:'live'})}));
@@ -90,3 +90,4 @@ test('identity read failure is an account error, never a balance success',async(
   const s=setup();await s.context.ready();s.storage.load=async()=>{throw Error('unreadable');};
   s.context.openAccountDialog();s.context.openAccountDetails();await tick();assert.equal(s.context.getState().phase,'error');assert.equal(s.context.getState().balance.status,'idle');s.context.dispose();
 });
+

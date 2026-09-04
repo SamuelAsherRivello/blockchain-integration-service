@@ -20,16 +20,26 @@ The active account's Log Out action SHALL open a confirmation titled "Account Lo
 - **AND** the reopened checkbox is unchecked
 
 ### Requirement: Confirmed local logout
-Confirmed logout SHALL clear only integration-owned remembered account material and end the active local session. It SHALL preserve unrelated browser data and wallet assets and SHALL NOT depend on operator connectivity. On confirmed success the Account dialogue SHALL remain open with Create Account / Restore Account visible; Restore SHALL be enabled and open A3 restoration. Back SHALL restore the preceding host presentation. Ordinary gameplay SHALL remain available.
+Confirmed logout SHALL clear only integration-owned remembered account material and end the active local session. It SHALL preserve unrelated browser data and wallet assets and SHALL NOT depend on operator connectivity when no send, transfer, payable invoice, or receipt processing/reconciliation is unresolved. On confirmed success the Account dialogue SHALL remain open with Create Account / Restore Account visible; Restore SHALL be enabled and open A3 restoration. Back SHALL restore the preceding host presentation. Ordinary gameplay SHALL remain available. A payable invoice or unresolved receipt SHALL retain its receiving-operation clearing guard, including unknown receiving states. An unresolved send SHALL block account clearing, even when backup acknowledgement is checked, until reconciliation proves completion or safe failure. This guard SHALL apply across live contexts and after restart; offline uncertainty SHALL preserve recovery state rather than permit clearing.
 
 #### Scenario: Successful logout and reload
-- **WHEN** a player confirms logout and clearing succeeds
+- **WHEN** a player confirms logout with no unresolved send, transfer, payable invoice, or receipt processing/reconciliation and clearing succeeds
 - **THEN** no active profile remains and the logged-out Account dialogue appears
 - **AND** reloading the same origin does not restore the cleared account
 
 #### Scenario: Offline logout
-- **WHEN** the operator is unreachable but local storage is available
+- **WHEN** the operator is unreachable but local storage is available and no send, transfer, payable invoice, or receipt processing/reconciliation is unresolved
 - **THEN** confirmed logout can complete without a wallet transaction or operator request
+
+#### Scenario: Unresolved send
+- **WHEN** logout is requested while a send is submitting, pending or uncertain
+- **THEN** clearing is blocked with a status explanation and account/recovery material remains intact
+- **AND** navigation and ordinary gameplay remain available
+
+#### Scenario: Payable invoice or unresolved receipt
+- **WHEN** a payable invoice or unresolved receipt exists, including one hidden by navigation
+- **THEN** Log Out cannot clear the account and explains why it is blocked
+- **AND** Back and ordinary navigation remain available
 
 ### Requirement: Truthful failure and retry
 While logout is pending the UI SHALL prevent duplicate submission and cancellation of that operation. If clearing fails or cannot be confirmed, it SHALL retain the dialogue, explain the failure without exposing secrets, and offer Retry. It SHALL NOT claim success or emit a successful-disconnection event before confirmed clearing. Retry SHALL retry the acknowledged logout without opening recovery UI. An unchecked acknowledgement SHALL prevent a further destructive submission.
@@ -58,3 +68,14 @@ The public production surface SHALL expose non-secret logout state and a disconn
 #### Scenario: Disposed consumer
 - **WHEN** a context is disposed before asynchronous logout completion
 - **THEN** it does not publish later state or events to former subscribers
+
+### Requirement: Protect unresolved transfers
+Once transaction execution is supported, Log Out and Reset SHALL be blocked while a transfer is unresolved, including after restart and across same-origin contexts. Merely editing a transfer without submission SHALL NOT block account clearing.
+
+#### Scenario: Form without submission
+- **WHEN** the player has only entered an amount without submitting a transfer
+- **THEN** normal account clearing remains available through its existing confirmation flow
+
+#### Scenario: Unresolved submission
+- **WHEN** a submitted transfer has not been reconciled
+- **THEN** account clearing is blocked with an explanation until resolution

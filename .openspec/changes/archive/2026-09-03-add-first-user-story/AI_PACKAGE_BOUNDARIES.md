@@ -2,7 +2,7 @@
 
 Status: draft for user validation. This guide restates the established package split and proposes a practical placement checklist; it does not authorize new features or settle open API/lifecycle decisions.
 
-Sources: [original project brief](BGS_PROJECT_BRIEF.md), [confirmed design decisions](design-discussion.md), and the package READMEs. Use [User Story Diagrams](User%20Story%20Diagrams.md) for intended journeys, not as proof of implemented behavior. Later confirmed decisions take precedence over this draft.
+Sources: [original project brief](../../../../documentation/BGS_PROJECT_BRIEF.md), [confirmed design decisions](../../../../documentation/design-discussion.md), and the package READMEs. Use [User Story Diagrams](../../../../documentation/User%20Story%20Diagrams.md) for intended journeys, not as proof of implemented behavior. Later confirmed decisions take precedence over this draft.
 
 ## The rule to remember
 

@@ -77,4 +77,4 @@ No unresolved scope decisions. Exact responsive column count, safe error wording
 
 ## Delivered verification
 
-All 14 tasks are complete. Live Signet same-identity restoration, persistent reopening including browser restart, isolated failure checks, and subsequent UI refinements are recorded in documentation/A3_VERIFICATION.md. Earlier references to verification gates describe the original plan; the completed evidence resolves those gates for A3.
+All 14 tasks are complete. Live Signet same-identity restoration, persistent reopening including browser restart, isolated failure checks, and subsequent UI refinements are recorded in .openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md. Earlier references to verification gates describe the original plan; the completed evidence resolves those gates for A3.

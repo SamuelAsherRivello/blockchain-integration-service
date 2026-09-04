@@ -1,5 +1,19 @@
 # Design discussion
 
+## D4 proposed boarding settlement (2026-09-04)
+
+**Later confirmed mockup revision:** Total balance appears first in Account Details. Bitcoin balance and Arkade balance appear side by side beneath it, left and right respectively, with separate fields and Copy controls. Remove Available balance from the proposed player-facing UI. A Bitcoin <-> Arkade button immediately above Recovery Phrase opens Account Transfer. The transfer dialog shows balances, direction, editable amount with minus/plus/Max, and Review Transfer; review shows fee/net/projected balances and Confirm Transfer. Back returns through entry to Account Details. See the [D4 ASCII mockups](User%20Story%20Diagrams.md#d4-make-deposited-bitcoin-available).
+
+This supersedes the earlier one-way Make Available recommendation below. Both directions and selected amounts are now proposed. Total is the sum of Bitcoin-side and full Arkade-side holdings; spendability is checked independently. Partial boarding/change, adjustment step, and the reverse path's account-controlled Bitcoin destination still need definition/verification. Runtime changes and fund movement have not been performed.
+
+- Proposal: [add-bitcoin-boarding-settlement](../.openspec/changes/add-bitcoin-boarding-settlement/proposal.md). This section records recommendations, not approved behavior or implementation. D4 preserves existing D1 issuer, D2 Lightning receiving, and D3 sending references.
+- A confirmed Bitcoin boarding deposit increases Total but needs an explicit settlement into Arkade funds before it becomes Available. Additional waiting or refreshing does not initiate settlement in the current integration.
+- Recommend Account Details entry/Refresh detect eligible deposits and offer Make Available. Receive explains the additional step. The player reviews eligible amount, fee, and net receipt, then confirms. No automatic settlement on deposit, login, restoration, balance refresh, or achievement requests.
+- Core owns a per-profile operation and non-secret recovery records; the Arkade adapter revalidates and settles only reviewed eligible boarding inputs to the same account. Fees/input changes require another review. Unsupported fee estimation, expired deposits, or operator rejection must be explicit, not represented as indefinite confirmation waiting.
+- Keep ordinary navigation available. Block Log Out and Admin Reset while the operation is unresolved, coordinate this with D2's proposed pending-receipt guard, and reconcile after interruption before retry. Closing the browser does not guarantee cancellation or continued processing.
+- Verify settlement and fresh balances independently, then refresh Activity. Show pending/uncertain results truthfully and never infer success from a locally adjusted balance. D4 Admin opens the production flow. SDK/operator eligibility, fee review, interruption recovery, and live settlement remain verification gates.
+- Recommended order: deliver and verify D4, then resume the achievement feasibility gate. No automatic achievement issuance follows funding. No runtime code or funds are changed by this proposal.
+
 ## Recovery Phrase access
 
 - Account Details includes Recovery Phrase at the bottom, above Back. The separate Recovery Phrase dialog immediately reads the saved active identity and opens the numbered seed-word layout, with the warning "Anyone with this phrase can access your account." and the existing Signet-only warning.
@@ -23,7 +37,7 @@
 - Load on Account Details entry/manual refresh only. Clear amounts when loading or unavailable. Do not persist balances, reuse prior dialog values, or show stale amounts after failure, even within the same dialog. This supersedes the earlier tentative stale-value policy.
 - Balance failure retains verified account access. Missing/unreadable keys remain an account-access error; Signet is not a connectivity indicator.
 - A5 Account Activity is a separate implemented dialog; C4 assets/achievements and custom rendering remain separate. Receiving addresses are covered by the later address decision above.
-- Adapter/core/UI/demo are implemented. Real zero balance and browser failure/recovery checks passed; funded Signet verification remains pending. See A4_VERIFICATION.md. Earlier A2/A6 manual storage checks remain pending.
+- Adapter/core/UI/demo are implemented. Real zero balance and browser failure/recovery checks passed; funded Signet verification remains pending. See ../.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md. Earlier A2/A6 manual storage checks remain pending.
 
 ## A3 confirmed behavior and implementation
 
@@ -34,7 +48,7 @@
 - Paste from Clipboard first unchecks Show, then fills all twelve fields. Wrong word counts preserve the grid and show an error. Clipboard access is explicit; permission failure permits manual entry.
 - Empty fields are neutral; valid English BIP39 words have green indicators and invalid words red. Restore requires the complete checksum to pass. Valid words remain green when a phrase-level checksum error appears.
 - Connection failure retains the phrase temporarily and hidden for Retry; Back clears it. Save failures reconcile before retry. Cancellation and concurrent account changes cannot allow stale restoration to overwrite stored state.
-- Implemented production flow and Admin demonstration; live Signet restoration, same-identity persistence, browser restart, and isolated failure/UI checks are recorded in `A3_VERIFICATION.md`. Earlier manual A2/A6 storage-clearing checks remain separate.
+- Implemented production flow and Admin demonstration; live Signet restoration, same-identity persistence, browser restart, and isolated failure/UI checks are recorded in `../.openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md`. Earlier manual A2/A6 storage-clearing checks remain separate.
 
 ## Confirmed decisions
 
@@ -93,12 +107,35 @@ These questions and recommendations are not approved design decisions. The next 
 - Failed or unconfirmed clearing keeps the dialogue open with Retry; success is reported only after confirmed clearing. Retry reconciles already-cleared and replacement-account cases safely.
 - A6 offers no recovery-phrase access. Pending-payment handling is deferred until payment features exist; game-specific mid-run eligibility remains outside this slice. A3 restoration and a future backup-access feature remain separate.
 - Public methods are `openLogoutConfirmation()`, `setLogoutBackupAcknowledged(boolean)`, `confirmLogout()`, and `cancelLogout()`. `retry()` handles logout errors. Each observing active context receives `accountDisconnected` with its former public profile ID only after confirmed absence; disposal stops notifications.
-- Production UI and the A6 Admin story are implemented. Core storage-double and isolated browser verification are recorded in `A6_VERIFICATION.md`; real-storage deletion checks remain manual and pending.
+- Production UI and the A6 Admin story are implemented. Core storage-double and isolated browser verification are recorded in `../.openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md`; real-storage deletion checks remain manual and pending.
 
 
 ## A5 Account Activity
 
-- Account Activity appears immediately below Account Details. Its dialog shows Account ID, then Transactions with one Copy button and one read-only text area containing all Arkade-provided history, one transaction per line, newest first.
-- Incoming, outgoing, confirmed, and spent records remain visible when supplied by Arkade. Each line includes sats, direction, supported status, and available transaction/output identifiers. Copy copies the whole list.
+- Account Activity appears immediately below Account Details. Its dialog shows Account ID, then Transactions as clickable single-line rows in the existing history order: grouped sats, direction, and concise status, separated by pipes (for example, `1,000 sats | Arkade → Bitcoin | Pending`). Rows never wrap; excess text is ellipsized. The dialog opens at 480px tall, capped by the available host height, with a persistent vertical scrollbar in the list even while loading or empty. A single click selects and highlights a row; clicking the selected row again or double-clicking an unselected row opens its Transaction dialog. Back retains the selected row; leaving Activity clears selection.
+- Incoming, outgoing, confirmed, and spent records remain visible when supplied by Arkade. Identifiers, asset metadata, and extended status are shown only in the Transaction Detail dialog. Opening a row shows Transaction Detail with one read-only multiline field, a Transaction Copy button, and Back beneath it returning to the list. Account Activity and Transaction Detail both use the same fixed 480px height, capped by available host space, regardless of content or copy feedback. The detail field scrolls internally rather than resizing the dialog. Details label the amount, direction, full status, available type, individual identifiers, and available asset metadata; Copy copies only those selected details.
 - A read-only SDK wallet supplies history, coin metadata, and notifications; periodic SDK reconciliation catches missed events and stale connections. No payments or settlement run. Data and observation are transient and cleared on leaving or account change.
-- Live pending receipt and automatic refresh, isolated browser checks, and package tests pass. Live confirmation and outgoing/spent evidence remain pending; see A5_VERIFICATION.md.
+- Live pending receipt and automatic refresh, isolated browser checks, and package tests pass. Live confirmation and outgoing/spent evidence remain pending; see ../.openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md.
+
+## Bitcoin presentation precedence
+
+- Present Bitcoin before Arkade wherever balances, receiving methods, or functionality are listed together. Receive lists Bitcoin address first; balance breakdowns list Bitcoin first after the combined total; transfer entry and direction choices list Bitcoin first.
+- This is a presentation convention, not a change to balance calculations or payment routing.
+
+## D4 UI delivery
+
+**Confirmed next delivery order:** Bitcoin-to-Arkade first: eligibility and fee verification, review, durable operation/reconciliation and clearing guards, then explicit submission and live balance/Activity verification. Resume achievement feasibility after boarding succeeds. Arkade-to-Bitcoin follows independently after verifying its own destination, quotes and recovery; it is not a prerequisite for boarding. Availability must be direction-specific. Unsupported partial amounts are rejected rather than silently converted into whole-deposit transfers. This decision updates planning only; real transfers remain disabled today.
+
+The confirmed balance layout and transfer entry/review are implemented. Plus/minus uses one-sat steps from 0. Max and confirmation remain disabled; unavailable fees and projected balances are explicitly labeled. Public navigation is `openAccountTransfer()` and the new balance fields are `bitcoinSats` and `arkadeSats`, with full totals separated from spendability. Real settlement/withdrawal and achievement checks remain pending. See [UI verification](../.openspec/changes/add-bitcoin-boarding-settlement/UI_VERIFICATION.md).
+
+## D4 explicit bidirectional transfer implementation (2026-09-04)
+
+The user reconfirmed both Bitcoin-to-Arkade and Arkade-to-Bitcoin with chosen amounts, Max, review and explicit confirmation. Both quote/submission paths are implemented with shared durable registration boundaries; actual user-confirmed live transfers remain to be verified. Current live balance is boarding 0 and settled/available Arkade 289715, so verification may start in reverse, then board back. Reverse uses the same account's SDK-derived boarding address and existing Bitcoin balance definition. Automatic reboarding is disabled.
+
+Important correction: SDK 0.4.67 signing-wallet defaults can automatically board deposits. Account restoration/balance/address/funding-address readers now use read-only wallets/identities; only explicit transfer uses a signing wallet with settlementConfig false. A disabled transfer button alone was not sufficient to prevent that background SDK path. See the canonical transfer proposal and BOARDING_VERIFICATION.md for the current recovery contract and evidence.
+
+## C1/C4 generic assets — 2026-09-04
+
+The latest user decision replaces BIS-level achievement semantics with generic asset minting/listing. C1 Mint Asset uses an Admin-owned modal with Name, Ticker, Amount, Decimals, Icon URL and fixed Control Asset None. Three editable Admin presets use Achievement: Level 1/2/3, LVL1/2/3, amount 1, decimals 0 and blank icon URL. These are example data only. C4 List Assets prints all positive holdings to Console. Neither uses Runtime Preview.
+
+Mint request IDs provide retry protection; names do not imply uniqueness. APIs are mintAsset, listAssets, getPendingAssetMint and validateMint. No control-asset or reissuance feature is included. An existing registered unresolved wallet transfer currently blocks live mint verification. This supersedes the earlier C1 opportunity-only, game-filtered listing and name-based duplicate assumptions. C2/C3 broader game workflows, B, C5 and D1 remain deferred.

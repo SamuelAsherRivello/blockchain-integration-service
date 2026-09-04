@@ -1,0 +1,25 @@
+.mint-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0 28px 26px; border: 1px solid #303036; border-radius: 22px; background: #101011; color: #f5f5f6; box-shadow: 0 28px 100px #0009; overflow-y: auto; }
+.mint-dialog::backdrop { background: #050508bd; backdrop-filter: blur(5px); }
+.mint-header { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #262629; padding:20px 0; margin-bottom:24px; }
+.mint-header h2 { margin:0; font-size:26px; letter-spacing:-1px; }
+.mint-header > span { width:40px; }
+.mint-back { width:40px; height:40px; background:transparent; border:0; color:inherit; font-size:30px; cursor:pointer; }
+.mint-summary { display:flex; gap:16px; align-items:center; background:#18181a; border:1px solid #222225; border-radius:18px; padding:22px; margin-bottom:20px; overflow-wrap:anywhere; }
+.mint-avatar { flex-shrink:0; width:50px; height:50px; border-radius:50%; display:grid; place-items:center; background:#38383c; font-size:28px; }
+.mint-summary strong { font-size:20px; }
+.mint-summary p { margin:7px 0 0; color:#a1a1aa; }
+.mint-badge { display:inline-block; margin-left:10px; border:1px solid #414146; border-radius:20px; padding:3px 9px; font-size:12px; }
+.mint-presets,.mint-fields { border:0; padding:0; margin:0; min-width:0; }
+.mint-presets { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.mint-presets legend { font-size:12px; color:#9999a5; padding:0 0 9px; }
+.mint-presets button { border:1px solid #404047; border-radius:8px; background:#222226; color:#dddde4; padding:9px 10px; font:inherit; font-size:12px; cursor:pointer; }
+.mint-fields { display:grid; grid-template-columns:minmax(0,1fr) 140px; gap:20px 12px; }
+.mint-fields label { display:flex; flex-direction:column; gap:9px; color:#a8a8b0; font-size:14px; }
+.mint-fields input { min-width:0; width:100%; box-sizing:border-box; border:1px solid #333338; border-radius:13px; background:#1b1b1e; padding:17px 15px; color:#f0f0f5; font:inherit; font-size:17px; }
+.mint-wide { grid-column:1/-1; }
+.mint-message { min-height:36px; margin:23px 0 10px; color:#b4b4bf; text-align:center; font-size:13px; line-height:1.5; }
+.mint-submit { width:100%; border:0; background:#7045dd; border-radius:11px; color:white; padding:16px; font:inherit; font-weight:650; cursor:pointer; }
+.mint-dialog button:disabled { opacity:.45; cursor:default; }
+.mint-dialog input:disabled { opacity:.7; }
+.mint-dialog :focus-visible { outline:2px solid #ad8aff; outline-offset:3px; }
+@media(max-width:480px) { .mint-dialog { padding:0 16px 18px; } .mint-fields { grid-template-columns:minmax(0,1fr) 92px; } .mint-fields input { padding:13px 10px; font-size:15px; } .mint-summary { padding:16px; } }

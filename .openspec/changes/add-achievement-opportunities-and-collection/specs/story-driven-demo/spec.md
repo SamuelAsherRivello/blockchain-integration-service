@@ -1,44 +1,56 @@
 ## MODIFIED Requirements
 
 ### Requirement: Implemented demonstrations only
-The Admin UI SHALL show only implemented demonstrations and categories containing at least one such demonstration. It SHALL start without a selected story, including after refresh. This slice SHALL expose Account / Account Button, Account / Create Account, Account / Restore Account, Account / Account Balance, and Account / Log Out, plus Achievements / C1 Earn Achievements and C4 View Achievements. It SHALL omit Pay-to-play, other unimplemented achievement stories, and Possible refactors from executable demonstrations.
-
-The Admin heading SHALL be followed by User Stories and a Documentation link to bundled user-story Markdown, then the implemented categories and story actions. It SHALL NOT show Interactivity. The documentation link SHALL work in development and the built demo.
+The Admin UI SHALL show only implemented demonstrations and nonempty categories. It SHALL begin without a selected story, including after refresh. Existing implemented Account demonstrations SHALL remain available. This slice SHALL add Assets / C1 Mint Asset and C4 List Assets and omit unimplemented categories and stories. The Admin heading SHALL be followed by User Stories and a working Documentation link in development and production builds. It SHALL NOT show Interactivity.
 
 #### Scenario: Initial demo
-- **WHEN** the implemented demo loads
-- **THEN** the existing Account demonstrations and the C1/C4 achievement controls are available and Runtime Preview content is empty
-- **AND** no filler cards, introduction, WIP badges, or empty categories appear
+- **WHEN** the demo loads
+- **THEN** existing account demonstrations and C1/C4 asset controls are available with empty Runtime Preview and no filler cards or empty categories
 
 ## ADDED Requirements
 
-### Requirement: Admin-only achievement API demonstrations
-C1 SHALL be a non-clickable story container containing an Earn button. Earn SHALL call the same public production API available to a game with the exact string ``achievement-`level-one` ``. C4 SHALL have a View Achievements button calling the public listing API. Neither action SHALL open achievement UI, render content in Runtime Preview, or alter existing preview content. Existing account-flow navigation restrictions SHALL be preserved. These controls SHALL not fabricate accounts, asset ownership, or successful transaction results.
+### Requirement: Admin mint form
+C1 Mint Asset SHALL open an Admin-owned form with Name, Ticker, Amount, Decimals, optional Icon URL, an Unverified asset summary, and read-only Control Asset: None. Name/ticker/amount SHALL be required. The form SHALL use editable defaults of an asset, ASSET, 1, and 0 respectively, with blank Icon URL. Existing/New control-asset choices SHALL NOT be offered. Only an explicit valid Mint action SHALL call the generic production mint API. Pending/results/errors SHALL appear in Admin Console. Pending submission SHALL disable edits and duplicate submission; bounded unknown outcomes SHALL preserve the request and operation ID for reconciliation.
 
-#### Scenario: Click C1 container
-- **WHEN** the user clicks the C1 container outside its Earn button
-- **THEN** no API request or preview navigation occurs
+#### Scenario: Edit and mint
+- **WHEN** the user opens C1, edits valid fields, and clicks Mint
+- **THEN** the public API receives those values with no control asset and Admin Console shows pending followed by the returned result
+- **AND** the form summary before success is not represented as wallet ownership
 
-#### Scenario: Earn and view
-- **WHEN** the user clicks Earn or View Achievements outside an open account flow
-- **THEN** the corresponding production API is called and its result is shown in Admin Console
-- **AND** Runtime Preview is unchanged
+#### Scenario: Invalid or cancelled form
+- **WHEN** inputs are invalid or the user dismisses the idle form
+- **THEN** no mint is submitted and relevant validation or ordinary Admin controls remain available
 
-### Requirement: Always-visible Admin Console
-Admin SHALL display a region titled Admin Console below the story controls from initial load onward. It SHALL show pending requests and the public results or sanitized errors returned by C1 and C4, including earned, already-owned, account-required, and the actual achievement list. Entries SHALL label the operation and originating account where known. The console SHALL render returned text safely, remain scrollable as entries accumulate, and avoid exposing secrets. Its history SHALL be transient and SHALL be cleared on refresh and Reset Client.
+### Requirement: Admin example presets
+The Admin mint form SHALL offer three quick-fill buttons labeled Achievement: Level 1, Achievement: Level 2, and Achievement: Level 3. Each SHALL populate the matching name, ticker LVL1/LVL2/LVL3 respectively, amount 1, decimals 0, blank icon URL, and Control Asset None. Fields SHALL remain editable. Presets SHALL only modify the form and SHALL NOT submit, query, or establish ownership. They SHALL be disabled during submission or while an unresolved request must remain immutable. Example labels SHALL remain in the demo; BIS SHALL apply no achievement-specific meaning or rules.
+
+#### Scenario: Use a preset
+- **WHEN** the user selects Achievement: Level 2 in an idle form
+- **THEN** the form contains that name, LVL2, amount 1, decimals 0, empty icon URL, and None
+- **AND** nothing is submitted until the user separately clicks Mint
+
+### Requirement: Admin list and preview isolation
+C4 List Assets SHALL call the generic production listing API and show its actual result in Admin Console, including an explicit empty array. Neither C1 nor C4 SHALL navigate, mount, clear, or change Runtime Preview. Existing account-flow restrictions SHALL be preserved. A mint form SHALL be outside the runtime container and use accessible labels, focus containment/restoration, idle dismissal, and responsive scrolling.
+
+#### Scenario: Mint then list
+- **WHEN** mint succeeds and the user then clicks List Assets for the same account
+- **THEN** a fresh returned list contains that same asset ID and exact quantity
+- **AND** Runtime Preview remains unchanged throughout
 
 #### Scenario: Logged-out request
-- **WHEN** Earn or View Achievements is clicked without an account
-- **THEN** Admin Console shows account-required and no Account dialog opens
+- **WHEN** an asset API is invoked without an account
+- **THEN** Admin Console displays account-required and no account dialog opens automatically
 
-#### Scenario: Actual result list
-- **WHEN** View Achievements succeeds
-- **THEN** Admin Console shows the returned list, including an explicit empty array for an empty collection
+### Requirement: Always-visible Admin Console
+The existing Console region SHALL remain visible from initial load and show labeled pending operations and public API responses or sanitized errors. It SHALL include originating account and operation IDs where known, render text safely, scroll, and retain bounded transient history. Refresh and successful Reset Client SHALL clear its history; stale completions from a previous client SHALL be ignored.
 
-### Requirement: Achievement delivery evidence and future story note
-C1/C4 delivery SHALL include synchronized story diagrams and design discussion describing API-only earn/list behavior, real Signet issuance and restoration evidence, independent-host parity without UI mounting, repeat protection, and failure states. Existing story and step IDs SHALL remain stable; superseded C1 opportunity-only and C4 Account-dialog assumptions SHALL be identified. D. Possible refactors SHALL contain a brief D1 game-controlled wallet or issuer idea explicitly requiring further specification, without implementing it. Unperformed live checks SHALL remain pending.
+#### Scenario: Reset with late output
+- **WHEN** a new client replaces an old client and the old request later completes
+- **THEN** the new console does not append that stale result
+
+### Requirement: Delivery evidence and documentation
+C1/C4 documentation SHALL describe generic mint/list APIs and Admin-only presets. Preserve story/step IDs with superseded annotations where necessary. Live mint/list, restoration, retry safety, exact amounts, independent-host parity, and browser behavior SHALL have supporting evidence before completion is claimed. Unperformed checks SHALL remain pending. B/C2/C3/C5 and D1 issuer scope SHALL remain deferred.
 
 #### Scenario: Report delivery
-- **WHEN** C1/C4 completion is reported
-- **THEN** funded issuance, listing after restoration, duplicate protection, and browser Admin behavior have supporting evidence
-- **AND** unrelated pending A2/A4/A6 checks and deferred B/C2/C3/C5/D1 scope are not reported as completed
+- **WHEN** this slice is reported complete
+- **THEN** the revised behavior has supporting evidence and unrelated pending work is not reported complete

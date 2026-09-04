@@ -8,7 +8,21 @@ body { margin: 0; background: #11151c; }
 .identity { display: flex; align-items: center; gap: 13px; font-size: 14px; font-weight: 600; }
 .brand-mark { display: grid; place-items: center; width: 31px; height: 31px; background: #a9d9c3; color: #19362a; border-radius: 8px; font-size: 24px; }
 .version-tag { font-size: 10px; color: #8795a8; white-space: nowrap; }
-.workspace { min-height: calc(100svh - 50px); display: grid; grid-template-columns: minmax(260px, 32%) minmax(0, 1fr); }
+.workspace { min-height: calc(100svh - 50px); display: grid; grid-template-columns: minmax(0, var(--admin-width, 32%)) 10px minmax(0, 1fr); }
+.workspace-divider { position: relative; cursor: col-resize; touch-action: none; user-select: none; background: linear-gradient(90deg, transparent 4px, #394657 4px, #394657 6px, transparent 6px); }
+.workspace-divider::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: 10px; height: 40px; border: 1px solid #71849b; border-radius: 5px; background: radial-gradient(circle, #bec9d7 1px, transparent 1.5px) center / 6px 6px no-repeat, radial-gradient(circle, #bec9d7 1px, transparent 1.5px) center calc(50% - 6px) / 6px 6px no-repeat, radial-gradient(circle, #bec9d7 1px, transparent 1.5px) center calc(50% + 6px) / 6px 6px no-repeat, #263240; pointer-events: none; }
+.workspace-divider:hover::after, .workspace-divider:focus-visible::after { border-color: #a9d9c3; background-color: #365247; }
+.workspace-divider:hover, .workspace-divider:focus-visible { background-color: #a9d9c330; outline: none; }
+.workspace-divider:focus-visible { box-shadow: inset 0 0 0 2px #a9d9c3; }
+.admin-panel, .preview-panel { overflow-wrap: anywhere; }
+.story-button { box-sizing: border-box; white-space: nowrap; }
+@media (min-width: 701px) { .workspace { grid-template-columns: minmax(340px, var(--admin-width, 32%)) 10px minmax(0, 1fr); } }
+.story-button > span { min-width: 0; }
+.story-button > span:first-child, .story-arrow { flex-shrink: 0; white-space: nowrap; }
+.preview-panel { container-type: inline-size; }
+.preview-controls { flex-wrap: wrap; }
+.game-viewport { box-sizing: border-box; min-width: 0; }
+@media (max-width: 700px) { .workspace-divider { display: none; } }
 .admin-panel { box-sizing: border-box; height: calc(100svh - 50px); min-height: 0; min-width: 0; padding: 16px 28px; border-right: 1px solid #2b303a; background: #171c25; display: flex; flex-direction: column; gap: 30px; }
 .admin-panel > .panel-title { flex-shrink: 0; }
 .demo-app .admin-panel .admin-scroll { min-height: 0; flex: 1; overflow-y: scroll; overflow-x: hidden; scrollbar-width: auto; scrollbar-color: #71849b #1e2632; scrollbar-gutter: stable; padding-right: 12px; display: flex; flex-direction: column; gap: 30px; }
@@ -20,7 +34,7 @@ body { margin: 0; background: #11151c; }
 .admin-console { box-sizing: border-box; width: 100%; min-height: 130px; resize: vertical; padding: 12px; border: 1px solid #394657; border-radius: 9px; background: #11151c; color: #bec9d7; font: 12px/1.6 Consolas, 'Cascadia Code', monospace; }
 .admin-console:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 3px; }
 .demo-app .panel-title { font-size: 22px; font-weight: 500; letter-spacing: -.03em; margin: 0; }
-.category-title { font-size: 12px; color: #a9b6c7; font-weight: 500; margin: 0 0 12px; }
+.category-title { font-size: 12px; color: #a9b6c7; font-weight: 500; margin: 16px 0; }
 .funding-status { color: #a9b6c7; font-size: 12px; line-height: 1.5; margin: 10px 0 0; overflow-wrap: anywhere; }
 .admin-section-title { font-size: 16px; color: #dce5ef; font-weight: 500; margin: 0 0 16px; }
 .documentation-link { color: #a9d9c3; font-size: 13px; text-decoration: none; }
@@ -62,4 +76,5 @@ body { margin: 0; background: #11151c; }
 @media (max-width: 700px) { .app-header { height: auto; min-height: 50px; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; gap: 10px; } }
 
 /* Stack the heading on small screens where the three items cannot fit side by side. */
+@container (max-width: 650px) { .preview-heading { grid-area: auto; } .preview-stage { grid-area: auto; padding-top: 12px; } }
 @media (max-width: 700px) { .preview-heading { grid-area: auto; } .preview-stage { grid-area: auto; padding-top: 12px; } }

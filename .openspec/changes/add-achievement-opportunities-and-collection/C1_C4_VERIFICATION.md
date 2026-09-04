@@ -1,5 +1,9 @@
 # C1/C4 achievement verification
 
+## Planning status update — 2026-09-04
+
+The user reports Arkade balance is now available and requests the C1/C4 reward-then-view proposal. The funding blockers below describe earlier checks and must not be presented as a newly verified blocker. Live spendability, asset issuance, fresh listing, and restoration remain unverified; task 1.1 will recheck them during implementation. No transaction was attempted and no implementation task was completed by this planning update.
+
 ## Feasibility gate — 2026-09-03
 
 Status: blocked on a funded Signet account. Task 1.1 remains incomplete; no achievement API or Admin implementation has been made.
@@ -32,3 +36,16 @@ The user subsequently requested an Admin button labeled Fund 1000 Sats. It is im
 On 2026-09-03 the faucet healthcheck returned HTTP 502. A real browser request through the new button displayed pending, then Funding was not confirmed; the existing preview and balance were unchanged. Successful funding remains unverified and the achievement feasibility gate remains blocked. Build and 39 existing tests passed; two additional funding tests passed for request amount/network/failure handling and account/duplicate/disposal behavior.
 
 The Admin funding button now opens https://signetfaucet.com/ rather than calling the API faucet. `getFundingAddress()` returns the active wallet's public Bitcoin boarding address with account-change guards. The site was inspected and does not consume an address URL parameter; the app attempts clipboard copying and displays the address if clipboard access fails. Build passed and the updated button/manual-copy fallback was observed in Chrome. Prefilling the external form is not supported. No faucet claim or boarding transaction was submitted by this change.
+
+## Generic asset implementation check — 2026-09-04
+
+- Implemented generic public mintAsset, listAssets, getPendingAssetMint and validateMint APIs; no BIS achievement types or game rules. Added exact decimal conversion, optional metadata, no controlAssetId, same-origin wallet locking, public durable request records and guarded submission. SDK automatic settlement is disabled for minting.
+- Added C1 Mint Asset and C4 List Assets to the current Admin layout. Native dark dialog follows the reference, with fixed None and three editable quick-fill examples. Each of Level 1/2/3 was checked in Chrome: matching name/ticker, amount 1, decimals 0, blank Icon URL. Only Mint submits; presets did not issue anything.
+- Live List Assets returned success with assets: [] for account 38a4…e803. Runtime Preview remained empty. The dialog was visually inspected at the normal browser viewport and scrolls to its final action.
+- Attempted one explicit Level 1 mint (operation 82767f98-9bac-45a5-a2d3-bea4e870bf51). It returned code busy before the asset adapter submitted. No asset issuance is claimed.
+- Account Transfer then displayed 289,715 Arkade sats, 0 Bitcoin sats and an existing registered unresolved Arkade-to-Bitcoin transfer for 1,000 sats. Transfer ID: 43eb8d6e-a4a0-403f-b759-44cdb0673ef3; operator intent: 21bb686b-ef2e-4654-87eb-999e3e9ee716. Its Check Status action reported completion not verified. The asset implementation preserves this guard; no record was deleted or bypassed and no new transfer was submitted.
+- Build/typecheck passed. All 87 integration tests passed, including 7 asset tests for exact amounts, validation, non-BIS/metadata-free holdings, JSON-safe quantities, corrupt/unavailable records, request binding, unresolved-operation blocking, independent same-name IDs, headless parity, error sanitization, account changes and missing locks.
+
+### Still pending
+
+Real minted/nonempty list round trip, restored-identity holdings after issuance, actual same-ID issuance retry, adapter submission timeout/concurrency fault injection, mobile layout/focus checks, and full console reset/late-result browser checks. The registered transfer must be resolved before attempting another mint. Unchecked tasks remain explicit; the change is not ready to archive.

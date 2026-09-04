@@ -1,10 +1,10 @@
-import { MnemonicIdentity, Wallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
+import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
 import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { validRecovery } from '../core/recovery-validation.ts';
 
-export type BalanceAmounts = Readonly<{ availableSats: number; totalSats: number }>;
+export type BalanceAmounts = Readonly<{ availableSats: number; totalSats: number; bitcoinSats: number; arkadeSats: number }>;
 type BalanceWallet = {
-  getBalance(): Promise<{ available: number; total: number }>;
+  getBalance(): Promise<{ available: number; total: number; boarding: { total: number } }>;
   getProviderConnectionState(): { mode: string; source: string };
 };
 // Kept private to the adapter, with a structural seam for failure-path tests.
@@ -13,10 +13,12 @@ export async function readFreshBalance(wallet: BalanceWallet): Promise<BalanceAm
   const connection = wallet.getProviderConnectionState();
   if (connection.mode !== 'online' || connection.source !== 'live' ||
       !Number.isSafeInteger(balance.available) || balance.available < 0 ||
-      !Number.isSafeInteger(balance.total) || balance.total < balance.available) {
+      !Number.isSafeInteger(balance.total) || balance.total < balance.available ||
+      !Number.isSafeInteger(balance.boarding?.total) || balance.boarding.total < 0 ||
+      balance.boarding.total > balance.total - balance.available) {
     throw new Error('Balance unavailable.');
   }
-  return Object.freeze({ availableSats: balance.available, totalSats: balance.total });
+  return Object.freeze({ availableSats: balance.available, totalSats: balance.total, bitcoinSats: balance.boarding.total, arkadeSats: balance.total - balance.boarding.total });
 }
 
 export async function loadBalance(account: AccountSecret, signal: AbortSignal): Promise<BalanceAmounts> {
@@ -39,8 +41,8 @@ export async function loadBalance(account: AccountSecret, signal: AbortSignal): 
     try { signal.throwIfAborted(); return await getVtxos(...args); }
     catch (error) { indexerFailed = true; throw error; }
   };
-  const pending = Wallet.create({
-    identity: MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }),
+  const pending = ReadonlyWallet.create({
+    identity: await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly(),
     arkProvider, indexerProvider,
     storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
     watcherConfig: { failsafePollIntervalMs: 60000, reconnectDelayMs: 60000, maxReconnectAttempts: 1 },

@@ -17,6 +17,6 @@
 - [x] 3.4 Run relevant package checks and targeted regression tests for existing Account Details/navigation and the new activity lifecycle; record outcomes before reporting implementation complete. Sync delta specs only when finalizing the implemented change.
 
 
-Implementation note: real history/coin reads, source coverage, and an isolated live SDK utxo notification are verified. 3.2 remains open for a real confirmation transition and outgoing/spent examples. See documentation/A5_VERIFICATION.md. No funding or sending is authorized by verification tasks.
+Implementation note: real history/coin reads, source coverage, and an isolated live SDK utxo notification are verified. 3.2 remains open for a real confirmation transition and outgoing/spent examples. See .openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md. No funding or sending is authorized by verification tasks.
 
 Recheck: live confirmed-state rendering now passes, but the same-transaction live transition is still unobserved. Task 3.3 is reopened because User Story Diagrams.md is zero bytes; restoring the intended documentation is required before finalization.

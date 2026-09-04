@@ -1,26 +1,30 @@
 ## Why
 
-Games need to earn and query wallet-owned achievements through BIS without mounting achievement UI. A combined C1/C4 demonstration will exercise that public API directly from Admin before pay-to-play work.
+BIS needs generic asset minting and ownership queries that hosts can use without mounting BIS UI. The Admin demo will exercise a complete mint-then-list round trip with real Signet assets and public console output.
+
+The user reports Arkade balance is available. Fresh spendability and live issuance still need implementation-time verification. The 2026-09-04 decision replaces game-specific achievement naming, fixed single-unit rewards, and name-based duplicate suppression with generic asset operations and an editable Admin mint form.
 
 ## What Changes
 
-- C1 calls a public earn API with the exact string ``achievement-`level-one` ``. The active player wallet issues a real Signet asset to itself and supplies any required sats; no Claim dialog or other BIS runtime UI opens.
-- Repeated earning of an owned achievement returns `already-owned` without another issuance. Missing accounts return `account-required` without opening account UI.
-- C4 calls a public list API returning recognized achievements owned by the active wallet, including after restoration. Errors are distinct from an empty collection.
-- Admin gains a non-clickable C1 container with an Earn button, a C4 View Achievements button, and an always-visible Admin Console showing public results. These actions do not change Runtime Preview.
-- Add D. Possible refactors / D1. Game-controlled wallet or issuer as a brief documentation-only future idea requiring more specification.
-- B remains deferred. C1 now includes direct issuance, superseding the earlier opportunity-only assumption. Separate C2 claim UI, broad C3 recovery UI, C5 rewards, and game-controlled issuance remain outside this change; safe repeat/uncertain-outcome handling for this API remains necessary.
+- C1 becomes Mint Asset: an Admin button opens a large dark modal inspired by the supplied reference, with an asset summary, Name, Ticker, Amount, Decimals, Icon URL, and Control Asset fixed to None.
+- Mint explicitly issues the entered supply to the active wallet using that wallet's spendable funds. Control asset creation, selection, and reissuance are excluded.
+- C4 becomes List Assets: an Admin button calls the public API and prints all positive owned asset holdings, including assets not created by BIS. No game-specific filtering.
+- Public methods are UI-independent and use generic asset types. All amounts cross the public boundary as exact decimal strings.
+- Both operations show pending/results/errors in the existing Admin Console. No Runtime Preview content is mounted, cleared, or changed.
+- Three Admin-only quick-fill buttons populate Achievement: Level 1, Achievement: Level 2, or Achievement: Level 3, using tickers LVL1/LVL2/LVL3, amount 1, decimals 0, blank Icon URL, and Control Asset None. They leave fields editable and never submit automatically; BIS assigns no game-specific meaning to these example names.
+- Protect retries by mint operation ID, not asset name. Intentional separate mints may use identical names; an uncertain attempt must not be silently resubmitted.
+- B, C2 claim UI, broad C3 recovery UI, C5 payouts, and D1 external/game-controlled issuance remain deferred.
 
 ## Capabilities
 
 ### New Capabilities
-- `achievement-api`: UI-independent player-wallet achievement issuance, ownership queries, typed results, and duplicate protection.
+- `asset-api`: Generic asset minting, exact quantities, ownership queries, and operation-based retry protection.
 
 ### Modified Capabilities
-- `story-driven-demo`: Admin-only C1/C4 API demonstrations and persistent console, preserving account demonstrations and preview behavior.
+- `story-driven-demo`: Admin-only mint form, list button, and console, preserving all existing account demonstrations and Runtime Preview behavior.
 
 ## Impact
 
-Implementation will affect integration public exports, core orchestration, Arkade adapters, and integration-demo Admin composition and styles. No game repository, custom application server, new dependency, or achievement overlay is required. User-story documentation and design discussion must reflect this revised C1/C4 flow without claiming delivery before verification.
+Changes affect integration core/Arkade/public exports and demo Admin composition/styles. No game repository, custom server, or new dependency is required. A large in-page Admin modal is the proposed presentation choice for the user's optional new-window idea; it avoids popup blocking and a second application session.
 
-The installed SDK exposes issuance, balances with assets, and asset metadata queries. Funded issuance/list/restoration against the configured Signet operator is not yet verified; implementation begins with that feasibility gate. Proposed API names, metadata format, and conservative retry mechanics are implementation design choices, not additional user-confirmed product decisions.
+Proposal, requirements, design, and tasks are revised together. The two initial unconnected asset modules from the interrupted apply attempt must be reconciled with this contract; no implementation task is complete. Historical feasibility evidence remains historical until fresh checks succeed.

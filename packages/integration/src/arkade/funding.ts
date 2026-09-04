@@ -1,4 +1,4 @@
-import { MnemonicIdentity, Wallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
+import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
 import { SIGNET_OPERATOR, requireSignet, withTemporaryWallet, type AccountSecret } from './account.ts';
 
 export const SIGNET_FAUCET = 'https://faucet.signet.arkade.sh/faucet';
@@ -17,8 +17,8 @@ export async function fundTestAccount(account: AccountSecret, signal: AbortSigna
   const provider = new RestArkProvider(SIGNET_OPERATOR);
   const getInfo = provider.getInfo.bind(provider);
   provider.getInfo = async () => { const info = await getInfo(); requireSignet(info.network); return info; };
-  const pending = Wallet.create({
-    identity: MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }), arkProvider: provider,
+  const pending = ReadonlyWallet.create({
+    identity: await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly(), arkProvider: provider,
     storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
   });
   const address = await withTemporaryWallet(pending, signal, wallet => wallet.getAddress());

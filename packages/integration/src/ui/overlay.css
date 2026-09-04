@@ -75,10 +75,62 @@
 .bis-address-row input:focus-visible { outline: 2px solid #30977f; }
 .bis-address-row .bis-copy-status { flex-basis: 100%; font-size: 10px; }
 .bis-activity { min-width: 0; margin-bottom: 10px; text-align: left; }
+.bis-transactions-heading { margin: 0 0 6px; font-size: 12px; }
+.bis-card-activity { height: 480px; display: flex; flex-direction: column; }
+.bis-card-activity > * { flex-shrink: 0; }
+.bis-card-activity .bis-activity { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.bis-transaction-list { flex: 1; min-height: 0; list-style: none; padding: 0 6px 0 0; margin: 0; overflow-y: scroll; overflow-x: hidden; scrollbar-gutter: stable; }
+.bis-layer .bis-transaction-list { scrollbar-width: auto; scrollbar-color: #8da6ae #e7eef0; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar { display: block; width: 10px; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 6px; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 6px; border: 2px solid #e7eef0; }
+.bis-transaction-list li + li { margin-top: 6px; }
+.bis-transaction-row { display: block; width: 100%; padding: 10px 8px; border: 1px solid #c8d7dc; border-radius: 6px; background: #fff; color: #294650; text-align: left; font: 11px/1.7 Inter, ui-sans-serif, system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.bis-transaction-row:hover { background: #e0f4ed; }
+.bis-transaction-row[aria-pressed="true"] { background: #d4eee4; border-color: #258369; box-shadow: inset 3px 0 #258369; }
+.bis-transaction-row:focus-visible { outline: 2px solid #30977f; outline-offset: -2px; }
+.bis-transaction-back { margin-top: 14px; }
 .bis-activity .bis-copy-field-heading { margin-bottom: 6px; }
 .bis-activity textarea { display: block; width: 100%; max-width: 100%; height: 190px; resize: vertical; padding: 10px; border: 1px solid #c8d7dc; border-radius: 6px; background: #fff; color: #294650; font: 11px/1.7 ui-monospace, monospace; overflow: auto; }
 .bis-activity textarea:focus-visible { outline: 2px solid #30977f; }
+.bis-card-activity .bis-activity textarea { flex: 1; min-height: 0; height: auto; resize: none; }
+.bis-card-activity .bis-activity > :not(textarea):not(.bis-transaction-list) { flex-shrink: 0; }
 .bis-activity p { min-height: 16px; margin: 6px 0 0; font-size: 11px; }
+.bis-recovery-details { min-width: 0; margin: 12px 0; text-align: left; font-size: 12px; }
+.bis-recovery-details summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.bis-recovery-details summary:focus-visible { outline: 2px solid #30977f; outline-offset: 2px; }
+.bis-recovery-details .bis-copy-field-heading { margin-top: 10px; }
+.bis-recovery-details textarea { box-sizing: border-box; overflow-wrap: anywhere; white-space: pre-wrap; height: 240px; }
 
 .bis-transfer-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
 .bis-transfer-actions .bis-button { min-width: 0; padding-inline: 10px; }
+
+.bis-balance-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.bis-balance-columns .bis-address-row { min-width: 0; align-content: start; }
+.bis-balance-columns .bis-copy-field-heading { font-size: 11px; gap: 2px; }
+.bis-balance-columns .bis-copy-icon { flex-basis: 22px; width: 22px; }
+.bis-account-balances > .bis-address-row input { text-align: center; }
+.bis-transfer-form { text-align: left; font-size: 12px; }
+.bis-transfer-form fieldset { border: 1px solid #d7e5df; border-radius: 10px; padding: 8px 10px; margin: 0 0 14px; }
+.bis-transfer-form fieldset label { display: flex; align-items: center; gap: 6px; padding: 5px 0; }
+.bis-transfer-form input[type=radio] { accent-color: #175a4c; }
+.bis-transfer-amount { display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px 42px; gap: 5px; margin-top: 5px; }
+.bis-transfer-amount .bis-button { width: 100%; padding: 7px 2px; border-radius: 7px; font-size: 12px; }
+.bis-transfer-amount input { min-width: 0; width: 100%; padding: 7px; border: 1px solid #c8d7dc; border-radius: 7px; font: inherit; text-align: center; background: #fff; color: #294650; }
+.bis-transfer-amount input:focus-visible { outline: 2px solid #30977f; }
+.bis-card .bis-transfer-help { font-size: 10px; margin: 6px 0 14px; }
+.bis-card .bis-transfer-status { overflow-wrap: anywhere; }
+.bis-card .bis-transfer-status p { color: inherit; font-size: inherit; margin: 0 0 8px; }
+.bis-card .bis-transfer-status p:last-child { margin-bottom: 0; }
+.bis-transfer-review { text-align: left; font-size: 12px; }
+.bis-transfer-review h3 { font-size: 14px; margin: 0 0 12px; }
+.bis-transfer-review h3:focus { outline: none; }
+.bis-transfer-review dl { margin: 0 0 12px; }
+.bis-transfer-review dl > div { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0; }
+.bis-transfer-review dd { margin: 0; overflow-wrap: anywhere; text-align: right; }
+
+.bis-invoice { border-top: 1px solid #d7e5df; padding-top: 10px; margin-bottom: 12px; text-align: left; }
+.bis-invoice-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bis-invoice-options .bis-button { width: 100%; min-width: 0; padding: 9px 6px; font-size: 12px; }
+.bis-card .bis-invoice-status { margin: 10px 0 4px; color: #785317; font-weight: 600; }
+.bis-card .bis-invoice-help { margin: 0; font-size: 11px; }
