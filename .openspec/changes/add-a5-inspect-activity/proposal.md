@@ -4,7 +4,7 @@ Refreshing Account Details balances does not explain whether an incoming transac
 
 ## What Changes
 
-- Add Account Activity directly below Account Details in Account. Open an Account Activity dialog with Account ID at the top, then a Transactions label with one Copy button and one read-only multiline text area. Each transaction occupies one line with amount in sats, Incoming/Outgoing direction, supported status, and the available transaction/output identifier.
+- Preserve the delivered Transactions action below Balance in Account, its three-line transaction rows, and single-click Transaction Detail with per-transaction Copy. Add Copy all transactions for every current record in order, one export line per transaction with full amount, direction, status, identifiers and available asset data. Clipboard failure exposes selectable export text. This reconciles the later row/detail presentation with A5's full-list export requirement.
 - Include all SDK-provided transaction history, incoming and outgoing, retaining confirmed and spent entries when supplied by Arkade, ordered newest first. Copy copies the entire displayed transaction list. Do not restrict the list to current UTXOs or pending deposits.
 - Load existing activity on entry and update while the view is open through Arkade SDK notifications, with loading, empty, and unavailable states.
 - Expose normalized activity through the integration public API; keep SDK types and provider calls inside the Arkade adapter.

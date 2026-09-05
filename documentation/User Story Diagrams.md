@@ -45,7 +45,7 @@ Within the Status column, ✓ marks the completed portion described beside it; a
 | A2. Create Account | Account / Create Account | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
 | A3 | Account / Restore Account | Account-access restoration implemented; see A3 verification evidence. |
 | A4. Account Balance | Account / Account Balance | Implemented and browser-verified with real zero balance; funded Signet verification pending. |
-| A5. View Activity | Account / Inspect Activity | ✓ SDK history, Transactions UI, Copy-all, lifecycle handling, and production demo implemented. Live confirmation-transition/outgoing-spent evidence and final documentation reconciliation remain pending. |
+| A5. View Activity | Account / Inspect Activity | ✓ SDK history, Transactions UI, Copy-all, lifecycle handling, and production demo implemented. Live outgoing and confirmed-state rendering observed; same-transaction confirmation transition and independent spent-history evidence remain pending. |
 | A6. Log Out | Account / Log Out | Implemented; core and isolated browser checks pass. Manual real-storage logout verification pending. |
 | C1, C4 | Mint Asset / List Assets | ✓ Generic mint/list contracts, exact quantities, Signet adapter, and example presets implemented. Retry/lifecycle safeguards, Admin acceptance, and live mint/list verification remain pending. |
 | B1 | Implemented and verified | Live 1,000-sat sink payment verified; all three assets preserved in player change. |
@@ -241,30 +241,32 @@ Status: implemented as the lean Account Balance slice. Real zero-balance, refres
 
 ### A5. Inspect Activity
 
-Optional educational view.
+Implemented: production SDK history, transaction rows/detail, Copy-all, automatic updates, and account-scoped cleanup. Live outgoing and confirmed-state rendering are observed. A same-transaction pending-to-confirmed transition and independent spent-history evidence remain pending; see [A5 verification](../.openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md).
 
 ```text
-[A5.01] Player: Account --> Activity
+[A5.01] Player: Account --> Transactions (below Balance)
                        |
-                       v
-[A5.02] UI --> Core: request available activity
+[A5.02] UI --> Core: openAccountActivity() / refreshActivity()
            |
-           +--> [A5.03] Service workflow records
+           +--> [A5.03] Account-scoped saved operations supplement history
+           |           Explicit local status; deduplicate known references
            |
-           +--> [A5.04] Arkade: SDK history/status, if supported
+           +--> [A5.04] Arkade SDK: full available history + coin status
+                       Notifications + periodic reconciliation while open
                        |
-                       v
-[A5.05] UI: available entries + outcome/status
-    Educational classification where known:
-    No-chain / on-chain / off-Chain
+[A5.05] UI: Transactions rows in history order
+        Three lines: sats/direction, status, shortened identifier
+        Copy all transactions --> every record, one full line each
+        Click row --> Transaction Detail / Copy selected report
+        Detail Back --> list; retain selection
                        |
-                       v
-                  [A5.06] Back to Account
+                  [A5.06] Back to Account; clear activity and stop watching
 ```
 
-- Game provides gameplay context only where needed; the service owns wallet-operation status and educational presentation. No fake transaction outcomes.
-- Proposed approach: combine service workflow records with SDK-supported data. The brief does not settle storage, history APIs, or whether history survives a refresh/restore; do not promise complete cross-device history.
-- Keep this optional. An off-Chain success is not immediate Bitcoin L1 settlement, and local workflow records are not proof of payment. Technology explanations belong here, not in ordinary action labels.
+- All SDK-supplied incoming/outgoing history is retained, including spent records. Undated pending rows come first, followed by dated rows newest first and other undated rows in SDK order. No fabricated timestamps, output indexes, receipt, or settlement.
+- Copy-all preserves full identifiers, supported status and exact asset quantities. Clipboard failure exposes the complete selectable export; empty/loading lists disable copying. Detail Copy remains specific to the selected transaction.
+- Transactions and Transaction Detail retain fixed 480px height capped by the host, with internal scrolling. Foreground reads use the shared Pending Operation Dialog and 75 seconds per attempt with one retry. Available partial records are explicitly labeled when full history cannot refresh.
+- Account changes, Back, logout/reset and disposal invalidate callbacks and stop monitoring. SDK reads perform no funding, sending or settlement. Saved operations are not proof of network completion; completeness is limited to history the SDK supplies. A4 balances, C4 assets, D2 receiving, D3 sending and D4/D5 transfer/recovery remain separate capabilities.
 
 ### A6. Log out and return to ordinary gameplay
 

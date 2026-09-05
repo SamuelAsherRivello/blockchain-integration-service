@@ -32,7 +32,7 @@ Fund Signet Sats prepares the active wallet's Bitcoin boarding address and opens
 
 ## A5 Inspect Activity
 
-Account / Inspect Activity opens the production Account flow. Transactions shows three-line rows without icons; selecting one opens Transaction Detail. No account or transactions are seeded. The isolated tests/activity-host.html checks row layout, detail copying, errors and navigation. tests/activity-sdk.html performs read-only SDK inspection of the saved account and never displays recovery material. Live confirmation and outgoing/spent evidence remain pending in .openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md.
+Account / Inspect Activity opens the production Account flow. Transactions shows three-line rows without icons; selecting one opens Transaction Detail. Copy all transactions exports every current record in order with full identifiers and exact asset quantities; detail Copy copies only the selected report. Clipboard failure offers selectable export text. No account or transactions are seeded. The isolated tests/activity-host.html checks row layout, detail copying, errors and navigation. tests/activity-sdk.html performs read-only SDK inspection of the saved account and never displays recovery material. Live confirmation and outgoing/spent evidence remain pending in .openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md.
 
 D4 Account Transfer opens the production transfer UI for an active account and the normal account entry otherwise. Both directions support eligibility-based Max, quotes and explicit transfer confirmation, subject to unresolved-operation guards; live completion remains unverified. Account Details shows Total above Bitcoin/Arkade balances. Isolated checks: `/tests/transfer-host.html`.
 

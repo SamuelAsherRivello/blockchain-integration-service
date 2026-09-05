@@ -7,7 +7,7 @@
 
 - [x] 2.1 Add the SDK-only full-history adapter and snapshot/notification reconciliation; verify incoming/outgoing and spent records remain included, all SDK-exposed pages are read when applicable, initial arrivals are not lost, amounts are not duplicated, and failure is distinct from empty. Test newest-first ordering, timestamp ties, undated pending/other entries, and missing output indexes.
 - [x] 2.2 Add public normalized activity state and account-scoped view/load/retry lifecycle; verify late results, Back, close, logout, replacement/reset, and disposal cannot leak entries or leave watchers active.
-- [x] 2.3 Add Account Activity immediately below Account Details, opening Account Activity with Account ID above a Transactions label, one Copy button, and one read-only multiline text area. Render every ordered record on one logical line with sats, Incoming/Outgoing, supported status, and available identifiers. Verify Copy copies the entire list exactly, successful/failed copying, disabled Copy without current records, selection, empty/loading/unavailable states, Back, and scrolling in the 9:16 browser preview.
+- [x] 2.3 Preserve Transactions below Balance, Account ID, three-line rows and single-click Transaction Detail with its own Copy. Provide Copy all transactions exporting every ordered record on one logical line with sats, direction, supported status, full identifiers and available asset data. Verify exact full-list copying, clipboard success/failure with selectable fallback, disabled Copy without current records or while loading, selection, empty/loading/unavailable states, Back, and scrolling in the 9:16 browser preview.
 
 ## 3. Demo and delivery evidence
 
@@ -19,4 +19,4 @@
 
 Implementation note: real history/coin reads, source coverage, and an isolated live SDK utxo notification are verified. 3.2 remains open for a real confirmation transition and outgoing/spent examples. See .openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md. No funding or sending is authorized by verification tasks.
 
-Recheck: live confirmed-state rendering now passes, but the same-transaction live transition is still unobserved. Task 3.3 is reopened because User Story Diagrams.md is zero bytes; restoring the intended documentation is required before finalization.
+Recheck (2026-09-05): live confirmed-state rendering and outgoing rows are observed, but the same-transaction live transition and independent spent-history evidence remain pending. User Story Diagrams.md is now populated. Task 3.3 remains open because its A5 diagram is stale and the original Copy-all/text-area contract conflicts with the delivered row/detail-copy UI. See the latest A5_VERIFICATION.md entry before reconciling or finalizing.

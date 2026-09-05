@@ -1,5 +1,14 @@
 # A5 Account Activity verification
 
+## Apply recheck — 2026-09-05
+
+- Read-only Chrome verification at http://127.0.0.1:5173/ opened Account > Transactions for the existing saved account. Loading completed and exposed Refresh Transactions, transaction rows, and Back.
+- Live outgoing history is now observed: the list showed one 1,000-sat Outgoing / Settled offchain row and nine zero-sat Outgoing / Settled offchain rows. It also showed a 289,715-sat Incoming / Confirmed row. These are live UI observations, not fixtures. They do not independently establish spent-output retention or a same-transaction pending-to-confirmed transition.
+- No payment, funding, settlement, logout, reset, or recovery-phrase access was performed.
+- The earlier zero-byte documentation blocker is stale: documentation/User Story Diagrams.md is populated. Its A5 diagram still describes a proposed educational view and needs reconciliation.
+- Reconciliation found a controlling-artifact conflict: this change still requires a single text area and Copy-all, while the current AccountActivity component uses three-line rows opening a selected Transaction Detail with its own Copy. Later design-discussion decisions describe row/detail presentation, but the A5 delta and main account-activity minimal-presentation requirement still require Copy-all. The initial-read deadline and loading presentation also have later superseding decisions (75 seconds per attempt and Pending Operation Dialog).
+- Tasks 3.2 and 3.3 remain open. Resolve the intended Copy-all contract before reconciling the remaining artifacts; do not treat its absence as an accepted exception. No specs were synced or archived during this recheck.
+
 ## Transactions lockup and asset history — 2026-09-04
 
 - Reproduced stalled notification setup blocking the first history read and unresolved wallet disposal blocking error reporting. Regression tests failed before the fix and passed afterward.

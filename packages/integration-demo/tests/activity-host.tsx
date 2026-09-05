@@ -3,7 +3,7 @@ import {AccountActivity} from '../../integration/src/ui/AccountActivity';
 import {PendingOperations} from '../../integration/src/ui/PendingOperationDialog';
 import { createContext } from '../../integration/src/core/context';
 import { createBisUi } from '@bis/integration';
-import { formatTransactionDetail, type BisTransaction } from '../../integration/src/core/activity';
+import { formatTransactionDetail, formatTransactions, type BisTransaction } from '../../integration/src/core/activity';
 import '@bis/integration/style.css';
 const host=document.getElementById('host')!,result=document.getElementById('result')!;
 const tick=()=>new Promise(r=>setTimeout(r,0));
@@ -25,11 +25,18 @@ document.getElementById('run')!.onclick=async()=>{
   cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
   try{
     await c.ready();c.openAccountDialog();await tick();
-    const buttons=[...host.querySelectorAll('button')];const details=buttons.findIndex(b=>b.textContent?.includes('Account Details'));
+    const buttons=[...host.querySelectorAll('button')];const details=buttons.findIndex(b=>b.textContent==='Balance');
     check(buttons[details+1]?.textContent?.includes('Transactions'),'menu order');buttons[details+1].click();
     await wait(()=>host.querySelectorAll('.bis-transaction-row').length===24);
     check(!host.querySelector('textarea'),'list instead of text area');
     check(host.querySelector('h2')?.textContent==='Transactions','Transactions heading');
+    const copyAll=host.querySelector<HTMLButtonElement>('[aria-label="Copy all transactions"]');
+    check(copyAll && !copyAll.disabled,'Copy-all available for every loaded row');
+    copyAll!.click();await wait(()=>copied===formatTransactions(rows) && copyAll!.textContent?.includes('Copied all transactions')===true);
+    check(copied.split('\n').length===24 && copied.includes('9007199254740993 base units'),'Copy-all preserves all rows and exact asset quantity');
+    copyFail=true;copyAll!.click();await wait(()=>!!host.querySelector('[aria-label="All transactions for manual copy"]'));
+    check(host.querySelector<HTMLTextAreaElement>('[aria-label="All transactions for manual copy"]')?.value===formatTransactions(rows),'clipboard failure exposes complete selectable export');
+    copyFail=false;copyAll!.click();await wait(()=>copyAll!.textContent?.includes('Copied all transactions')===true && !host.querySelector('[aria-label="All transactions for manual copy"]'));
     const row=host.querySelector('.bis-transaction-row')!;
     check(row.children.length===3&&row.querySelector('strong')?.textContent==='100 sats · Incoming'&&row.querySelector('span')?.textContent==='Pending'&&row.querySelector('code')?.getAttribute('title')===rows[0].identifier,'three-line row layout');
     check(!row.querySelector('svg,img'),'transaction rows have no icon');
@@ -67,6 +74,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(host.querySelectorAll('.bis-transaction-row').length===24 && !host.querySelector('.bis-pending-dialog'),'loaded records remain accessible');
     check(host.textContent?.includes('Full transaction history could not be refreshed.'),'incomplete history is explained inline');
     data=[];void c.refreshActivity();await wait(()=>host.textContent?.includes('No transactions found.')===true);
+    check(host.querySelector<HTMLButtonElement>('[aria-label="Copy all transactions"]')?.disabled,'Copy-all disabled for empty history');
     check(host.querySelector('.bis-card')!.getBoundingClientRect().height===activityHeight,'empty list keeps dialog height');
     check(getComputedStyle(host.querySelector('.bis-transaction-list')!).overflowY==='scroll','empty list retains scrollbar');
     c.closeAccount();await tick();check(!host.querySelector('textarea'),'Back to menu');
@@ -83,7 +91,7 @@ document.getElementById('run')!.onclick=async()=>{
       await wait(()=>!!partialHost.querySelector('textarea'));
       check(!partialHost.querySelector('.bis-pending-dialog'),'partial transaction details remain accessible');
     } finally {partialRoot.unmount();partialHost.remove();}
-    result.textContent='PASS: three-line rows without icons, Transactions title, fixed height, persistent scrollbar, selection/open/Back, detailed copy, clipboard failure, empty/unavailable/retry, reopen, 360px layout. Fixtures only.';
+    result.textContent='PASS: Copy-all exact 24-row export and manual fallback, empty-copy disabled, three-line rows without icons, Transactions title, fixed height, persistent scrollbar, selection/open/Back, detailed copy, clipboard failure, empty/unavailable/retry, reopen, 360px layout. Fixtures only.';
   }catch(error){result.textContent='FAIL: '+(error instanceof Error?error.message:'checks');}
 };
 window.addEventListener('pagehide',()=>cleanup());

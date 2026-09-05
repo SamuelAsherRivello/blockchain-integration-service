@@ -1,6 +1,6 @@
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react';
-import { formatTransactionDetail, transactionExplorerUrl, type BisActivity } from '../core/activity';
+import { formatTransactionDetail, formatTransactions, transactionExplorerUrl, type BisActivity } from '../core/activity';
 import { shortAssetId } from '../core/asset-presentation';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import type { BisContext } from '../core/context';
@@ -14,7 +14,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
   const rows = activity.status === 'ready' || activity.status === 'unavailable' ? activity.transactions ?? [] : [];
   const selected = rows.find(row => row.id === selectedId);
   const opened = detailOpen ? selected : undefined;
-  const text = opened ? formatTransactionDetail(opened) : '';
+  const text = opened ? formatTransactionDetail(opened) : formatTransactions(rows);
   const explorerUrl = opened ? transactionExplorerUrl(opened) : undefined;
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   useLayoutEffect(() => { onDetailChange(detailOpen); }, [detailOpen, onDetailChange]);
@@ -54,6 +54,13 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
       {recoveryBlocked && <p role="status">Allow pop-up windows to view recovery info, then try again.</p>}
       {!explorerUrl && <p id={`${id}-explorer-unavailable`}>Explorer unavailable: no transaction ID has been reported yet.</p>}
     </> : <>
+      <button type="button" className="bis-button" aria-label="Copy all transactions" disabled={!text || loading || status === 'copying'} onClick={() => void copyAll()}>
+        {status === 'copied' ? 'Copied all transactions' : 'Copy all transactions'}
+      </button>
+      {status === 'failed' && <>
+        <p role="status">Could not copy. Select the text below and copy it manually.</p>
+        <textarea aria-label="All transactions for manual copy" readOnly rows={3} value={text} />
+      </>}
       {activity.status === 'unavailable' && rows.length > 0 && <p role="status">Showing available records. Full transaction history could not be refreshed. Use Refresh to retry.</p>}
       <ul className="bis-transaction-list" aria-label="Transactions" aria-busy={loading}>
 

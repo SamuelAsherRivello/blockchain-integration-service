@@ -43,7 +43,7 @@ Admin context also exposes `fund1000Sats()` for explicit Signet test funding. It
 
 ## Transactions (A5)
 
-Transactions appears below Account Details. It lists all SDK-provided incoming/outgoing history, including spent records, newest first. Rows match asset sizing: bold sats/direction, a status line and shortened ID line, without icons. Selecting a row opens Transaction Detail with the full selectable report and Copy; Back returns to the list.
+Transactions appears below Balance (the Account Details route). It lists all SDK-provided incoming/outgoing history, including spent records, newest first. Rows match asset sizing: bold sats/direction, a status line and shortened ID line, without icons. Selecting a row opens Transaction Detail with the full selectable report and Copy; Back returns to the list. Copy all transactions exports every current row in displayed order, one line per record with full identifiers, supported status and exact asset quantities. Empty/loading lists disable it; clipboard failure exposes a selectable full export with retry.
 
 Public context methods: openAccountActivity() and refreshActivity(); getState().activity exposes idle/loading/ready/unavailable and normalized transactions. accountActivity identifies the open route. Existing subscribe() delivers updates. refreshActivity() observes until the view is closed or its operation is cancelled; UI callers use it without awaiting the subscription lifetime. BisActivity and BisTransaction are public types with no SDK types or credentials.
 
