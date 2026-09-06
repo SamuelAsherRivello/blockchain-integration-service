@@ -11,6 +11,7 @@ import './overlay.css';
 import { RestoreAccount } from './RestoreAccount';
 import { AccountAddresses } from './AccountAddresses';
 import { AccountCard } from './AccountCard';
+import { AccountIdentity } from './AccountIdentity';
 import { FitTextButton } from './FitTextButton';
 import { IconButton } from './IconButton';
 import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
@@ -74,7 +75,8 @@ function BisScreen({ context }: { context: BisContext }) {
         headingActions={(assets || details || transfer || activity || receive) && <IconButton className="bis-title-icon" label={`Refresh ${title}`} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : state.balance.status === 'loading' || state.balance.status === 'idle'} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : context.refreshBalance())}>
             <span className="bis-refresh-image" aria-hidden="true" />
           </IconButton>}
-        description={(send ? 'Send Signet test funds to another Arkade address.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout clears transaction recovery data but does not cancel transactions.' : state.hasProfile ? (assets || details || transfer || activity || submenu ? <>Account ID: <code>{state.profileId ? state.profileId.slice(0, 4) + '…' + state.profileId.slice(-4) : ''}</code></> : <>You are logged in.<br />This account has access to Bitcoin Lightning.</>) : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
+        description={(send ? 'Send Signet test funds to another Arkade address.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout clears transaction recovery data but does not cancel transactions.' : state.hasProfile ? (assets || details || transfer || activity || submenu ? null : <>You are logged in.<br />This account has access to Bitcoin Lightning.</>) : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
+        {submenu && <AccountIdentity profileId={state.profileId} />}
         {assets && <AccountAssets key={state.profileId} assets={state.assets} onBurn={context.burnAsset} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={() => context.closeAccount()} />}
         {activity && <AccountActivity key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
         {details && <AccountBalances balance={state.balance} />}

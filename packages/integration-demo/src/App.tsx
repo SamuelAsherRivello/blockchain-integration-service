@@ -100,10 +100,16 @@ export function App({ contextFactory = createBisContext }: { contextFactory?: ty
     const context = contextFactory();
     const adminContext = createBisAdminContext(context);
     const ui = createBisUi(context);
+    const restarts = new Set<string>();
+    const unsubscribeEvents = context.onEvent(event => {
+      if (event.type !== 'restartRequested' || restarts.has(event.logoutId)) return;
+      restarts.add(event.logoutId);
+      window.location.reload();
+    });
     const unsubscribe = context.subscribe(() => setState(context.getState()));
     ui.mount(container.current!);
     setState(context.getState());
-    return { context, adminContext, ui, stop() { unsubscribe(); ui.unmount(); context.dispose(); } };
+    return { context, adminContext, ui, stop() { unsubscribeEvents(); unsubscribe(); ui.unmount(); context.dispose(); } };
   }
   useEffect(() => {
     let cancelled = false;

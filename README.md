@@ -8,9 +8,9 @@
 
 [Open the live demo](https://samuelasherrivello.github.io/blockchain-integration-service/)
 
-Current release: **v0.11.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
+Current release: **v0.12.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
 
-In the current local implementation, Account / Account Button demonstrates entry and Account / Create Account opens the real Signet creation flow. Continue remembers the new account across refreshes and browser restarts. The logged-in dialogue shows enabled Log Out and working Back. Reset Client is implemented as a first-run reset; its real stored-data check remains manual. A3 Restore Account supports a hidden twelve-word grid, Show checkbox, clipboard paste, word/checksum validation, and Signet-gated persistent restoration. The full account menu, payments, and achievements remain unavailable. A6 logout is implemented with manual storage verification pending. The deployed release may lag the local checkout.
+The Signet Account UI supports creation, encrypted persistence, restoration, balances, transactions, assets, address receiving, Arkade address sending and account transfer navigation. v0.12.0 adds native compact sizing and a host-owned restart event after confirmed logout cleanup. Lightning Intents and multi-game support are not implemented. The game smoke test has automated host/UI coverage; the full user-assisted create/reload/logout/restore loop and Android acceptance remain open. See [smoke-test evidence](.openspec/changes/smoke-test-bis-to-game/verification.md).
 
 ## Table of Contents
 
@@ -56,7 +56,7 @@ Signet-only, Arkade-only integration with no custom application server. The sepa
 
 ### Configuration
 
-React 19.2.8 + TypeScript, npm workspaces, and Vite. React was verified against the npm latest tag when this slice was created. The official Arkade SDK (`@arkade-os/sdk` 0.4.67) creates genuine Signet wallets in `packages/integration`. The integration owns encrypted browser persistence; recovery material never enters public state or events. No payments or funding run.
+React 19.2.8 + TypeScript, npm workspaces, and Vite. React was verified against the npm latest tag when this slice was created. The official Arkade SDK (`@arkade-os/sdk` 0.4.67) creates genuine Signet wallets in `packages/integration`. The integration owns encrypted browser persistence; recovery material never enters public state or events. Account entry never submits payments or funding automatically. Existing Signet operations require their explicit production UI actions.
 
 ### Dependencies
 
@@ -106,7 +106,7 @@ With OpenSpec CLI installed, run `./.openspec/setup.ps1` using PowerShell 7 afte
 
 ## Troubleshooting
 
-If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. The local Account demo supports creation and account-access restoration; the full active-profile menu remains planned. If the local port is busy, use the URL printed by Vite.
+If publishing fails, inspect the Actions run. Pages source must be **GitHub Actions**. The local Account demo supports creation and account-access restoration; the active-profile menu is available, with live smoke-test gaps tracked separately. If the local port is busy, use the URL printed by Vite.
 
 ## Resources
 

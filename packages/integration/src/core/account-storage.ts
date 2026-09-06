@@ -1,8 +1,9 @@
 import type { AccountSecret } from '../arkade/account.ts';
 import { assertNoPendingSend } from './sending.ts';
 import { assertNoPendingBoarding, withWalletMutation } from './boarding-record.ts';
-import { clearBrowserPreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
-export type StoredAccount = { generation: number; account: AccountSecret | null };
+import { browserMutationLock, clearBrowserPreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
+export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
+export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
 export interface AccountStorage {
   load(): Promise<StoredAccount>;
   save(account: AccountSecret, generation: number, signal: AbortSignal): Promise<void>;
@@ -43,19 +44,36 @@ export function createAccountStorage(): AccountStorage {
   let revision = 0;
   let channel: BroadcastChannel | undefined;
   const notify = () => { for (const listener of listeners) listener(); };
-  return {
-    async load() {
-      const record = await transaction<{generation:number; envelope?:Envelope}>('readonly',(store,set,tx) => {
-        const g=store.get('generation'); const a=store.get('identity');
-        a.onsuccess=()=> {try {set({generation:generation(g.result),envelope:a.result});} catch {tx.abort();}};
+  let pendingSessionLogout: LogoutReceipt | undefined;
+  const read = async (): Promise<StoredAccount> => {
+      const record = await transaction<{generation:number; envelope?:Envelope; logout?:LogoutReceipt}>('readonly',(store,set,tx) => {
+        const g=store.get('generation'); const a=store.get('identity'); const l=store.get('logout');
+        l.onsuccess=()=> {try {set({generation:generation(g.result),envelope:a.result,logout:l.result});} catch {tx.abort();}};
       });
-      if (!record.envelope) return {generation:record.generation,account:null};
+      if (!record.envelope) return {generation:record.generation,account:null,logout:record.logout};
       const e=record.envelope;
       if(e.version!==1 || e.network!=='signet' || !(e.key instanceof CryptoKey) || e.key.extractable) throw new Error('Saved account cannot be read.');
       const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:e.iv,additionalData:aad},e.key,e.encrypted);
       const account=JSON.parse(new TextDecoder().decode(plain));
       if(typeof account.phrase!=='string'||typeof account.profileId!=='string') throw new Error('Invalid saved account.');
       return {generation:record.generation,account};
+  };
+  return {
+    async load() {
+      if (!pendingSessionLogout) return read();
+      if (!globalThis.navigator?.locks) throw Error('This browser cannot safely coordinate wallet operations.');
+      // Reconciliation waits for the initiating logout lock to release.
+      return navigator.locks.request(browserMutationLock, {mode:'exclusive'}, async () => {
+        const receipt = pendingSessionLogout;
+        const loaded = await read();
+        if (receipt && !loaded.account && loaded.logout?.id === receipt.id && loaded.generation === receipt.generation) {
+          // Verify this tab's cleanup before allowing its context to request restart.
+          // The lock also prevents a replacement save between verification and cleanup.
+          clearBrowserPreferences(globalThis.sessionStorage);
+        }
+        if (pendingSessionLogout === receipt) pendingSessionLogout = undefined;
+        return loaded;
+      });
     },
     async save(account, expected, signal) {
       const currentRevision = revision;
@@ -73,7 +91,7 @@ export function createAccountStorage(): AccountStorage {
         existing.onsuccess=()=> {
           try {
             if(signal.aborted || revision !== currentRevision || generation(g.result)!==expected || existing.result) {tx.abort();return;}
-            store.put({version:1,network:'signet',key,iv,encrypted} satisfies Envelope,'identity'); set(undefined);
+            store.delete('logout'); store.put({version:1,network:'signet',key,iv,encrypted} satisfies Envelope,'identity'); set(undefined);
           }catch {tx.abort();}
         };
       }));
@@ -90,18 +108,16 @@ export function createAccountStorage(): AccountStorage {
           // explicitly use in-memory repositories. Never clear an unrelated SDK DB.
           clearBrowserPreferences(globalThis.localStorage);
           clearBrowserPreferences(globalThis.sessionStorage);
+          const receipt: LogoutReceipt = {id:crypto.randomUUID(),profileId:options.profileId,generation:loaded.generation+1};
           await transaction<void>('readwrite', (store, set, tx) => {
             const request = store.get('generation');
             request.onsuccess = () => {
               if (generation(request.result) !== loaded.generation) { tx.abort(); return; }
-              store.clear(); set(undefined);
+              store.clear(); store.put(receipt.generation,'generation'); store.put(receipt,'logout'); set(undefined);
             };
           });
           revision++;
-          channel?.postMessage('logout'); notify();
-          // Reset every mounted host and closure after successful destructive logout.
-          // This also discards demo state and in-memory SDK repositories.
-          if (typeof window !== 'undefined') window.location.reload();
+          channel?.postMessage({type:'logout',...receipt}); notify();
         }, true);
         return;
       }
@@ -118,7 +134,7 @@ export function createAccountStorage(): AccountStorage {
           try {
             const current = generation(request.result);
             if (current !== loaded.generation || !!identity.result !== !!loaded.account || (expectedGeneration !== undefined && expectedGeneration !== current)) { tx.abort(); return; }
-            store.put(current+1,'generation'); store.delete('identity');set(undefined);
+            store.put(current+1,'generation'); store.delete('identity');store.delete('logout');set(undefined);
           }catch {tx.abort();}
         };
       });
@@ -129,13 +145,8 @@ export function createAccountStorage(): AccountStorage {
       listeners.add(listener);
       if(!channel && typeof BroadcastChannel!=='undefined') {channel=new BroadcastChannel(DB);channel.onmessage=event=>{
         revision++;
-        if(event.data==='logout') {
-          try {clearBrowserPreferences(globalThis.sessionStorage);}
-          finally {
-            notify();
-            if (typeof window !== 'undefined') window.location.reload();
-          }
-        } else notify();
+        if(event.data?.type==='logout') pendingSessionLogout=event.data as LogoutReceipt;
+        notify();
       };}
       return ()=> {listeners.delete(listener);if(!listeners.size){channel?.close();channel=undefined;}};
     },

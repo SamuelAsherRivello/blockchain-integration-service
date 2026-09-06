@@ -8,6 +8,12 @@ Get Recovery Phrase is available at the bottom of Balance, above Back. `openAcco
 import { createBisContext, createBisAdminContext, createBisUi } from '@bis/integration';
 import '@bis/integration/style.css';
 const context = createBisContext();
+const restarted = new Set();
+const unsubscribeEvents = context.onEvent(event => {
+  if (event.type !== 'restartRequested' || restarted.has(event.logoutId)) return;
+  restarted.add(event.logoutId);
+  window.location.reload(); // host-owned policy; BIS itself never reloads
+});
 const ui = createBisUi(context);
 ui.mount(container); // host-owned positioned element; initially empty
 ui.showAccountButton();
@@ -17,6 +23,7 @@ const unsubscribe = context.subscribe(() => console.log(context.getState().view)
 const adminContext = createBisAdminContext(context);
 await adminContext.resetClient(); // explicit first-run reset; removes BIS account storage
 // Host cleanup before replacement:
+unsubscribeEvents();
 unsubscribe();
 ui.unmount();
 context.dispose();
@@ -28,7 +35,7 @@ The Account chooser enables Create Account and Restore Account. A3 uses twelve n
 
 The active Account action opens Account Log Out. The backup checkbox is always required. When locally saved pending transfer, send, or mint operations exist, a second initially unchecked checkbox reads exactly `I accept losing my (5) pending transactions.` with the actual count. It is hidden for zero pending operations. `setLogoutPendingAcknowledged(boolean)` controls this additional gate; `logoutPendingCount` is null if counting fails, which blocks cleanup rather than assuming zero. The pending set is rechecked at confirmation and inside the cleanup lock.
 
-Confirmed logout clears all BIS-owned account records from IndexedDB and all known BIS transfer/send/mint journals (including legacy and other-wallet journals), plus saved demo preferences from web storage. It reloads the app and notifies other live BIS tabs to reload, discarding their UI and SDK memory. The IndexedDB database/object-store structure can remain empty; no account or coordination records remain. Other applications' storage is untouched. Current SDK wallets explicitly use in-memory repositories, so there is no BIS SDK database to erase. Submitted transactions are not cancelled, and restoring the same phrase does not restore discarded local recovery records. No operator request is needed. Active local wallet work prevents cleanup until it finishes; unreadable records or cleanup failures retain an error rather than report success.
+Confirmed logout clears all BIS-owned account records from IndexedDB and all known BIS transfer/send/mint journals (including legacy and other-wallet journals), plus saved demo preferences from web storage. It invalidates local account state and requests host-owned restart, notifying other affected live BIS contexts with the same logout ID. The IndexedDB store retains only a monotonic generation and a non-secret logout receipt (ID, public profile ID and generation) to reject stale saves/notifications; saving a new account removes the receipt. No recovery material remains after cleanup. Other applications' storage is untouched. Current SDK wallets explicitly use in-memory repositories, so there is no BIS SDK database to erase. Submitted transactions are not cancelled, and restoring the same phrase does not restore discarded local recovery records. No operator request is needed. Active local wallet work prevents cleanup until it finishes; unreadable records or cleanup failures retain an error rather than report success.
 
 This supersedes the earlier preserve-transfer-journal logout behavior and unresolved-send logout prohibition. Admin Reset and spending guards are unchanged. Ordinary refresh still preserves remembered account access and operation journals; preview scale and split layout now reset to defaults. Production cleanup is user-triggered; verification uses isolated storage doubles, not the live wallet.
 
@@ -128,3 +135,11 @@ Runtime components in `src/ui` remain private; hosts use `createBisUi` or `GameO
 Assets and Transactions retain their headings/copy icons and list space/scrollbars even when empty, without empty-state messages. Pending notices stay host-local, burn confirmation remains a native modal, and the separate public recovery-info popup retains its own document. Admin's `StoryAction` lives in the demo package; the demo does not import private runtime primitives. Shared CSS stays in the existing style export, with screen-specific sizing preserved.
 
 Isolated regression fixtures include `/tests/ui-components-host.html` (clipboard races, expiry and Admin actions), `/tests/ui-demo-host.html` (real demo composition with an in-memory context at all preview scales), plus the recovery/copy/restore, address/balance, asset/activity, Send/Transfer and pending-operation hosts. Their isolated Run actions require no live wallet or payments; live buttons in older fixtures are separate and are not part of this verification.
+
+## Independent game host
+
+See the [BIS-to-game smoke runbook](../../documentation/SMOKE_TEST_BIS_TO_GAME.md) for the fixed package snapshot, Windows tunnels and acceptance sequence. Vite hosts consuming the development source export must configure `esbuild: { jsx: "automatic" }` and `optimizeDeps: { esbuildOptions: { jsx: "automatic" } }`; production consumes the built export. Hosts must handle `restartRequested` after confirmed logout, deduplicate its `logoutId`, and clean up event/state subscriptions, UI and context on teardown. The library no longer reloads the browser. Ordinary Account close preserves stored access; different ports/hostnames use separate browser origins.
+
+## Native UI size (v0.12.0)
+
+Mount BIS at 100% in a positioned host. Font sizes, spacing, controls and dialogs now use the approved compact dimensions directly; remove any temporary `scale(.8)` and `125%` host sizing. Account ID with full-value Copy appears only on Accounts Details. Host loading should use its blocking backdrop until BIS is ready.

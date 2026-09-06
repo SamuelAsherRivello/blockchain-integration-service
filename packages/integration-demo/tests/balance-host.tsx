@@ -23,8 +23,8 @@ document.getElementById('run')!.onclick=async()=>{
   button('Refresh Balance').click();await wait(()=>calls===2);await tick();check(values().every(value=>value===''),'Refresh clears stale values');await finish(0);
   check(values().at(-1)==='0 sats','Zero displayed');
   fail=true;await c.refreshBalance();await tick();check(calls===4&&values().every(value=>value==='')&&!!button('OK'),'One retry, final error and no stale values');
-  button('OK').click();await tick();check(!host.querySelector('input'),'OK closes failed source');
-  fail=false;button('Balance').click();await wait(()=>calls===5);await finish();button('Back').click();await tick();check(!host.querySelector('input'),'Back clears view');
+  button('OK').click();await tick();check(!host.querySelector('.bis-account-balances'),'OK closes failed source');
+  fail=false;button('Balance').click();await wait(()=>calls===5);await finish();button('Back').click();await tick();check(!host.querySelector('.bis-account-balances'),'Back clears view');
   c.openAccountDetails();await wait(()=>calls===6);c.closeAccount();c.openLogoutConfirmation();await tick();
   resolve({availableSats:999,totalSats:999,bitcoinSats:0,arkadeSats:999});await tick();check(!host.textContent?.includes('999'),'Abandoned read ignored');
   check(host.querySelector('h2')?.textContent==='Account Log Out','Logout destination');button('Back').click();await tick();check(calls===6&&writes===0,'No extra reads or persistence');

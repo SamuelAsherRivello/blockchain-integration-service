@@ -4,7 +4,7 @@ import { CopyButton, VisibilityToggle } from './IconButton';
 import { useClipboardCopy } from './useClipboardCopy';
 
 export function TestWalletWarning() {
-  return <p className="bis-warning">Test wallet only. Never enter or reuse a recovery phrase from a wallet containing real funds.</p>;
+  return <p className="bis-warning bis-seed-warning">Never use a real wallet’s phrase.</p>;
 }
 export function SeedWordsHeading({ action, shown, onToggle, disabled, spread = false, children }: {
   action: ReactNode; shown: boolean; onToggle(): void; disabled?: boolean; spread?: boolean; children?: ReactNode;

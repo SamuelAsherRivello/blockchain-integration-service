@@ -9,12 +9,13 @@
 ## Remote demo preview
 
 - Treat requests such as "run a Vite server" as requests for a remote demo preview usable from the user's Windows 11 browser. Follow this workflow by default.
-- When asked to run the demo on the SSH server, start it with `npm run dev --workspace @bis/integration-demo -- --port 5173 --strictPort` from the repository root. Keep the server running for the preview session.
-- Verify that `http://127.0.0.1:5173/` returns HTTP 200 and the demo HTML before sharing the preview URL. A sandbox networking failure does not establish that the host server is down; use the supported escalation when needed.
-- The Windows browser needs an SSH tunnel. If it is not already connected, provide this Windows PowerShell command: `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:5173:127.0.0.1:5173 contabo-srive`. Tell the user to leave that terminal open.
-- Present the tunnel command on one line in a code block and tell the user to paste the entire line before pressing Enter. If copying causes line-splitting errors, the shorter command `ssh -N -L 5173:localhost:5173 contabo-srive` has been confirmed to work from this user's Windows 11 machine.
+- When asked to run the demo on the SSH server, start it with `npm run dev --workspace @bis/integration-demo -- --port 5174 --strictPort` from the repository root. Keep the server running for the preview session.
+- Verify that `http://127.0.0.1:5174/` returns HTTP 200 and the demo HTML before sharing the preview URL. A sandbox networking failure does not establish that the host server is down; use the supported escalation when needed.
+- The Windows browser needs an SSH tunnel. If it is not already connected, provide this Windows PowerShell command: `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:15174:127.0.0.1:5174 contabo-srive`. Tell the user to leave that terminal open.
+- Present the tunnel command on one line in a code block and tell the user to paste the entire line before pressing Enter.
+- The user confirmed this mapping works on 2026-09-06: Windows port 15174 forwards to server port 5174. Port 5173 serves an unrelated project, and binding Windows port 5174 returned Permission denied. Use the confirmed mapping by default in future sessions.
 - If SSH reports `channel ... open failed: connect failed: Connection refused`, check and start the remote Vite server, then verify HTTP 200; the SSH connection itself is already established. Reuse an existing working tunnel.
-- Share `http://localhost:5173/` as the browser URL. If localhost resolution causes trouble, use `http://127.0.0.1:5173/`. Distinguish verified server availability from client tunnel connectivity; a remote agent cannot establish the Windows-side tunnel without access to that machine.
+- Share `http://127.0.0.1:15174/` as the confirmed browser URL. Distinguish verified server availability from client tunnel connectivity; a remote agent cannot establish the Windows-side tunnel without access to that machine.
 - Do not pass port flags through the root `npm run dev` wrapper: its nested npm invocation can pass `5173` to Vite as a directory and produce a 404.
 
 ## OpenSpec directory

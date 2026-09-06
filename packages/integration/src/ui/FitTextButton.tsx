@@ -12,7 +12,7 @@ export function FitTextButton({ children, className = '', ...props }: Omit<Butto
       // offsetWidth uses layout pixels, so preview transforms do not distort the ratio.
       const needed = text.offsetWidth;
       if (needed > available && available > 0) {
-        text.style.fontSize = `${parseFloat(getComputedStyle(text).fontSize) * Math.max(0, available - 1) / needed}px`;
+        text.style.fontSize = `${parseFloat(getComputedStyle(text).fontSize) * Math.max(0, available - 0.8) / needed}px`;
       }
     };
     fit();

@@ -11,6 +11,11 @@ BIS Account works in its own demo, but the stealth game does not consume BIS yet
 - Establish BIS-first setup and a repeatable two-project browser smoke test for A1 entry, A2 creation, A3 restoration, A4 balance/account access, A5 transactions and A6 logout. Preserve access to every existing Account menu destination; additional asset/send/receive/swap routes receive navigation checks, not new financial acceptance scope.
 - Capture package provenance, exact local URLs/tunnels, browser-origin storage separation, isolated regression checks, and explicit live/manual evidence in a shared runbook owned by BIS with a game README pointer during implementation.
 
+- Follow-up UI acceptance: eliminate whole-window/dialog scrolling and all internal scrolling except Transactions and Assets lists. Seed-word screens must fit with a shorter warning displayed on at most one line. First shorten the warning at the current scale; try a temporary 80% embed only if screens still do not fit. Permanent CSS reductions require user review. Validate the user's observed Windows Chrome view of 743 × 1321 at 100% zoom and the available area on their Android phone; no Android minimum viewport has been confirmed.
+
+- Follow-up presentation: put BIS above every game control with a full-screen translucent black input-blocking backdrop; show Account ID with Copy only on Accounts Details; move the game-owned Account button above the volume controls and match the BIS button appearance using game-owned CSS.
+- Multi-game filtering and a user-facing Game ID belong to a separate future proposal, not this implementation.
+
 ## Capabilities
 
 ### New Capabilities
@@ -27,8 +32,8 @@ None as separate delta files. The new capability adds the host restart contract 
 - Game: `package.json`/lockfile, a thin BIS host adapter, `src/main.js`, `src/ui/settings-ui.js`, host layout/styles and focused tests. The game remains JavaScript/Babylon; React is used only by BIS's mounted root.
 - Planning is centralized in BIS `.openspec/changes/smoke-test-bis-to-game/`; this proposal describes work in both repositories. The sibling game's files remain untouched during planning.
 - Confirmed stopping point: user-story group A and the full existing Account menu. No pay-to-continue button, death/revival/checkpoint changes, achievement gameplay hooks, admin panel, deployment or live financial mutation testing. Live account tests use a disposable Signet profile with user-managed recovery material.
-- Confirmed interview decisions: Account Back returns to Settings; BIS requests restart and the game controls execution; use a fixed package snapshot; test a fresh live account plus isolated populated-data fixtures; require the user's Windows browser with narrow-screen, keyboard/mouse and fullscreen checks. Real mobile and a multi-browser matrix are not acceptance gates. Game port 5174 alongside BIS 5173 remains the implementation default. No unresolved scope decision blocks this proposal.
+- Confirmed interview decisions: Account Back returns to Settings; BIS requests restart and the game controls execution; use a fixed package snapshot; test a fresh live account plus isolated populated-data fixtures; require the user's Windows browser with narrow-screen, keyboard/mouse and fullscreen checks. Follow-up feedback adds the user's Android browser as a no-page-scroll acceptance target; a wider multi-browser matrix remains outside scope. BIS server port 5174 maps to Windows 15174; game server port 5175 maps to Windows 15175. The original integration decisions are settled; follow-up UI sizing and presentation decisions are being refined through the user-invoked Grill Me interview.
 
 ## Planning Status
 
-Proposal and design incorporate all five confirmed interview decisions. Implementation is not authorized. The existing delta spec and tasks still describe the earlier logout/reload contract and must be reconciled with host-owned restart and the confirmed test coverage before implementation. Their file-existence status does not establish that this reconciliation is complete.
+Proposal, design, delta spec and tasks incorporate the five confirmed interview decisions. The user authorized finishing the integration smoke test on 2026-09-06. Implementation and local verification in both projects are in scope; Git operations remain separately restricted.

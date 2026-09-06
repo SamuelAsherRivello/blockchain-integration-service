@@ -43,7 +43,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(row.children.length===3&&row.querySelector('strong')?.textContent==='100 sats · Incoming'&&row.querySelector('span')?.textContent==='Pending'&&row.querySelector('code')?.getAttribute('title')===rows[0].identifier,'three-line row layout');
     check(!row.querySelector('svg,img'),'transaction rows have no icon');
     const activityHeight=host.querySelector('.bis-card')!.getBoundingClientRect().height;
-    check(activityHeight===480,'fixed activity height');
+    check(activityHeight===384,'native compact activity height');
     const list=host.querySelector<HTMLElement>('.bis-transaction-list')!;
     check(getComputedStyle(list).overflowY==='scroll' && getComputedStyle(list).scrollbarWidth!=='none','always visible list scrollbar');
     check(list.scrollHeight>list.clientHeight,'long list scrolls internally');
@@ -63,7 +63,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(host.querySelector('.bis-card')!.getBoundingClientRect().height===activityHeight,'detail matches activity height');
     await wait(()=>host.querySelector('h2')?.textContent==='Transaction Detail');
     check(document.activeElement!==host.querySelector('textarea'),'detail field is not automatically focused');
-    check(host.textContent?.includes('Account ID:'),'account identifier');
+    check(!host.textContent?.includes('Account ID') && !host.querySelector('[aria-label="Copy Account ID"]'),'Account ID absent from transaction detail');
     const copy=host.querySelector<HTMLButtonElement>('[aria-label="Copy Transaction"]')!;
     copy.click();await wait(()=>copied===formatTransactionDetail(rows[0]));await tick();check(!host.textContent?.includes('Transaction copied.'),'no separate copy success message');
     copyFail=true;copy.click();await wait(()=>host.textContent?.includes('Could not copy.')===true);
