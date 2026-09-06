@@ -68,6 +68,30 @@ function AssetDetails({asset}: {asset: BisAsset}) {
   </>;
 }
 
+function AssetListHeading({ report }: { report: string }) {
+  const [status, setStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
+  const alive = useRef(true), copying = useRef(false);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  async function copy() {
+    if (!report || copying.current) return;
+    copying.current = true;
+    setStatus('copying');
+    try {
+      await navigator.clipboard.writeText(report);
+      if (alive.current) setStatus('copied');
+    } catch { if (alive.current) setStatus('failed'); }
+    finally { copying.current = false; }
+  }
+  return <div className="bis-asset-list-heading">
+    <CopyFieldLabel label="Assets" copied={status === 'copied'} disabled={!report || status === 'copying'} onCopy={() => void copy()} />
+    <span className="bis-sr-only" role="status">{status === 'copied' ? 'Copied all assets.' : ''}</span>
+    {status === 'failed' && <>
+      <p role="status">Could not copy. Select the text below and copy it manually.</p>
+      <textarea className="bis-asset-manual" aria-label="All assets for manual copy" readOnly rows={3} value={report} />
+    </>}
+  </div>;
+}
+
 export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh, onBusyChange}: {assets: BisAssets; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void}) {
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
@@ -90,6 +114,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
     finally {burnInFlight.current=false;if(mounted.current)setBurning(false);}
   }
   const rows = assets.status === 'ready' ? assets.assets : [];
+  const report = rows.map(formatAssetDetail).join('\n\n');
   const selected = rows.find(asset => asset.assetId === selectedId);
   const explorerUrl = selected ? assetExplorerUrl(selected.assetId) : undefined;
   const container = useRef<HTMLDivElement>(null);
@@ -129,6 +154,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   });
   return <div ref={container} className="bis-assets">
     <div className="bis-assets-content" aria-busy={loading}>
+      {!detailOpen && <AssetListHeading key={report} report={report} />}
       {detailOpen ? <div className="bis-asset-detail">
         {selected && <AssetDetails key={selected.assetId} asset={selected} />}
       </div> : <ul ref={list} className="bis-asset-list" aria-label="Owned assets" onScroll={event => { scroll.current = event.currentTarget.scrollTop; }}>
@@ -138,7 +164,6 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
           <AssetIcon url={asset.iconUrl} /><span className="bis-asset-row-text"><strong>{assetName(asset)}</strong><span>{formatAssetQuantity(asset)}</span><code>{shortAssetId(asset.assetId)}</code></span>
         </button></li>)}
       </ul>}
-      {assets.status === 'ready' && !rows.length && <p role="status">No assets found.</p>}
       {notice && assets.status === 'ready' && <p role="status">{notice}</p>}
     </div>
     <div className={`bis-actions${detailOpen && selected ? ' bis-asset-detail-actions' : ''}`}>

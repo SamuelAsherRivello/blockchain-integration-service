@@ -1,5 +1,13 @@
 # Project workflow
 
+## Remote demo preview
+
+- When asked to run the demo on the SSH server, start it with `npm run dev --workspace @bis/integration-demo -- --port 5173 --strictPort` from the repository root. Keep the server running for the preview session.
+- Verify that `http://127.0.0.1:5173/` returns HTTP 200 and the demo HTML before sharing the preview URL. A sandbox networking failure does not establish that the host server is down; use the supported escalation when needed.
+- The Windows browser needs an SSH tunnel. If it is not already connected, provide this Windows PowerShell command: `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:5173:127.0.0.1:5173 contabo-srive`. Tell the user to leave that terminal open.
+- Share `http://localhost:5173/` as the browser URL. If localhost resolution causes trouble, use `http://127.0.0.1:5173/`. Distinguish verified server availability from client tunnel connectivity; a remote agent cannot establish the Windows-side tunnel without access to that machine.
+- Do not pass port flags through the root `npm run dev` wrapper: its nested npm invocation can pass `5173` to Vite as a directory and produce a 404.
+
 ## OpenSpec directory
 
 - The canonical, tracked planning directory is `.openspec/`.

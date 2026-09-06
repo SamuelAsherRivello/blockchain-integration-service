@@ -54,9 +54,8 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
       {recoveryBlocked && <p role="status">Allow pop-up windows to view recovery info, then try again.</p>}
       {!explorerUrl && <p id={`${id}-explorer-unavailable`}>Explorer unavailable: no transaction ID has been reported yet.</p>}
     </> : <>
-      <button type="button" className="bis-button" aria-label="Copy all transactions" disabled={!text || loading || status === 'copying'} onClick={() => void copyAll()}>
-        {status === 'copied' ? 'Copied all transactions' : 'Copy all transactions'}
-      </button>
+      <CopyFieldLabel label="Transactions" copied={status === 'copied'} disabled={!text || loading || status === 'copying'} onCopy={() => void copyAll()} />
+      <span className="bis-sr-only" role="status">{status === 'copied' ? 'Copied all transactions.' : ''}</span>
       {status === 'failed' && <>
         <p role="status">Could not copy. Select the text below and copy it manually.</p>
         <textarea aria-label="All transactions for manual copy" readOnly rows={3} value={text} />
@@ -69,7 +68,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
           setDetailOpen(true);
         }}><strong>{row.satsUnknown?'Sats unknown':`${row.amountSats.toLocaleString('en-US')} sats`} · {row.direction}</strong><span>{row.status}</span><code title={row.identifier}>{shortAssetId(row.identifier)}</code></button></li>)}
       </ul>
-      {!loading && !rows.length && <p role="status">{activity.status === 'unavailable' ? 'Transactions unavailable. Use Refresh to retry.' : 'No transactions found.'}</p>}
+      {activity.status === 'unavailable' && !rows.length && <p role="status">Transactions unavailable. Use Refresh to retry.</p>}
     </>}
   </div>;
 }

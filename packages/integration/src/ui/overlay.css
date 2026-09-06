@@ -60,9 +60,8 @@
 .bis-copy-field-heading { display: flex; align-items: center; gap: 4px; width: 100%; font-size: 12px; }
 .bis-copy-field-heading label { min-width: 0; }
 .bis-copy-field-heading h3 { margin: 0; font: inherit; }
-.bis-recovery-heading { margin-bottom: 6px; text-align: left; }
-.bis-saved-recovery-heading { display: flex; align-items: center; }
-.bis-saved-recovery-heading .bis-copy-field-heading { flex: 1; }
+.bis-recovery-heading { display: flex; align-items: center; margin-bottom: 6px; text-align: left; }
+.bis-recovery-heading .bis-copy-field-heading { flex: 1; }
 .bis-copy-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 26px; width: 26px; height: 26px; padding: 4px; border: 0; border-radius: 5px; background: transparent; color: #526b74; cursor: pointer; }
 .bis-copy-icon:hover:not(:disabled) { color: #175a4c; background: #e0f4ed; }
 .bis-copy-icon:focus-visible { outline: 2px solid #30977f; outline-offset: 2px; }
@@ -80,10 +79,10 @@
 .bis-card-activity > * { flex-shrink: 0; }
 .bis-card-activity .bis-activity { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .bis-transaction-list { flex: 1; min-height: 0; list-style: none; padding: 0 6px 0 0; margin: 0; overflow-y: scroll; overflow-x: hidden; scrollbar-gutter: stable; }
-.bis-layer .bis-transaction-list { scrollbar-width: auto; scrollbar-color: #8da6ae #e7eef0; }
-.bis-layer .bis-transaction-list::-webkit-scrollbar { display: block; width: 10px; }
-.bis-layer .bis-transaction-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 6px; }
-.bis-layer .bis-transaction-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 6px; border: 2px solid #e7eef0; }
+.bis-layer .bis-transaction-list, .bis-layer .bis-asset-list { scrollbar-width: auto; scrollbar-color: #8da6ae #e7eef0; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar, .bis-layer .bis-asset-list::-webkit-scrollbar { display: block; width: 10px; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar-track, .bis-layer .bis-asset-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 6px; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar-thumb, .bis-layer .bis-asset-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 6px; border: 2px solid #e7eef0; }
 .bis-transaction-list li + li { margin-top: 6px; }
 .bis-transaction-row { display: grid; gap: 3px; width: 100%; padding: 11px 9px; border: 1px solid #c8d7dc; border-radius: 8px; background: #fff; color: #294650; text-align: left; font: 12px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
 .bis-transaction-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -165,8 +164,9 @@
 .bis-card-assets .bis-assets { flex: 1; min-height: 0; }
 .bis-assets { display: flex; flex-direction: column; gap: 12px; min-width: 0; text-align: left; font-size: 12px; }
 .bis-assets-content { flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; display: flex; flex-direction: column; }
-.bis-asset-list { flex: 1; min-height: 60px; margin: 0; padding: 0 5px 0 0; list-style: none; overflow: auto; }
-.bis-layer .bis-asset-list, .bis-layer .bis-assets-content { scrollbar-width: thin; scrollbar-color: #8da6ae #e7eef0; }
+.bis-asset-list-heading { flex-shrink: 0; margin-bottom: 6px; text-align: left; }
+.bis-asset-list { flex: 1; min-height: 60px; margin: 0; padding: 0 5px 0 0; list-style: none; overflow-y: scroll; overflow-x: hidden; scrollbar-gutter: stable; }
+.bis-layer .bis-assets-content { scrollbar-width: thin; scrollbar-color: #8da6ae #e7eef0; }
 .bis-asset-list li + li { margin-top: 7px; }
 .bis-asset-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 9px; border: 1px solid #c8d7dc; border-radius: 8px; background: #fff; color: #294650; text-align: left; font: inherit; cursor: pointer; }
 .bis-asset-row:hover { background: #e0f4ed; }

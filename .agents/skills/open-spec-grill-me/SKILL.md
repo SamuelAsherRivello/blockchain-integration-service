@@ -1,4 +1,3 @@
-I’d consolidate the repeated format rules, keep numbering stable during clarifications, and distinguish confirmed decisions from recommendations. I’d also allow two concrete choices for genuinely binary decisions and remove the  
 ---
 name: open-spec-grill-me
 description: Interview the user about an OpenSpec exploration, proposal, or standalone plan using consistent numbered choices and a recommended answer. Investigate codebase facts directly and reconcile confirmed decisions into authorized planning artifacts. Planning only; never implements code.
