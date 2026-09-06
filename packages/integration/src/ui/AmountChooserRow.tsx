@@ -5,7 +5,7 @@ export function AmountChooserRow({value,onChange,onMax,disabled=false,maxDisable
  const adjust=(step:number)=>onChange(String(Math.max(0,Math.min(Number.MAX_SAFE_INTEGER,(safe?numeric:0)+step))));
  return <div className="bis-amount-chooser">
   <label htmlFor={id}>Amount (sats)</label>
-  <div className="bis-transfer-amount">
+  <div className="bis-amount-controls">
    <button type="button" className="bis-button" aria-label="Decrease amount" disabled={disabled||!safe||numeric<=0} onClick={()=>adjust(-1)}>−</button>
    <input ref={inputRef} id={id} aria-label="Amount (sats)" aria-describedby={describedBy} inputMode="numeric" autoComplete="off" disabled={disabled} value={value} onChange={event=>onChange(event.target.value)}/>
    <button type="button" className="bis-button" aria-label="Increase amount" disabled={disabled||!safe||numeric>=Number.MAX_SAFE_INTEGER} onClick={()=>adjust(1)}>+</button>

@@ -36,7 +36,7 @@ document.getElementById('run')!.onclick = async () => {
     balance({ availableSats: 1000, totalSats: 1500, bitcoinSats: 500, arkadeSats: 1000 }); await tick(); stable();
     check(fields[0].value === '1,500 sats', 'Values populated');
     const refreshing = context.refreshBalance(); await tick(); stable();
-    check(fields[0].value === 'Loading...', 'Refresh clears stale values');
+    check(fields[0].value === '', 'Refresh clears stale values');
     balance({ availableSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 });  await refreshing; await tick(); stable();
     const retry = context.refreshBalance(); await tick(); stable();
     balance({ availableSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 }); await retry; await tick(); stable();

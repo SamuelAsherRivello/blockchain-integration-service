@@ -1,3 +1,5 @@
+import { ReviewDetails, formatSats as sats } from './ReviewDetails';
+import { useQuoteExpiry } from './useQuoteExpiry';
 import { readWithRetry } from '../core/pending-read';
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useId, useRef, useState } from 'react';
@@ -19,7 +21,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<BisTransferStatus>({status:'idle'});
   const [error, setError] = useState('');
-  const [expired, setExpired] = useState(false);
+  const expired = useQuoteExpiry(quote?.expiresAt);
   const alive = useRef(true);
   const request = useRef(0);
   const reviewHeading = useRef<HTMLHeadingElement>(null);
@@ -59,12 +61,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     const timer=setInterval(()=>{if(!busy)void check(false,true);},10000);
     return()=>clearInterval(timer);
   },[pending,busy]);
-  useEffect(()=>{
-    setExpired(false);
-    if(!quote)return;
-    const timer=setTimeout(()=>setExpired(true),Math.max(0,quote.expiresAt-Date.now()));
-    return()=>clearTimeout(timer);
-  },[quote]);
+
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
     if (review) reviewHeading.current?.focus(); else amountInput.current?.focus();
@@ -92,7 +89,6 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     finally{if(alive.current&&current===request.current){setSubmitting(false);setBusy(false);setForeground(false);setReview(false);}}
   }
   usePendingNotice(foreground,operationLabel,error||undefined,onBack);
-  const sats=(value:number)=>`${value.toLocaleString('en-US')} sats`;
   return <>
     <div className="bis-transfer-balances"><AccountBalances balance={balance} directionControl={
       <button type="button" className="bis-button bis-balance-direction" disabled={busy||blocked||review}
@@ -101,18 +97,15 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
         {direction === 'to-arkade' ? '→' : '←'}
       </button>
     } /></div>
-    {review ? <div className="bis-transfer-review">
+    {review ? <div className="bis-review">
       <h3 ref={reviewHeading} tabIndex={-1} data-bis-autofocus>Review: {label}</h3>
-      <dl>
-        <div><dt>Amount</dt><dd>{sats(numeric)}</dd></div>
-        <div><dt>Fee</dt><dd>{quote?sats(quote.feeSats):'Unavailable'}</dd></div>
-        <div><dt>Added to {direction === 'to-arkade' ? 'Arkade' : 'Bitcoin'}</dt><dd>{quote?sats(quote.netSats):'Unavailable'}</dd></div>
-      </dl>
-      {quote && <><h3>After transfer (estimate)</h3><dl>
-        <div><dt>Total balance</dt><dd>{sats(quote.totalAfterSats)}</dd></div>
-        <div><dt>Bitcoin balance</dt><dd>{sats(quote.bitcoinAfterSats)}</dd></div>
-        <div><dt>Arkade balance</dt><dd>{sats(quote.arkadeAfterSats)}</dd></div>
-      </dl></>}
+      <ReviewDetails rows={[
+        ['Amount', sats(numeric)], ['Fee', quote ? sats(quote.feeSats) : 'Unavailable'],
+        [`Added to ${direction === 'to-arkade' ? 'Arkade' : 'Bitcoin'}`, quote ? sats(quote.netSats) : 'Unavailable'],
+      ]} />
+      {quote && <><h3>After transfer (estimate)</h3><ReviewDetails rows={[
+        ['Total balance', sats(quote.totalAfterSats)], ['Bitcoin balance', sats(quote.bitcoinAfterSats)], ['Arkade balance', sats(quote.arkadeAfterSats)],
+      ]} /></>}
       {expired && <p role="status">Quote expired. Go Back for a fresh review.</p>}
     </div> : <div className="bis-transfer-form">
       <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy||blocked} maxDisabled={balance.status!=='ready'} inputRef={amountInput} describedBy={amount !== '0' && !valid ? `${amountId}-help` : undefined} />

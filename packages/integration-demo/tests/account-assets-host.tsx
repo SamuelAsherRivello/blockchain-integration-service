@@ -35,6 +35,7 @@ document.getElementById('run')!.onclick=async()=>{
   result.textContent='Running';
   try {
     await context.ready();context.openAccountDialog();await tick();
+    button('Accounts Details').click();await tick();
     const menu=[...host.querySelectorAll('button')].map(b=>b.textContent);check(menu.indexOf('Assets')===menu.indexOf('Transactions')+1,'menu order');
     const before=reads;await showList();check(reads===before+1,'one entry read');
     const list=host.querySelector<HTMLElement>('.bis-asset-list')!;check(list.scrollHeight>list.clientHeight,'list scrolls');

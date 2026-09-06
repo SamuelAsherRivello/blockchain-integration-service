@@ -51,7 +51,7 @@ document.getElementById('run')!.onclick=async()=>{
     button('Burn').click();await tick();button('OK').click();await wait(()=>burns===1&&!!dialog());assert(dialog()?.textContent?.includes('Burning...'),'Burn label');
     mode='pending';finishBurn!();await wait(()=>reads>failedBefore+2&&c.getState().assets.status==='loading');await tick();
     assert(dialog()?.textContent?.includes('Burning...'),'Burning stays through refresh');assert(!host.textContent?.includes('Asset burned.'),'No completion message');
-    finishRead!([]);await wait(()=>!dialog());assert(host.textContent?.includes('No assets found.'),'Fresh empty holdings revealed');assert(burns===1,'Single submission');checks.push('Burn confirmation, one submission, continuous refresh, clean success');
+    finishRead!([]);await wait(()=>!dialog());assert(!!host.querySelector('.bis-asset-list') && !host.querySelector('.bis-asset-row') && !host.textContent?.includes('No assets found.'),'Fresh empty holdings revealed');assert(burns===1,'Single submission');checks.push('Burn confirmation, one submission, continuous refresh, clean success');
     mode='ready';data=[asset];await c.refreshAssets();await wait(()=>!dialog());host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
     button('Burn').click();await tick();button('OK').click();await wait(()=>burns===2&&!!dialog());
     const beforeFailedRefresh=reads;mode='fail';finishBurn!();await wait(()=>!!dialog()?.querySelector('button'));

@@ -2,6 +2,8 @@ import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react';
 import { formatTransactionDetail, formatTransactions, transactionExplorerUrl, type BisActivity } from '../core/activity';
 import { shortAssetId } from '../core/asset-presentation';
+import { useClipboardCopy } from './useClipboardCopy';
+import { CopyableTextArea } from './CopyableTextArea';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import type { BisContext } from '../core/context';
 import { openRecoveryWindow } from './recovery-window';
@@ -28,27 +30,18 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
     if(detailOpen){setDetailOpen(false);setSelectedId(undefined);void context?.refreshActivity();}
     else context?.closeAccount();
   });
-  const currentText = useRef(text); currentText.current = text;
-  const [copy, setCopy] = useState<{ text: string; status: 'copying' | 'copied' | 'failed' }>();
-  async function copyAll() {
-    if (!text || (copy?.text === text && copy.status === 'copying')) return;
-    const copiedText = text;
-    setCopy({ text, status: 'copying' });
-    try { await navigator.clipboard.writeText(copiedText); if (currentText.current === copiedText) setCopy({ text: copiedText, status: 'copied' }); }
-    catch { if (currentText.current === copiedText) setCopy({ text: copiedText, status: 'failed' }); }
-  }
-  const status = copy?.text === text ? copy.status : undefined;
+  const copy = useClipboardCopy(() => text, text, loading);
+  const { status, copy: copyAll } = copy;
   return <div className="bis-activity">
     {opened ? <>
-      <CopyFieldLabel htmlFor={id} label="Transaction" copied={status === 'copied'} disabled={status === 'copying'} onCopy={()=>void copyAll()} />
-      <textarea id={id} readOnly rows={12} value={text} />
+      <CopyableTextArea id={id} label="Transaction" rows={12} value={text} copy={copy} />
       {status === 'failed' && <p role="status">Could not copy. Select the text and copy it manually.</p>}
       <div className="bis-actions bis-transaction-back">
         {opened.transfer?.status === 'pending' && <button type="button" className="bis-button" onClick={() => setRecoveryBlocked(!openRecoveryWindow(opened.transfer!))}>View Recovery Info</button>}
         <button type="button" className="bis-button" disabled={!explorerUrl} aria-describedby={!explorerUrl ? `${id}-explorer-unavailable` : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>
         <button className="bis-button" onClick={() => {
         const previous = opened.id;
-        setDetailOpen(false); setCopy(undefined); onDetailChange(false);
+        setDetailOpen(false); onDetailChange(false);
         requestAnimationFrame(() => buttons.current.get(previous)?.focus());
       }}>Back</button></div>
       {recoveryBlocked && <p role="status">Allow pop-up windows to view recovery info, then try again.</p>}

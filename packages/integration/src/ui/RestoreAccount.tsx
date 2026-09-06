@@ -1,3 +1,5 @@
+import { SeedWordsHeading, TestWalletWarning } from './RecoveryPhrasePanel';
+import { PasteButton } from './IconButton';
 import { useEffect, useId, useRef, useState } from 'react';
 import { getControls, type BisContext, type BisState } from '../core/context';
 import { phraseWords, RECOVERY_WORD_COUNT, validRecovery, wordValidity } from '../core/recovery-validation';
@@ -50,21 +52,10 @@ export function RestoreAccount({ context, phase }: { context: BisContext; phase:
     finally {if(alive.current&&revision.current===current)setPasting(false);}
   }
   return <>
-    <p className="bis-warning">Test wallet only. Never enter or reuse a recovery phrase from a wallet containing real funds.</p>
-    <div className="bis-copy-field-heading bis-recovery-heading">
-      <h3>Seed words</h3>
-      <button type="button" className="bis-copy-icon" aria-label="Paste from Clipboard" title={pasting?'Reading clipboard…':'Paste from Clipboard'} disabled={!editable||pasting} onClick={()=>void paste()}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="8" y="2" width="8" height="4" rx="1" /><path d="M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M12 10v8m-3-3 3 3 3-3" />
-        </svg>
-      </button>
-      <button type="button" className="bis-copy-icon bis-visibility-toggle" aria-label={show?'Hide seed words':'Show seed words'} title={show?'Hide seed words':'Show seed words'} aria-pressed={show} disabled={busy||pasting} onClick={()=>setShow(current=>!current)}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          {show ? <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></> : <><path d="M3 9s3 6 9 6 9-6 9-6M5 12l-2 3m5-1-1 4m5-3v4m4-5 1 4m2-6 2 3" /></>}
-        </svg>
-      </button>
-      <span className="bis-sr-only" role="status">{pasting?'Reading clipboard…':''}</span>
-    </div>
+    <TestWalletWarning />
+    <SeedWordsHeading shown={show} disabled={busy || pasting} onToggle={() => setShow(current => !current)} action={<PasteButton reading={pasting} disabled={!editable || pasting} onClick={() => void paste()} />}>
+      <span className="bis-sr-only" role="status">{pasting ? 'Reading clipboard…' : ''}</span>
+    </SeedWordsHeading>
     <div className="bis-restore-grid" role="group" aria-label="Private recovery phrase">
       {words.map((word,index) => {
         const validity=wordValidity(word);

@@ -3,6 +3,8 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { BisAsset } from '../core/assets';
 import type { BisAssets } from '../core/asset-presentation';
 import { assetExplorerUrl, assetName, formatAssetDetail, formatAssetQuantity, shortAssetId } from '../core/asset-presentation';
+import { useClipboardCopy } from './useClipboardCopy';
+import { CopyableValueField } from './CopyableValueField';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import type { BisBurnAssetRequest, BisBurnAssetResult } from '../core/burning';
@@ -32,35 +34,18 @@ function AssetIcon({url}: {url?:string}) {
 function AssetDetails({asset}: {asset: BisAsset}) {
   const id = useId();
   const report = formatAssetDetail(asset);
-  const active = useRef(true);
-  const copyGeneration = useRef(0);
-  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
-  const [copy, setCopy] = useState<Partial<Record<'id' | 'details', 'copying' | 'copied' | 'failed'>>>({});
-  useLayoutEffect(() => { copyGeneration.current++; setCopy({}); }, [asset]);
-  async function copyText(kind: 'id' | 'details') {
-    if (copy[kind] === 'copying') return;
-    const generation = copyGeneration.current;
-    setCopy(previous => ({...previous, [kind]:'copying'}));
-    try {
-      await navigator.clipboard.writeText(kind === 'id' ? asset.assetId : report);
-      if (active.current && generation === copyGeneration.current) setCopy(previous => ({...previous, [kind]:'copied'}));
-    } catch {
-      if (active.current && generation === copyGeneration.current) setCopy(previous => ({...previous, [kind]:'failed'}));
-    }
-  }
+  const idCopy = useClipboardCopy(() => asset.assetId, asset);
+  const detailsCopy = useClipboardCopy(() => report, asset);
   return <>
-    <CopyFieldLabel label="Details" copied={copy.details==='copied'} disabled={copy.details==='copying'} onCopy={()=>void copyText('details')} />
+    <CopyFieldLabel label="Details" copied={detailsCopy.status==='copied'} disabled={detailsCopy.status==='copying'} onCopy={()=>void detailsCopy.copy()} />
     <div className="bis-asset-summary">
       <AssetIcon url={asset.iconUrl} />
       <strong className="bis-asset-quantity">{formatAssetQuantity(asset)}</strong>
       <span>{assetName(asset)}</span>
     </div>
-    <div className="bis-asset-id">
-      <CopyFieldLabel htmlFor={id} label="Asset ID" copied={copy.id === 'copied'} disabled={copy.id === 'copying'} onCopy={() => void copyText('id')} />
-      <input id={id} readOnly value={asset.assetId} />
-    </div>
-    <span className="bis-sr-only" role="status">{copy.id === 'copied' ? 'Asset ID copied.' : copy.details === 'copied' ? 'Asset details copied.' : ''}</span>
-    {(copy.id === 'failed' || copy.details === 'failed') && <>
+    <CopyableValueField label="Asset ID" value={asset.assetId} copy={idCopy} className="bis-asset-id" feedback={false} selectOnFocus={false} />
+    <span className="bis-sr-only" role="status">{idCopy.status === 'copied' ? 'Asset ID copied.' : detailsCopy.status === 'copied' ? 'Asset details copied.' : ''}</span>
+    {(idCopy.status === 'failed' || detailsCopy.status === 'failed') && <>
       <p role="status">Could not copy. Select the text and copy it manually.</p>
       <label htmlFor={`${id}-manual`}>Asset details for manual copy</label>
       <textarea id={`${id}-manual`} className="bis-asset-manual" readOnly rows={8} value={report} />
@@ -69,19 +54,7 @@ function AssetDetails({asset}: {asset: BisAsset}) {
 }
 
 function AssetListHeading({ report }: { report: string }) {
-  const [status, setStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
-  const alive = useRef(true), copying = useRef(false);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  async function copy() {
-    if (!report || copying.current) return;
-    copying.current = true;
-    setStatus('copying');
-    try {
-      await navigator.clipboard.writeText(report);
-      if (alive.current) setStatus('copied');
-    } catch { if (alive.current) setStatus('failed'); }
-    finally { copying.current = false; }
-  }
+  const { status, copy } = useClipboardCopy(() => report, report);
   return <div className="bis-asset-list-heading">
     <CopyFieldLabel label="Assets" copied={status === 'copied'} disabled={!report || status === 'copying'} onCopy={() => void copy()} />
     <span className="bis-sr-only" role="status">{status === 'copied' ? 'Copied all assets.' : ''}</span>

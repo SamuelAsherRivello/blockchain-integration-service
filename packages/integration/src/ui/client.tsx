@@ -4,41 +4,23 @@ import { AccountBalances } from './AccountBalances';
 import { AccountSend } from './AccountSend';
 import { AccountTransfer } from './AccountTransfer';
 import { AccountActivity } from './AccountActivity.tsx';
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { createBisContext, getControls, type BisContext } from '../core/context';
 import './overlay.css';
 import { RestoreAccount } from './RestoreAccount';
 import { AccountAddresses } from './AccountAddresses';
-import { CopyFieldLabel } from './CopyFieldLabel';
-function CopyRecoveryButton({ context, disabled, label = 'Copy to Clipboard', inline = false }: { context: BisContext; disabled: boolean; label?: string; inline?: boolean }) {
-  const [status, setStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
-  const [hasCopied, setHasCopied] = useState(false);
-  async function copy() {
-    const phrase = getControls(context).recovery();
-    if (!phrase || disabled || status === 'copying') return;
-    setStatus('copying');
-    try {
-      await navigator.clipboard.writeText(phrase.trim().split(/\s+/).join(' '));
-      setHasCopied(true);
-      setStatus('copied');
-    } catch { setStatus('failed'); }
-  }
-  return <>
-    {inline ? <CopyFieldLabel label="Seed words" copied={hasCopied} disabled={disabled} onCopy={() => void copy()} /> : <button className="bis-button bis-copy-button" disabled={disabled} aria-disabled={disabled || status === 'copying'} onClick={() => void copy()}>
-      <span className={`bis-copy-indicator${hasCopied ? ' bis-copy-indicator-checked' : ''}`} aria-hidden="true">{hasCopied ? '✓' : ''}</span>
-      <span>{label}</span>
-    </button>}
-    <span className="bis-sr-only" role="status">{status === 'copied' ? 'Copied to clipboard.' : ''}</span>
-    {status === 'failed' && <span className="bis-copy-status" role="status">Could not copy. Try again or copy the words manually.</span>}
-  </>;
-}
+import { AccountCard } from './AccountCard';
+import { FitTextButton } from './FitTextButton';
+import { IconButton } from './IconButton';
+import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
 export function BisView({ context }: { context: BisContext }) {
   return <PendingOperations><BisScreen context={context} /></PendingOperations>;
 }
 function BisScreen({ context }: { context: BisContext }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
-  const [showRecovery, setShowRecovery] = useState(false);
+  const menuSession = useMemo(() => ({}), [context, state.profileId, state.view, state.phase]);
+  const [detailsMenuSession, setDetailsMenuSession] = useState<object>();
   const [transactionOpen, setTransactionOpen] = useState(false);
   const [assetOpen, setAssetOpen] = useState(false);
   const [assetBusy, setAssetBusy] = useState(false);
@@ -53,8 +35,6 @@ function BisScreen({ context }: { context: BisContext }) {
     };
   }, [context]);
   useEffect(() => () => getControls(context).hideRecovery(), [context]);
-  const titleId = useId();
-  const descriptionId = useId();
   const button = useRef<HTMLButtonElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -69,17 +49,16 @@ function BisScreen({ context }: { context: BisContext }) {
   const receive = state.phase === 'active' && state.accountReceive;
   const send = state.phase === 'active' && state.accountSend;
   const menu = state.phase === 'active' && !details && !transfer && !activity && !assets && !savedRecovery && !receive && !send;
+  const submenu = menu && detailsMenuSession === menuSession;
   const recovery = state.phase === 'recovery' || state.phase === 'saving';
-  useEffect(() => {
-    setShowRecovery(false);
-  }, [context, recovery, savedRecovery]);
+  const recoverySession = useMemo(() => ({}), [context, recovery, savedRecovery, state.profileId]);
   useEffect(() => {
     if (state.accountRecovery) void getControls(context).revealRecovery();
   }, [context, state.accountRecovery]);
   useEffect(() => {
     if (state.view === 'account') heading.current?.focus();
     if (state.view === 'account-button') button.current?.focus();
-  }, [state.view, state.phase, state.accountDetails, state.accountTransfer, state.accountActivity, state.accountAssets, assetOpen, state.accountRecovery, state.accountReceive, state.accountSend]);
+  }, [state.view, state.phase, state.accountDetails, state.accountTransfer, state.accountActivity, state.accountAssets, assetOpen, state.accountRecovery, state.accountReceive, state.accountSend, submenu]);
   const data = assets ? state.assets : activity ? state.activity : receive ? state.addresses : details || transfer ? state.balance : undefined;
   const phaseLabels: Record<string,string> = {loading:'Loading...',creating:'Creating...',saving:'Saving...',resetting:'Resetting...', 'logging-out':'Logging out...', restoring:'Restoring...', 'restore-saving':'Saving...'};
   const pageLoading = !!data && (data.status === 'idle' || data.status === 'loading');
@@ -87,18 +66,15 @@ function BisScreen({ context }: { context: BisContext }) {
   const failure = state.error || (!assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
   usePendingNotice(state.view !== 'empty' && (busy || pageLoading || recoveryLoading), phaseLabels[state.phase] ?? 'Loading...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
   if (state.view === 'empty') return null;
-  const title = assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Account Transfer' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Balance' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : 'Account';
+  const title = assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Account Transfer' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Balance' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : submenu ? 'Accounts Details' : 'Account';
   return <div className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
-      <section className={`bis-card${assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}`} role="dialog" aria-labelledby={titleId} aria-describedby={descriptionId}>
-        <div className="bis-network-label">Network: Signet</div>
-        <div className="bis-dialog-heading">
-          <h2 ref={heading} tabIndex={-1} id={titleId}>{activity && transactionOpen ? 'Transaction Detail' : title}</h2>
-          {(assets || details || transfer || activity || receive) && <button type="button" className="bis-copy-icon bis-title-icon" aria-label={`Refresh ${title}`} title={`Refresh ${title}`} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : state.balance.status === 'loading' || state.balance.status === 'idle'} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : context.refreshBalance())}>
+      <AccountCard className={assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}
+        title={activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
+        headingActions={(assets || details || transfer || activity || receive) && <IconButton className="bis-title-icon" label={`Refresh ${title}`} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : state.balance.status === 'loading' || state.balance.status === 'idle'} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : context.refreshBalance())}>
             <span className="bis-refresh-image" aria-hidden="true" />
-          </button>}
-        </div>
-        <p id={descriptionId} role="status">{(send ? 'Send Signet test funds to another Arkade address.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout clears transaction recovery data but does not cancel transactions.' : state.hasProfile ? (assets || details || transfer || activity ? <>Account ID: <code>{state.profileId ? state.profileId.slice(0, 4) + '…' + state.profileId.slice(-4) : ''}</code></> : <>You are logged in.<br />This account has access to Bitcoin Lightning.</>) : recovery ? 'Save these words privately.' : 'You are not logged in.')}</p>
+          </IconButton>}
+        description={(send ? 'Send Signet test funds to another Arkade address.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout clears transaction recovery data but does not cancel transactions.' : state.hasProfile ? (assets || details || transfer || activity || submenu ? <>Account ID: <code>{state.profileId ? state.profileId.slice(0, 4) + '…' + state.profileId.slice(-4) : ''}</code></> : <>You are logged in.<br />This account has access to Bitcoin Lightning.</>) : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
         {assets && <AccountAssets key={state.profileId} assets={state.assets} onBurn={context.burnAsset} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={() => context.closeAccount()} />}
         {activity && <AccountActivity key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
         {details && <AccountBalances balance={state.balance} />}
@@ -111,29 +87,22 @@ function BisScreen({ context }: { context: BisContext }) {
             <label className="bis-backup-check"><input type="checkbox" checked={state.logoutPendingAcknowledged} disabled={busy} onChange={event => context.setLogoutPendingAcknowledged(event.target.checked)} /><span>I accept losing my ({state.logoutPendingCount}) pending transactions.</span></label>
           </>}
         </>}
-        {(savedRecovery || recovery || state.phase === 'creating') && <p className="bis-warning">Test wallet only. Never enter or reuse a recovery phrase from a wallet containing real funds.</p>}
-        {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <div className={`${savedRecovery ? 'bis-saved-recovery-heading ' : ''}bis-recovery-heading`}>
-          <CopyRecoveryButton context={context} disabled={busy} inline />
-          <button type="button" className="bis-copy-icon bis-visibility-toggle" aria-label={showRecovery?'Hide seed words':'Show seed words'} title={showRecovery?'Hide seed words':'Show seed words'} aria-pressed={showRecovery} onClick={()=>setShowRecovery(current=>!current)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {showRecovery ? <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></> : <><path d="M3 9s3 6 9 6 9-6 9-6M5 12l-2 3m5-1-1 4m5-3v4m4-5 1 4m2-6 2 3" /></>}
-            </svg>
-          </button>
-        </div>}
-        {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <ol className="bis-recovery" aria-label="Private recovery phrase">{getControls(context).recovery()?.trim().split(/\s+/).map((word,index)=><li key={index}><span aria-hidden="true">{index+1}.</span> <span className="bis-recovery-word">{!showRecovery ? '*'.repeat(word.length) : word}</span></li>)}</ol>}
+        {(savedRecovery || recovery || state.phase === 'creating') && <TestWalletWarning />}
+        {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <RecoveryPhrasePanel key={savedRecovery ? 'saved' : 'setup'} phrase={getControls(context).recovery()} session={recoverySession} disabled={busy} />}
         {assets || transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : <div className="bis-actions">
-          {menu && <button className="bis-button" onClick={()=>context.openAccountDetails()}>Balance</button>}
-          {menu && <button className="bis-button" onClick={()=>context.openAccountActivity()}>Transactions</button>}
-          {menu && <button className="bis-button" onClick={()=>context.openAccountAssets()}>Assets</button>}
+          {menu && !submenu && <button className="bis-button" onClick={() => setDetailsMenuSession(menuSession)}>Accounts Details</button>}
+          {submenu && <button className="bis-button" onClick={()=>context.openAccountDetails()}>Balance</button>}
+          {submenu && <button className="bis-button" onClick={()=>context.openAccountActivity()}>Transactions</button>}
+          {submenu && <button className="bis-button" onClick={()=>context.openAccountAssets()}>Assets</button>}
           {details && <button className="bis-button" onClick={()=>context.openAccountRecovery()}>Get Recovery Phrase</button>}
-          {menu && <div className="bis-transfer-actions"><button className="bis-button" onClick={()=>context.openAccountSend()}>⚡ Send</button><button className="bis-button" onClick={()=>context.openAccountReceive()}>⚡ Receive</button><button className="bis-button" onClick={()=>context.openAccountTransfer()}>⚡ Swap</button></div>}
-{savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || state.logoutPendingCount === null || (state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
+          {menu && !submenu && <div className="bis-transfer-actions"><FitTextButton onClick={()=>context.openAccountSend()}>⚡ Send</FitTextButton><FitTextButton onClick={()=>context.openAccountReceive()}>⚡ Receive</FitTextButton><FitTextButton onClick={()=>context.openAccountTransfer()}>⚡ Swap</FitTextButton></div>}
+{savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : submenu || details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || state.logoutPendingCount === null || (state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
             <button className="bis-button bis-primary" onClick={()=>void context.createAccount()}>⚡ Create Account</button>
             <button className="bis-button" onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button>
           </>}
-          {!(activity && transactionOpen) && <button ref={close} className="bis-button" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={() => context.closeAccount()}>Back</button>}
+          {!(activity && transactionOpen) && <button ref={close} className="bis-button" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={() => submenu ? setDetailsMenuSession(undefined) : context.closeAccount()}>Back</button>}
         </div>}
-      </section>}
+      </AccountCard>}
   </div>;
 }
 

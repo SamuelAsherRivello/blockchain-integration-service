@@ -48,12 +48,12 @@ document.getElementById('run')!.onclick=async()=>{
     denied=true;action('Paste from Clipboard').click();await tick();check(host.textContent?.includes('Could not read'),'Clipboard denial');denied=false;
     let release!:()=>void;delay=new Promise<void>(r=>release=r);clipboard=generateMnemonic(wordlist);action('Paste from Clipboard').click();await tick();input(0,'manualedit');await tick();release();await tick();check(fields()[0].value==='manualedit','Late paste cannot overwrite edit');delay=undefined;
     action('Paste from Clipboard').click();await tick();action('⚡ Restore').click();await waitFor(()=>c.getState().phase==='restore-error');await tick();
-    check(show().getAttribute('aria-pressed')==='false'&&saves===0&&fields().length===12,'Failure retains hidden entry');fail=false;action('Retry').click();await waitFor(()=>c.getState().phase==='active');await tick();
-    check(connects===2&&saves===1&&host.textContent?.includes('Account Details')&&!host.querySelector('.bis-restore-grid'),'Immediate Account destination');
+    check(show().getAttribute('aria-pressed')==='false'&&saves===0&&fields().length===12,'Failure retains hidden entry');action('OK').click();await tick();check(!host.querySelector('.bis-restore-grid'),'OK closes failed restore');fail=false;c.openRestoreAccount();await tick();action('Paste from Clipboard').click();await tick();action('⚡ Restore').click();await waitFor(()=>c.getState().phase==='active');await tick();
+    check(connects===2&&saves===1&&host.textContent?.includes('Accounts Details')&&!host.querySelector('.bis-restore-grid'),'Immediate Account destination');
     // New isolated client verifies Back clears entry and never affects real storage.
     const empty=createContext({load:async()=>({account:null,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}});
     await mount(empty);empty.openRestoreAccount();await tick();input(0,'discard');await tick();action('Back').click();await empty.ready();empty.openRestoreAccount();await tick();check(fields().every(f=>f.value===''),'Back clears entry');
-    result.textContent='PASS: grid, masking, validation, checksum, atomic paste, denial, stale paste, network Retry, Account destination, Back clearing.';
+    result.textContent='PASS: grid, masking, validation, checksum, atomic paste, denial, stale paste, network failure/OK and fresh restore, Account destination, Back clearing.';
   }catch{result.textContent='FAIL: isolated restoration checks';}
   finally{clipboard='';if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');}
 };

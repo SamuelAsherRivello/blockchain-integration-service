@@ -1,3 +1,7 @@
+import { ReviewDetails, formatSats as sats } from './ReviewDetails';
+import { useQuoteExpiry } from './useQuoteExpiry';
+import { FieldHeading } from './FieldHeading';
+import { PasteButton } from './IconButton';
 import { readWithRetry } from '../core/pending-read';
 import { usePendingNotice } from './PendingOperationDialog';
 import {useEffect,useId,useRef,useState} from 'react';
@@ -10,13 +14,13 @@ import {AmountChooserRow} from './AmountChooserRow';
 
 export function AccountSend({context}:{context:BisContext}) {
  const [recipient,setRecipient]=useState(''),[amount,setAmount]=useState(''),[funds,setFunds]=useState<number>();
- const [quote,setQuote]=useState<BisSendQuote>(),[status,setStatus]=useState<BisSendStatus>({status:'idle'}),[busy,setBusy]=useState(true),[error,setError]=useState(''),[expired,setExpired]=useState(false);
+ const [quote,setQuote]=useState<BisSendQuote>(),[status,setStatus]=useState<BisSendStatus>({status:'idle'}),[busy,setBusy]=useState(true),[error,setError]=useState('');
  const [clipboardError,setClipboardError]=useState('');
  const [operationLabel,setOperationLabel]=useState('Loading...');
  const readController=useRef(new AbortController());
  const alive=useRef(true),revision=useRef(0),working=useRef(false),heading=useRef<HTMLHeadingElement>(null),recipientInput=useRef<HTMLInputElement>(null);
  const recipientId=useId();
- const sats=(n:number)=>`${n.toLocaleString('en-US')} sats`;
+ const expired = useQuoteExpiry(quote?.expiresAt);
  const fail=(e:unknown)=>e instanceof SendError||e instanceof BoardingBlockedError?e.message:'Send information could not be verified. Check Status and try again.';
  async function check(fresh=false) {
   if(working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel('Checking...');setError('');setFunds(undefined);
@@ -30,7 +34,6 @@ export function AccountSend({context}:{context:BisContext}) {
  }
  useEffect(()=>{alive.current=true;readController.current=new AbortController();void check();return()=>{alive.current=false;revision.current++;working.current=false;readController.current.abort();};},[context]);
  useEffect(()=>{if(quote)heading.current?.focus();},[quote]);
- useEffect(()=>{setExpired(false);if(!quote)return;const timer=setTimeout(()=>setExpired(true),Math.max(0,quote.expiresAt-Date.now()));return()=>clearTimeout(timer);},[quote]);
  function edit(value:string,field:'recipient'|'amount'){revision.current++;setQuote(undefined);setError('');if(field==='recipient')setRecipient(value);else setAmount(value);}
  async function paste(){setClipboardError('');const current=revision.current;try {const text=await navigator.clipboard.readText();if(alive.current&&current===revision.current&&!working.current)edit(text.trim(),'recipient');}catch {if(alive.current&&current===revision.current)setClipboardError('Clipboard unavailable. Enter the address manually.');}}
  async function review(max=false){
@@ -56,15 +59,17 @@ export function AccountSend({context}:{context:BisContext}) {
    <p className="bis-send-address">Transaction: {status.transactionId}</p>
    {pending&&<p>Do not send again. Check Status verifies this transaction. Spending, Log Out and Reset stay blocked while the outcome is unknown.</p>}
    {status.verification==='unavailable'&&<p>Verification is unavailable; the recorded transaction is preserved.</p>}
-  </div>:quote?<div className="bis-transfer-review">
+  </div>:quote?<div className="bis-review">
    <h3 tabIndex={-1} ref={heading} data-bis-autofocus>Review Send</h3>
    <p>You are sending {sats(quote.amountSats)} with a fee of {sats(quote.feeSats)}.</p>
-   <dl><div><dt>Amount</dt><dd>{sats(quote.amountSats)}</dd></div><div><dt>From</dt><dd>Arkade balance</dd></div><div><dt>Payment type</dt><dd>Arkade</dd></div><div><dt>Network</dt><dd>Signet</dd></div><div><dt>Fee</dt><dd>{sats(quote.feeSats)}</dd></div><div><dt>Total deducted</dt><dd>{sats(quote.totalSats)}</dd></div></dl>
+   <ReviewDetails rows={[
+    ['Amount', sats(quote.amountSats)], ['From', 'Arkade balance'], ['Payment type', 'Arkade'], ['Network', 'Signet'], ['Fee', sats(quote.feeSats)], ['Total deducted', sats(quote.totalSats)],
+   ]} />
    <p>Send to</p><p className="bis-send-address">{quote.recipient}</p>
    {expired&&<p role="status">Quote expired. Go Back for a fresh review.</p>}
   </div>:<div className="bis-send-form">
    <p>From: Arkade balance · Spendable: {funds===undefined?'Unavailable':sats(funds)}</p>
-   <div className="bis-copy-field-heading"><label htmlFor={recipientId}>Recipient address</label><button type="button" className="bis-copy-icon" aria-label="Paste from Clipboard" title="Paste from Clipboard" disabled={busy} onClick={()=>void paste()}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M12 10v8m-3-3 3 3 3-3"/></svg></button></div>
+   <FieldHeading htmlFor={recipientId} label="Recipient address"><PasteButton disabled={busy} onClick={() => void paste()} /></FieldHeading>
    <input id={recipientId} ref={recipientInput} aria-label="Recipient address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>
    <AmountChooserRow value={amount} onChange={value=>edit(value,'amount')} onMax={()=>void review(true)} disabled={busy} maxDisabled={!validAddress||!funds}/>
    {recipient&&!validAddress&&<p role="status">Enter an Arkade test address.</p>}

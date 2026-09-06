@@ -19,8 +19,8 @@ document.getElementById('run')!.onclick=async()=>{
  const button=(name:string)=>[...host.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')??b.textContent)===name)!;
  try {
   root.render(<AccountTransfer context={context} balance={{status:'unavailable'}} onBack={()=>{}}/>);await tick();
-  check(host.textContent?.includes('A pending transfer is blocking new transfers. Open Account Activity to review it.'),'Transfer has one-line pending notice');
-  check(!host.querySelector('details')&&!host.textContent?.includes('Operator intent:')&&!button('Check Status'),'No transfer-page recovery details or actions');
+  check(host.textContent?.includes('A pending transfer is blocking new transfers. Open Transactions to review it.'),'Transfer has one-line pending notice');
+  check(!host.querySelector('details')&&!host.textContent?.includes('Operator intent:'),'No transfer-page recovery details');
   const initialChecks=checks;
   const rows=withTransferActivity([{id:'ordinary',amountSats:100,direction:'Incoming',status:'Confirmed',identifier:'other'}],record,'fixture');
   root.render(<div className="bis-card"><AccountActivity activity={{status:'unavailable',transactions:rows}} context={context} onDetailChange={()=>{}}/></div>);await tick();

@@ -25,6 +25,7 @@ document.getElementById('run')!.onclick=async()=>{
   cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
   try{
     await c.ready();c.openAccountDialog();await tick();
+    [...host.querySelectorAll('button')].find(b=>b.textContent==='Accounts Details')!.click();await tick();
     const buttons=[...host.querySelectorAll('button')];const details=buttons.findIndex(b=>b.textContent==='Balance');
     check(buttons[details+1]?.textContent?.includes('Transactions'),'menu order');buttons[details+1].click();
     await wait(()=>host.querySelectorAll('.bis-transaction-row').length===24);
