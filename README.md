@@ -8,7 +8,7 @@
 
 [Open the live demo](https://samuelasherrivello.github.io/blockchain-integration-service/)
 
-Current release: **v0.10.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
+Current release: **v0.11.0**. Open the link without query parameters: the split-screen admin and 9:16 runtime preview appear. GitHub Actions runs plain `npm run build` and publishes `packages/integration-demo/dist`.
 
 In the current local implementation, Account / Account Button demonstrates entry and Account / Create Account opens the real Signet creation flow. Continue remembers the new account across refreshes and browser restarts. The logged-in dialogue shows enabled Log Out and working Back. Reset Client is implemented as a first-run reset; its real stored-data check remains manual. A3 Restore Account supports a hidden twelve-word grid, Show checkbox, clipboard paste, word/checksum validation, and Signet-gated persistent restoration. The full account menu, payments, and achievements remain unavailable. A6 logout is implemented with manual storage verification pending. The deployed release may lag the local checkout.
 
