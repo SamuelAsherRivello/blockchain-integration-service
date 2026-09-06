@@ -128,3 +128,7 @@ node scripts/smoke-session-cleanup.mjs http://127.0.0.1:5174/
 ```
 
 Every script opens a fresh browser profile. The storage test uses an explicitly synthetic identity and real IndexedDB/BroadcastChannel; it does not call the wallet SDK or handle real recovery words. Game scripts exercise guest navigation only. Screenshots go to `/tmp/bis-game-account.png` and `/tmp/bis-game-account-narrow.png`; failures may produce `/tmp/bis-game-failure.png`.
+
+### Refreshing a package during an active Vite preview
+
+Vite can retain a previous dependency stylesheet in memory after a local archive install. After updating the game dependency, restart that game's Vite preview (or touch its existing `vite.config.js` to trigger Vite's config restart), then refresh the browser. Confirm the served stylesheet matches the installed package before judging sizing. Keep the same port 5175 / Windows 15175 and existing SSH tunnel.

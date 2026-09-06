@@ -142,3 +142,17 @@ The user approved the 80% preview and requested permanent CSS sizing, release an
 BIS complete build and eight focused Node 24 account/lifecycle test files pass. Ten affected browser fixtures pass, including confirmation, pending/error states, Send and Transfer. The Transactions test now asserts the new native 384px card height. Game build and 107 test files pass against `bis-integration-0.12.0-1bb8fa852c24.tgz`; full SHA-256 `1bb8fa852c24d1fd54872448c00097401fb4b93e7db94e56d7e9c50d8dc4854d`. Production game fit, backdrop and top-layer checks pass at four viewports; the fullscreen test now awaits fullscreenchange after exit before checking parent placement, avoiding a browser event timing race.
 
 This release does not complete the entire smoke test: long transaction/manual-copy reports still scroll, the full user-assisted create/reload/logout/restore loop is not recorded, and actual Android/keyboard acceptance remains open. Multi-game support stays an unstarted draft. Intents is outside this release.
+
+
+## Published v0.12.0 delivery
+
+- Release commit: `2fd181d81507a14202e0a311e18604903db18c4f`, pushed to BIS main using the approved Samuel Asher Rivello identity.
+- Published release: https://github.com/SamuelAsherRivello/blockchain-integration-service/releases/tag/v0.12.0 with the integration archive and SHA256SUMS attached.
+- GitHub Pages deployment for that commit: successful run https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/runs/34031559847.
+- Downloaded the published release archive, checked SHA256SUMS and confirmed byte-for-byte equality with the tested candidate before copying it into game vendor. Installed game dependency is 0.12.0. All 62 package files match the release source/build inventory.
+- Production browser checks fully pass, including native transform:none, four viewport sizes, silent first opening, input-blocking backdrop, topmost control ownership, fullscreen and no page errors. The fullscreen exit assertion waits for its asynchronous browser event.
+- The user-facing game preview remains http://127.0.0.1:15175/ (remote 5175); BIS remains http://127.0.0.1:15174/ (remote 5174). GitHub release publication does not publish or commit the sibling game repository; its tested dependency and host changes are present locally.
+
+Assessment: release delivery and approved compact sizing are complete. Do not archive the smoke test yet. Remaining acceptance is the complete game-origin create/persist/logout/restore loop, actual Android/keyboard behavior, and eliminating the remaining long-report scrolling. Intents and multi-game support are not smoke-test gates.
+
+Final development-preview check initially detected Vite serving the previous 320px stylesheet from memory despite the installed package containing the new 256px card. Touching the existing game vite.config.js triggered Vite's supported restart without changing configuration contents. The stylesheet then returned HTTP 200 with native v0.12.0 values; all four development viewport checks, silent initialization, native transform:none and fullscreen transitions passed. Current layout screenshot: `screenshots/game-native-size.png` (empty restore fields; no wallet secrets). This headless image verifies Account layout, not terrain rendering; the user has separately confirmed visible gameplay.

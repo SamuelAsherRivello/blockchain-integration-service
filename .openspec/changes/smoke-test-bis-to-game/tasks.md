@@ -50,4 +50,4 @@
 
 ## 7. Release delivery
 
-- [ ] 7.1 Commit, push and release BIS v0.12.0; download and verify the release archive in the game and record publication evidence.
+- [x] 7.1 Commit, push and release BIS v0.12.0; download and verify the release archive in the game and record publication evidence.
