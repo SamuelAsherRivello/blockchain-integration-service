@@ -10,6 +10,7 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 const wait=async(predicate:()=>boolean)=>{const end=Date.now()+35000;while(!predicate()){if(Date.now()>end)throw Error('UI update timed out');await tick();}};
 const check=(condition:unknown,label:string)=>{if(!condition)throw Error(label);};
 const button=(name:string)=>{const b=[...host.querySelectorAll('button')].find(b=>b.textContent===name||b.getAttribute('aria-label')===name);if(!b)throw Error(`Missing button: ${name}`);return b;};
+
 const iconUrl='https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-1-trophy.png';
 const rows:BisAsset[]=Array.from({length:24},(_,i)=>({assetId:`${String(i).padStart(2,'0')}${'a'.repeat(62)}${String(i).padStart(4,'0')}`,quantity:i===0?'9007199254740993':'1',name:i===23?'Very long asset metadata '.repeat(15):i===22?undefined:'Achievement: Level 1',ticker:i===22?undefined:'LVL1',decimals:i===22?undefined:0,iconUrl:i===22?'javascript:alert(1)':iconUrl}));
 let data=rows,mode='ready',reads=0,copied='',copyMode='success';

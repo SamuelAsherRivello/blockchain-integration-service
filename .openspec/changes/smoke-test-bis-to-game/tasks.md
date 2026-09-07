@@ -16,7 +16,7 @@
 
 - [x] 3.1 Extend game pause ownership compatibly and migrate Settings/BIS to independent reasons or tokens; verify existing pause tests plus overlapping Settings/Account/start/loss ownership, no intermediate resume, held-input clearing and final-resume frame timing.
 - [x] 3.2 Add the game-owned ⚡ Account action to `src/ui/settings-ui.js` through an injected callback; suspend inactive Settings interaction while the production Account root is active and restore Settings/focus only on root dismissal. Verify nested BIS Back does not dismiss the root, and existing music/SFX/fullscreen/developer settings behavior remains intact.
-- [ ] 3.3 Add a positioned BIS host and scoped game-side layout/layer handling without restyling private BIS components. Verify pointer/keyboard isolation, focus containment/return, available close controls, short/narrow portrait fit without whole-dialog scrolling and fullscreen placement; ensure the paused canvas remains visible.
+- [x] 3.3 Add a positioned BIS host and scoped game-side layout/layer handling without restyling private BIS components. Verify pointer/keyboard isolation, focus containment/return, available close controls, short/narrow portrait fit without whole-dialog scrolling and fullscreen placement; ensure the paused canvas remains visible.
 - [x] 3.4 Reconcile the game's Settings and gameplay-pause specification descriptions with the implemented Account route, preserving its C### conventions if a game-local change record is required. Link back to this BIS coordination change and verify no death/revival or payment gameplay requirements are introduced.
 
 ## 4. Deliver the repeatable smoke runbook

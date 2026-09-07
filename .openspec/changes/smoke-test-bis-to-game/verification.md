@@ -211,3 +211,21 @@ No runtime transfer/financial behavior changed. Fullscreen tests retain async ev
 
 Tasks 5.2 and 6.2 are now complete. Keep 3.3, 5.3, 5.4, 5.5, 6.1 and 6.5 open;
 22/28 tasks complete. Do not archive or claim complete A1–A6 live acceptance.
+
+
+## v0.13.0 release reconciliation — 2026-09-07
+
+The user requested all BIS changes be committed/pushed/released, followed by a game
+release consuming that package. The in-progress merge with remote main is resolved:
+retain the compact header fix, the measured-size pagination guard, the shared exhaustive
+report reader, and incoming Unicode report/game-loop fixtures. Both histories remain.
+The previous source-versus-game-snapshot discrepancy is now resolved in BIS source;
+0.13.0 will replace the undocumented 0.12.0 snapshot in the game.
+
+Header regression: at 276x300 CSS pixels, scrolling the Account card by 6px placed the
+network label at y=11 above the card top y=16. The same browser test now passes at
+6/24/44px scroll offsets: the network strip remains anchored with rounded top corners.
+The report guard avoids resetting a Next click on ResizeObserver's unchanged-size
+initial notification. All twelve isolated UI fixtures pass, including complete transaction
+and asset fallback report reconstruction, Unicode reports and complete Copy across pages.
+This does not claim the user-managed live lifecycle or actual Android keyboard acceptance.

@@ -24,6 +24,7 @@ document.getElementById('run')!.onclick=async()=>{
   });
   const ui=createBisUi(c);ui.mount(host);
   cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
+
   try{
     await c.ready();c.openAccountDialog();await tick();
     [...host.querySelectorAll('button')].find(b=>b.textContent==='Accounts Details')!.click();await tick();

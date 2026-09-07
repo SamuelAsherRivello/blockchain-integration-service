@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const browser = await chromium.launch({ headless: true, executablePath: process.env.SMOKE_CHROMIUM_EXECUTABLE });
 const base = process.argv[2] ?? 'http://127.0.0.1:5174/';
-const fixtures = ['recovery', 'restore', 'balance', 'activity', 'account-assets', 'addresses', 'receive', 'send', 'transfer', 'logout', 'pending-operation'];
+const fixtures = ['recovery', 'restore', 'balance', 'activity', 'account-assets', 'addresses', 'receive', 'send', 'transfer', 'logout', 'pending-operation', 'report-pages'];
 let failed = false;
 try {
   for (const fixture of fixtures) {

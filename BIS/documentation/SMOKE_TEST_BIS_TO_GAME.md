@@ -169,3 +169,12 @@ The fixture runner serves its metadata icon from the checked-in public asset and
 external requests. It exercises recovery, restoration, balance, transactions, assets,
 addresses, receive, send, transfer, logout and pending-operation UI using test doubles.
 Passing these checks does not substitute for the private live lifecycle or Android test.
+
+
+### v0.13.0 release update
+
+The source discrepancy recorded above is historical: v0.13.0 reconciles the report
+pagination and visible-viewport source, fixes the clipped network header, and guards
+pagination against unchanged ResizeObserver notifications. The game release uses the
+published 0.13.0 archive, checked by its vendor inventory. Header regression command:
+`node BIS/scripts/smoke-account-header.mjs` (synthetic profile only).
