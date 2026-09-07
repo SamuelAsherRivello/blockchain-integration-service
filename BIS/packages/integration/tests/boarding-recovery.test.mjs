@@ -42,7 +42,7 @@ test('storage cleanup rechecks pending consent and account identity inside its l
  assert.equal(readBoardingRecord('profile').status,'pending');
 });
 
-test('acknowledged logout clears all account rows and journals; administrative reset still blocks', async () => {
+test('acknowledged logout clears identity and journals, retaining only restart metadata; administrative reset still blocks', async () => {
  const pending={...record(),phase:'registered',intentId:'operator-intent'};
  writeBoardingRecord(pending);
  const before=[...values.entries()];
@@ -67,7 +67,13 @@ test('acknowledged logout clears all account rows and journals; administrative r
   await assert.rejects(storage.reset(0),/unresolved/);
   await storage.reset(0,{purpose:'logout',profileId:'profile',operations:pendingLogoutOperations()});
   assert.equal(stored.has('identity'),false);
-  assert.equal(stored.size,0);
+  assert.deepEqual([...stored.keys()].sort(),['generation','logout']);
+  assert.equal(stored.get('generation'),1);
+  const receipt=stored.get('logout');
+  assert.deepEqual(Object.keys(receipt).sort(),['generation','id','profileId']);
+  assert.equal(receipt.generation,1);
+  assert.equal(receipt.profileId,'profile');
+  assert.match(receipt.id,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   assert.equal(values.size,0);
   assert.equal(readBoardingRecord('profile'),undefined);
  } finally {

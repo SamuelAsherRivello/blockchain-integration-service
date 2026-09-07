@@ -1,3 +1,4 @@
+import { StoryAction } from './StoryAction';
 const userStoriesUrl = './documentation/user-stories/';
 const categories = [{ name: 'Account', title: 'A. Account' }, { name: 'Pay-to-play', title: 'B. Pay-to-play' }, { name: 'Assets', title: 'C. Assets' }];
 
@@ -18,15 +19,13 @@ export function AdminPanel({ selected, accountOpen, canReset, onSelect, onReset,
     <nav aria-label="User stories">
       {categories.map(category => <section key={category.name}>
         <h3 className="category-title">{category.title}</h3>
-        {category.name === 'Pay-to-play' && <button className="story-button" disabled={accountOpen || continueBusy} onClick={onContinue}><span>B1</span>Request Continue - 1,000 sats (requires zero fee)</button>}
+        {category.name === 'Pay-to-play' && <StoryAction id="B1" label="Request Continue - 1,000 sats (requires zero fee)" disabled={accountOpen || continueBusy} onClick={onContinue} />}
         {category.name === 'Assets' && <>
-          <button className="story-button" disabled={accountOpen || assetBusy} onClick={onMint}><span>C1</span>Mint Asset</button>
-          <button className="story-button" disabled={accountOpen || assetBusy} onClick={onListAssets}><span>C4</span>List Assets</button>
+          <StoryAction id="C1" label="Mint Asset" disabled={accountOpen || assetBusy} onClick={onMint} />
+          <StoryAction id="C4" label="List Assets" disabled={accountOpen || assetBusy} onClick={onListAssets} />
         </>}
         {stories.filter(story => story.category === category.name).map(story =>
-          <button key={story.id} className="story-button" aria-pressed={selected === story.id} disabled={accountOpen} onClick={()=>onSelect(story.id)}>
-            <span>{story.id}</span>{story.label}<span className="story-arrow" aria-hidden="true">↗</span>
-          </button>)}
+          <StoryAction key={story.id} id={story.id} label={story.label} selected={selected === story.id} disabled={accountOpen} onClick={() => onSelect(story.id)} arrow />)}
       </section>)}
     </nav>
     <section aria-labelledby="tools-title">

@@ -6,7 +6,7 @@ import '@bis/integration/style.css';
 const context = createContext({
   load: async () => ({ account: null, generation: 0 }),
   save: async () => {}, reset: async () => {}, subscribe: () => () => {},
-}, async () => ({ phrase: 'not-a-wallet', profileId: 'copy-test' }));
+}, async () => ({ phrase: '  '+Array.from({length:12},(_,i)=>`placeholder-${i}`).join('  \n')+'  ', profileId: 'copy-test' }));
 const host = document.getElementById('host')!;
 const ui = createBisUi(context);
 ui.mount(host);
@@ -21,9 +21,19 @@ document.getElementById('run')!.onclick = async () => {
   let releaseCopy: (() => void) | undefined;
   let delayCopy = false;
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
-    writeText: async () => { calls++; if (delayCopy) await new Promise<void>(resolve => { releaseCopy = resolve; }); if (fail) throw Error('denied'); },
+    writeText: async (value:string) => { assert(value===Array.from({length:12},(_,i)=>`placeholder-${i}`).join(' '),'exact normalized copy'); calls++; if (delayCopy) await new Promise<void>(resolve => { releaseCopy = resolve; }); if (fail) throw Error('denied'); },
   } });
   try {
+    assert(host.querySelector('h2')?.textContent==='Set Recovery Phrase','Set title');
+    assert([...host.querySelectorAll('.bis-recovery-word')].every(word=>word.textContent?.startsWith('*')),'Setup initially masked');
+    const eye=host.querySelector<HTMLButtonElement>('.bis-visibility-toggle')!;
+    eye.click();await tick();assert(eye.getAttribute('aria-pressed')==='true','Setup reveals');
+    eye.click();await tick();assert(eye.getAttribute('aria-pressed')==='false','Setup hides');
+    for(const width of [280,360]) {
+      host.style.width=`${width}px`;await tick();
+      const heading=host.querySelector('.bis-recovery-heading h3')!.getBoundingClientRect();
+      for(const icon of host.querySelectorAll('.bis-recovery-heading button')) {const bounds=icon.getBoundingClientRect();assert(Math.abs(bounds.top+bounds.height/2-heading.top-heading.height/2)<2,'Setup controls share a line');}
+    }
     const button = host.querySelector<HTMLButtonElement>('.bis-copy-field-heading .bis-copy-icon')!;
     assert(host.querySelector('.bis-copy-field-heading h3')?.textContent === 'Seed words', 'seed words heading exists');
     assert(host.querySelector('.bis-recovery')?.previousElementSibling?.querySelector('h3')?.textContent === 'Seed words', 'heading directly precedes words');
@@ -50,6 +60,10 @@ document.getElementById('run')!.onclick = async () => {
     assert(host.querySelector('.bis-copy-status')?.textContent?.includes('Could not copy'), 'failure remains actionable');
     fail = false; button.click(); await tick();
     assert(button.title === 'Copied' && !host.querySelector('.bis-copy-status'), 'retry succeeds');
+    eye.click();await tick();context.closeAccount();await tick();context.openAccountDialog();await context.createAccount();await tick();
+    assert(host.querySelector('.bis-visibility-toggle')?.getAttribute('aria-pressed')==='false','New setup resets mask');
+    host.querySelector<HTMLButtonElement>('.bis-visibility-toggle')!.click();await tick();ui.unmount();ui.mount(host);await tick();
+    assert(host.querySelector('.bis-visibility-toggle')?.getAttribute('aria-pressed')==='false','Setup remount resets mask');
     result.textContent = 'PASS: Seed words header, inline copy icon, no separate button, repeat copy, duplicate guard, failure and retry.';
   } catch (error) { result.textContent = `FAIL: ${error instanceof Error ? error.message : 'copy checks'}`; }
 };

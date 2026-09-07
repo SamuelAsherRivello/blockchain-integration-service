@@ -10,7 +10,7 @@ export function ConfirmationDialog({onConfirm,onCancel}: {onConfirm:()=>void;onC
       if(!layer)return;
       const rect=layer.getBoundingClientRect();
       dialog.style.left=`${rect.left+rect.width/2}px`;dialog.style.top=`${rect.top+rect.height/2}px`;
-      dialog.style.width=`${Math.max(0,Math.min(280,rect.width-32))}px`;
+      dialog.style.width=`${Math.max(0,Math.min(224,rect.width-25.6))}px`;
     };
     position();dialog.showModal();cancel.current?.focus();
     const observer=new ResizeObserver(position);if(layer)observer.observe(layer);

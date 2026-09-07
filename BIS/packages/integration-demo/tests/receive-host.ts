@@ -35,8 +35,8 @@ document.getElementById('run')!.onclick = async () => {
     fail = true; const refreshing = context.refreshBalance();
     check(context.getState().addresses.status === 'loading', 'Loading state');
     await refreshing; await tick();
-    check(value('Arkade address') === 'Addresses unavailable' && button('Copy Arkade address').disabled && button('Copy Bitcoin address').disabled, 'No stale copy on failure');
-    fail = false; await context.refreshBalance(); await tick(); check(value('Bitcoin address') === addresses.bitcoinAddress, 'Refresh recovery');
+    check(value('Arkade address') === '' && button('Copy Arkade address').disabled && button('Copy Bitcoin address').disabled, 'No stale copy on failure');
+    fail = false; host.querySelector<HTMLButtonElement>('.bis-pending-dialog button')!.click(); await tick(); context.openAccountReceive(); await wait(() => context.getState().addresses.status === 'ready'); await tick(); check(value('Bitcoin address') === addresses.bitcoinAddress, 'Refresh recovery');
     context.closeAccount(); await tick(); check(!host.querySelector('input[aria-label="Arkade address"]'), 'Back clears view');
     context.openAccountReceive(); await wait(() => context.getState().addresses.status === 'ready'); await tick();
     check(!host.querySelector('.bis-invoice') && !host.textContent?.includes('Invoice'), 'Deferred invoice UI is hidden');

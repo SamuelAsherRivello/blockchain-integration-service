@@ -8,7 +8,10 @@ import { transformWithOxc } from 'vite';
 test('Admin renders implemented asset stories and omits empty categories', async () => {
     const source = await readFile(new URL('../src/admin/AdminPanel.tsx', import.meta.url), 'utf8');
     const { code } = await transformWithOxc(source, 'AdminPanel.tsx', { jsx: { runtime: 'automatic' } });
-    const moduleText = code.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime'))).replace('"react/jsx-dev-runtime"', JSON.stringify(import.meta.resolve('react/jsx-dev-runtime')));
+    const storySource = await readFile(new URL('../src/admin/StoryAction.tsx', import.meta.url), 'utf8');
+    const story = await transformWithOxc(storySource, 'StoryAction.tsx', { jsx: { runtime: 'automatic' } });
+    const storyModule = story.code.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')));
+    const moduleText = code.replace('"./StoryAction"', JSON.stringify(`data:text/javascript,${encodeURIComponent(storyModule)}`)).replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime'))).replace('"react/jsx-dev-runtime"', JSON.stringify(import.meta.resolve('react/jsx-dev-runtime')));
     const { AdminPanel } = await import(`data:text/javascript,${encodeURIComponent(moduleText)}`);
     const unexpected = () => { throw Error('Rendering must not invoke an action'); };
     const html = renderToStaticMarkup(createElement(AdminPanel, {

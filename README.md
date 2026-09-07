@@ -18,6 +18,8 @@ Reusable Signet account, payment, and asset integration for browser games, with 
 <!-- AI: Replace both https://samuelasherrivello.github.io/blockchain-integration-service/ occurrences with the verified public demo URL. Check deployment configuration or a confirmed deployed site; do not assume a hosting URL. Keep the placeholder if no demo is available. -->
 * [https://samuelasherrivello.github.io/blockchain-integration-service/](https://samuelasherrivello.github.io/blockchain-integration-service/)
 
+Current release: **v0.12.0**.
+
 ## Table of Contents
 
 <!-- AI: Keep this list synchronized with the top-level sections below it and their Markdown anchors. Exclude the title, Images, Demo, and Table of Contents because they appear above or here. Do not add subsection entries unless requested. -->
@@ -60,6 +62,8 @@ BIS separates reusable game integration from its development demo. The integrati
 
 This is a Signet-only work in progress with no custom application server. Payment and transfer flows have documented verification limits; Lightning invoice receiving is currently unavailable. Games remain separate and can be playable without an account. See the user stories and package documentation for implementation status and remaining checks.
 
+v0.12.0 adds native compact account sizing and a host-owned restart event after confirmed logout cleanup. Lightning Intents and multi-game support are not implemented. Automated game host/UI checks are recorded in the [smoke-test evidence](.openspec/changes/smoke-test-bis-to-game/verification.md); the full user-assisted create/reload/logout/restore loop and Android acceptance remain open.
+
 ### 📝 Documentation
 
 <!-- AI: Link to the main documentation files that actually exist using relative Markdown links and a short purpose for each. Update links when files move; do not reference documentation inherited from another project unless present here. -->
@@ -68,6 +72,7 @@ This is a Signet-only work in progress with no custom application server. Paymen
 - [Design discussion](BIS/documentation/design-discussion.md): Confirmed decisions and implementation notes.
 - [User Story Diagrams](BIS/documentation/User%20Story%20Diagrams.md): Flows, scope, and verification status.
 - [Integration package](BIS/packages/integration/README.md): Public API and runtime behavior.
+- [Game smoke test](BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md): Integration setup and acceptance checks.
 - [Demo application](BIS/packages/integration-demo/README.md): Admin demonstrations and verification hosts.
 
 ### 📝 Structure
@@ -91,7 +96,7 @@ The root `package.json`, `package-lock.json`, and `tsconfig.json` configure npm 
 <!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. -->
 React and TypeScript power both packages, with Vite for development and production builds. `@bis/integration-demo` consumes `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. Arkade-specific types and recovery material stay out of public state and events.
 
-Run `npm run typecheck` for type checking or `npm test` for the existing integration and demo tests. Tests use isolated fixtures; passing them does not establish live payment acceptance. Package versions are currently `0.10.0`, and `package-lock.json` pins the dependency tree.
+Run `npm run typecheck` for type checking or `npm test` for the existing integration and demo tests. Tests use isolated fixtures; passing them does not establish live payment acceptance. Package versions are currently `0.12.0`, and `package-lock.json` pins the dependency tree.
 
 ### 📦 AI
 

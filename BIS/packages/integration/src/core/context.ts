@@ -46,7 +46,7 @@ export type BisState = Readonly<{
   assets: BisAssets;
   activity: BisActivity;
 }>;
-export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }>;
+export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }> | Readonly<{ type: 'restartRequested'; reason: 'logout'; logoutId: string }>;
 export interface BisContext {
   requestContinue(request:BisContinueRequest):Promise<BisContinueResult>;
   getContinueStatus(operationId?:string):Promise<readonly BisContinueResult[]>;
@@ -126,6 +126,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   let operation = new AbortController();
   let failure: 'load' | 'create' | 'save' | undefined;
   let confirmedProfile: string | undefined;
+  const publishedLogouts = new Set<string>();
   let logoutTarget: { profileId: string; generation: number } | undefined;
   let logoutOperations: LogoutOperations | undefined;
   let storageRevision = 0;
@@ -173,7 +174,10 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const emit = (event: BisEvent, current: number) => {
     for (const listener of [...events]) {
       if (disposed || current !== version) break;
-      if (events.has(listener)) listener(Object.freeze(event));
+      if (events.has(listener)) {
+        try { listener(Object.freeze(event)); }
+        catch { console.error('BIS host event handler failed. Account storage state is unchanged.'); }
+      }
     }
   };
   async function readStable(current: number): Promise<StoredAccount> {
@@ -188,10 +192,17 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   function acceptLoaded(loaded: StoredAccount, current: number, closeOnAbsence = false) {
     if (disposed || version !== current) return;
     const former = confirmedProfile;
+    const logout = !loaded.account && loaded.logout && loaded.logout.profileId === former && loaded.logout.generation === loaded.generation ? loaded.logout : undefined;
+    if (logout) invalidate();
+    current = version;
     confirmedProfile = loaded.account?.profileId;
     generation = loaded.generation; failure = undefined; logoutTarget = undefined;
-    update({...(closeOnAbsence && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
+    update({...((closeOnAbsence || logout) && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
     if (former && !loaded.account) emit({type:'accountDisconnected',profileId:former}, current);
+    if (logout && !publishedLogouts.has(logout.id)) {
+      publishedLogouts.add(logout.id);
+      emit({type:'restartRequested',reason:'logout',logoutId:logout.id},current);
+    }
   }
   function withActiveWalletMutation<T>(work: () => Promise<T>): Promise<T> {
     const current = version, profileId = state.profileId;

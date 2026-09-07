@@ -2,12 +2,18 @@
 
 Production UI and state, consumed only through public exports. `src/core` owns lifecycle and state; `src/ui` owns components and all light production styling; `src/arkade` owns real Signet SDK creation and identity reconstruction.
 
-Recovery Phrase is available at the bottom of Account Details, above Back and from the logout confirmation. `openAccountRecovery()` opens the numbered seed-word layout and immediately reads the saved phrase inside the production UI; the words are masked by default, with inline copy and visibility controls beside `Seed words`. Public state exposes only `accountRecovery` and `recoveryStatus`, never the words. Back returns to the entry screen, and leaving/unmounting clears the loaded phrase. Isolated verification: `node --test BIS/packages/integration/tests/recovery-access.test.mjs` and the demo's `/tests/recovery-host.html`.
+Get Recovery Phrase is available at the bottom of Balance, above Back. `openAccountRecovery()` opens the numbered seed-word layout and immediately reads the saved phrase inside the production UI; the words are masked by default, with inline copy and visibility controls beside `Seed words`. Account creation uses the same display under Set Recovery Phrase. Public state exposes only `accountRecovery` and `recoveryStatus`, never the words. Back returns to the entry screen, and leaving/unmounting clears the loaded phrase. Isolated verification: `node --test BIS/packages/integration/tests/recovery-access.test.mjs` and the demo's `/tests/recovery-host.html`.
 
 ```javascript
 import { createBisContext, createBisAdminContext, createBisUi } from '@bis/integration';
 import '@bis/integration/style.css';
 const context = createBisContext();
+const restarted = new Set();
+const unsubscribeEvents = context.onEvent(event => {
+  if (event.type !== 'restartRequested' || restarted.has(event.logoutId)) return;
+  restarted.add(event.logoutId);
+  window.location.reload(); // host-owned policy; BIS itself never reloads
+});
 const ui = createBisUi(context);
 ui.mount(container); // host-owned positioned element; initially empty
 ui.showAccountButton();
@@ -17,6 +23,7 @@ const unsubscribe = context.subscribe(() => console.log(context.getState().view)
 const adminContext = createBisAdminContext(context);
 await adminContext.resetClient(); // explicit first-run reset; removes BIS account storage
 // Host cleanup before replacement:
+unsubscribeEvents();
 unsubscribe();
 ui.unmount();
 context.dispose();
@@ -24,26 +31,26 @@ context.dispose();
 
 The demo rebuilds all handles after reset, clears selection, and leaves runtime content empty. `getState()` returns an immutable snapshot; `subscribe()` returns cleanup. `closeAccount()` restores the prior presentation. Mounting twice in the same container is idempotent; unmount before changing containers. Calling actions on a disposed context throws. `GameOverlay` remains a compatibility wrapper around the same UI.
 
-The Account chooser enables Create Account and Restore Account. A3 uses twelve numbered word inputs, initially masked with one asterisk per character, with one Show checkbox and explicit Paste from Clipboard. Word-list and checksum validation gate Restore; successful Signet connection and durable saving return directly to Account. `openRestoreAccount()` opens entry when logged out; recovery submission stays inside the private production UI/Core boundary. Creation uses the real Signet SDK with memory repositories; Continue commits encrypted identity to origin-scoped IndexedDB. Refresh before Continue forgets unfinished creation. The active Account menu shows Account Details, Transactions, side-by-side Send and Receive, Log Out, and Back. Account Details shows identity/network and available/total balances with Refresh and Back to Account; A6 is implemented with manual storage verification pending. `ready()` awaits hydration, `createAccount()` and `continueAccount()` drive creation, and `onEvent()` exposes safe `accountConnected` and `accountDisconnected` payloads. Public state never contains the phrase or SDK types. Ordinary disposal preserves saved identity. Browser storage is test-only, automatically accessible to this origin, and does not protect against compromised same-origin code. Live deletion-based reset verification remains manual under the repository rules.
+The Account chooser enables Create Account and Restore Account. A3 uses twelve numbered word inputs, initially masked with one asterisk per character, with one Show checkbox and explicit Paste from Clipboard. Word-list and checksum validation gate Restore; successful Signet connection and durable saving return directly to Account. `openRestoreAccount()` opens entry when logged out; recovery submission stays inside the private production UI/Core boundary. Creation uses the real Signet SDK with memory repositories; Continue commits encrypted identity to origin-scoped IndexedDB. Refresh before Continue forgets unfinished creation. The active Account menu shows Accounts Details, side-by-side Send/Receive/Swap, Log Out, and Back. Accounts Details opens a submenu containing Balance, Transactions, Assets, and Back. Each option returns to the submenu; its Back returns to Account. Balance shows identity/network and available/total balances with Refresh; A6 is implemented with manual storage verification pending. `ready()` awaits hydration, `createAccount()` and `continueAccount()` drive creation, and `onEvent()` exposes safe `accountConnected` and `accountDisconnected` payloads. Public state never contains the phrase or SDK types. Ordinary disposal preserves saved identity. Browser storage is test-only, automatically accessible to this origin, and does not protect against compromised same-origin code. Live deletion-based reset verification remains manual under the repository rules.
 
 The active Account action opens Account Log Out. The backup checkbox is always required. When locally saved pending transfer, send, or mint operations exist, a second initially unchecked checkbox reads exactly `I accept losing my (5) pending transactions.` with the actual count. It is hidden for zero pending operations. `setLogoutPendingAcknowledged(boolean)` controls this additional gate; `logoutPendingCount` is null if counting fails, which blocks cleanup rather than assuming zero. The pending set is rechecked at confirmation and inside the cleanup lock.
 
-Confirmed logout clears all BIS-owned account records from IndexedDB and all known BIS transfer/send/mint journals (including legacy and other-wallet journals), plus saved demo preferences from web storage. It reloads the app and notifies other live BIS tabs to reload, discarding their UI and SDK memory. The IndexedDB database/object-store structure can remain empty; no account or coordination records remain. Other applications' storage is untouched. Current SDK wallets explicitly use in-memory repositories, so there is no BIS SDK database to erase. Submitted transactions are not cancelled, and restoring the same phrase does not restore discarded local recovery records. No operator request is needed. Active local wallet work prevents cleanup until it finishes; unreadable records or cleanup failures retain an error rather than report success.
+Confirmed logout clears all BIS-owned account records from IndexedDB and all known BIS transfer/send/mint journals (including legacy and other-wallet journals), plus saved demo preferences from web storage. It invalidates local account state and requests host-owned restart, notifying other affected live BIS contexts with the same logout ID. The IndexedDB store retains only a monotonic generation and a non-secret logout receipt (ID, public profile ID and generation) to reject stale saves/notifications; saving a new account removes the receipt. No recovery material remains after cleanup. Other applications' storage is untouched. Current SDK wallets explicitly use in-memory repositories, so there is no BIS SDK database to erase. Submitted transactions are not cancelled, and restoring the same phrase does not restore discarded local recovery records. No operator request is needed. Active local wallet work prevents cleanup until it finishes; unreadable records or cleanup failures retain an error rather than report success.
 
 This supersedes the earlier preserve-transfer-journal logout behavior and unresolved-send logout prohibition. Admin Reset and spending guards are unchanged. Ordinary refresh still preserves remembered account access and operation journals; preview scale and split layout now reset to defaults. Production cleanup is user-triggered; verification uses isolated storage doubles, not the live wallet.
 
 Run core tests from the repository root: `node --test BIS/packages/integration/tests/*.test.mjs` (Node 24+). A real-storage plain-host browser fixture is available at `/tests/ui-host.html`. `/tests/logout-host.html` and its `?plain` mode provide explicitly isolated storage-double component checks; they are not part of the production demo. See `.openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md` for pending manual real-storage checks.
 
-A4 exposes provider-neutral `state.balance` (idle/loading/ready/unavailable) and `refreshBalance()`. It requests fresh data on Account Details entry or Refresh, clears amounts while loading or unavailable, and never persists balances. Network failure preserves account access. Closing, changing accounts, and disposal invalidate results. No timer drives UI refresh. See `.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md`; funded Signet verification remains pending.
+A4 exposes provider-neutral `state.balance` (idle/loading/ready/unavailable) and `refreshBalance()`. It requests fresh data on Balance entry or Refresh, clears amounts while loading or unavailable, and never persists balances. Network failure preserves account access. Closing, changing accounts, and disposal invalidate results. No timer drives UI refresh. See `.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md`; funded Signet verification remains pending.
 
-`openAccountDetails()` navigates from the active Account menu. `state.accountDetails` distinguishes the two dialogs. `closeAccount()` returns from Details to Account before leaving to the host. The Account menu never requests balances.
+`openAccountDetails()` opens Balance. `state.accountDetails` distinguishes that page from Account. The UI preserves the Accounts Details submenu when returning from its pages; direct API entry returns to Account. Opening either menu never requests balances.
 
 Admin context also exposes `fund1000Sats()` for explicit Signet test funding. It derives the active account's public Arkade address internally and submits it with amount 1000 to the official wallet's configured Signet faucet. It returns an acknowledgement message or rejects with a sanitized error; it does not expose recovery material, update balance state, or automatically retry. This is a demo/admin utility, not a production gameplay API.
 
 
 ## Transactions (A5)
 
-Transactions appears below Balance (the Account Details route). It lists all SDK-provided incoming/outgoing history, including spent records, newest first. Rows match asset sizing: bold sats/direction, a status line and shortened ID line, without icons. Selecting a row opens Transaction Detail with the full selectable report and Copy; Back returns to the list. Copy all transactions exports every current row in displayed order, one line per record with full identifiers, supported status and exact asset quantities. Empty/loading lists disable it; clipboard failure exposes a selectable full export with retry.
+Transactions appears below Balance in the Accounts Details submenu. It lists all SDK-provided incoming/outgoing history, including spent records, newest first. Rows match asset sizing: bold sats/direction, a status line and shortened ID line, without icons. Selecting a row opens Transaction Detail with the full selectable report and Copy; Back returns to the list. Copy all transactions exports every current row in displayed order, one line per record with full identifiers, supported status and exact asset quantities. Empty/loading lists disable it; clipboard failure exposes a selectable full export with retry.
 
 Public context methods: openAccountActivity() and refreshActivity(); getState().activity exposes idle/loading/ready/unavailable and normalized transactions. accountActivity identifies the open route. Existing subscribe() delivers updates. refreshActivity() observes until the view is closed or its operation is cancelled; UI callers use it without awaiting the subscription lifetime. BisActivity and BisTransaction are public types with no SDK types or credentials.
 
@@ -64,7 +71,7 @@ D5a read-only transfer recovery: pending Account Transfer offers **Recovery deta
 
 ### Runtime asset inspection
 
-The active Account menu includes **Assets** immediately below Transactions. `context.openAccountAssets()` opens the production list and `context.refreshAssets()` reads fresh holdings. Public state exposes `accountAssets` and `assets: BisAssets` (`idle`, `loading`, `ready`, or `unavailable`). Calling `listAssets()` directly remains UI-independent.
+The Accounts Details submenu includes **Assets** immediately below Transactions. `context.openAccountAssets()` opens the production list and `context.refreshAssets()` reads fresh holdings. Public state exposes `accountAssets` and `assets: BisAssets` (`idle`, `loading`, `ready`, or `unavailable`). Calling `listAssets()` directly remains UI-independent.
 
 Selecting a holding opens **Asset Detail** with exact quantity, the metadata icon image, a single-line full Asset ID with Copy, and a **Details** heading with Copy above Name/Ticker/Decimals. HTTPS icons use no referrer; missing, invalid or failed images use neutral artwork. Back restores list selection, scroll and focus. Refresh clears old values and has a 30-second deadline. Missing decimals display base units. Leaving the flow or changing accounts invalidates presentation reads without cancelling independent API callers. Supply and verification badges remain absent.
 
@@ -116,3 +123,23 @@ Continuation records live separately from ordinary sends and survive normal logo
 
 
 B1 can spend SDK-eligible outputs carrying assets. It retains enough sat change and verifies an exact asset extension returning every original asset quantity to the player's change output; none may go to the sink. The quote fingerprint binds the input assets as well as sats. Pending recovery additionally checks the asset-free recipient and the expected player change (script, sats and complete asset manifest). Ordinary Account Send keeps its prior asset-free selection policy.
+
+## Private UI composition
+
+`FitTextButton` keeps the Send/Receive/Swap emoji and labels on one line, reducing their font size only when their available width requires it and restoring normal size when space returns.
+
+Runtime components in `src/ui` remain private; hosts use `createBisUi` or `GameOverlay`. `AccountCard` owns the account frame and heading associations. `RecoveryPhrasePanel` provides the shared read-only Set/Get recovery display; Restore Account reuses `SeedWordsHeading`, the test-wallet warning and visibility/paste controls while retaining its own editable validated grid. Recovery sessions start hidden and reset on leaving, remounting or changing accounts. Recovery material never enters public state or component exports.
+
+`FieldHeading`, `IconButton` and `CopyFieldLabel` compose inline controls. `CopyableValueField` serves addresses, balances and Asset ID; `CopyableTextArea` serves transaction and standalone transfer-report text. `useClipboardCopy` handles explicit writes, duplicate protection and obsolete feedback; callers retain their own success and manual-copy messages. Recovery keeps its successful copy checkmark for the current session. `ReviewDetails`, `formatSats` and `useQuoteExpiry` are shared by Send and Transfer, alongside the existing `AmountChooserRow`. Their wallet controllers remain separate.
+
+Assets and Transactions retain their headings/copy icons and list space/scrollbars even when empty, without empty-state messages. Pending notices stay host-local, burn confirmation remains a native modal, and the separate public recovery-info popup retains its own document. Admin's `StoryAction` lives in the demo package; the demo does not import private runtime primitives. Shared CSS stays in the existing style export, with screen-specific sizing preserved.
+
+Isolated regression fixtures include `/tests/ui-components-host.html` (clipboard races, expiry and Admin actions), `/tests/ui-demo-host.html` (real demo composition with an in-memory context at all preview scales), plus the recovery/copy/restore, address/balance, asset/activity, Send/Transfer and pending-operation hosts. Their isolated Run actions require no live wallet or payments; live buttons in older fixtures are separate and are not part of this verification.
+
+## Independent game host
+
+See the [BIS-to-game smoke runbook](../../documentation/SMOKE_TEST_BIS_TO_GAME.md) for the fixed package snapshot, Windows tunnels and acceptance sequence. Vite hosts consuming the development source export must configure `esbuild: { jsx: "automatic" }` and `optimizeDeps: { esbuildOptions: { jsx: "automatic" } }`; production consumes the built export. Hosts must handle `restartRequested` after confirmed logout, deduplicate its `logoutId`, and clean up event/state subscriptions, UI and context on teardown. The library no longer reloads the browser. Ordinary Account close preserves stored access; different ports/hostnames use separate browser origins.
+
+## Native UI size (v0.12.0)
+
+Mount BIS at 100% in a positioned host. Font sizes, spacing, controls and dialogs now use the approved compact dimensions directly; remove any temporary `scale(.8)` and `125%` host sizing. Account ID with full-value Copy appears only on Accounts Details. Host loading should use its blocking backdrop until BIS is ready.

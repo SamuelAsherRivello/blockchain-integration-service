@@ -35,9 +35,16 @@ document.getElementById('run')!.onclick=async()=>{
   result.textContent='Running';
   try {
     await context.ready();context.openAccountDialog();await tick();
+    button('Accounts Details').click();await tick();
     const menu=[...host.querySelectorAll('button')].map(b=>b.textContent);check(menu.indexOf('Assets')===menu.indexOf('Transactions')+1,'menu order');
     const before=reads;await showList();check(reads===before+1,'one entry read');
     const list=host.querySelector<HTMLElement>('.bis-asset-list')!;check(list.scrollHeight>list.clientHeight,'list scrolls');
+    check(list.previousElementSibling?.querySelector('h3')?.textContent==='Assets','Assets heading above list');
+    button('Copy Assets').click();await wait(()=>button('Copy Assets').title==='Copied');
+    check(copied===rows.map(formatAssetDetail).join('\n\n'),'Copies all assets in list order with exact quantities');
+    copyMode='fail';button('Copy Assets').click();await wait(()=>!!host.querySelector('[aria-label="All assets for manual copy"]'));
+    check(host.querySelector<HTMLTextAreaElement>('[aria-label="All assets for manual copy"]')?.value===copied,'Asset list manual copy fallback');
+    copyMode='success';button('Copy Assets').click();await wait(()=>!host.querySelector('[aria-label="All assets for manual copy"]'));
     list.scrollTop=450;const offset=list.scrollTop;
     const target=host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[8];target.click();await wait(()=>host.querySelector('h2')?.textContent==='Asset Detail'&&!host.querySelector('.bis-pending-dialog'));
     check(document.activeElement===host.querySelector('h2'),'detail heading focus');
@@ -70,7 +77,9 @@ document.getElementById('run')!.onclick=async()=>{
     mode='fail';await context.refreshAssets();await tick();check(host.querySelector('h2')?.textContent==='Asset Detail','failure retains detail title');check(!host.querySelector('.bis-asset-quantity'),'failure clears data');check(host.querySelector('.bis-pending-dialog')?.textContent?.includes('Assets could not be loaded'),'failure message');
     mode='ready';button('OK').click();await wait(()=>!host.querySelector('.bis-pending-dialog')&&host.querySelectorAll('.bis-asset-row').length===24);host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();
     data=rows.filter((_,i)=>i!==1);await context.refreshAssets();await wait(()=>host.querySelector('h2')?.textContent==='Assets');check(host.textContent?.includes('Asset is no longer'),'removed notice');await new Promise(requestAnimationFrame);check(document.activeElement===host.querySelector('h2'),'removed asset heading focus');
-    data=[];await context.refreshAssets();await tick();check(host.textContent?.includes('No assets found.'),'empty message');
+    data=[];await context.refreshAssets();await tick();check(!host.textContent?.includes('No assets found.'),'no empty message');
+    const emptyList=host.querySelector<HTMLElement>('.bis-asset-list')!;check(emptyList && !emptyList.children.length && emptyList.clientHeight>0 && getComputedStyle(emptyList).overflowY==='scroll','empty asset list retains space and scrollbar');
+    check(button('Copy Assets').disabled,'empty asset copy disabled');
     data=[rows[22],{...rows[23],name:'<img src=x onerror=alert(1)>'}];await context.refreshAssets();await tick();check(host.textContent?.includes('1 base units'),'missing decimals base units');host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Copy Details').click();await tick();check(copied.includes('Decimals: Not provided'),'missing fields copied');check(!host.querySelector('img'),'invalid URL falls back to local artwork');
     button('Back').click();await tick();button('Back').click();await tick();button('Transactions').click();await wait(()=>!!host.querySelector('.bis-transaction-row'));check(host.querySelector('h2')?.textContent==='Transactions','Transactions heading');host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();await wait(()=>host.querySelector('h2')?.textContent==='Transaction Detail');button('Back').click();await tick();button('Back').click();await tick();
     await showList();const state=context.getState();await context.listAssets();check(context.getState()===state,'headless listing leaves runtime unchanged');

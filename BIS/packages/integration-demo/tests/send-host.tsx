@@ -6,11 +6,11 @@ const tick=()=>new Promise(r=>setTimeout(r,60));
 const check=(ok:unknown,label:string)=>{if(!ok)throw Error(label);};
 let cleanup=()=>{};
 document.getElementById('run')!.onclick=async()=>{
- cleanup();result.textContent='Running';let submissions=0;
+ cleanup();result.textContent='Running';let submissions=0,quoteLifetime=60000;
  const account={phrase:'isolated-placeholder',profileId:'test-profile'};
  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error();},reset:async()=>{throw Error();},subscribe:()=>()=>{}},undefined,async()=>account.profileId);
  c.checkAccountSend=async()=>({status:'idle'});c.getSendSpendable=async()=>1000;
- c.quoteAccountSend=async(recipient,amount=1000)=>({id:'fixture',profileId:account.profileId,recipient,amountSats:amount,feeSats:0,totalSats:amount,maxSats:1000,expiresAt:Date.now()+60000,fingerprint:'a'.repeat(64)});
+ c.quoteAccountSend=async(recipient,amount=1000)=>({id:'fixture',profileId:account.profileId,recipient,amountSats:amount,feeSats:0,totalSats:amount,maxSats:1000,expiresAt:Date.now()+quoteLifetime,fingerprint:'a'.repeat(64)});
  c.confirmAccountSend=async(q)=>{submissions++;return {status:'succeeded',transactionId:'b'.repeat(64),amountSats:q.amountSats,recipient:q.recipient};};
  const ui=createBisUi(c);ui.mount(host);cleanup=()=>{ui.unmount();c.dispose();};
  const button=(text:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent?.replace('⚡','').trim()===text||b.getAttribute('aria-label')===text)!;
@@ -33,7 +33,10 @@ document.getElementById('run')!.onclick=async()=>{
   check(host.textContent?.includes('Review Send')&&host.textContent?.includes('500 sats'),'Review exact terms');check(document.activeElement?.textContent==='Review Send','Review focus');
   button('Back').click();await tick();check(input('Amount (sats)').value==='500','Back preserves draft');
   button('Max').click();await tick();check(input('Amount (sats)').value==='1000','Max amount');
-  button('Review Send').click();await tick();button('Confirm Send').click();button('Confirm Send')?.click();await tick();
+  quoteLifetime=120;button('Review Send').click();await tick();await tick();await tick();
+  check(button('Confirm Send').disabled && submissions===0,'Expired send cannot submit');
+  button('Back').click();await tick();quoteLifetime=60000;button('Review Send').click();await tick();check(!button('Confirm Send').disabled,'Fresh send quote enables confirmation');
+  button('Confirm Send').click();button('Confirm Send')?.click();await tick();
   check(submissions===1,'No duplicate click submission');check(!!host.querySelector('.bis-send-status')&&!host.textContent?.includes('Send completed'),'Prepared result without completion banner');
   button('New Send').click();await tick();
   c.confirmAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test',verification:'unavailable'});

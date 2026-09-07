@@ -3,6 +3,8 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { BisAsset } from '../core/assets';
 import type { BisAssets } from '../core/asset-presentation';
 import { assetExplorerUrl, assetName, formatAssetDetail, formatAssetQuantity, shortAssetId } from '../core/asset-presentation';
+import { useClipboardCopy } from './useClipboardCopy';
+import { CopyableValueField } from './CopyableValueField';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import type { BisBurnAssetRequest, BisBurnAssetResult } from '../core/burning';
@@ -26,46 +28,41 @@ function AssetIcon({url}: {url?:string}) {
     try {await image.current?.decode();} catch {setFailed(value);return;}
     if(value){preparedIcons.add(value);setReady(value);}
   }
-  return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>}</span>;
+  return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>}</span>;
 }
 
 function AssetDetails({asset}: {asset: BisAsset}) {
   const id = useId();
   const report = formatAssetDetail(asset);
-  const active = useRef(true);
-  const copyGeneration = useRef(0);
-  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
-  const [copy, setCopy] = useState<Partial<Record<'id' | 'details', 'copying' | 'copied' | 'failed'>>>({});
-  useLayoutEffect(() => { copyGeneration.current++; setCopy({}); }, [asset]);
-  async function copyText(kind: 'id' | 'details') {
-    if (copy[kind] === 'copying') return;
-    const generation = copyGeneration.current;
-    setCopy(previous => ({...previous, [kind]:'copying'}));
-    try {
-      await navigator.clipboard.writeText(kind === 'id' ? asset.assetId : report);
-      if (active.current && generation === copyGeneration.current) setCopy(previous => ({...previous, [kind]:'copied'}));
-    } catch {
-      if (active.current && generation === copyGeneration.current) setCopy(previous => ({...previous, [kind]:'failed'}));
-    }
-  }
+  const idCopy = useClipboardCopy(() => asset.assetId, asset);
+  const detailsCopy = useClipboardCopy(() => report, asset);
   return <>
-    <CopyFieldLabel label="Details" copied={copy.details==='copied'} disabled={copy.details==='copying'} onCopy={()=>void copyText('details')} />
+    <CopyFieldLabel label="Details" copied={detailsCopy.status==='copied'} disabled={detailsCopy.status==='copying'} onCopy={()=>void detailsCopy.copy()} />
     <div className="bis-asset-summary">
       <AssetIcon url={asset.iconUrl} />
       <strong className="bis-asset-quantity">{formatAssetQuantity(asset)}</strong>
       <span>{assetName(asset)}</span>
     </div>
-    <div className="bis-asset-id">
-      <CopyFieldLabel htmlFor={id} label="Asset ID" copied={copy.id === 'copied'} disabled={copy.id === 'copying'} onCopy={() => void copyText('id')} />
-      <input id={id} readOnly value={asset.assetId} />
-    </div>
-    <span className="bis-sr-only" role="status">{copy.id === 'copied' ? 'Asset ID copied.' : copy.details === 'copied' ? 'Asset details copied.' : ''}</span>
-    {(copy.id === 'failed' || copy.details === 'failed') && <>
+    <CopyableValueField label="Asset ID" value={asset.assetId} copy={idCopy} className="bis-asset-id" feedback={false} selectOnFocus={false} />
+    <span className="bis-sr-only" role="status">{idCopy.status === 'copied' ? 'Asset ID copied.' : detailsCopy.status === 'copied' ? 'Asset details copied.' : ''}</span>
+    {(idCopy.status === 'failed' || detailsCopy.status === 'failed') && <>
       <p role="status">Could not copy. Select the text and copy it manually.</p>
       <label htmlFor={`${id}-manual`}>Asset details for manual copy</label>
       <textarea id={`${id}-manual`} className="bis-asset-manual" readOnly rows={8} value={report} />
     </>}
   </>;
+}
+
+function AssetListHeading({ report }: { report: string }) {
+  const { status, copy } = useClipboardCopy(() => report, report);
+  return <div className="bis-asset-list-heading">
+    <CopyFieldLabel label="Assets" copied={status === 'copied'} disabled={!report || status === 'copying'} onCopy={() => void copy()} />
+    <span className="bis-sr-only" role="status">{status === 'copied' ? 'Copied all assets.' : ''}</span>
+    {status === 'failed' && <>
+      <p role="status">Could not copy. Select the text below and copy it manually.</p>
+      <textarea className="bis-asset-manual" aria-label="All assets for manual copy" readOnly rows={3} value={report} />
+    </>}
+  </div>;
 }
 
 export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh, onBusyChange}: {assets: BisAssets; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void}) {
@@ -90,6 +87,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
     finally {burnInFlight.current=false;if(mounted.current)setBurning(false);}
   }
   const rows = assets.status === 'ready' ? assets.assets : [];
+  const report = rows.map(formatAssetDetail).join('\n\n');
   const selected = rows.find(asset => asset.assetId === selectedId);
   const explorerUrl = selected ? assetExplorerUrl(selected.assetId) : undefined;
   const container = useRef<HTMLDivElement>(null);
@@ -129,6 +127,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   });
   return <div ref={container} className="bis-assets">
     <div className="bis-assets-content" aria-busy={loading}>
+      {!detailOpen && <AssetListHeading key={report} report={report} />}
       {detailOpen ? <div className="bis-asset-detail">
         {selected && <AssetDetails key={selected.assetId} asset={selected} />}
       </div> : <ul ref={list} className="bis-asset-list" aria-label="Owned assets" onScroll={event => { scroll.current = event.currentTarget.scrollTop; }}>
@@ -138,7 +137,6 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
           <AssetIcon url={asset.iconUrl} /><span className="bis-asset-row-text"><strong>{assetName(asset)}</strong><span>{formatAssetQuantity(asset)}</span><code>{shortAssetId(asset.assetId)}</code></span>
         </button></li>)}
       </ul>}
-      {assets.status === 'ready' && !rows.length && <p role="status">No assets found.</p>}
       {notice && assets.status === 'ready' && <p role="status">{notice}</p>}
     </div>
     <div className={`bis-actions${detailOpen && selected ? ' bis-asset-detail-actions' : ''}`}>
