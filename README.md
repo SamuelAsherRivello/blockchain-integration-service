@@ -15,10 +15,8 @@ Reusable Signet account, payment, and asset integration for browser games, with 
 
 ## Demo
 
-<!-- AI: Replace both https://samuelasherrivello.github.io/blockchain-integration-service/ occurrences with the verified public demo URL. Check deployment configuration or a confirmed deployed site; do not assume a hosting URL. Keep the placeholder if no demo is available. -->
+<!-- AI: Keep the verified public demo URL. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
 * [https://samuelasherrivello.github.io/blockchain-integration-service/](https://samuelasherrivello.github.io/blockchain-integration-service/)
-
-Current release: **v0.12.0**.
 
 ## Table of Contents
 
@@ -31,8 +29,8 @@ Current release: **v0.12.0**.
 
 ## Getting Started
 
-<!-- AI: Briefly state required tools or prerequisites, using versions supported by the repository. Keep setup steps in the subsections below and use the fewest practical steps. Do not add a separate commands section. -->
-Install Node.js 24 or newer with npm. Run all commands below from the repository root.
+<!-- AI: Preserve the exact introduction below: Run the following commands to get started. Do not restore Node.js/npm prerequisite or repository-root instructions here. Keep setup commands in the existing subsections; do not add a separate commands section. -->
+Run the following commands to get started.
 
 ### 🛠 Build Project
 
@@ -100,23 +98,18 @@ Run `npm run typecheck` for type checking or `npm test` for the existing integra
 
 ### 📦 AI
 
-<!-- AI: List AI tools and specification workflows configured or documented for this repository. Use official links and concise descriptions; verify current official wording before using a tagline. Treat inherited entries as examples to validate, not proof of installed tooling. -->
+<!-- AI: Keep this section to the concise Codex and OpenSpec links below. Do not restore OpenSpec CLI setup instructions, PowerShell requirements, compatibility-link explanations, OpenSpec commands, or Grill Me guidance in this README unless explicitly requested by the user. -->
 - [Codex](https://openai.com/codex/): Repository guidance in [AGENTS.md](AGENTS.md) and local skills.
 - [OpenSpec](https://openspec.dev/): Specifications and change planning in `.openspec/`.
-
-With OpenSpec CLI installed, run `./.openspec/setup.ps1` using PowerShell 7 after checkout. It creates the ignored `openspec` compatibility link and installs local workflows. Run `openspec list` and `openspec list --specs` from the repository root. [Grill Me](.agents/skills/open-spec-grill-me/SKILL.md) is optional, user-invoked, and planning only.
 
 
 ### 📦 Packages
 
-<!-- AI: List the key packages actually used, based on manifests and configuration. Link each name to its official site or documentation and describe its role briefly. Replace template examples that do not apply. Include versions only when useful and verified against the repository. -->
+<!-- AI: Keep the package list limited to React, Arkade SDK, TypeScript, and Vite. Do not restore Mermaid, react-markdown, or @scure/bip39 entries or descriptions in this README unless explicitly requested by the user. Verify listed versions against the repository. -->
 - [React](https://react.dev/): Runtime components and demo UI (`19.2.8`).
 - [Arkade SDK](https://github.com/arkade-os/sdk): Signet wallet and asset integration (`0.4.67`).
 - [TypeScript](https://www.typescriptlang.org/): Static type checking (`7.0.2`).
 - [Vite](https://vite.dev/): Local development server and production builds (`8.2.2`).
-- [Mermaid](https://mermaid.js.org/): Diagrams in the documentation viewer.
-- [react-markdown](https://github.com/remarkjs/react-markdown): Markdown rendering in the documentation viewer.
-- [@scure/bip39](https://github.com/paulmillr/scure-bip39): Recovery phrase validation.
 
 
 
@@ -145,7 +138,7 @@ With OpenSpec CLI installed, run `./.openspec/setup.ps1` using PowerShell 7 afte
 
 ### 💡 License
 
-<!-- AI: Keep the license name linked to the actual relative license file and verify that its terms match this statement. Keep the copyright holder and year consistent with that file. Do not change license terms, ownership, or dates without an explicit request. -->
-- Provided as-is under the MIT License.
+<!-- AI: Preserve the MIT License link to the root LICENSE file copied from github-repository-template. Verify the file exists; do not replace the link with plain text. Keep the copyright holder and year consistent with that file. Do not change license terms, ownership, or dates without an explicit request. -->
+- Provided as-is under the [MIT License](LICENSE).
 
 - Copyright © 2026 Rivello Multimedia Consulting, LLC.
