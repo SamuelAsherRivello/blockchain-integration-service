@@ -9,6 +9,14 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 const wait=async(predicate:()=>boolean)=>{const end=Date.now()+35000;while(!predicate()){if(Date.now()>end)throw Error('UI update timed out');await tick();}};
 const check=(condition:unknown,label:string)=>{if(!condition)throw Error(label);};
 const button=(name:string)=>{const b=[...host.querySelectorAll('button')].find(b=>b.textContent===name||b.getAttribute('aria-label')===name);if(!b)throw Error(`Missing button: ${name}`);return b;};
+async function readPages() {
+  await new Promise(resolve=>setTimeout(resolve,60)); let text='';
+  const previous=host.querySelector<HTMLButtonElement>('.bis-report-pages button')!;
+  while(!previous.disabled){previous.click();await tick();}
+  const next=host.querySelector<HTMLButtonElement>('.bis-report-pages button:last-child')!;
+  do {const field=host.querySelector('textarea')!;check(field.scrollHeight<=field.clientHeight,'report page has no scroll');text+=field.value;if(next.disabled)break;next.click();await tick();}while(true);
+  return text;
+}
 const iconUrl='https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-1-trophy.png';
 const rows:BisAsset[]=Array.from({length:24},(_,i)=>({assetId:`${String(i).padStart(2,'0')}${'a'.repeat(62)}${String(i).padStart(4,'0')}`,quantity:i===0?'9007199254740993':'1',name:i===23?'Very long asset metadata '.repeat(15):i===22?undefined:'Achievement: Level 1',ticker:i===22?undefined:'LVL1',decimals:i===22?undefined:0,iconUrl:i===22?'javascript:alert(1)':iconUrl}));
 let data=rows,mode='ready',reads=0,copied='',copyMode='success';
@@ -43,7 +51,7 @@ document.getElementById('run')!.onclick=async()=>{
     button('Copy Assets').click();await wait(()=>button('Copy Assets').title==='Copied');
     check(copied===rows.map(formatAssetDetail).join('\n\n'),'Copies all assets in list order with exact quantities');
     copyMode='fail';button('Copy Assets').click();await wait(()=>!!host.querySelector('[aria-label="All assets for manual copy"]'));
-    check(host.querySelector<HTMLTextAreaElement>('[aria-label="All assets for manual copy"]')?.value===copied,'Asset list manual copy fallback');
+    check(await readPages()===copied,'Asset list manual copy fallback');
     copyMode='success';button('Copy Assets').click();await wait(()=>!host.querySelector('[aria-label="All assets for manual copy"]'));
     list.scrollTop=450;const offset=list.scrollTop;
     const target=host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[8];target.click();await wait(()=>host.querySelector('h2')?.textContent==='Asset Detail'&&!host.querySelector('.bis-pending-dialog'));
@@ -70,7 +78,7 @@ document.getElementById('run')!.onclick=async()=>{
     button('Copy Details').click();await tick();check(copied===formatAssetDetail(rows[8]),'metadata details copied');
     button('Back').click();await wait(()=>host.querySelectorAll('.bis-asset-row').length===24);await new Promise(requestAnimationFrame);
     check(host.querySelector('.bis-asset-list')!.scrollTop===offset,'Back retains scroll');await wait(()=>document.activeElement===host.querySelectorAll('.bis-asset-row')[8]);check(reads===before+1,'Back does not read');
-    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Details').click();await wait(()=>!!host.querySelector('.bis-asset-manual'));check(host.querySelector<HTMLTextAreaElement>('.bis-asset-manual')!.value===formatAssetDetail(rows[0]),'manual fallback exact');
+    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Details').click();await wait(()=>!!host.querySelector('.bis-asset-manual'));check(await readPages()===formatAssetDetail(rows[0]),'manual fallback exact');
     copyMode='pending';button('Copy Details').click();await tick();button('Back').click();await tick();host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();finishCopy?.();await tick();check(button('Copy Details').title==='Copy Details','late copy ignored');copyMode='success';
     mode='pending';void context.refreshAssets();await tick();check(!host.querySelector('.bis-asset-quantity'),'old quantity hidden during refresh');check(button('Refresh Asset Detail').disabled,'loading disables refresh');
     data=rows.map((r,i)=>i===1?{...r,quantity:'12345',decimals:2}:r);resolveRead?.(data);await wait(()=>host.querySelector('.bis-asset-quantity')?.textContent==='123.45 LVL1');

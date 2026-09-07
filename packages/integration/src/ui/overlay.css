@@ -54,7 +54,7 @@
 .bis-balance-amount { font-size: 20.8px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .bis-balance-amount span { font-size: 10.4px; font-weight: inherit; }
 .bis-addresses { margin-bottom: 11.2px; font-size: 9.6px; }
-.bis-address-row { display: flex; flex-wrap: wrap; align-items: end; gap: 4.8px; text-align: left; margin-bottom: 8px; }
+.bis-address-row, .bis-account-id { display: flex; flex-wrap: wrap; align-items: end; gap: 4.8px; text-align: left; margin-bottom: 8px; }
 .bis-copy-field-heading { display: flex; align-items: center; gap: 3.2px; width: 100%; font-size: 9.6px; }
 .bis-copy-field-heading label { min-width: 0; }
 .bis-copy-field-heading h3 { margin: 0; font: inherit; }
@@ -67,10 +67,11 @@
 .bis-dialog-heading { display: flex; align-items: center; justify-content: center; gap: 4.8px; margin-bottom: 8px; }
 .bis-dialog-heading h2 { margin: 0; }
 .bis-title-icon { flex-basis: 25.6px; width: 25.6px; height: 25.6px; }
-.bis-refresh-image { flex: 0 0 25.6px; width: 25.6px; height: 25.6px; background: currentColor; mask: url('./assets/refresh.png') center / contain no-repeat; transform: rotate(90deg); }
-.bis-address-row input { width: 100%; min-width: 0; padding: 6.4px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; font: 8.8px ui-monospace, monospace; color: #294650; background: #fff; }
-.bis-address-row input:focus-visible { outline: 1.6px solid #30977f; }
-.bis-address-row .bis-copy-status { flex-basis: 100%; font-size: 8px; }
+.bis-title-icon:has(.bis-refresh-image) { padding: 0; }
+.bis-refresh-image { flex: 0 0 20.48px; width: 20.48px; height: 20.48px; background: currentColor; mask: url('./assets/refresh.png') center / contain no-repeat; transform: rotate(90deg); }
+.bis-address-row input, .bis-account-id input { width: 100%; min-width: 0; padding: 6.4px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; font: 8.8px ui-monospace, monospace; color: #294650; background: #fff; }
+.bis-address-row input:focus-visible, .bis-account-id input:focus-visible { outline: 1.6px solid #30977f; }
+.bis-address-row .bis-copy-status, .bis-account-id .bis-copy-status { flex-basis: 100%; font-size: 8px; }
 .bis-activity { min-width: 0; margin-bottom: 8px; text-align: left; }
 .bis-transactions-heading { margin: 0 0 4.8px; font-size: 9.6px; }
 .bis-card-activity { height: 384px; display: flex; flex-direction: column; }
@@ -221,5 +222,11 @@
 
 .bis-card .bis-seed-warning { white-space: nowrap; }
 .bis-account-id { margin: 0 0 14.4px; text-align: left; }
-/* Explicit native input dimensions preserve the approved Account ID field size. */
-.bis-account-id input { width: 148px; max-width: 100%; height: 16.8px; padding: .8px 1.6px; border-width: 1.6px; font: 10.6667px Arial, sans-serif; }
+.bis-account-id input { text-align: center; }
+
+/* Reports use measured pages rather than nested scrolling or clipped content. */
+.bis-report { min-width: 0; width: 100%; flex: 1; min-height: 112px; display: flex; flex-direction: column; gap: 6px; }
+.bis-layer .bis-report textarea { flex: 1; width: 100%; height: 128px; min-height: 64px; resize: none; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bis-report-pages { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 9.6px; }
+.bis-report-pages .bis-button { padding: 5px 8px; font-size: 9.6px; }
+.bis-card-activity .bis-activity > .bis-report { flex-shrink: 1; }

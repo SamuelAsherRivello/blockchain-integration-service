@@ -1,3 +1,4 @@
+import { ReportTextArea } from './ReportTextArea';
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react';
 import { formatTransactionDetail, formatTransactions, transactionExplorerUrl, type BisActivity } from '../core/activity';
@@ -51,7 +52,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
       <span className="bis-sr-only" role="status">{status === 'copied' ? 'Copied all transactions.' : ''}</span>
       {status === 'failed' && <>
         <p role="status">Could not copy. Select the text below and copy it manually.</p>
-        <textarea aria-label="All transactions for manual copy" readOnly rows={3} value={text} />
+        <ReportTextArea aria-label="All transactions for manual copy" rows={3} value={text} />
       </>}
       {activity.status === 'unavailable' && rows.length > 0 && <p role="status">Showing available records. Full transaction history could not be refreshed. Use Refresh to retry.</p>}
       <ul className="bis-transaction-list" aria-label="Transactions" aria-busy={loading}>

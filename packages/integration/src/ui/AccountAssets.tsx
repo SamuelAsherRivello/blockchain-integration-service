@@ -1,3 +1,4 @@
+import { ReportTextArea } from './ReportTextArea';
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { BisAsset } from '../core/assets';
@@ -48,7 +49,7 @@ function AssetDetails({asset}: {asset: BisAsset}) {
     {(idCopy.status === 'failed' || detailsCopy.status === 'failed') && <>
       <p role="status">Could not copy. Select the text and copy it manually.</p>
       <label htmlFor={`${id}-manual`}>Asset details for manual copy</label>
-      <textarea id={`${id}-manual`} className="bis-asset-manual" readOnly rows={8} value={report} />
+      <ReportTextArea id={`${id}-manual`} className="bis-asset-manual" rows={8} value={report} />
     </>}
   </>;
 }
@@ -60,7 +61,7 @@ function AssetListHeading({ report }: { report: string }) {
     <span className="bis-sr-only" role="status">{status === 'copied' ? 'Copied all assets.' : ''}</span>
     {status === 'failed' && <>
       <p role="status">Could not copy. Select the text below and copy it manually.</p>
-      <textarea className="bis-asset-manual" aria-label="All assets for manual copy" readOnly rows={3} value={report} />
+      <ReportTextArea className="bis-asset-manual" aria-label="All assets for manual copy" rows={3} value={report} />
     </>}
   </div>;
 }

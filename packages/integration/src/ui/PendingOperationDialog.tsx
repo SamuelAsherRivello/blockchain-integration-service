@@ -1,3 +1,4 @@
+import { useVisibleViewport } from './useVisibleViewport';
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 type Notice = { label: string; error?: string; dismiss(): void };
@@ -17,6 +18,7 @@ export function usePendingNotice(busy: boolean, label: string, error: string | u
 
 /** A host-local modal: document-level showModal would also disable the Admin panel. */
 export function PendingOperations({children}: {children: ReactNode}) {
+  const runtime = useVisibleViewport();
   const [notices,setNotices] = useState<Map<string,Notice>>(()=>new Map());
   const register = useCallback<Register>((id,notice)=>setNotices(previous=>{
     if(!notice && !previous.has(id))return previous;
@@ -49,7 +51,7 @@ export function PendingOperations({children}: {children: ReactNode}) {
   },[open,failed]);
   const title=useId(), description=useId();
   return <PendingContext.Provider value={register}>
-    <div className="bis-runtime">
+    <div ref={runtime} className="bis-runtime">
       <div ref={content} className="bis-runtime-content" inert={open} aria-hidden={open || undefined} aria-busy={!!pending}>{children}</div>
       {current && <div className="bis-pending-backdrop" onKeyDown={event=>{
         if(event.key==='Escape'){event.preventDefault();event.stopPropagation();}

@@ -1,4 +1,5 @@
 import { useId, type TextareaHTMLAttributes } from 'react';
+import { ReportTextArea } from './ReportTextArea';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import type { ClipboardCopy } from './useClipboardCopy';
 
@@ -8,6 +9,6 @@ export function CopyableTextArea({ label, value, copy, disabled = false, ...text
   const id = useId();
   return <>
     <CopyFieldLabel htmlFor={textarea.id ?? id} label={label} copied={copy.status === 'copied'} disabled={disabled || copy.status === 'copying'} onCopy={() => void copy.copy()} />
-    <textarea {...textarea} id={textarea.id ?? id} readOnly value={value} />
+    <ReportTextArea {...textarea} id={textarea.id ?? id} value={value} />
   </>;
 }

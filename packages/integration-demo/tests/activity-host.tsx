@@ -23,6 +23,14 @@ document.getElementById('run')!.onclick=async()=>{
   });
   const ui=createBisUi(c);ui.mount(host);
   cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
+  async function readPages() {
+  await tick(); let text='';
+  const previous=host.querySelector<HTMLButtonElement>('.bis-report-pages button')!;
+  while(!previous.disabled){previous.click();await tick();}
+  const next=host.querySelector<HTMLButtonElement>('.bis-report-pages button:last-child')!;
+  do {const field=host.querySelector('textarea')!;check(field.scrollHeight<=field.clientHeight,'report page has no scroll');text+=field.value;if(next.disabled)break;next.click();await tick();}while(true);
+  return text;
+}
   try{
     await c.ready();c.openAccountDialog();await tick();
     [...host.querySelectorAll('button')].find(b=>b.textContent==='Accounts Details')!.click();await tick();
@@ -37,7 +45,7 @@ document.getElementById('run')!.onclick=async()=>{
     copyAll!.click();await wait(()=>copied===formatTransactions(rows) && copyAll!.title==='Copied');
     check(copied.split('\n').length===24 && copied.includes('9007199254740993 base units'),'Copy-all preserves all rows and exact asset quantity');
     copyFail=true;copyAll!.click();await wait(()=>!!host.querySelector('[aria-label="All transactions for manual copy"]'));
-    check(host.querySelector<HTMLTextAreaElement>('[aria-label="All transactions for manual copy"]')?.value===formatTransactions(rows),'clipboard failure exposes complete selectable export');
+    check(await readPages()===formatTransactions(rows),'clipboard failure exposes complete selectable export across pages');
     copyFail=false;copyAll!.click();await wait(()=>copyAll!.title==='Copied' && !host.querySelector('[aria-label="All transactions for manual copy"]'));
     const row=host.querySelector('.bis-transaction-row')!;
     check(row.children.length===3&&row.querySelector('strong')?.textContent==='100 sats · Incoming'&&row.querySelector('span')?.textContent==='Pending'&&row.querySelector('code')?.getAttribute('title')===rows[0].identifier,'three-line row layout');
@@ -52,11 +60,12 @@ document.getElementById('run')!.onclick=async()=>{
     host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();
     await tick();
     check(!!host.querySelector('textarea'),'first click opens transaction details');
-    await wait(()=>host.querySelector('textarea')?.value===formatTransactionDetail(rows[0]));
-    check(host.querySelector('textarea')?.value.includes('9007199254740993 base units'),'exact asset quantity');
-    check(host.querySelector('textarea')?.value.includes('Confirmations: 0'),'confirmation count in detail');
-    check(host.querySelector('textarea')?.value.includes('Waiting for the first block'),'pending wait guidance');
-    check(host.querySelector('textarea')?.value.includes('Timestamp (UTC): 1970-01-01 00:00:00'),'recorded timestamp in detail');
+    const detail=await readPages();
+    check(detail===formatTransactionDetail(rows[0]),'complete detail across pages');
+    check(detail.includes('9007199254740993 base units'),'exact asset quantity');
+    check(detail.includes('Confirmations: 0'),'confirmation count in detail');
+    check(detail.includes('Waiting for the first block'),'pending wait guidance');
+    check(detail.includes('Timestamp (UTC): 1970-01-01 00:00:00'),'recorded timestamp in detail');
     check(host.querySelectorAll('textarea').length===1,'one text area');
     const explorer=[...host.querySelectorAll('button')].find(b=>b.textContent==='Open On Explorer');
     check(explorer && !explorer.disabled,'transaction detail exposes enabled explorer button');
