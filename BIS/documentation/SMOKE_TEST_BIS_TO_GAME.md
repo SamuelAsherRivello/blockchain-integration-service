@@ -2,7 +2,15 @@
 
 The game opens the public BIS Account UI from **Settings → ⚡ Account**. Back at the Account root returns to Settings; nested Back stays inside BIS. Guest gameplay does not require an account or a wallet connection. Settings and Account own independent pauses. The game owns browser restart after confirmed logout.
 
-## Current preview
+## Windows-local preview
+
+When both checkouts run on Windows, use the same startup commands below and open
+[BIS](http://127.0.0.1:5174/) and [game](http://127.0.0.1:5175/) directly. No SSH tunnel
+is needed. Production game preview is [port 4175](http://127.0.0.1:4175/).
+These local origins are different from the remote tunnel origins 15174/15175; do not
+expect an existing account to move between them.
+
+## Remote preview
 
 | Project | Server URL | Windows browser URL |
 | --- | --- | --- |
@@ -54,7 +62,7 @@ node --test BIS/packages/integration/tests/context.test.mjs BIS/packages/integra
 npm pack --workspace @bis/integration --pack-destination /tmp --cache /tmp/bis-smoke-npm-cache --json
 ```
 
-Inspect the emitted archive file list and confirm `src/index.ts`, `src/ui/overlay.css`, `dist/integration.js` and `dist/integration.css` exist. Inspect only the package's source/build/metadata; never include wallet data. Compute SHA-256 with `sha256sum /tmp/bis-integration-0.12.0.tgz`. Copy it to game `vendor/bis-integration-<version>-<first-12-hash-characters>.tgz`, set `@bis/integration` to the relative `file:vendor/...` path and install with exact tested React and React DOM 19.2.8 peers. Record the full hash and source changes in the acceptance record. Repack after any BIS source fix; do not claim a newer source was tested against an older snapshot.
+Inspect the emitted archive file list and confirm `src/index.ts`, `src/ui/overlay.css`, `dist/integration.js` and `dist/integration.css` exist. Inspect only the package's source/build/metadata; never include wallet data. Compute SHA-256 with `sha256sum /tmp/bis-integration-0.12.0.tgz`. Copy it to game `STEALTH_STEEL/vendor/bis-integration-<version>-<first-12-hash-characters>.tgz`, set `@bis/integration` to the relative `file:STEALTH_STEEL/vendor/...` path and install with exact tested React and React DOM 19.2.8 peers. Record the full hash and source changes in the acceptance record. Repack after any BIS source fix; do not claim a newer source was tested against an older snapshot.
 
 In the game, after updating its manifest:
 
@@ -109,15 +117,15 @@ See [acceptance evidence](../../.openspec/changes/smoke-test-bis-to-game/verific
 
 ## Repeat automated browser checks
 
-The game includes `scripts/smoke-game-browser.mjs` and `scripts/smoke-game-failures.mjs`; BIS includes `BIS/scripts/smoke-restart-storage.mjs`. Install Playwright in a separate test-tools directory and set `PLAYWRIGHT_MODULE` to its absolute `index.mjs` path (or use a resolvable local Playwright installation). Set `PLAYWRIGHT_BROWSERS_PATH` to its browser cache. On a Linux headless server, set `SMOKE_CHROMIUM_EXECUTABLE` to full Chromium; these game scripts enable software WebGPU/Vulkan for the test process only. They do not change host graphics settings or game rendering.
+The game includes `STEALTH_STEEL/src/test/browser/smoke-game-browser.mjs` and `STEALTH_STEEL/src/test/browser/smoke-game-failures.mjs`; BIS includes `BIS/scripts/smoke-restart-storage.mjs`. Install Playwright in a separate test-tools directory and set `PLAYWRIGHT_MODULE` to its absolute `index.mjs` path (or use a resolvable local Playwright installation). Set `PLAYWRIGHT_BROWSERS_PATH` to its browser cache. On a Linux headless server, set `SMOKE_CHROMIUM_EXECUTABLE` to full Chromium; these game scripts enable software WebGPU/Vulkan for the test process only. They do not change host graphics settings or game rendering.
 
 From the game root:
 
 ```sh
-node scripts/smoke-game-browser.mjs http://127.0.0.1:5175/
-node scripts/smoke-game-movement.mjs http://127.0.0.1:5175/
-node scripts/smoke-game-browser.mjs http://127.0.0.1:4175/
-node scripts/smoke-game-failures.mjs http://127.0.0.1:4175/
+node STEALTH_STEEL/src/test/browser/smoke-game-browser.mjs http://127.0.0.1:5175/
+node STEALTH_STEEL/src/test/browser/smoke-game-movement.mjs http://127.0.0.1:5175/
+node STEALTH_STEEL/src/test/browser/smoke-game-browser.mjs http://127.0.0.1:4175/
+node STEALTH_STEEL/src/test/browser/smoke-game-failures.mjs http://127.0.0.1:4175/
 ```
 
 From the BIS root:
@@ -127,8 +135,37 @@ node BIS/scripts/smoke-restart-storage.mjs http://127.0.0.1:5174/
 node BIS/scripts/smoke-session-cleanup.mjs http://127.0.0.1:5174/
 ```
 
-Every script opens a fresh browser profile. The storage test uses an explicitly synthetic identity and real IndexedDB/BroadcastChannel; it does not call the wallet SDK or handle real recovery words. Game scripts exercise guest navigation only. Screenshots go to `/tmp/bis-game-account.png` and `/tmp/bis-game-account-narrow.png`; failures may produce `/tmp/bis-game-failure.png`.
+Every script opens a fresh browser profile. The storage test uses an explicitly synthetic identity and real IndexedDB/BroadcastChannel; it does not call the wallet SDK or handle real recovery words. Game scripts exercise guest navigation only. Game screenshots go to its ignored `output/playwright/` directory. On Windows, set `SMOKE_CHROMIUM_EXECUTABLE` to the installed full Chrome executable (for example `C:/Program Files/Google/Chrome/Application/chrome.exe`); the bundled headless shell did not start this WebGPU game in the current run. Linux-only software Vulkan flags are conditional on the platform.
 
 ### Refreshing a package during an active Vite preview
 
 Vite can retain a previous dependency stylesheet in memory after a local archive install. After updating the game dependency, restart that game's Vite preview (or touch its existing `vite.config.js` to trigger Vite's config restart), then refresh the browser. Confirm the served stylesheet matches the installed package before judging sizing. Keep the same port 5175 / Windows 15175 and existing SSH tunnel.
+
+
+## Current snapshot and repeatable checks
+
+The game currently consumes `bis-integration-0.12.0-9f8af4c84099.tgz`, not the earlier
+published v0.12.0 archive. Its 64-file inventory and SHA-256 are checked by:
+
+```sh
+node STEALTH_STEEL/tools/verify-bis-package.mjs
+```
+
+Run that command from the game root. Its provenance file is
+`STEALTH_STEEL/vendor/BIS_PROVENANCE.md`. The snapshot contains report pagination and
+viewport changes absent from BIS baseline `4c5de4e`; do not equate the two builds.
+See `current-package-provenance.json` in the coordinating change for the exact differences.
+
+From BIS, run all selected existing synthetic UI fixtures offline:
+
+```sh
+node BIS/scripts/smoke-account-fixtures.mjs http://127.0.0.1:5174/
+node BIS/scripts/smoke-ui-feedback.mjs
+node BIS/scripts/smoke-game-ui-feedback.mjs http://127.0.0.1:5175/
+node BIS/scripts/smoke-game-ui-feedback.mjs http://127.0.0.1:4175/
+```
+
+The fixture runner serves its metadata icon from the checked-in public asset and blocks
+external requests. It exercises recovery, restoration, balance, transactions, assets,
+addresses, receive, send, transfer, logout and pending-operation UI using test doubles.
+Passing these checks does not substitute for the private live lifecycle or Android test.

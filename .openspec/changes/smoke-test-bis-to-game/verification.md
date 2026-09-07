@@ -156,3 +156,58 @@ This release does not complete the entire smoke test: long transaction/manual-co
 Assessment: release delivery and approved compact sizing are complete. Do not archive the smoke test yet. Remaining acceptance is the complete game-origin create/persist/logout/restore loop, actual Android/keyboard behavior, and eliminating the remaining long-report scrolling. Intents and multi-game support are not smoke-test gates.
 
 Final development-preview check initially detected Vite serving the previous 320px stylesheet from memory despite the installed package containing the new 256px card. Touching the existing game vite.config.js triggered Vite's supported restart without changing configuration contents. The stylesheet then returned HTTP 200 with native v0.12.0 values; all four development viewport checks, silent initialization, native transform:none and fullscreen transitions passed. Current layout screenshot: `screenshots/game-native-size.png` (empty restore fields; no wallet secrets). This headless image verifies Account layout, not terrain rendering; the user has separately confirmed visible gameplay.
+
+
+## Windows-local verification — 2026-09-07
+
+Baseline: BIS `4c5de4e`, game `3262883`; Node v26.7.0, npm 11.19.0.
+Both checkouts already had unrelated dirty files. Only smoke-test files from this run
+are selected for commits; ongoing gameplay/menu/spec work is preserved. The game also
+changed during browser verification, so these observations describe the tested working
+tree, not a claim that unrelated work is included in the smoke-test commits.
+
+The installed game snapshot is `bis-integration-0.12.0-9f8af4c84099.tgz`, SHA-256
+`9f8af4c84099b0dad944eb3f2dde5a90698e8fcad3eb9a6ee1b692ffcb712b84`.
+All 64 installed files match its inventory; development/production exports exist;
+React and React DOM resolve to one 19.2.8 instance. See current-package-provenance.json.
+**This snapshot is not equivalent to the BIS checkout or the earlier published archive.**
+It includes report pagination and visible-viewport handling missing from the source
+checkout. Its source commit is unknown. Source reconciliation remains pending rather
+than silently importing an unreviewed implementation. Existing package-provenance.json
+remains historical release evidence.
+
+| Check | Result |
+| --- | --- |
+| BIS complete build/typecheck | PASS |
+| Eight focused BIS lifecycle files | PASS, 63 tests |
+| Game npm test / test:publish / build | PASS; publishing suite 7 tests; bundle-size advisory only |
+| Game archive and installed bytes / public exports / React deduplication | PASS |
+| BIS Windows-local development HTML | HTTP 200, demo title |
+| Game Windows-local development and production HTML | HTTP 200, game title |
+| Full Chrome dev + production guest navigation | PASS: Create/Restore choices, nested Back, root Back/focus, Tab containment, paused coordinates, fullscreen, close |
+| Full Chrome guest movement | PASS: movement before/after menus, held-key pause, no replay |
+| Full Chrome dev + production layout | PASS at 743x1321, 1000x900, 360x640, 393x700: full-screen backdrop, topmost hit-testing, native transform:none, empty restore fit, no page scrolling, fullscreen reparenting, silent initialization |
+| Full Chrome production import failure / timeout | PASS: playable guest startup, bounded error/Back, no late reopen |
+| Synthetic IndexedDB/BroadcastChannel | PASS: cleanup/invalidation/event ordering, stale/duplicate protection, unrelated storage preservation |
+| Synthetic receiving-tab cleanup failure | PASS: no restart on failure; retry invalidates and emits once |
+| BIS isolated UI fixtures | PASS: recovery, restore, balance, activity, account-assets, addresses, receive, send, transfer, logout, pending-operation |
+| BIS synthetic layout | PASS: setup/saved recovery/restore/account at 743x1321, 360x640, 393x700; warning fit and complete public-ID copy |
+| Actual Windows Chrome view | PASS: rendered terrain, player and virtual controls visible behind Account and dark backdrop; guest entry and empty restoration form accessible |
+| Live A2/create/reload/A6/logout/A3/restore | NOT RUN; user-managed recovery interaction still required |
+| Actual Android viewport/software keyboard | NOT RUN; no device dimensions or keyboard policy received |
+| Comprehensive no-scroll reports / all error states | OPEN; packaged pagination differs from checkout; presentation decision and source reconciliation pending |
+
+Automation uses fresh profiles. No live account was created or restored, no private
+phrase was read/copied, and no financial operation was submitted. The actual Chrome
+preview is http://127.0.0.1:5175/; BIS is http://127.0.0.1:5174/; game production is
+http://127.0.0.1:4175/. These are local Windows servers; no SSH forwards are required.
+They do not share wallet state with the earlier 15174/15175 tunnel origins.
+
+Initial failures were test environment issues: sandbox subprocess EPERM (resolved
+through supported escalation), bundled headless-shell WebGPU startup (full installed
+Chrome passes), Windows Vite filesystem import paths (normalized), an external fixture
+icon (served locally), and a fixed 90ms transfer-expiry assertion (bounded condition wait).
+No runtime transfer/financial behavior changed. Fullscreen tests retain async event waits.
+
+Tasks 5.2 and 6.2 are now complete. Keep 3.3, 5.3, 5.4, 5.5, 6.1 and 6.5 open;
+22/28 tasks complete. Do not archive or claim complete A1–A6 live acceptance.

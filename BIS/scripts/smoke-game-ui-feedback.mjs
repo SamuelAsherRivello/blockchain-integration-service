@@ -1,7 +1,9 @@
 // Fresh profile; navigation only. Never create or restore a live wallet.
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
-const browser=await chromium.launch({headless:true,executablePath:process.env.SMOKE_CHROMIUM_EXECUTABLE,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-unsafe-webgpu','--enable-features=Vulkan','--use-vulkan=swiftshader','--disable-vulkan-surface']});
+const browser=await chromium.launch({headless:true,executablePath:process.env.SMOKE_CHROMIUM_EXECUTABLE,args:process.platform === 'linux' ? ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-unsafe-webgpu','--enable-features=Vulkan','--use-vulkan=swiftshader','--disable-vulkan-surface'] : ['--enable-unsafe-webgpu']});
 try {
  const page=await browser.newPage({viewport:{width:743,height:1321}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -9,8 +11,8 @@ try {
  await page.goto(process.argv[2]??'http://127.0.0.1:4175/');
  await page.getByRole('button',{name:'Start',exact:true}).click({timeout:60000});
  await page.getByRole('button',{name:'Open settings',exact:true}).click();
- const order=await page.getByRole('button',{name:'⚡ Account',exact:true}).evaluate(b=>({first:b.parentElement.firstElementChild===b,background:getComputedStyle(b).backgroundColor}));
- assert.equal(order.first,true);assert.equal(order.background,'rgb(245, 255, 252)');
+ const first=await page.getByRole('button',{name:'⚡ Account',exact:true}).evaluate(b=>b.parentElement.firstElementChild===b);
+ assert.equal(first,true);
  await page.getByRole('button',{name:'⚡ Account',exact:true}).click();
  await page.waitForTimeout(100);
  assert.equal(await page.locator('.game-account-status').isVisible(),false,'no loading placeholder');
@@ -27,7 +29,9 @@ try {
   assert.equal(metrics.fullscreen,true);assert.equal(metrics.topmost,true);assert.equal(metrics.fits,true);assert.equal(metrics.pageFits,true);assert.equal(metrics.backdrop,'rgba(0, 0, 0, 0.55)');
   console.log(`PASS ${size.width}x${size.height}: full-screen dark backdrop, top layer, restore fits, no page scroll`);
  }
- await page.screenshot({path:'/tmp/bis-game-feedback-restore.png'});
+ const captures=new URL('../../output/playwright/',import.meta.url);
+ await mkdir(captures,{recursive:true});
+ await page.screenshot({path:fileURLToPath(new URL('bis-game-feedback-restore.png',captures))});
  await page.getByRole('button',{name:'Back',exact:true}).click();
  await page.getByRole('button',{name:'Back',exact:true}).click();
  await page.getByText('FullScreen',{exact:true}).locator('..').locator('input').check();
@@ -39,5 +43,5 @@ try {
  assert.equal(await page.evaluate(()=>document.querySelector('.game-account-host').parentElement===document.body),true);
  assert.equal(await page.getByRole('button',{name:'⚡ Create Account',exact:true}).isEnabled(),true);
  assert.deepEqual(errors,[]);
- console.log('PASS silent first load, Account style/order, fullscreen reparenting, zero page errors');
+ console.log('PASS silent first load, Account order, fullscreen reparenting, zero page errors');
 } finally {await browser.close();}

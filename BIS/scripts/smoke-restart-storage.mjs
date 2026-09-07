@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true});const page=await browser.newPage();
 await page.goto(process.argv[2] ?? 'http://127.0.0.1:5174/');
 const result=await page.evaluate(async(sourceRoot)=>{
- const {createAccountStorage}=await import('/@fs'+sourceRoot+'/BIS/packages/integration/src/core/account-storage.ts');
- const {createContext}=await import('/@fs'+sourceRoot+'/BIS/packages/integration/src/core/context.ts');
+ const {createAccountStorage}=await import('/@fs/'+sourceRoot+'/BIS/packages/integration/src/core/account-storage.ts');
+ const {createContext}=await import('/@fs/'+sourceRoot+'/BIS/packages/integration/src/core/context.ts');
  const aStore=createAccountStorage(),bStore=createAccountStorage();
  const account={phrase:'synthetic-storage-test-only',profileId:'fixture-public-a'};
  const make=store=>createContext(store,async()=>account,async()=>account.profileId);
@@ -26,5 +26,5 @@ const result=await page.evaluate(async(sourceRoot)=>{
  const preserved=(await aStore.load()).account?.profileId===account.profileId && sessionStorage.getItem('bis.integration-demo.preview-scale')==='keep-new';
  const unrelated=localStorage.getItem('other-app')==='keep'&&sessionStorage.getItem('other-app')==='keep';
  channel.close();c.dispose();d.dispose();return {events,other:other.slice(0,2),counts,absent,preserved,unrelated,generation:record.generation};
-}, process.cwd());
+}, process.cwd().replaceAll('\\', '/').replace(/^\/+/, ''));
 assert.deepEqual(result.events.map(e=>e.type),['accountDisconnected','restartRequested']);assert.deepEqual(result.other.map(e=>e.type),['accountDisconnected','restartRequested']);assert.ok(result.events.every(e=>!e.hasProfile));assert.ok(result.other.every(e=>!e.hasProfile));assert.equal(result.events[1].id,result.other[1].id);assert.deepEqual(result.counts,[2,2]);assert.ok(result.absent&&result.preserved&&result.unrelated);assert.equal(result.generation,1);console.log('PASS real IndexedDB + BroadcastChannel with synthetic identity: cleanup, memory invalidation, equal restart IDs, duplicate/stale notification protection, fresh context, unrelated storage preserved.');await browser.close();

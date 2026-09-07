@@ -48,7 +48,10 @@ document.getElementById('run')!.onclick = async () => {
     button('Review Transfer').click();await tick();
     check(host.textContent?.includes('500 sats') && host.textContent.includes('After transfer (estimate)'),'Real quote fields rendered');
     check(!button('Confirm Transfer').disabled,'Reviewed forward quote enables explicit confirmation');
-    button('Back').click();await tick();quoteLifetime=80;button('Review Transfer').click();await tick();await tick();await tick();
+    button('Back').click();await tick();quoteLifetime=80;button('Review Transfer').click();await tick();
+    // Wait for the expiry effect to render, rather than assuming three 30ms ticks suffice.
+    const expiryDeadline = Date.now() + 1000;
+    while (!button('Confirm Transfer').disabled && Date.now() < expiryDeadline) await tick();
     check(button('Confirm Transfer').disabled,'Expired transfer cannot submit');
     button('Back').click();await tick();quoteLifetime=60000;button('Review Transfer').click();await tick();check(!button('Confirm Transfer').disabled,'Fresh transfer quote enables confirmation');
     button('Back').click();await tick();
