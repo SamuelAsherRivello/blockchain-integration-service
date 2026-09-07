@@ -1,3 +1,4 @@
+import { readReportPages } from './report-pages';
 import { createContext } from '../../integration/src/core/context';
 import { createBisUi } from '@bis/integration';
 import { formatAssetDetail } from '../../integration/src/core/asset-presentation';
@@ -43,7 +44,7 @@ document.getElementById('run')!.onclick=async()=>{
     button('Copy Assets').click();await wait(()=>button('Copy Assets').title==='Copied');
     check(copied===rows.map(formatAssetDetail).join('\n\n'),'Copies all assets in list order with exact quantities');
     copyMode='fail';button('Copy Assets').click();await wait(()=>!!host.querySelector('[aria-label="All assets for manual copy"]'));
-    check(host.querySelector<HTMLTextAreaElement>('[aria-label="All assets for manual copy"]')?.value===copied,'Asset list manual copy fallback');
+    check(await readReportPages(host.querySelector<HTMLTextAreaElement>('[aria-label="All assets for manual copy"]')!)===copied,'Asset list manual copy fallback');
     copyMode='success';button('Copy Assets').click();await wait(()=>!host.querySelector('[aria-label="All assets for manual copy"]'));
     list.scrollTop=450;const offset=list.scrollTop;
     const target=host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[8];target.click();await wait(()=>host.querySelector('h2')?.textContent==='Asset Detail'&&!host.querySelector('.bis-pending-dialog'));
@@ -70,7 +71,7 @@ document.getElementById('run')!.onclick=async()=>{
     button('Copy Details').click();await tick();check(copied===formatAssetDetail(rows[8]),'metadata details copied');
     button('Back').click();await wait(()=>host.querySelectorAll('.bis-asset-row').length===24);await new Promise(requestAnimationFrame);
     check(host.querySelector('.bis-asset-list')!.scrollTop===offset,'Back retains scroll');await wait(()=>document.activeElement===host.querySelectorAll('.bis-asset-row')[8]);check(reads===before+1,'Back does not read');
-    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Details').click();await wait(()=>!!host.querySelector('.bis-asset-manual'));check(host.querySelector<HTMLTextAreaElement>('.bis-asset-manual')!.value===formatAssetDetail(rows[0]),'manual fallback exact');
+    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Details').click();await wait(()=>!!host.querySelector('.bis-asset-manual'));check(await readReportPages(host.querySelector<HTMLTextAreaElement>('.bis-asset-manual')!)===formatAssetDetail(rows[0]),'manual fallback exact');
     copyMode='pending';button('Copy Details').click();await tick();button('Back').click();await tick();host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();finishCopy?.();await tick();check(button('Copy Details').title==='Copy Details','late copy ignored');copyMode='success';
     mode='pending';void context.refreshAssets();await tick();check(!host.querySelector('.bis-asset-quantity'),'old quantity hidden during refresh');check(button('Refresh Asset Detail').disabled,'loading disables refresh');
     data=rows.map((r,i)=>i===1?{...r,quantity:'12345',decimals:2}:r);resolveRead?.(data);await wait(()=>host.querySelector('.bis-asset-quantity')?.textContent==='123.45 LVL1');

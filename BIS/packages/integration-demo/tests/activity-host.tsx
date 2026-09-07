@@ -1,3 +1,4 @@
+import { readReportPages } from './report-pages';
 import {createRoot} from 'react-dom/client';
 import {AccountActivity} from '../../integration/src/ui/AccountActivity';
 import {PendingOperations} from '../../integration/src/ui/PendingOperationDialog';
@@ -37,7 +38,8 @@ document.getElementById('run')!.onclick=async()=>{
     copyAll!.click();await wait(()=>copied===formatTransactions(rows) && copyAll!.title==='Copied');
     check(copied.split('\n').length===24 && copied.includes('9007199254740993 base units'),'Copy-all preserves all rows and exact asset quantity');
     copyFail=true;copyAll!.click();await wait(()=>!!host.querySelector('[aria-label="All transactions for manual copy"]'));
-    check(host.querySelector<HTMLTextAreaElement>('[aria-label="All transactions for manual copy"]')?.value===formatTransactions(rows),'clipboard failure exposes complete selectable export');
+    const paged=await readReportPages(host.querySelector<HTMLTextAreaElement>('[aria-label="All transactions for manual copy"]')!);
+    check(paged===formatTransactions(rows),`clipboard failure exposes complete selectable export (${paged.length}/${formatTransactions(rows).length}; first difference ${[...paged].findIndex((v,i)=>v!==formatTransactions(rows)[i])})`);
     copyFail=false;copyAll!.click();await wait(()=>copyAll!.title==='Copied' && !host.querySelector('[aria-label="All transactions for manual copy"]'));
     const row=host.querySelector('.bis-transaction-row')!;
     check(row.children.length===3&&row.querySelector('strong')?.textContent==='100 sats · Incoming'&&row.querySelector('span')?.textContent==='Pending'&&row.querySelector('code')?.getAttribute('title')===rows[0].identifier,'three-line row layout');
@@ -52,11 +54,12 @@ document.getElementById('run')!.onclick=async()=>{
     host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();
     await tick();
     check(!!host.querySelector('textarea'),'first click opens transaction details');
-    await wait(()=>host.querySelector('textarea')?.value===formatTransactionDetail(rows[0]));
-    check(host.querySelector('textarea')?.value.includes('9007199254740993 base units'),'exact asset quantity');
-    check(host.querySelector('textarea')?.value.includes('Confirmations: 0'),'confirmation count in detail');
-    check(host.querySelector('textarea')?.value.includes('Waiting for the first block'),'pending wait guidance');
-    check(host.querySelector('textarea')?.value.includes('Timestamp (UTC): 1970-01-01 00:00:00'),'recorded timestamp in detail');
+    const detailText=await readReportPages(host.querySelector('textarea')!);
+    check(detailText===formatTransactionDetail(rows[0]),`complete paginated transaction detail (${detailText.length}/${formatTransactionDetail(rows[0]).length})`);
+    check(detailText.includes('9007199254740993 base units'),'exact asset quantity');
+    check(detailText.includes('Confirmations: 0'),'confirmation count in detail');
+    check(detailText.includes('Waiting for the first block'),'pending wait guidance');
+    check(detailText.includes('Timestamp (UTC): 1970-01-01 00:00:00'),'recorded timestamp in detail');
     check(host.querySelectorAll('textarea').length===1,'one text area');
     const explorer=[...host.querySelectorAll('button')].find(b=>b.textContent==='Open On Explorer');
     check(explorer && !explorer.disabled,'transaction detail exposes enabled explorer button');
