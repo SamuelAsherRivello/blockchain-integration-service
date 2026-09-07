@@ -37,7 +37,7 @@ jobs:
       - name: Upload demo
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/integration-demo/dist
+          path: BIS/packages/integration-demo/dist
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

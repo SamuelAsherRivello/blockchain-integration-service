@@ -20,6 +20,6 @@
 
 ## Project scope
 
-- Follow `documentation/BGS_PROJECT_BRIEF.md` and later confirmed decisions in `documentation/design-discussion.md`.
-- Approved structure: `packages/integration` owns runtime UI and future core/Arkade layers; `packages/integration-demo` consumes its public API and owns admin/preview composition.
+- Follow `BIS/documentation/BGS_PROJECT_BRIEF.md` and later confirmed decisions in `BIS/documentation/design-discussion.md`.
+- Approved structure: `BIS/packages/integration` owns runtime UI and future core/Arkade layers; `BIS/packages/integration-demo` consumes its public API and owns admin/preview composition.
 - Current slice: React split-screen demo, 9:16 preview, and an Account button opening a coming-soon dialog. Arkade SDK may be installed as a dependency; no Arkade or wallet operations yet.

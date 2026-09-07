@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 test('preview scale persists supported choices and tolerates invalid or blocked storage', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   try {
-    const { readPreviewScale, savePreviewScale } = await server.ssrLoadModule('/packages/integration-demo/src/preview/preview-scale.ts');
+    const { readPreviewScale, savePreviewScale } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/preview/preview-scale.ts');
     const values = new Map();
     const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
     const key = 'bis.integration-demo.preview-scale';

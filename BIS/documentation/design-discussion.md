@@ -6,7 +6,7 @@
 
 This supersedes the earlier one-way Make Available recommendation below. Both directions and selected amounts are now proposed. Total is the sum of Bitcoin-side and full Arkade-side holdings; spendability is checked independently. Partial boarding/change, adjustment step, and the reverse path's account-controlled Bitcoin destination still need definition/verification. Runtime changes and fund movement have not been performed.
 
-- Proposal: [add-bitcoin-boarding-settlement](../.openspec/changes/add-bitcoin-boarding-settlement/proposal.md). This section records recommendations, not approved behavior or implementation. D4 preserves existing D1 issuer, D2 Lightning receiving, and D3 sending references.
+- Proposal: [add-bitcoin-boarding-settlement](../../.openspec/changes/add-bitcoin-boarding-settlement/proposal.md). This section records recommendations, not approved behavior or implementation. D4 preserves existing D1 issuer, D2 Lightning receiving, and D3 sending references.
 - A confirmed Bitcoin boarding deposit increases Total but needs an explicit settlement into Arkade funds before it becomes Available. Additional waiting or refreshing does not initiate settlement in the current integration.
 - Recommend Account Details entry/Refresh detect eligible deposits and offer Make Available. Receive explains the additional step. The player reviews eligible amount, fee, and net receipt, then confirms. No automatic settlement on deposit, login, restoration, balance refresh, or achievement requests.
 - Core owns a per-profile operation and non-secret recovery records; the Arkade adapter revalidates and settles only reviewed eligible boarding inputs to the same account. Fees/input changes require another review. Unsupported fee estimation, expired deposits, or operator rejection must be explicit, not represented as indefinite confirmation waiting.
@@ -37,7 +37,7 @@ This supersedes the earlier one-way Make Available recommendation below. Both di
 - Load on Account Details entry/manual refresh only. Clear amounts when loading or unavailable. Do not persist balances, reuse prior dialog values, or show stale amounts after failure, even within the same dialog. This supersedes the earlier tentative stale-value policy.
 - Balance failure retains verified account access. Missing/unreadable keys remain an account-access error; Signet is not a connectivity indicator.
 - A5 Account Activity is a separate implemented dialog; C4 assets/achievements and custom rendering remain separate. Receiving addresses are covered by the later address decision above.
-- Adapter/core/UI/demo are implemented. Real zero balance and browser failure/recovery checks passed; funded Signet verification remains pending. See ../.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md. Earlier A2/A6 manual storage checks remain pending.
+- Adapter/core/UI/demo are implemented. Real zero balance and browser failure/recovery checks passed; funded Signet verification remains pending. See ../../.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md. Earlier A2/A6 manual storage checks remain pending.
 
 ## A3 confirmed behavior and implementation
 
@@ -48,17 +48,17 @@ This supersedes the earlier one-way Make Available recommendation below. Both di
 - Paste from Clipboard first unchecks Show, then fills all twelve fields. Wrong word counts preserve the grid and show an error. Clipboard access is explicit; permission failure permits manual entry.
 - Empty fields are neutral; valid English BIP39 words have green indicators and invalid words red. Restore requires the complete checksum to pass. Valid words remain green when a phrase-level checksum error appears.
 - Connection failure retains the phrase temporarily and hidden for Retry; Back clears it. Save failures reconcile before retry. Cancellation and concurrent account changes cannot allow stale restoration to overwrite stored state.
-- Implemented production flow and Admin demonstration; live Signet restoration, same-identity persistence, browser restart, and isolated failure/UI checks are recorded in `../.openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md`. Earlier manual A2/A6 storage-clearing checks remain separate.
+- Implemented production flow and Admin demonstration; live Signet restoration, same-identity persistence, browser restart, and isolated failure/UI checks are recorded in `../../.openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md`. Earlier manual A2/A6 storage-clearing checks remain separate.
 
 ## Confirmed decisions
 
 - Repository name: blockchain-integration-service (user decision, 2026-09-03).
-- Source baseline: documentation/BGS_PROJECT_BRIEF.md, imported from the supplied Google Doc.
+- Source baseline: BIS/documentation/BGS_PROJECT_BRIEF.md, imported from the supplied Google Doc.
 - Use OpenSpec and settle naming, folder structure, and integration contracts before implementation.
 - Preserve the brief's separate game repository and frontend/core/Arkade responsibilities.
 - Track planning files under `.openspec/`, with an ignored local `openspec` compatibility link for the stock CLI.
 - Grill Me is optional and user-invoked before or after proposal creation. It is not a schema prerequisite; retain `spec-driven`.
-- Approved: one integration package under `packages/integration`, with `core`, `ui`, and `arkade` internals; one consuming app under `packages/integration-demo`, with `admin` and `preview` folders.
+- Approved: one integration package under `BIS/packages/integration`, with `core`, `ui`, and `arkade` internals; one consuming app under `BIS/packages/integration-demo`, with `admin` and `preview` folders.
 - Initial baseline was a coming-soon Account overlay. The current account-entry implementation and public contract are described below; A2 now adds real Signet creation and encrypted account persistence, pending manual reset verification.
 - GitHub Pages publishes the demo app. Local development uses the React development server when needed.
 
@@ -66,7 +66,7 @@ This supersedes the earlier one-way Make Available recommendation below. Both di
 
 1. Retain Blockchain Gaming Services / BGS as product and API names, or align with Blockchain Integration Service?
 2. Resolved: one integration package with explicit internal layers, consumed by the demo app.
-3. Resolved: source under packages/integration/src and packages/integration-demo/src; docs under documentation. Test organization can grow with behavior.
+3. Resolved: source under BIS/packages/integration/src and BIS/packages/integration-demo/src; docs under documentation. Test organization can grow with behavior.
 4. Who mounts the React overlay and owns its container, styling, focus, resizing, and disposal?
 5. Define initialization, availability, account lifecycle, request methods, events, and subscription cleanup.
 6. When is connected mode fixed for a run? What happens after logout or account change?
@@ -107,7 +107,7 @@ These questions and recommendations are not approved design decisions. The next 
 - Failed or unconfirmed clearing keeps the dialogue open with Retry; success is reported only after confirmed clearing. Retry reconciles already-cleared and replacement-account cases safely.
 - A6 offers no recovery-phrase access. Pending-payment handling is deferred until payment features exist; game-specific mid-run eligibility remains outside this slice. A3 restoration and a future backup-access feature remain separate.
 - Public methods are `openLogoutConfirmation()`, `setLogoutBackupAcknowledged(boolean)`, `confirmLogout()`, and `cancelLogout()`. `retry()` handles logout errors. Each observing active context receives `accountDisconnected` with its former public profile ID only after confirmed absence; disposal stops notifications.
-- Production UI and the A6 Admin story are implemented. Core storage-double and isolated browser verification are recorded in `../.openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md`; real-storage deletion checks remain manual and pending.
+- Production UI and the A6 Admin story are implemented. Core storage-double and isolated browser verification are recorded in `../../.openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md`; real-storage deletion checks remain manual and pending.
 
 
 ## A5 Account Activity
@@ -116,7 +116,7 @@ These questions and recommendations are not approved design decisions. The next 
 - Copy all transactions preserves A5's full-list export: every current record in order, one logical line with full identifiers, exact asset quantities, amount/direction and supported status. Empty/loading lists disable it. Clipboard failure exposes the complete selectable text and permits retry. Transaction Detail keeps its own selectable report and Copy for only that entry. Incoming/outgoing, confirmed and spent history remains limited to what the SDK supplies.
 
 - A read-only SDK wallet supplies history, coin metadata, and notifications; periodic SDK reconciliation catches missed events and stale connections. No payments or settlement run. Data and observation are transient and cleared on leaving or account change.
-- Live pending receipt and automatic refresh, isolated browser checks, and package tests pass. Live confirmation and outgoing/spent evidence remain pending; see ../.openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md.
+- Live pending receipt and automatic refresh, isolated browser checks, and package tests pass. Live confirmation and outgoing/spent evidence remain pending; see ../../.openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md.
 
 ## Bitcoin presentation precedence
 
@@ -129,7 +129,7 @@ These questions and recommendations are not approved design decisions. The next 
 
 **Confirmed next delivery order:** Bitcoin-to-Arkade first: eligibility and fee verification, review, durable operation/reconciliation and clearing guards, then explicit submission and live balance/Activity verification. Resume achievement feasibility after boarding succeeds. Arkade-to-Bitcoin follows independently after verifying its own destination, quotes and recovery; it is not a prerequisite for boarding. Availability must be direction-specific. Unsupported partial amounts are rejected rather than silently converted into whole-deposit transfers. This decision updates planning only; real transfers remain disabled today.
 
-The confirmed balance layout and transfer entry/review are implemented. Plus/minus uses one-sat steps from 0. Max and confirmation remain disabled; unavailable fees and projected balances are explicitly labeled. Public navigation is `openAccountTransfer()` and the new balance fields are `bitcoinSats` and `arkadeSats`, with full totals separated from spendability. Real settlement/withdrawal and achievement checks remain pending. See [UI verification](../.openspec/changes/add-bitcoin-boarding-settlement/UI_VERIFICATION.md).
+The confirmed balance layout and transfer entry/review are implemented. Plus/minus uses one-sat steps from 0. Max and confirmation remain disabled; unavailable fees and projected balances are explicitly labeled. Public navigation is `openAccountTransfer()` and the new balance fields are `bitcoinSats` and `arkadeSats`, with full totals separated from spendability. Real settlement/withdrawal and achievement checks remain pending. See [UI verification](../../.openspec/changes/add-bitcoin-boarding-settlement/UI_VERIFICATION.md).
 
 ## D4 explicit bidirectional transfer implementation (2026-09-04)
 
@@ -143,7 +143,7 @@ The latest user decision replaces BIS-level achievement semantics with generic a
 
 Mint request IDs provide retry protection; names do not imply uniqueness. APIs are mintAsset, listAssets, getPendingAssetMint and validateMint. No control-asset or reissuance feature is included. This supersedes the earlier C1 opportunity-only, game-filtered listing and name-based duplicate assumptions. C2/C3 broader game workflows, B, C5 and D1 remain deferred.
 
-The user's later Signet-wallet screenshots and matching BIS list established an externally minted Level 1 baseline. Current apply verification then successfully minted another Level 1 from BIS with the same identity and SDK 0.4.67; a fresh list returned both distinct asset IDs with quantity 1 and matching hosted metadata. The previously registered transfer blocker was not reproduced, bypassed, or repaired in this slice. Console pending followed by success represents a completed list request. See [current C1/C4 evidence](../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md); broad pending-transfer recovery remains separate.
+The user's later Signet-wallet screenshots and matching BIS list established an externally minted Level 1 baseline. Current apply verification then successfully minted another Level 1 from BIS with the same identity and SDK 0.4.67; a fresh list returned both distinct asset IDs with quantity 1 and matching hosted metadata. The previously registered transfer blocker was not reproduced, bypassed, or repaired in this slice. Console pending followed by success represents a completed list request. See [current C1/C4 evidence](../../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md); broad pending-transfer recovery remains separate.
 
 ## D3a sending separated from transfer recovery — 2026-09-04
 
@@ -167,3 +167,7 @@ Complete logout clears the encrypted account and generation records, all BIS jou
 Confirmed: render a page and immediately cover it until its operation, data refresh, required image preparation and render are complete. Show an operation label ending in ing... above the spinning bolt. Pending is noninteractive; errors offer only OK, closing both the operation dialog and its source page. Data reads retry once automatically using existing deadlines, with 30 seconds where absent. Retain the 75-second Transactions initial-read budget. No automatic resubmission of Burn, Send or Transfer. Keep Burning... through its refresh and reveal ready Assets with no Asset burned. message. Remove inline loading/progress/completion text. Background updates and Admin-only operations do not open the runtime prompt. An unconfirmed outcome uses truthful feedback and OK while retaining recovery information.
 
 This supersedes older inline Loading..., unavailable-page and Retry/Back presentation decisions; existing wallet safeguards and public operation APIs remain authoritative.
+
+## Repository structure — 2026-09-07
+
+Confirmed: project documentation, packages, and scripts live under `BIS/documentation/`, `BIS/packages/`, and `BIS/scripts/`. npm workspace configuration and commands remain at the repository root. `.openspec/`, `.agents/`, and `.github/` remain at the root. GitHub Pages publishes `BIS/packages/integration-demo/dist/`.

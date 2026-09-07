@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 test('every documentation TOC link resolves to one rendered heading', async () => {
   const server = await createServer({
-    root: 'packages/integration-demo',
+    root: 'BIS/packages/integration-demo',
     server: { middlewareMode: true },
     plugins: [{
       name: 'render-documentation-without-browser-mount',
@@ -32,7 +32,7 @@ test('every documentation TOC link resolves to one rendered heading', async () =
 });
 
 test('documentation has a clean standalone route and no filesystem URL', async () => {
-  const server = await createServer({ root: 'packages/integration-demo', optimizeDeps: { noDiscovery: true, include: [] }, server: { host: '127.0.0.1', port: 0 } });
+  const server = await createServer({ root: 'BIS/packages/integration-demo', optimizeDeps: { noDiscovery: true, include: [] }, server: { host: '127.0.0.1', port: 0 } });
   try {
     await server.listen();
     const base = server.resolvedUrls.local[0];
@@ -41,7 +41,7 @@ test('documentation has a clean standalone route and no filesystem URL', async (
     const page = await (await fetch(new URL('documentation/user-stories/', base))).text();
     assert.match(page, /User Story Diagrams/);
     assert.match(page, /documentation\.tsx/);
-    const legacy = new URL('/@fs/' + resolve('documentation/User Story Diagrams.md').replaceAll('\\', '/'), base);
+    const legacy = new URL('/@fs/' + resolve('BIS/documentation/User Story Diagrams.md').replaceAll('\\', '/'), base);
     const redirect = await fetch(legacy, { redirect: 'manual' });
     assert.equal(redirect.status, 302);
     assert.equal(redirect.headers.get('location'), '/documentation/user-stories/');
