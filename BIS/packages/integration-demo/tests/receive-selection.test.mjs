@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 test('D2a selects Receive only for active accounts and preserves other story routes', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   try {
-    const { selectAccountStory } = await server.ssrLoadModule('/packages/integration-demo/src/admin/selectAccountStory.ts');
+    const { selectAccountStory } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/admin/selectAccountStory.ts');
     for (const [id, active, expected] of [
       ['D2a', true, ['account', 'receive']], ['D2a', false, ['account']],
       ['D3a', true, ['account', 'send']], ['D3a', false, ['account']],

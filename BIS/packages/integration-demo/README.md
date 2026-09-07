@@ -13,7 +13,7 @@ Reset Client clears BIS account storage and transient state, recreates the sessi
 
 Runtime Preview UI uses only production factories and the public integration stylesheet. It must not duplicate production components or use admin controls. Admin UI observes production context first; `createBisAdminContext(context)` is the fallback for specific development operations.
 
-Every new integration feature must have an Admin UI demonstration and a synchronized entry in `documentation/User Story Diagrams.md`. Catalog presence proves an available demonstration, not completion of every branch in the broader story.
+Every new integration feature must have an Admin UI demonstration and a synchronized entry in `BIS/documentation/User Story Diagrams.md`. Catalog presence proves an available demonstration, not completion of every branch in the broader story.
 
 
 Runtime Preview offers 100%, 50% (default), and 25% content scale. The outer 9:16 frame stays fixed; a demo-owned DOM layer expands inversely and is transformed to fit. At 50%, BIS receives twice the layout width/height. Changing scale preserves the mounted UI and account state; integration styles remain unchanged.
@@ -22,7 +22,7 @@ Runtime Preview offers 100%, 50% (default), and 25% content scale. The outer 9:1
 
 Account / Receive Funds opens production Receive when logged in, or the ordinary account chooser when logged out. Account creation/restoration remains explicit; afterward use the normal Receive button. Arkade and Bitcoin address Copy and Refresh remain usable. The Lightning invoice section is hidden while Signet receiving is unsupported. See [D2b reintroduction conditions](../../documentation/User%20Story%20Diagrams.md#d2b-receive-funds-using-lightning-invoices). No account, invoice, funding request, or payment is automatically created.
 
-The isolated `/tests/receive-host.html` covers clipboard denial, exact copy, Refresh failure/retry, navigation defaults, and portrait layout. `/tests/ui-host.html` provides the independent public-API host. See [D2a verification](../../.openspec/changes/add-d2a-address-receiving/verification.md). D2b live invoices/recovery/clearing guards, D3 sending, and D4 transfers are separate; this demonstration does not claim them complete.
+The isolated `/tests/receive-host.html` covers clipboard denial, exact copy, Refresh failure/retry, navigation defaults, and portrait layout. `/tests/ui-host.html` provides the independent public-API host. See [D2a verification](../../../.openspec/changes/archive/2026-09-04-add-d2a-address-receiving/verification.md). D2b live invoices/recovery/clearing guards, D3 sending, and D4 transfers are separate; this demonstration does not claim them complete.
 
 ## Admin test funding
 
@@ -45,7 +45,7 @@ C1 Mint Asset opens a dark Admin-only modal with Name, Ticker, Amount, Decimals,
 
 C4 List Assets prints fresh generic wallet holdings to Console. Both actions use the public production context and leave Runtime Preview unchanged. Pending/results/errors are shown as public JSON. Console history is transient and bounded; refresh and successful Reset Client clear it. An unresolved mint reopens with the same request for status reconciliation.
 
-The real Admin mint/list round trip passed in Chrome on 2026-09-04 for the reported wallet: a new Level 1 asset was minted and a fresh list returned both the externally minted trophy and the new BIS trophy, each quantity 1. The earlier registered-transfer blocker was not reproduced. See [C1/C4 evidence](../../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md) for public asset/operation IDs and the distinction between live and isolated checks. List Assets pending followed by success is ordinary request progress.
+The real Admin mint/list round trip passed in Chrome on 2026-09-04 for the reported wallet: a new Level 1 asset was minted and a fresh list returned both the externally minted trophy and the new BIS trophy, each quantity 1. The earlier registered-transfer blocker was not reproduced. See [C1/C4 evidence](../../../.openspec/changes/archive/2026-09-04-add-achievement-opportunities-and-collection/C1_C4_VERIFICATION.md) for public asset/operation IDs and the distinction between live and isolated checks. List Assets pending followed by success is ordinary request progress.
 
 Development-only verification hosts: `/tests/asset-live-host.html` reads fresh holdings and retries an existing completed receipt without offering a new mint; `/tests/asset-ui-host.html` exercises the actual Admin/mint components with labeled isolated callbacks; `/tests/asset-console-host.html` checks the actual App Console with isolated account/storage and synthetic results. All are excluded from production build inputs. Browser checks cover responsive scrolling, keyboard focus restoration, immutable unresolved retries, Console retention/reset and preview isolation.
 

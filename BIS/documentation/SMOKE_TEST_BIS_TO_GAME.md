@@ -50,7 +50,7 @@ In BIS:
 
 ```sh
 npm run build
-node --test packages/integration/tests/context.test.mjs packages/integration/tests/recovery-access.test.mjs packages/integration/tests/restoration.test.mjs packages/integration/tests/balance.test.mjs packages/integration/tests/activity.test.mjs packages/integration/tests/logout.test.mjs packages/integration/tests/logout-cleanup.test.mjs packages/integration/tests/restart.test.mjs
+node --test BIS/packages/integration/tests/context.test.mjs BIS/packages/integration/tests/recovery-access.test.mjs BIS/packages/integration/tests/restoration.test.mjs BIS/packages/integration/tests/balance.test.mjs BIS/packages/integration/tests/activity.test.mjs BIS/packages/integration/tests/logout.test.mjs BIS/packages/integration/tests/logout-cleanup.test.mjs BIS/packages/integration/tests/restart.test.mjs
 npm pack --workspace @bis/integration --pack-destination /tmp --cache /tmp/bis-smoke-npm-cache --json
 ```
 
@@ -105,11 +105,11 @@ ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:14174:127.0.0.1:4174 -L 127.0.0.
 
 Open http://127.0.0.1:14174/ and http://127.0.0.1:14175/. These are fresh origins; production navigation does not require moving the development wallet. Repeat guest Settings/Account/Back and verify CSS/assets and lack of startup/React errors.
 
-See [acceptance evidence](../.openspec/changes/smoke-test-bis-to-game/verification.md). Pay-to-continue, revival, achievements and live financial mutations are outside this change.
+See [acceptance evidence](../../.openspec/changes/smoke-test-bis-to-game/verification.md). Pay-to-continue, revival, achievements and live financial mutations are outside this change.
 
 ## Repeat automated browser checks
 
-The game includes `scripts/smoke-game-browser.mjs` and `scripts/smoke-game-failures.mjs`; BIS includes `scripts/smoke-restart-storage.mjs`. Install Playwright in a separate test-tools directory and set `PLAYWRIGHT_MODULE` to its absolute `index.mjs` path (or use a resolvable local Playwright installation). Set `PLAYWRIGHT_BROWSERS_PATH` to its browser cache. On a Linux headless server, set `SMOKE_CHROMIUM_EXECUTABLE` to full Chromium; these game scripts enable software WebGPU/Vulkan for the test process only. They do not change host graphics settings or game rendering.
+The game includes `scripts/smoke-game-browser.mjs` and `scripts/smoke-game-failures.mjs`; BIS includes `BIS/scripts/smoke-restart-storage.mjs`. Install Playwright in a separate test-tools directory and set `PLAYWRIGHT_MODULE` to its absolute `index.mjs` path (or use a resolvable local Playwright installation). Set `PLAYWRIGHT_BROWSERS_PATH` to its browser cache. On a Linux headless server, set `SMOKE_CHROMIUM_EXECUTABLE` to full Chromium; these game scripts enable software WebGPU/Vulkan for the test process only. They do not change host graphics settings or game rendering.
 
 From the game root:
 
@@ -123,8 +123,8 @@ node scripts/smoke-game-failures.mjs http://127.0.0.1:4175/
 From the BIS root:
 
 ```sh
-node scripts/smoke-restart-storage.mjs http://127.0.0.1:5174/
-node scripts/smoke-session-cleanup.mjs http://127.0.0.1:5174/
+node BIS/scripts/smoke-restart-storage.mjs http://127.0.0.1:5174/
+node BIS/scripts/smoke-session-cleanup.mjs http://127.0.0.1:5174/
 ```
 
 Every script opens a fresh browser profile. The storage test uses an explicitly synthetic identity and real IndexedDB/BroadcastChannel; it does not call the wallet SDK or handle real recovery words. Game scripts exercise guest navigation only. Screenshots go to `/tmp/bis-game-account.png` and `/tmp/bis-game-account-narrow.png`; failures may produce `/tmp/bis-game-failure.png`.

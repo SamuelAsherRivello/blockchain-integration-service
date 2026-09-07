@@ -4,9 +4,10 @@
   "version": "0.12.0",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "BIS/packages/*"
   ],
   "scripts": {
+    "test": "node BIS/scripts/test.mjs",
     "dev": "npm run dev --workspace @bis/integration-demo",
     "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-demo",
     "typecheck": "tsc --noEmit",

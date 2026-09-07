@@ -1,11 +1,11 @@
-// Run from the BIS root, against development Vite, in a fresh isolated browser. No real wallet is created.
+// Run from the repository root, against development Vite, in a fresh isolated browser. No real wallet is created.
 const {chromium} = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true});const page=await browser.newPage();
 await page.goto(process.argv[2] ?? 'http://127.0.0.1:5174/');
 const result=await page.evaluate(async(sourceRoot)=>{
- const {createAccountStorage}=await import('/@fs'+sourceRoot+'/packages/integration/src/core/account-storage.ts');
- const {createContext}=await import('/@fs'+sourceRoot+'/packages/integration/src/core/context.ts');
+ const {createAccountStorage}=await import('/@fs'+sourceRoot+'/BIS/packages/integration/src/core/account-storage.ts');
+ const {createContext}=await import('/@fs'+sourceRoot+'/BIS/packages/integration/src/core/context.ts');
  const aStore=createAccountStorage(),bStore=createAccountStorage();
  const account={phrase:'synthetic-storage-test-only',profileId:'fixture-public-a'};
  const make=store=>createContext(store,async()=>account,async()=>account.profileId);

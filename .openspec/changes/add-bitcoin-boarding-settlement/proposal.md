@@ -4,7 +4,7 @@ Players need to choose how much Bitcoin to hold onchain and how much to hold in 
 
 ## What Changes
 
-Account Details shows Total first, then Bitcoin and Arkade balances with individual Copy controls. Bitcoin <-> Arkade sits above Recovery Phrase and opens Account Transfer. Preserve the [D4 user story and ASCII mockups](../../../documentation/User%20Story%20Diagrams.md#d4-make-deposited-bitcoin-available).
+Account Details shows Total first, then Bitcoin and Arkade balances with individual Copy controls. Bitcoin <-> Arkade sits above Recovery Phrase and opens Account Transfer. Preserve the [D4 user story and ASCII mockups](../../../BIS/documentation/User%20Story%20Diagrams.md#d4-make-deposited-bitcoin-available).
 
 Both Bitcoin-to-Arkade and Arkade-to-Bitcoin are required. Each offers a chosen amount, one-sat minus/plus, Max, fee/net/projected-balance review, explicit Confirm Transfer and Back. Unsupported amounts are rejected; a partial request is never silently increased to Max. Switching direction invalidates the quote. No receipt, refresh, login, restoration, elapsed time or achievement request authorizes a transfer.
 

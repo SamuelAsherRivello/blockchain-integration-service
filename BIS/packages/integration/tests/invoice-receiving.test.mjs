@@ -35,7 +35,7 @@ test('production Receive hides deferred invoice UI and keeps address Copy and Ba
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   const context = setup();
   try {
-    const { BisView } = await server.ssrLoadModule('/packages/integration/src/ui/client.tsx');
+    const { BisView } = await server.ssrLoadModule('/BIS/packages/integration/src/ui/client.tsx');
     await context.ready();
     context.openAccountDialog();
     context.openAccountReceive();
