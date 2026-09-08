@@ -1,5 +1,13 @@
 # Project workflow
 
+## Generated output
+
+- Put temporary generated artifacts, including logs, screenshots, test reports, and diagnostic dumps, under repository-root `output/<category>/<task>/`.
+- Use descriptive subfolders, for example `output/logs/wallet-subscription/`, `output/screenshots/account-dialog/`, or `output/reports/release/`. Create the destination folder before writing artifacts.
+- Do not write temporary artifacts into the repository root or commit them. The existing `/output` rule in `.gitignore` covers these folders.
+- Existing tool-specific conventions such as `output/playwright/` remain valid. Keep tool-managed build folders such as `dist/`, tracked documentation assets, and OpenSpec planning artifacts in their established locations.
+- Never write secrets into output artifacts; an ignored folder is not secret storage.
+
 ## Commit identity
 
 - The user-approved GitHub identity for this project is [SamuelAsherRivello](https://github.com/SamuelAsherRivello).
