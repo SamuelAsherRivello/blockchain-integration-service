@@ -94,7 +94,7 @@ The root `package.json`, `package-lock.json`, and `tsconfig.json` configure npm 
 <!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. -->
 React and TypeScript power both packages, with Vite for development and production builds. `@bis/integration-demo` consumes `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. Arkade-specific types and recovery material stay out of public state and events.
 
-Run `npm run typecheck` for type checking or `npm test` for the existing integration and demo tests. Tests use isolated fixtures; passing them does not establish live payment acceptance. Package versions are currently `0.14.0`, and `package-lock.json` pins the dependency tree.
+Run `npm run typecheck` for type checking or `npm test` for the existing integration and demo tests. Tests use isolated fixtures; passing them does not establish live payment acceptance. Package versions are currently `0.14.1`, and `package-lock.json` pins the dependency tree.
 
 ### 📦 AI
 

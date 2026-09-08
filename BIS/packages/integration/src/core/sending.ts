@@ -27,18 +27,35 @@ export function validateSendRecord(r:SendRecord):SendRecord {
  if(change && (Object.keys(change).some(k=>!['script','sats','assets'].includes(k))||!/^5120[a-f0-9]{64}$/.test(change.script)||!natural(change.sats)||change.sats<=0||change.sats!==q.maxSats-q.totalSats||!Array.isArray(change.assets)||!change.assets.length||change.assets.some(a=>Object.keys(a).some(k=>!['assetId','amount'].includes(k))||!/^[a-f0-9]{68}$/.test(a.assetId)||!/^[1-9][0-9]*$/.test(a.amount))||new Set(change.assets.map(a=>a.assetId)).size!==change.assets.length))throw new SendError('Send asset recovery data is invalid.');
  return r;
 }
-export function readSendRecord(profileId: string | undefined):SendRecord|undefined {
- try {return readWalletRecord(key,profileId,validateSendRecord);}
+export function readSendRecords(profileId: string | undefined):SendRecord[] {
+ if(!profileId)return [];
+ try {
+  const first=readWalletRecord(key,profileId,validateSendRecord), records=first?[first]:[];
+  const prefix=walletRecordKey(key,profileId)+':operation:';
+  for(let i=0;i<localStorage.length;i++) {
+   const storageKey=localStorage.key(i);if(!storageKey?.startsWith(prefix))continue;
+   const record=validateSendRecord(JSON.parse(localStorage.getItem(storageKey)!));
+   if(record.profileId!==profileId||storageKey!==prefix+encodeURIComponent(record.id)||records.some(r=>r.id===record.id))throw Error();
+   records.push(record);
+  }
+  return records;
+ }
  catch {throw new SendError('Send recovery data is unavailable. Spending and account clearing remain blocked.');}
 }
+export function readSendRecord(profileId: string | undefined,id?:string):SendRecord|undefined {
+ const records=readSendRecords(profileId);
+ return id===undefined?records.at(-1):records.find(r=>r.id===id);
+}
 export function writeSendRecord(record:SendRecord) {
- validateSendRecord(record);const raw=JSON.stringify(record),scopedKey=walletRecordKey(key,record.profileId);
+ validateSendRecord(record);
+ const first=readWalletRecord(key,record.profileId,validateSendRecord);
+ const raw=JSON.stringify(record),scopedKey=walletRecordKey(key,record.profileId)+(first&&first.id!==record.id?':operation:'+encodeURIComponent(record.id):'');
  try {localStorage.setItem(scopedKey,raw);if(localStorage.getItem(scopedKey)!==raw)throw Error();}
  catch {throw new SendError('Send recovery data could not be saved.');}
 }
-export function assertNoPendingSend(profileId: string | undefined) {assertNoPendingContinue(profileId);if(readSendRecord(profileId)?.status==='pending')throw new SendError('A send is unresolved. Open Send and Check Status before spending or clearing this account.');}
+export function assertNoPendingSend(profileId: string | undefined) {assertNoPendingContinue(profileId);if(readSendRecords(profileId).some(r=>r.status==='pending'))throw new SendError('A send is unresolved. Open Send and Check Status before spending or clearing this account.');}
 export function completeSend(id:string,transactionId:string,profileId:string) {
- const record=readSendRecord(profileId);
+ const record=readSendRecord(profileId,id);
  if(!record||record.id!==id||record.transactionId!==transactionId)throw new SendError('The send operation changed.');
  writeSendRecord({...record,status:'succeeded'});
 }

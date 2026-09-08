@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import type { BisAsset, BisListAssetsResult, BisMintAssetRequest, BisMintAssetResult } from '@bis/integration';
 import { assetBaseUnits } from '../../integration/src/core/assets';
 import { AdminPanel } from '../src/admin/AdminPanel';
 import { MintAssetDialog } from '../src/admin/MintAssetDialog';
+import type { MintDestination } from '../src/admin/mint-destination';
 import { achievementPresets } from '../src/admin/achievement-presets';
 import '../src/style.css';
 
@@ -33,6 +34,7 @@ function AssetUiHost() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [initial, setInitial] = useState<BisMintAssetRequest>();
+  const prepare = useCallback(async (destination: MintDestination) => ({destination, profileId, request:initial ?? null, canMint:true, isCurrent:()=>true, subscribe:()=>()=>{}, mint}), [initial, scenario]);
   const [busy, setBusy] = useState(false);
   const [requests, setRequests] = useState<BisMintAssetRequest[]>([]);
   const [results, setResults] = useState<unknown[]>([]);
@@ -156,7 +158,7 @@ function AssetUiHost() {
         <h3>Public results</h3><pre id="public-results">{JSON.stringify(results, null, 2)}</pre>
       </section>
     </main>
-    {open && <MintAssetDialog initial={initial} onMint={mint} onClose={() => setOpen(false)} />}
+    {open && <MintAssetDialog prepare={prepare} onClose={() => setOpen(false)} />}
     {open && portalTarget && createPortal(<div className="fixture-dialog-controls" aria-label="Fixture-only pending controls">
       <p>Fixture only: this control resolves the fake callback without changing production dialog behavior.</p>{releaseButton}
     </div>, portalTarget)}

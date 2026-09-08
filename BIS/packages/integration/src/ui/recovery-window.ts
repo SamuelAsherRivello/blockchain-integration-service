@@ -1,36 +1,41 @@
-import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
-import { ReportTextArea } from './ReportTextArea';
-import type { BisTransferStatus } from '../core/context';
-import { formatTransferRecoveryReport } from '../core/boarding-status';
+import { createElement, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { AccountCard } from './AccountCard';
+import { CopyableTextArea } from './CopyableTextArea';
+import { useClipboardCopy } from './useClipboardCopy';
 
-export function openRecoveryWindow(status: BisTransferStatus): boolean {
-  const report = formatTransferRecoveryReport(status);
-  if (!report) return false;
-  const popup = window.open('about:blank', '_blank', 'popup,width=720,height=760');
-  if (!popup) return false;
-  popup.opener = null;
-  const doc = popup.document;
-  doc.title = 'Recovery Info';
-  doc.documentElement.lang = 'en';
-  const style = doc.createElement('style');
-  style.textContent = 'body{margin:24px;background:#111827;color:#f3f4f6;font:16px system-ui}textarea{box-sizing:border-box;width:100%;height:50vh;min-height:80px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;background:#1f2937;color:inherit;border:1px solid #4b5563;border-radius:8px;resize:none;font:14px/1.5 monospace}button{margin-top:16px;padding:10px 16px;background:#374151;color:inherit;border:1px solid #6b7280;border-radius:8px;cursor:pointer}';
-  style.textContent += '.bis-report-pages{display:flex;align-items:center;justify-content:space-between;gap:8px}.bis-report-pages button{margin:8px 0}';
-  const heading = doc.createElement('h1');
-  heading.textContent = 'Recovery Info';
-  const container = doc.createElement('div');
-  const copy = doc.createElement('button');
-  copy.textContent = 'Copy Recovery Info';
-  const feedback = doc.createElement('p');
-  feedback.setAttribute('role', 'status');
-  copy.onclick = async () => {
-    try { await popup.navigator.clipboard.writeText(report); feedback.textContent = 'Recovery info copied.'; }
-    catch { const field = container.querySelector('textarea'); field?.focus(); field?.select(); feedback.textContent = 'Could not copy. Copy each report page manually.'; }
-  };
-  doc.head.append(style);
-  doc.body.append(heading, copy, container, feedback);
-  const root = createRoot(container);
-  root.render(createElement(ReportTextArea, { value: report, 'aria-label': 'Recovery Info' }));
-  popup.addEventListener?.('pagehide', () => root.unmount(), { once: true });
-  return true;
+export function RecoveryInfoDialog({ report, trigger, onBack }: { report: string; trigger: HTMLButtonElement; onBack: () => void }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const overlay = useRef<HTMLDivElement>(null);
+  const copy = useClipboardCopy(() => report, report);
+  const source = trigger.closest<HTMLElement>('.bis-card');
+  const host = trigger.closest('.bis-layer') ?? source?.parentElement;
+  useLayoutEffect(() => {
+    const wasInert = source?.inert;
+    if (source) source.inert = true;
+    heading.current?.focus();
+    return () => {
+      if (source) source.inert = wasInert ?? false;
+      if (trigger.isConnected) trigger.focus();
+    };
+  }, [source, trigger]);
+  if (!host) return null;
+  return createPortal(createElement('div', {
+    ref: overlay, className: 'bis-layer bis-layer-open bis-recovery-dialog',
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onBack(); }
+      if (event.key !== 'Tab') return;
+      const controls = Array.from(overlay.current?.querySelectorAll<HTMLElement>('button:not(:disabled), textarea, [tabindex="0"]') ?? []);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === heading.current)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    },
+  }, createElement(AccountCard, { title: 'Recovery Info', description: null, headingRef: heading, className: ' bis-card-activity', children:
+    createElement('div', { className: 'bis-activity' },
+      createElement(CopyableTextArea, { label: 'Recovery Info', value: report, copy, scrollable: true }),
+      copy.status === 'failed' && createElement('p', { role: 'status' }, 'Could not copy. Select the text and copy it manually.'),
+      createElement('span', { className: 'bis-sr-only', role: 'status' }, copy.status === 'copied' ? 'Recovery info copied.' : ''),
+      createElement('div', { className: 'bis-actions bis-transaction-back' },
+        createElement('button', { type: 'button', className: 'bis-button', onClick: onBack }, 'Back'))),
+  })), host);
 }

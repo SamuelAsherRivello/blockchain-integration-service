@@ -7,6 +7,7 @@ import type { BisBalance, BisContext, BisTransferStatus } from '../core/context'
 import { boardingSubmissionEnabled, type BoardingQuote } from '../core/boarding-quote';
 import { AccountBalances } from './AccountBalances';
 import { AmountChooserRow } from './AmountChooserRow';
+import { PendingTransferConfirmationError } from '../core/boarding-record';
 
 export function AccountTransfer({ context, balance, onBack }: { context: BisContext; balance: BisBalance; onBack(): void }) {
   const [direction, setDirection] = useState<'to-arkade' | 'to-bitcoin'>('to-arkade');
@@ -21,6 +22,9 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<BisTransferStatus>({status:'idle'});
   const [error, setError] = useState('');
+  const [submitted,setSubmitted]=useState(false);
+  const [warning,setWarning]=useState<readonly BisTransferStatus[]>();
+  const acknowledged=useRef<readonly string[]>([]);
   const expired = useQuoteExpiry(quote?.expiresAt);
   const alive = useRef(true);
   const request = useRef(0);
@@ -32,41 +36,55 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const valid = /^\d+$/.test(amount) && Number.isSafeInteger(numeric) && numeric > 0;
   const label = direction === 'to-arkade' ? 'Bitcoin → Arkade' : 'Arkade → Bitcoin';
   const pending = status.status === 'pending';
-  const blocked = pending || !statusChecked;
+  const blocked = !statusChecked;
   function failure(cause: unknown) {
     const message = cause instanceof Error ? cause.message : '';
-    return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
+    return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
   }
   async function check(clearError=true, background=false) {
-    const current=++request.current;setBusy(true);
+    const current=++request.current;if(!background)setBusy(true);
     if(!background){setForeground(true);setOperationLabel('Checking...');if(clearError)setError('');}
     try {
       const next=await readWithRetry(()=>context.checkAccountTransfer(),readController.current.signal);
       if(!alive.current||current!==request.current)return;
       setStatus(next);setStatusChecked(true);
-      if(next.status==='pending') {
-        if(next.direction)setDirection(next.direction);
-        if(next.amountSats!==undefined)setAmount(String(next.amountSats));
-        setReview(false);setQuote(undefined);
-        if(!background)setError('Outcome not yet confirmed. The transfer may still complete. Do not submit it again.');
-      }
-      if(next.status==='succeeded') {setQuote(undefined);setReview(false);if(!background)await context.refreshBalance();}
+      if(next.status==='succeeded'&&!background)await context.refreshBalance();
     } catch(cause) {
       if(alive.current&&current===request.current){setStatusChecked(false);setStatus(previous=>previous.status==='pending'?{...previous,verification:'unavailable'}:previous);if(!background)setError(failure(cause));}
     } finally {if(alive.current&&current===request.current){setBusy(false);setForeground(false);}}
   }
-  useEffect(()=>{alive.current=true;readController.current=new AbortController();void check();return()=>{alive.current=false;request.current++;readController.current.abort();};},[context]);
   useEffect(()=>{
-    if(!pending)return;
+    alive.current=true;readController.current=new AbortController();
+    try {
+      const records=context.getPendingAccountTransfers();
+      if(records.length){setStatus(records[records.length-1]);setStatusChecked(true);setBusy(false);setForeground(false);}
+      else void check();
+    }catch(cause){setError(failure(cause));setBusy(false);setForeground(false);}
+    return()=>{alive.current=false;request.current++;readController.current.abort();};
+  },[context]);
+  useEffect(()=>{
+    if(!pending||review||warning||submitted)return;
     const timer=setInterval(()=>{if(!busy)void check(false,true);},10000);
     return()=>clearInterval(timer);
-  },[pending,busy]);
+  },[pending,busy,review,warning,submitted]);
 
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
     if (review) reviewHeading.current?.focus(); else amountInput.current?.focus();
   }, [review]);
   function edit(value:string) {request.current++;setQuote(undefined);setReview(false);setError('');setAmount(value);}
+  function reviewTransfer() {
+    try {
+      const transfers=context.getPendingAccountTransfers();
+      acknowledged.current=[];
+      if(transfers.length){setWarning(transfers);return;}
+      void loadQuote();
+    }catch(cause){setError(failure(cause));}
+  }
+  function acceptWarning() {
+    acknowledged.current=warning!.flatMap(r=>r.operationId?[r.operationId]:[]);
+    setWarning(undefined);void loadQuote();
+  }
   async function loadQuote(max=false) {
     const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Preparing...');setError('');setQuote(undefined);
     try {
@@ -80,15 +98,22 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     if(!boardingSubmissionEnabled||!quote||busy||blocked||expired)return;
     const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Transferring...');setSubmitting(true);setStatusChecked(false);setError('');
     try {
-      const next=await context.confirmAccountTransfer(quote);
+      const next=await context.confirmAccountTransfer(quote,acknowledged.current);
       if(!alive.current||current!==request.current)return;
       setStatus(next);setQuote(undefined);setStatusChecked(true);
       if(next.status==='succeeded')await context.refreshBalance();
-      else setError(next.status==='pending'?'Outcome not yet confirmed. The transfer may still complete. Do not submit it again.':'Transfer was not submitted. Review a fresh transfer.');
-    }catch(cause){if(alive.current&&current===request.current){setError(failure(cause));setQuote(undefined);}}
+      else if(next.status==='pending')setSubmitted(true);
+      else setError('Transfer was not submitted. Review a fresh transfer.');
+    }catch(cause){if(alive.current&&current===request.current){
+      if(cause instanceof PendingTransferConfirmationError){setStatusChecked(true);setWarning(context.getPendingAccountTransfers());}
+      else setError(failure(cause));
+      setQuote(undefined);
+    }}
     finally{if(alive.current&&current===request.current){setSubmitting(false);setBusy(false);setForeground(false);setReview(false);}}
   }
-  usePendingNotice(foreground,operationLabel,error||undefined,onBack);
+  usePendingNotice(foreground,operationLabel,error||undefined,warning?()=>setWarning(undefined):onBack,
+    warning?{title:'Pending transfer',message:`You already have a transfer of ${sats(warning.reduce((total,r)=>total+(r.amountSats??0),0))} pending. Are you sure you want to send another?`,confirm:acceptWarning}
+    :submitted?{title:'Transfer pending.',message:'You can view progress in Transactions.'}:undefined);
   return <>
     <div className="bis-transfer-balances"><AccountBalances balance={balance} directionControl={
       <button type="button" className="bis-button bis-balance-direction" disabled={busy||blocked||review}
@@ -113,12 +138,12 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     </div>}
     {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}
     {!boardingSubmissionEnabled && <p className="bis-warning">Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.</p>}
-    {pending && <p className="bis-warning" role="status">A pending transfer is blocking new transfers. Open Transactions to review it.</p>}
+    {pending && <p className="bis-transfer-help" role="status">Check Transactions for updates on pending transfers.</p>}
     {status.status==='not-submitted' && <p role="status">Transfer was not submitted. Review again to start a new transfer.</p>}
     {direction==='to-arkade' && balance.status==='ready' && balance.bitcoinSats===0 && <p className="bis-transfer-help bis-transfer-direction-help" role="status">No Bitcoin funds to transfer.</p>}
     <div className="bis-actions">
       {review ? <button className="bis-button bis-primary" disabled={!boardingSubmissionEnabled||!quote||expired||busy||blocked} onClick={()=>void confirm()}>Confirm Transfer</button>
-        : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||balance.status!=='ready'} onClick={()=>void loadQuote()}>Review Transfer</button>}
+        : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||balance.status!=='ready'} onClick={reviewTransfer}>Review Transfer</button>}
       {error && !pending && <button className="bis-button" disabled={busy} onClick={()=>void check()}>Check Status</button>}
       <button className="bis-button" onClick={() => review ? (setReview(false),setQuote(undefined)) : onBack()}>Back</button>
     </div>

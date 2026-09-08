@@ -15,7 +15,8 @@ document.getElementById('run')!.onclick = async () => {
     requireSignet((await provider.getInfo()).network);
     wallet = await ReadonlyWallet.create({ identity: MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }), arkProvider: provider, onchainProvider: new EsploraProvider('https://mempool.space/signet/api', { forcePolling: true, pollingInterval: 15000 }), storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() } });
     const [history, coins] = await Promise.all([wallet.getTransactionHistory(), wallet.getBoardingUtxos()]);
-    result.textContent = JSON.stringify({ history, coins: coins.map(c => ({ txid: c.txid, vout: c.vout, value: c.value, confirmed: c.status.confirmed })), connection: wallet.getProviderConnectionState() }, null, 2);
+    // SDK asset amounts are bigint; keep their exact values in read-only evidence.
+    result.textContent = JSON.stringify({ history, coins: coins.map(c => ({ txid: c.txid, vout: c.vout, value: c.value, confirmed: c.status.confirmed })), connection: wallet.getProviderConnectionState() }, (_key, value) => typeof value === 'bigint' ? value.toString() : value, 2);
     stop = await wallet.notifyIncomingFunds(event => { result.textContent += '\nSDK notification: ' + event.type; });
     result.textContent += '\nSubscription registered (not proof of a live event).';
   } catch { result.textContent = 'SDK read failed. No credentials displayed.'; }

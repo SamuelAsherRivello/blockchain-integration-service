@@ -5,6 +5,17 @@ Allow players and host applications to inspect and copy all Signet transaction h
 
 ## Requirements
 
+### Requirement: Pending activity belongs to Transactions
+Accounts Details SHALL provide Transactions as the single destination for transaction history and pending wallet activity, with no separate Pending Operations button or panel. Pending saved records SHALL join existing rows by operation reference or known transaction ID; records absent from network history SHALL remain inspectable without invented amounts, timestamps or success. Unsent drafts SHALL be labeled Not submitted and unknown submitted outcomes SHALL remain pending. The selected transaction detail SHALL include only its matching recovery records, reservation information, Check Status, Copy Recovery Details and discard controls only for eligible unsent transfer drafts. Discard SHALL preserve recovery history and SHALL NOT imply network cancellation. Recovery actions SHALL fit the compact dialog with Back accessible.
+
+#### Scenario: Existing network record also has a pending operation
+- **WHEN** a saved operation matches an existing transaction ID
+- **THEN** Transactions retains one history row and its detail contains the matching recovery data and actions
+
+#### Scenario: Unsent draft is discarded
+- **WHEN** the player selects an eligible unsent draft in Transactions and discards it
+- **THEN** only that draft is discarded, submitted records retain recovery protection, and the list refreshes without claiming cancellation
+
 ### Requirement: Bounded loading and asset history
 Initial Activity loading SHALL allow 75 seconds per attempt and automatically retry once under the Pending Operation Dialog. After two failures, the dialog SHALL show an error and only OK, which closes it and the source page. History reads SHALL begin without awaiting notification subscription setup. Polling SHALL remain available when subscription setup fails or stalls. Cleanup SHALL NOT delay failure reporting, and late results after cancellation SHALL be ignored.
 
@@ -38,7 +49,7 @@ The integration SHALL obtain network transaction history only through the Arkade
 - **THEN** the implementation is reported blocked by that limitation and no separate explorer integration is substituted
 
 ### Requirement: Minimal truthful presentation
-The dialog SHALL be titled Transactions and SHALL NOT repeat the Account ID; that field and its Copy action belong only on Accounts Details. The list SHALL retain the delivered three-line rows: amount/direction, supported status, and a shortened identifier. One click SHALL open Transaction Detail with a selectable full report and its own Copy action. Back SHALL return to the list and retain selection; leaving Activity SHALL clear selection. Both views SHALL retain the fixed 480px height capped by available host space, with internal scrolling only in the Transactions list. Transaction Detail and surrounding dialog actions SHALL remain accessible without whole-dialog or host-window scrolling.
+The dialog SHALL be titled Transactions. Account ID and its Copy action SHALL appear only on Accounts Details, not in Transactions or Transaction Detail. The list SHALL retain the delivered three-line rows: operation and amount, On-chain or Off-chain network, and a shortened primary identifier. Full direction, supported status, identifiers, available timestamps and exact asset quantities SHALL remain in Transaction Detail and the full-list export. One click SHALL open Transaction Detail with a selectable full report and its own Copy action. Detail Back SHALL return to the list and retain selection; leaving Activity SHALL clear selection. Both views SHALL retain the native compact 384px height capped by available host space. The list and full detail text SHALL scroll internally with persistent scrollbars, without whole-dialog or host-window scrolling.
 
 Copy all transactions SHALL export every current record in displayed order, one transaction per logical line, with amount in sats or explicit unknown amount, direction, full supported status, available identifiers, and exact asset quantities where supplied. It SHALL NOT truncate identifiers or invent output indexes. Clipboard success SHALL be reported only after writing succeeds. Clipboard failure SHALL expose the entire export as selectable read-only text and allow retry. Copy-all SHALL be disabled during loading and without records. Per-transaction Copy SHALL remain separate and copy only the selected report.
 
@@ -68,7 +79,7 @@ Transactions SHALL be ordered newest first using available SDK transaction times
 - **THEN** undated pending entries appear first, timestamped entries follow newest first, and other undated entries follow in SDK order
 
 ### Requirement: Public state and freshness
-The public integration API SHALL expose normalized incoming and outgoing transaction history and loading, ready, and unavailable states without SDK-specific types or secrets. Opening Activity SHALL load existing history and enable automatic updates while open. A successful empty result SHALL say No transactions found and be distinguishable from an unavailable read. Subscription failure alone SHALL permit polling fallback. Initial load and manual refresh SHALL be covered immediately by the Pending Operation Dialog with no inline loading text. Only prepared content SHALL be revealed; final loading errors and OK SHALL close the source page. Transactions SHALL provide an explicitly labeled Refresh control, disabled while loading, matching Account Details. Unavailable foreground loads SHALL use the Pending Operation Dialog failure contract and SHALL NOT present prior data as current.
+The public integration API SHALL expose normalized incoming and outgoing transaction history and loading, ready, and unavailable states without SDK-specific types or secrets. Opening Activity SHALL load existing history and enable automatic updates while open. A successful empty result SHALL retain the Transactions heading, disabled copy icon, list space and scrollbar without an empty-state message; it SHALL remain distinguishable from an unavailable read. Subscription failure alone SHALL permit polling fallback. Initial load and manual refresh SHALL be covered immediately by the Pending Operation Dialog with no inline loading text. Only prepared content SHALL be revealed; final loading errors and OK SHALL close the source page. Transactions SHALL provide an explicitly labeled Refresh control, disabled while loading, matching Balance. Unavailable foreground loads SHALL use the Pending Operation Dialog failure contract and SHALL NOT present prior data as current.
 
 #### Scenario: Arrival while open
 - **WHEN** a new incoming or outgoing transaction is reported while Activity is open
@@ -79,7 +90,7 @@ The public integration API SHALL expose normalized incoming and outgoing transac
 - **THEN** Activity reports unavailable rather than an empty successful list or apparently current prior result
 
 ### Requirement: Account-scoped activity lifecycle
-Activity SHALL be transient and scoped to the active account and open view. Back SHALL return to Account. Leaving Activity, logout, account replacement, reset, and disposal SHALL stop its monitoring and clear its state. Late results SHALL NOT repopulate a closed view or another account's state.
+Activity SHALL be transient and scoped to the active account and open view. List Back SHALL return to the Accounts Details submenu; its Back SHALL return to Account. Leaving Activity, logout, account replacement, reset, and disposal SHALL stop its monitoring and clear its state. Late results SHALL NOT repopulate a closed view or another account's state.
 
 #### Scenario: Account changes during a request
 - **WHEN** the account changes before an activity request or callback finishes
@@ -88,3 +99,33 @@ Activity SHALL be transient and scoped to the active account and open view. Back
 #### Scenario: Reopen Activity
 - **WHEN** a player returns to Activity after leaving it
 - **THEN** a fresh SDK read runs and exactly one active monitoring lifecycle serves that view
+
+### Requirement: Three transaction detail actions
+Transaction Detail SHALL retain its Transaction label, inline copy icon, and selectable report. Its action area SHALL contain exactly View Recovery Info, Open On Explorer, and Back, in that order. View Recovery Info SHALL be disabled when no recovery report exists for the selected record. Open On Explorer SHALL remain disabled without a supported explorer URL, with its reason accessible on the control. The view SHALL NOT show a bottom explorer-unavailable text block or additional bottom textfield. Detail Back SHALL return to Transactions and retain selection.
+
+#### Scenario: Pending transaction without an explorer identifier
+- **WHEN** a pending transaction with recovery information but no explorer URL is opened
+- **THEN** the three actions are visible, View Recovery Info is enabled, Open On Explorer is disabled, and no explanatory textfield or explorer message appears below Back
+
+#### Scenario: Ordinary transaction
+- **WHEN** a transaction has no recovery report
+- **THEN** View Recovery Info remains visible and disabled, and the existing explorer and Back behavior remains available as appropriate
+
+### Requirement: Matching recovery information dialog
+View Recovery Info SHALL open a dialog inside the BIS overlay with visible title Recovery Info. It SHALL match Transaction Detail typography, colors, report styling, compact card layout and internally scrolling report. A Recovery Info label SHALL have an adjacent copy icon above a selectable read-only report for the selected transaction. Back SHALL be the only footer action and SHALL dismiss the dialog, leaving the originating Transaction Detail selection intact. There SHALL be no Check Status, standalone Copy Recovery Details, discard, explorer, or refresh action in this dialog. Report generation and copying SHALL remain read-only and secret-free.
+
+#### Scenario: Open and return
+- **WHEN** the player selects View Recovery Info and then Back in the new dialog
+- **THEN** the matching Recovery Info dialog closes and the original selected Transaction Detail remains open
+
+#### Scenario: Clipboard failure
+- **WHEN** copying fails
+- **THEN** the dialog retains selectable report text and truthful accessible feedback without additional action buttons
+
+#### Scenario: Dialog navigation stays inside BIS
+- **WHEN** Recovery Info opens
+- **THEN** no browser window is created, the originating card is inert, keyboard focus stays inside the recovery dialog, and Back or Escape restores the originating detail and trigger focus
+
+#### Scenario: Copy selected recovery report
+- **WHEN** the player activates the copy icon beside Recovery Info
+- **THEN** only the selected recovery report is copied and success is indicated only after the clipboard write succeeds

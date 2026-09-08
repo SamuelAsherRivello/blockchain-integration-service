@@ -21,6 +21,11 @@ The system SHALL maintain multiple account/network/operator-scoped operations, r
 - **WHEN** a legacy unresolved operation has unknown inputs or migration cannot persist
 - **THEN** no new spending occurs and the original recovery record remains intact
 
+#### Scenario: Reconstruct legacy reservations
+- **WHEN** a pending operation lacks a complete input set
+- **THEN** the system attempts read-only reconstruction from supported evidence and persists verified reservations before enabling independent spending
+- **AND** while uncertainty remains it explains the specific spending hold and keeps receiving, inspection and recovery available without signing or resubmitting
+
 ### Requirement: Consistent operation availability
 Max, quotes and submissions SHALL use fresh eligible unreserved inputs including fees, revalidated at confirmation. Mint input control SHALL be proven before independent minting is enabled. The UI SHALL distinguish insufficient independent funds, unavailable verification, unsupported input selection and input conflict. SDK balance alone SHALL NOT override reservations.
 
@@ -36,12 +41,28 @@ Max, quotes and submissions SHALL use fresh eligible unreserved inputs including
 - **WHEN** supported SDK issuance cannot exclude reserved inputs
 - **THEN** independent minting remains unavailable with that reason while supported disjoint transfers and sends remain available
 
+### Requirement: Shared B1 payment availability
+BIS SHALL apply the shared input reservation policy to B1 payments as well as sends, transfers and supported minting. B1 SHALL be greyed out when verified unreserved funds cannot cover the payment and applicable fees, or payment readiness cannot be verified. It SHALL expose an accessible specific reason and known available/reserved amounts. Opening Account alone SHALL NOT disable B1. Fund and reservation changes SHALL refresh availability without automatically submitting a queued payment. Duplicate submission protection SHALL remain enforced.
+
+#### Scenario: Pending transfer with independent B1 funds
+- **WHEN** the player is logged in, the game wallet recipient is available, and verified unreserved inputs cover B1 while an unrelated transfer remains pending
+- **THEN** B1 remains enabled even with Account open and its explicit click uses only independent inputs
+
+#### Scenario: Insufficient independent B1 funds
+- **WHEN** verified unreserved funds cannot cover B1
+- **THEN** B1 is greyed out with the specific reason and known available/reserved amounts
+- **AND** when sufficient eligible funds become available it re-enables and requires a new explicit click
+
+#### Scenario: Independent minting unsupported
+- **WHEN** minting cannot enforce exclusion of reserved inputs but B1 and sends can
+- **THEN** minting is greyed out with its specific reason and supported independently funded operations remain enabled
+
 ### Requirement: Actionable recovery view
-Account SHALL expose all its pending operations with amount, known status, last verification, reserved value and action availability. Check Status and Copy Recovery Details SHALL remain read-only and secret-free. Discard SHALL apply only to drafts proven never submitted under the mutation lock. Network cancellation SHALL obey account-transfer-cancellation requirements; unavailable cancellation SHALL explain its reason. No Undo or force-clear action SHALL falsely release submitted work. Log Out and Reset SHALL remain protected while any unresolved operation exists.
+Account SHALL expose all its pending operations with amount, known status, last verification, reserved value and action availability. Transaction Detail SHALL offer recovery inspection through View Recovery Info only, with copying inside its Recovery Info dialog. Check Status, Copy Recovery Details and discard controls SHALL NOT appear in Transaction Detail or that window. Existing recovery checks elsewhere SHALL remain read-only and secret-free. Discard SHALL apply only to drafts proven never submitted under the mutation lock. Network cancellation SHALL obey account-transfer-cancellation requirements; unavailable cancellation SHALL explain its reason. No Undo or force-clear action SHALL falsely release submitted work. Log Out and Reset SHALL remain protected while any unresolved operation exists.
 
 #### Scenario: Registered transfer cannot be cancelled safely
 - **WHEN** cancellation finality is unverified
-- **THEN** recovery shows Check Status and Copy Recovery Details, explains cancellation unavailability and shows independent spending availability separately
+- **THEN** Transaction Detail offers View Recovery Info, whose read-only report explains cancellation unavailability and shows independent spending availability separately, without execution actions
 
 #### Scenario: Proven unsent draft
 - **WHEN** the user discards a prepared draft whose registration gate is closed and which never reached submission
@@ -53,6 +74,11 @@ Account SHALL expose all its pending operations with amount, known status, last 
 
 ### Requirement: Evidence-based delivery report
 Delivery SHALL report supported and unavailable actions separately, including SDK input-control limits, whole-input reservations, cancellation feasibility and outstanding live evidence. Independent spending/recovery delivery SHALL NOT depend on cancellation feasibility or claim that the original transfer was resolved.
+
+#### Scenario: Required live B1 acceptance
+- **WHEN** this change is reported complete
+- **THEN** evidence includes live Signet B1 success while an unrelated transfer remains pending, verified receipt of 1,000 sats at the configured game wallet, and preservation of the original transfer recovery record and reservations
+- **AND** automated tests verify conflicting-input and duplicate-submission protection; isolated browser success alone does not satisfy live acceptance
 
 #### Scenario: Cancellation remains blocked
 - **WHEN** independent spending and recovery pass verification but cancellation guarantees remain unproven

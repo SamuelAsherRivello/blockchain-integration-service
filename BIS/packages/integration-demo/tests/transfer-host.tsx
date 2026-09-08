@@ -1,4 +1,5 @@
 import { createContext } from '../../integration/src/core/context';
+import { PendingTransferConfirmationError } from '../../integration/src/core/boarding-record';
 import { createBisUi } from '@bis/integration';
 import '@bis/integration/style.css';
 
@@ -14,6 +15,7 @@ document.getElementById('run')!.onclick = async () => {
   let emptyBitcoin = true;
   const c = createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}}, undefined, async()=>account.profileId, undefined,
     async()=>{if(fail)throw Error('private');return emptyBitcoin ? {availableSats:289715,totalSats:289715,bitcoinSats:0,arkadeSats:289715} : {availableSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000};});
+  c.getPendingAccountTransfers=()=>[];
   c.checkAccountTransfer=async()=>({status:'idle'});
   c.quoteAccountTransfer=async(amount=500,direction='to-arkade')=>({profileId:account.profileId,direction,amountSats:amount,feeSats:0,netSats:amount,maxSats:500,bitcoinAfterSats:500-amount,arkadeAfterSats:1000+amount,totalAfterSats:1500,expiresAt:Date.now()+quoteLifetime,fingerprint:'test-only'});
   c.confirmAccountTransfer=async()=>{throw Error('Unexpected submission');};
@@ -77,14 +79,42 @@ document.getElementById('run')!.onclick = async () => {
     check(button('Confirm Transfer')?.disabled || button('Review Transfer')?.disabled,'Unknown status blocks another confirmation until checked');
     c.checkAccountTransfer=async()=>({status:'pending',phase:'registered',direction:'to-bitcoin',amountSats:1000,operationId:'test-operation',intentId:'test-intent',verification:'unavailable'});
     button('OK').click();await tick();c.openAccountTransfer();await tick();
-    check(host.textContent?.includes('A pending transfer is blocking new transfers.') && !host.textContent?.includes('test-intent'),'Pending notice directs to Activity without recovery details');
-    check(!!button('←') && button('Review Transfer').disabled,'Pending reverse operation is preserved');
+    check(host.textContent?.includes('Check Transactions for updates on pending transfers.') && !host.textContent?.includes('test-intent'),'Pending notice directs to Transactions');
+    check(!host.querySelector<HTMLButtonElement>('.bis-balance-direction')!.disabled,'Pending operation leaves either direction available');
+    c.getPendingAccountTransfers=()=>[{status:'pending',amountSats:1000,operationId:'test-operation',direction:'to-bitcoin'}];
+    button('Max').click();await tick();button('Review Transfer').click();await tick();
+    check(host.textContent?.includes('You already have a transfer of 1,000 sats pending. Are you sure you want to send another?'),'Forward attempt warns about pending reverse transfer');
+    button('Cancel').click();await tick();check(!button('Confirm Transfer'),'Cancel does not review or submit');
+    host.querySelector<HTMLButtonElement>('.bis-balance-direction')!.click();await tick();button('Review Transfer').click();await tick();
+    check(!!button('Yes') && !!button('Cancel'),'Reverse attempt warns too');
+    button('Yes').click();await tick();check(!!button('Confirm Transfer'),'Yes permits a fresh review');
+    c.getPendingAccountTransfers=()=>[{status:'pending',amountSats:1000,operationId:'test-operation'},{status:'pending',amountSats:500,operationId:'other-tab-operation'}];
+    c.confirmAccountTransfer=async()=>{throw new PendingTransferConfirmationError('Pending transfers changed.');};
+    button('Confirm Transfer').click();await tick();
+    check(host.textContent?.includes('1,500 sats pending') && !!button('Yes'),'A new pending transfer at confirmation asks again');
+    button('Yes').click();await tick();check(!!button('Confirm Transfer'),'Changed pending set gets a fresh review after Yes');
+    let submissions=0;
+    c.confirmAccountTransfer=async(_quote,ids)=>{check(ids?.includes('test-operation')&&ids.includes('other-tab-operation'),'All pending acknowledgements accompany submission');submissions++;return {status:'pending',phase:'registered',operationId:'second-operation',amountSats:500,direction:'to-bitcoin'};};
+    button('Confirm Transfer').click();await tick();
+    check(submissions===1 && host.textContent?.includes('Transfer pending.') && host.textContent.includes('You can view progress in Transactions.'),'Registered transfer shows pending acknowledgement');
+    check(!host.textContent?.includes('Operation unavailable'),'Pending is not an operation failure');
+    button('OK').click();await tick();
+    c.getPendingAccountTransfers=()=>[];
     c.checkAccountTransfer=async()=>({status:'succeeded',direction:'to-bitcoin',amountSats:1000,operationId:'test-operation',commitmentTxid:'b'.repeat(64),verification:'live'});
-    button('OK').click();await tick();c.openAccountTransfer();await tick();
+    c.openAccountTransfer();await tick();
     check(!host.querySelector('.bis-pending-dialog') && !host.textContent?.includes('Transfer verified') && !host.textContent?.includes('Log Out and Reset are blocked'),'Verified completion reveals prepared UI without a banner');
     const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No horizontal overflow');
     button('Back').click();emptyBitcoin=true;await c.refreshBalance();c.checkAccountTransfer=async()=>({status:'idle'});await tick();
     c.openAccountTransfer();await tick();
-    result.textContent='PASS: zero-Bitcoin layout fits 360 × 640, single-line notice, single direction button toggles both ways, visible Back, balance split, quote review, pending dialog, final error dismissal and completion. Isolated test doubles; no live submission.';
+    // The adapter tests exercise SDK asset selection; here verify the UI uses its
+    // withdrawable Max and retained-change projections without replacing them.
+    c.quoteAccountTransfer=async(amount=289385,direction='to-bitcoin')=>({profileId:account.profileId,direction,amountSats:amount,feeSats:0,netSats:amount,maxSats:289385,inputSats:289715,bitcoinAfterSats:amount,arkadeAfterSats:289715-amount,totalAfterSats:289715,expiresAt:Date.now()+60000,fingerprint:'asset-test-only'});
+    button('→').click();await tick();button('Max').click();await tick();
+    check((host.querySelector('input:not([readonly])') as HTMLInputElement)?.value==='289385','Max reserves 330 sats for assets');
+    button('Review Transfer').click();await tick();
+    check(host.textContent?.includes('289,385 sats') && host.textContent.includes('330 sats'),'Asset-preserving reverse quote renders withdrawal and retained Arkade balance');
+    check(!button('Confirm Transfer').disabled,'Asset-preserving review reaches explicit confirmation');
+    check(card.scrollWidth<=card.clientWidth,'Asset review has no horizontal overflow');
+    result.textContent='PASS: transfer layout, directions, review, expiry and recovery checks; asset-preserving Max and 330-sat Arkade change rendered. Isolated test doubles; no live submission.';
   } catch(error) {result.textContent=`FAIL: ${error instanceof Error ? error.message : 'transfer checks'}`;}
 };

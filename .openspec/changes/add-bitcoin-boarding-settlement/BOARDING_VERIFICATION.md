@@ -64,3 +64,20 @@ A 1000-sat Arkade-to-Bitcoin operation appeared in the shared account journal du
 ## Account Activity status follow-up
 
 The user requested showing transfer status in the Transactions field. Activity now merges validated same-account operation records into fresh SDK history: undated pending operations appear first, matched commitment rows are annotated without an extra duplicate, and operation/intent IDs are explicitly distinguished from transaction IDs. Copy-all includes the status. SDK failure clears SDK rows but can retain an explicitly local operation alongside the history-unavailable notice. Foreign-account records are excluded. Build and all 80 integration tests passed, including new status/deduplication/isolation cases.
+
+## Asset-bearing withdrawal fix — 2026-09-08
+
+The reported 280715-sat Arkade balance and eligibility error match the transfer adapter's unconditional asset-free input filter. The screenshots alone do not establish the current account's exact output inventory. Repository evidence from the earlier continuation repair records sats sharing an output with assets. The installed SDK 0.4.67 settlement implementation supports assigning all input assets to owned Arkade change; its Ramps quote facade does not itself construct that asset extension.
+
+Reverse quotes now include SDK-spendable asset-bearing inputs and reserve the maximum of wallet dust, operator VTXO minimum and one sat for asset change. Under the tested 330-sat minimum and zero fees, 280715 input sats yield a Max withdrawal of 280385 sats. Asset-free Max retains its full-withdrawal behavior. Exact asset IDs and bigint quantities enter the fingerprint, are revalidated on confirmation, are checked against the SDK intent before registration, and are stored with the owned change script and sats. Recovery requires exact asset change as well as the confirmed Bitcoin receipt and matching consumed inputs. Legacy records retain their original input-value interpretation.
+
+Verification:
+
+- Red and green command: `node --test --test-isolation=none BIS/packages/integration/tests/boarding-assets.test.mjs`. Initially, three asset cases failed with the reported eligibility error while the asset-free case passed. After the fix, all nine extended cases pass, including actual installed-SDK settlement output construction and BIP322 intent creation, multiple assets/inputs, exact large quantities, altered proofs, stale quotes, journal persistence, ambiguity and recovery.
+- `node --test --test-reporter=dot BIS/packages/integration/tests/*.test.mjs`: all 258 integration tests pass.
+- `npm run build` and final `npm run typecheck`: pass. Build reports the existing large-chunk warning.
+- `openspec validate add-bitcoin-boarding-settlement --strict`: passes.
+- Existing localhost server returned HTTP 200 for `/tests/transfer-host.html` on port 5175. The real in-app browser test reports PASS for layout, directions, quote expiry, recovery presentation, asset-preserving Max and retained 330-sat Arkade change. Browser inputs are isolated test doubles; no transaction is submitted.
+- Repository-wide `npm test` and a repeat with `--test-timeout=30000` both stalled after the documentation assertions completed, with a Vite HMR port-in-use warning. Those runs were stopped; no full-suite pass is claimed.
+
+This is a local implementation and test result. The published game has not been deployed from this task, and no live wallet transaction or live asset-preservation receipt was produced. Task 3.3 remains pending.

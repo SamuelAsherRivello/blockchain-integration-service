@@ -1,8 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {withTransferActivity,formatTransactions} from '../src/core/activity.ts';
+import {withTransferActivity,formatTransactions,formatTransactionDetail} from '../src/core/activity.ts';
 const record={id:'operation-1',profileId:'account-1',status:'pending',phase:'registered',intentId:'intent-1',quote:{amountSats:1000,direction:'to-bitcoin'}};
 const row={id:'history-1',amountSats:250,direction:'Incoming',status:'Confirmed',identifier:'unrelated-tx',createdAt:100};
+test('interrupted signing detail separates local progress time from missing chain time',()=>{
+ const observedAt=1788856670555;
+ const entry=withTransferActivity([],{...record,progress:{stage:'signing',execution:'interrupted',action:'tree-signatures',observedAt}},'account-1')[0];
+ const detail=formatTransactionDetail(entry);
+ assert.match(detail,/Processing interrupted; recovery needed/);
+ assert.match(detail,/Timestamp \(UTC\): Not yet reported/);
+ assert.ok(detail.includes(`Progress observed by this app (UTC): ${new Date(observedAt).toISOString()}`));
+ assert.match(detail,/Submit tree signatures/);
+});
 
 test('local transfer rows carry public recovery metadata, including merged SDK rows',()=>{
  for(const rows of [[],[{...row,identifier:'commitment:abc'}]]) {
@@ -25,6 +34,19 @@ test('same commitment is annotated without adding a duplicate transaction',()=>{
  const rows=withTransferActivity([sdk],{...record,commitmentTxid:'abc'},'account-1');
  assert.equal(rows.length,1);assert.equal(rows[0].status,'Pending — registered, awaiting verification');
  assert.match(rows[0].identifier,/operation:operation-1 intent:intent-1/);
+});
+test('multiple operations keep independent rows and repeated updates do not duplicate identifiers',()=>{
+ const first={...record,commitmentTxid:'abc'};
+ let rows=withTransferActivity([{...row,identifier:'commitment:abc'}],first,'account-1');
+ const once=rows[0].identifier;
+ rows=withTransferActivity(rows,first,'account-1');
+ assert.equal(rows[0].identifier,once);
+ const second={...first,id:'operation-2',intentId:'intent-2',quote:{amountSats:500,direction:'to-arkade'}};
+ rows=withTransferActivity(rows,second,'account-1');
+ rows=withTransferActivity(rows,{...second,status:'succeeded'},'account-1');
+ assert.equal(rows.length,2);
+ assert.equal(rows.find(r=>r.transfer.operationId==='operation-1').transfer.status,'pending');
+ assert.equal(rows.find(r=>r.transfer.operationId==='operation-2').transfer.status,'succeeded');
 });
 test('uncertainty and verified/not-submitted outcomes stay distinct, including without SDK history',()=>{
  for(const [patch,expected] of [[{phase:'submitting'},'Pending — outcome unknown'],[{phase:undefined},'Pending — outcome unknown'],[{phase:'prepared'},'Pending — preparing'],[{status:'not-submitted'},'Not submitted'],[{status:'succeeded',commitmentTxid:'abc'},'Transfer verified']]) {

@@ -1,4 +1,6 @@
 export { createBisContext, createBisAdminContext } from './core/context';
+export { createBisGameWallet } from './core/game-wallet';
+export type { BisGameWalletState } from './core/game-wallet';
 export { validateMint } from './core/assets';
 export { createBisAssetCollection } from './core/asset-collection';
 export type { BisAssetCollectionOptions, BisAssetCollectionState } from './core/asset-collection';
@@ -15,3 +17,5 @@ export { createBisUi, GameOverlay } from './ui/client';
 export type {BisContinueRequest,BisContinueResult} from './core/continuation';
 export {createBisContinue,getContinuePriceSats} from './core/game-continue';
 export type {BisGameContinueState,BisGameContinueOptions} from './core/game-continue';
+
+export type { BisPlayerRecipient } from './core/game-player-payment';

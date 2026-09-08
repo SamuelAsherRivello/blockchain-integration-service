@@ -3,7 +3,27 @@ import assert from 'node:assert/strict';
 import {Transaction,ArkAddress,Wallet,ReadonlyWallet,RestArkProvider} from '@arkade-os/sdk';
 import {inspectSendTransaction,sendRecipient,quoteSend,submitSend} from '../src/arkade/sending.ts';
 import {readSendRecord} from '../src/core/sending.ts';
+import {writeBoardingRecord,readBoardingRecord} from '../src/core/boarding-record.ts';
 const bytes=n=>new Uint8Array(32).fill(n);
+
+test('send preparation excludes pending transfer inputs and preserves the transfer journal',async t=>{
+ const f=fixture(),values=new Map();
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return values.size;},key:i=>[...values.keys()][i]??null,getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)}});
+ const reserved={txid:'e'.repeat(64),vout:0,value:4000};
+ const transfer={version:1,id:'pending-transfer',profileId:'p',status:'pending',phase:'registered',inputs:[{txid:reserved.txid,vout:0}],bitcoinAddress:'tb1-test',quote:{profileId:'p',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:4000,bitcoinAfterSats:1000,arkadeAfterSats:3000,totalAfterSats:4000,expiresAt:2000,fingerprint:'c'.repeat(64)}};
+ writeBoardingRecord(transfer);
+ const point=Uint8Array.from(Buffer.from(publicPoints[0],'hex'));
+ const own=new ArkAddress(point,point,'tark').encode(),recipient=new ArkAddress(point,Uint8Array.from(Buffer.from(publicPoints[1],'hex')),'tark').encode();
+ t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'signet',fees:{txFeeRate:'0',intentFee:{}},vtxoMinAmount:1n,vtxoMaxAmount:0n}));
+ t.mock.method(RestArkProvider.prototype,'submitTx',async()=>{throw Error('response lost');});
+ const wallet={getAddress:async()=>own,getSpendableVtxos:async()=>[reserved,f.coin],getBalance:async()=>({available:5000,total:5000,boarding:{total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{}};
+ t.mock.method(ReadonlyWallet,'create',async()=>wallet);
+ t.mock.method(Wallet,'create',async options=>({...wallet,send:async({selectedVtxos})=>{assert.deepEqual(selectedVtxos,[f.coin]);await options.arkProvider.submitTx(encoded(f.tx),[encoded(f.cp)]);return f.tx.id;}}));
+ const account={profileId:'p',phrase:'abandon '.repeat(11)+'about'};
+ const quote=await quoteSend(account,recipient,500,new AbortController().signal);assert.equal(quote.maxSats,1000);
+ assert.equal((await submitSend(account,quote,()=>true)).status,'pending');
+ assert.deepEqual(readBoardingRecord('p','pending-transfer'),transfer);
+});
 const publicPoints=['79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798','c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5'];
 const script=n=>Uint8Array.from(Buffer.from('5120'+publicPoints[n%2],'hex'));
 const hex=b=>Buffer.from(b).toString('hex'),encoded=tx=>Buffer.from(tx.toPSBT()).toString('base64');

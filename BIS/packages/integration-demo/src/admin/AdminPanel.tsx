@@ -1,16 +1,19 @@
+import type { ReactNode } from 'react';
 import { StoryAction } from './StoryAction';
+import { StorySection } from './StorySection';
 import { getContinuePriceSats } from '@bis/integration';
 const userStoriesUrl = './documentation/user-stories/';
-const categories = [{ name: 'Account', title: 'A. Account' }, { name: 'Pay-to-play', title: 'B. Pay-to-play' }, { name: 'Assets', title: 'C. Assets' }, { name: 'UI', title: 'D. UI' }];
+const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
 
-const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A2', category: 'Account', label: 'Create Account' }, { id: 'A3', category: 'Account', label: 'Restore Account' }, { id: 'A4', category: 'Account', label: 'Account Balance' }, { id: 'A5', category: 'Account', label: 'Inspect Activity' }, { id: 'A6', category: 'Account', label: 'Log Out' }, { id: 'D2a', category: 'Account', label: 'Receive Funds' }, { id: 'D3a', category: 'Account', label: 'Send Funds' }, { id: 'D4', category: 'Account', label: 'Account Transfer' }] as const;
-export function AdminPanel({ selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onMint, onListAssets, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
+const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A4', category: 'Account', label: 'Account Dialog' }] as const;
+export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
+  continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; continueAvailable?: boolean;
   onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
   onContinue?():void; continueBusy?:boolean;
   selected: string | null; accountOpen: boolean; canReset: boolean; onSelect(id: string): void; onReset(): void;
   canFund: boolean; funding: boolean; onFund(): void; onExplorer(): void;
   onCompleteLevel?(): void; completionOpen?: boolean;
-  onMint(): void; onListAssets(): void; assetBusy: boolean; consoleOutput: string;
+  onMint(): void; assetBusy: boolean; consoleOutput: string;
 }) {
   return <aside className="admin-panel" aria-label="Admin UI">
     <h1 className="panel-title">Admin</h1>
@@ -20,27 +23,26 @@ export function AdminPanel({ selected, accountOpen, canReset, onSelect, onReset,
       <a className="documentation-link" href={userStoriesUrl} target="_blank" rel="noopener noreferrer">Documentation ↗</a>
     </section>
     <nav aria-label="User stories">
-      {categories.map(category => <section key={category.name}>
-        <h3 className="category-title">{category.title}</h3>
+      {categories.map(category => <StorySection key={category.name} title={category.title}>
+        <p className="story-summary">Stories: {category.stories}</p>
         {category.name === 'UI' && <>
           <StoryAction id="D1" label="Show Toast" disabled={!canShowToast} onClick={onShowToast} />
           <StoryAction id="D2" label="Show Toast With Icon" disabled={!canShowToast} onClick={onShowToastWithIcon} />
         </>}
-        {category.name === 'Pay-to-play' && <StoryAction id="B1" label={`"Pay ${getContinuePriceSats()} Sats To Coninue"`} disabled={accountOpen || continueBusy} onClick={onContinue} />}
+        {category.name === 'Pay-to-play' && <><StoryAction id="B1" label={`"Pay ${getContinuePriceSats()} Sats To Continue" (Player->Game)`} disabled={continueBusy || !continueAvailable} onClick={onContinue} />{!continueAvailable && continueReason && <p role="status">{continueReason}</p>}</>}
         {category.name === 'Assets' && <>
-          <StoryAction id="C1" label="Mint Asset" disabled={accountOpen || assetBusy} onClick={onMint} />
-          <StoryAction id="C4" label="List Assets" disabled={accountOpen || assetBusy} onClick={onListAssets} />
-          <StoryAction id="C6" label="Reward Player With Trophy After Level Complete" disabled={accountOpen || assetBusy || completionOpen} onClick={onCompleteLevel} />
+          <StoryAction id="C1" label={mintAvailable ? "Mint Asset & Send" : `Mint Asset & Send (${mintReason ?? 'Awaiting Balance'})`} disabled={!mintAvailable || assetBusy} onClick={onMint} />
         </>}
         {stories.filter(story => story.category === category.name).map(story =>
           <StoryAction key={story.id} id={story.id} label={story.label} selected={selected === story.id} disabled={accountOpen} onClick={() => onSelect(story.id)} arrow />)}
-      </section>)}
+      </StorySection>)}
     </nav>
-    <section aria-labelledby="tools-title">
-      <h2 id="tools-title" className="admin-section-title">E. Admin Tools</h2>
+    <StorySection title="E. Admin Tools">
+      <p className="story-summary">Stories: E1, E2</p>
       <StoryAction id="E1" label="Fund Signet Sats" disabled={!canFund || funding} onClick={onFund} />
       <StoryAction id="E2" label="Open On Mempool.space" disabled={!canFund || funding} onClick={onExplorer} />
-    </section>
+    </StorySection>
+    {gameWallet}
     <section aria-labelledby="console-title">
       <h2 id="console-title" className="admin-section-title">Console</h2>
       {/* Only production BisContext return values belong here; admin helpers do not. */}
@@ -50,3 +52,5 @@ export function AdminPanel({ selected, accountOpen, canReset, onSelect, onReset,
     </div>
   </aside>;
 }
+
+

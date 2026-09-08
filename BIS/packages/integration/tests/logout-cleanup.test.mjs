@@ -7,6 +7,18 @@ function memory(entries = []) {
   return { get length() { return data.size; }, key: i => [...data.keys()][i] ?? null,
     getItem: k => data.get(k) ?? null, setItem: (k,v) => data.set(k,v), removeItem: k => data.delete(k) };
 }
+test('player logout preserves game wallet boarding recovery, including additional operations', () => {
+  const keys = ['bis-signet-boarding-operation-v1:game', 'bis-signet-boarding-operation-v1:game:operation:two'];
+  const storage = memory([
+    ['bis-game-wallet-boarding-owner:game', '1'],
+    ...keys.map(key => [key, JSON.stringify({id:key,profileId:'game',status:'pending'})]),
+    ['bis-signet-boarding-operation-v1:player', JSON.stringify({id:'player',profileId:'player',status:'succeeded'})],
+  ]);
+  assert.equal(pendingLogoutOperations(storage).count, 0);
+  clearBrowserPreferences(storage);
+  for (const key of keys) assert.ok(storage.getItem(key));
+  assert.equal(storage.getItem('bis-signet-boarding-operation-v1:player'), null);
+});
 test('counts all pending operations, deduplicates legacy journals, excludes completed operations', () => {
   const transfer = JSON.stringify({id:'one',profileId:'a',status:'pending'});
   const storage = memory([

@@ -1,7 +1,7 @@
 import { validateSendRecord, type SendRecord } from './sending.ts';
 
-export type BisContinueRequest = Readonly<{operationId:string; sats:number; context:string}>;
-export type BisContinueResult = Readonly<BisContinueRequest & {profileId:string; status:'pending'|'succeeded'|'failed'; mechanism:'sink-payment'; feeSats:0; transactionId?:string; recipient?:string; message?:string}>;
+export type BisContinueRequest = Readonly<{operationId:string; sats:number; context:string; recipient?:string}>;
+export type BisContinueResult = Readonly<BisContinueRequest & {profileId:string; status:'pending'|'succeeded'|'failed'; mechanism:'sink-payment'|'game-wallet-payment'; feeSats:0; transactionId?:string; recipient?:string; message?:string}>;
 export type ContinueRecord = {request:BisContinueRequest; profileId:string; status:BisContinueResult['status']; send?:SendRecord; message?:string};
 export const continuationPrefix='bis-signet-continuations-v1:';
 export function validateContinue(request:BisContinueRequest) {
@@ -19,9 +19,11 @@ export function readContinuations(profileId:string,storage:Pick<Storage,'getItem
     for(const record of records) {
       if(!record || Object.keys(record).some(k=>!['request','profileId','status','send','message'].includes(k)))throw Error();
       validateContinue(record.request);
-      if(Object.keys(record.request).some(k=>!['operationId','sats','context'].includes(k)))throw Error();
+      if(Object.keys(record.request).some(k=>!['operationId','sats','context','recipient'].includes(k)))throw Error();
       if(record.profileId!==profileId || !['pending','succeeded','failed'].includes(record.status) || ids.has(record.request.operationId))throw Error();
       ids.add(record.request.operationId);
+      if(record.request.recipient !== undefined && (typeof record.request.recipient !== 'string' || !record.request.recipient.startsWith('tark1')))throw Error();
+      if(record.send && record.request.recipient !== undefined && record.send.quote.recipient !== record.request.recipient)throw Error();
       if(record.send)validateSendRecord(record.send);
       if(record.send && (record.send.profileId!==profileId || record.send.quote.amountSats!==record.request.sats || record.send.quote.feeSats!==0 || !/^[a-f0-9]{64}$/.test(record.send.transactionId)))throw Error();
       if(record.send && record.status!==record.send.status)throw Error();
@@ -47,7 +49,8 @@ export function continueResult(record:ContinueRecord):BisContinueResult {
   const message=record.status==='failed' && !record.send && record.message==='Enter an affordable whole-sats amount above the minimum.'
     ? `Insufficient eligible spendable funds for this ${record.request.sats.toLocaleString('en-US')}-sat payment. No payment was submitted. Total balance may include ineligible outputs.`
     : record.message ?? 'Payment was not submitted.';
-  return Object.freeze({...record.request,profileId:record.profileId,status:record.status,mechanism:'sink-payment',feeSats:0,
+  return Object.freeze({...record.request,profileId:record.profileId,status:record.status,mechanism:record.request.recipient ? 'game-wallet-payment' : 'sink-payment',feeSats:0,
     ...(record.send?{transactionId:record.send.transactionId,recipient:record.send.quote.recipient}:{}),
     ...(record.status==='failed'?{message}:{})});
 }
+

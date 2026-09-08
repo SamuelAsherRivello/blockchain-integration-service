@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { projectRecipientPlugin } from './project-recipient.mjs';
 
 const legacyDocumentPath = '/@fs/' + fileURLToPath(new URL('../../documentation/User Story Diagrams.md', import.meta.url)).replaceAll('\\', '/');
 
 export default defineConfig({
   base: './',
-  plugins: [{
+  plugins: [projectRecipientPlugin(), {
     name: 'legacy-documentation-redirect',
     configureServer(server) {
       server.middlewares.use((request, response, next) => {

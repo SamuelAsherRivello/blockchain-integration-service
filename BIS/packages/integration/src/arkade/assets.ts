@@ -2,6 +2,22 @@ import { MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerP
 import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
 import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, assertNoPendingBurn, type BisBurnAssetRequest, type BisBurnAssetResult } from '../core/burning.ts';
+import { eligibleUnreservedCoins, walletReservations } from '../core/wallet-reservations.ts';
+
+export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal) {
+  try {eligibleUnreservedCoins([],walletReservations(account.profileId));}
+  catch {return {canMint:false,reason:'Pending operation inputs could not be verified. Open wallet recovery details before minting.'};}
+  const p=providers(signal);
+  const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
+  return withTemporaryWallet(ReadonlyWallet.create({identity,arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()}),signal,async wallet=>{
+    const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId));
+    const connection=wallet.getProviderConnectionState();p.assertFresh();
+    if(connection.mode!=='online'||connection.source!=='live')throw new AssetError('unavailable');
+    const availableSats=coins.reduce((sum,c)=>sum+c.value,0),minimumSats=Number(wallet.dustAmount);
+    if(!Number.isSafeInteger(availableSats)||!Number.isSafeInteger(minimumSats)||minimumSats<=0)throw new AssetError('unavailable');
+    return {canMint:availableSats>=minimumSats,availableSats,minimumSats,reason:availableSats>=minimumSats?undefined:'Awaiting Balance'};
+  });
+}
 
 type OwnedAsset = { asset: BisAsset; operationId?: string };
 type AssetWallet = Pick<ReadonlyWallet, 'getBalance' | 'getProviderConnectionState' | 'assetManager'>;
@@ -93,8 +109,10 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
   if (record?.status === 'succeeded') return { status: 'already-minted', profileId: account.profileId, operationId: request.operationId, asset: record.asset!, transactionId: record.transactionId };
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
   let submitted = false, open = true;
+  let fundingCoins: readonly {txid:string;vout:number}[] = [];
   const p = providers(deadline, () => {
     if (!open || !isCurrent()) throw new AssetError('account-changed');
+    if (eligibleUnreservedCoins(fundingCoins,walletReservations(account.profileId)).length !== fundingCoins.length) throw new AssetError('unavailable');
     checkMintRecord(account.profileId, request);
     writeAssetRecord(account.profileId, { request, status: 'pending' });
     submitted = true;
@@ -123,6 +141,15 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
         return { status: 'already-minted', profileId: account.profileId, operationId: request.operationId, asset: existing.asset, ...(transactionId ? { transactionId } : {}) };
       }
       if (record) throw new AssetError('outcome-unknown');
+      // SDK AssetManager.issue obtains every funding input through this public
+      // wallet method. Restrict this temporary signing wallet's source as well as
+      // the preflight balance, so its internal selection cannot spend reservations.
+      const spendable = wallet.getSpendableVtxos.bind(wallet);
+      wallet.getSpendableVtxos = async options => {
+        const coins = eligibleUnreservedCoins(await spendable({...options,withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId));
+        p.assertFresh();fundingCoins=coins;
+        return coins;
+      };
       const coins = await wallet.getSpendableVtxos({ withRecoverable: false }); p.assertFresh();
       if (coins.reduce((sum, c) => sum + BigInt(c.value), 0n) < BigInt(wallet.dustAmount)) throw new AssetError('insufficient-funds');
       if (!isCurrent()) throw new AssetError('account-changed');

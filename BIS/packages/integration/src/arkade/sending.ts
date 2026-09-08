@@ -1,7 +1,8 @@
+import {eligibleUnreservedCoins, walletReservations, migrateWalletReservations} from '../core/wallet-reservations.ts';
 import { ArkAddress, MnemonicIdentity, ReadonlyWallet, Wallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, Transaction, Extension, createAssetPacket, type ExtendedVirtualCoin } from '@arkade-os/sdk';
 import { SIGNET_OPERATOR, requireSignet, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { readFreshBalance } from './balance.ts';
-import { SendError, sendAmounts, assertSendQuote, readSendRecord, writeSendRecord, completeSend, type BisSendQuote, type SendRecord } from '../core/sending.ts';
+import { SendError, sendAmounts, assertSendQuote, readSendRecord, readSendRecords, writeSendRecord, completeSend, type BisSendQuote, type SendRecord } from '../core/sending.ts';
 
 const hex=(bytes:Uint8Array)=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 const decode=(encoded:string)=>Transaction.fromPSBT(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)));
@@ -29,18 +30,18 @@ function assetTotals(coins: {assets?: {assetId:string;amount:bigint}[]}[]) {
  }
  return [...totals].sort(([a],[b])=>a.localeCompare(b)).map(([assetId,amount])=>({assetId,amount:String(amount)}));
 }
-async function funds(wallet:ReadonlyWallet,preserveAssets=false) {
+async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:string,ignoreOperation?:string) {
  const info=await new RestArkProvider(SIGNET_OPERATOR).getInfo();requireSignet(info.network);
  if(info.fees.txFeeRate!=='0'||Object.values(info.fees.intentFee).some(v=>v!==''&&v!=='0'))throw new SendError('The operator fee schedule changed. Sending needs fee verification.');
- const coins=(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false})).filter(c=>preserveAssets||!c.assets?.length).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
+ const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),profileId?walletReservations(profileId).filter(r=>r.id!==ignoreOperation):[]).filter(c=>preserveAssets||!c.assets?.length).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
  const balance=await readFreshBalance(wallet);
  const total=coins.reduce((sum,c)=>sum+c.value,0);
  if(!Number.isSafeInteger(total)||total<0||total>balance.availableSats||coins.some(c=>!Number.isSafeInteger(c.value)||c.value<=0))throw new SendError('Live send data is unavailable.');
  return {info,coins,total,dust:Math.max(Number(wallet.dustAmount),Number(info.vtxoMinAmount),1)};
 }
-async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requested?:number,preserveAssets=false) {
+async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requested?:number,preserveAssets=false,ignoreOperation?:string) {
  const own=await wallet.getAddress();const address=sendRecipient(recipient,own);
- const {info,coins,total,dust}=await funds(wallet,preserveAssets), amounts=sendAmounts(total,requested,dust);
+ const {info,coins,total,dust}=await funds(wallet,preserveAssets,profileId,ignoreOperation), amounts=sendAmounts(total,requested,dust);
  if(info.vtxoMaxAmount>0n&&(BigInt(amounts.amountSats)>info.vtxoMaxAmount||BigInt(amounts.changeSats)>info.vtxoMaxAmount))throw new SendError('Amount exceeds the operator limit.');
  const retained=assetTotals(coins);
  if(retained.length && amounts.changeSats<dust)throw new SendError('This payment must leave enough sats in change to preserve your assets.');
@@ -53,8 +54,8 @@ async function read<T>(account:AccountSecret,signal:AbortSignal,work:(wallet:Rea
  const c=config(signal),identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
  return withTemporaryWallet(ReadonlyWallet.create({...c.options,identity}),signal,async wallet=>{const result=await work(wallet);c.assertFresh();return result;});
 }
-export const loadSendFunds=(account:AccountSecret,signal:AbortSignal)=>read(account,signal,async wallet=>(await funds(wallet)).total);
-export const quoteSend=(account:AccountSecret,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets)).quote);
+export const loadSendFunds=(account:AccountSecret,signal:AbortSignal,preserveAssets=false)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId)).total);
+export const quoteSend=(account:AccountSecret,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false,ignoreOperation?:string)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets,ignoreOperation)).quote);
 
 // Verify the entire direct-send shape, including the checkpoint indirection.
 // No signed bytes are returned or persisted by this boundary.
@@ -77,18 +78,18 @@ export function inspectSendTransaction(encoded:string,checkpoints:string[],quote
 }
 export type SendJournal = {read(profileId:string):SendRecord|undefined; write(record:SendRecord):void; complete(id:string,transactionId:string,profileId:string):void};
 const defaultJournal:SendJournal={read:readSendRecord,write:writeSendRecord,complete:completeSend};
-export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurrent:()=>boolean,journal:SendJournal=defaultJournal,preserveAssets=false):Promise<SendRecord> {
+export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurrent:()=>boolean,journal:SendJournal=defaultJournal,preserveAssets=false,ignoreOperation?:string):Promise<SendRecord> {
  const signal=AbortSignal.timeout(30000),c=config(signal);let open=true,record:SendRecord|undefined;
  const submit=c.options.arkProvider.submitTx.bind(c.options.arkProvider);
  c.options.arkProvider.submitTx=async()=>{throw new SendError('Send preparation is incomplete.');};
  try {
   return await withTemporaryWallet(Wallet.create({...c.options,identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})}),signal,async wallet=>{
-   const fresh=await plan(wallet,account.profileId,quote.recipient,quote.amountSats,preserveAssets);c.assertFresh();assertSendQuote(quote,fresh.quote);
+   const fresh=await plan(wallet,account.profileId,quote.recipient,quote.amountSats,preserveAssets,ignoreOperation);c.assertFresh();assertSendQuote(quote,fresh.quote);
    c.options.arkProvider.submitTx=async(encoded,checkpoints)=>{
     c.assertFresh();if(!open||!isCurrent()||record||quote.expiresAt<=Date.now())throw new SendError('Send details changed. Review again.');
     const transactionId=inspectSendTransaction(encoded,checkpoints,quote,fresh.coins,fresh.recipientScript,fresh.changeScript);
     const next:SendRecord={version:1,id:crypto.randomUUID(),profileId:account.profileId,status:'pending',transactionId,quote,inputs:fresh.coins.map(c=>({txid:c.txid,vout:c.vout})),recipientScript:fresh.recipientScript,...(assetTotals(fresh.coins).length?{change:{script:fresh.changeScript,sats:quote.maxSats-quote.totalSats,assets:assetTotals(fresh.coins)}}:{})};
-    journal.write(next);record=next; // Must complete before any network submission.
+    journal.write(next);record=next;migrateWalletReservations(account.profileId); // Must complete before any network submission.
     return submit(encoded,checkpoints);
    };
    const transactionId=await wallet.send({recipients:[{address:quote.recipient,amount:quote.amountSats}],selectedVtxos:fresh.coins});
@@ -99,6 +100,13 @@ export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurr
  finally {open=false;}
 }
 export async function reconcileSend(account:AccountSecret,signal:AbortSignal,journal:SendJournal=defaultJournal):Promise<SendRecord|undefined> {
+ if(journal===defaultJournal) {
+  for(const item of readSendRecords(account.profileId).filter(r=>r.status==='pending')) {
+   await reconcileSend(account,signal,{read:()=>readSendRecord(account.profileId,item.id),write:writeSendRecord,complete:completeSend});
+  }
+  const records=readSendRecords(account.profileId);
+  return records.find(r=>r.status==='pending')??records.at(-1);
+ }
  const record=journal.read(account.profileId);if(!record||record.profileId!==account.profileId)return;
  if(record.status==='succeeded')return record;
  // The indexer exposes finalized VTXOs; an absent output is not proof of failure.

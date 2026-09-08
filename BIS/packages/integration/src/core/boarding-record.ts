@@ -1,6 +1,7 @@
 import {readWalletRecord, walletRecordKey} from './wallet-record.ts';
 import { withBrowserMutation } from './logout-cleanup.ts';
 import type { BoardingQuote } from './boarding-quote.ts';
+import { validBoardingAssetChange, type BoardingAssetChange } from './boarding-assets.ts';
 
 export type BoardingRecord = {
   version: 1; id: string; profileId: string;
@@ -8,38 +9,73 @@ export type BoardingRecord = {
   phase?: 'prepared' | 'submitting' | 'registered';
   quote: BoardingQuote; inputs: {txid:string;vout:number}[];
   bitcoinAddress: string; intentId?: string; commitmentTxid?: string;
-  diagnostic?: 'registration-unconfirmed' | 'settlement-interrupted' | 'deadline-exceeded';
+  assetChange?: BoardingAssetChange;
+  createdAt?: number;
+  progress?: {stage:BoardingStage;observedAt:number;execution:'running'|'awaiting-confirmation'|'interrupted';action?:BoardingAction};
+  diagnostic?: 'registration-unconfirmed' | 'settlement-interrupted' | 'deadline-exceeded' | 'response-mismatch' | 'event-stream-closed' | 'batch-failed';
 };
+export const boardingStages=['registered','batch-selected','signing','signatures-submitted','broadcast','confirmed'] as const;
+export type BoardingStage=typeof boardingStages[number];
+export const boardingActions=['confirm-registration','tree-nonces','tree-signatures','forfeit-signatures','event-stream','settlement','validate-tree','validate-finalization'] as const;
+export type BoardingAction=typeof boardingActions[number];
 const key = 'bis-signet-boarding-operation-v1';
 const txid = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
 export class BoardingBlockedError extends Error {}
+export class PendingTransferConfirmationError extends BoardingBlockedError {}
+export function assertPendingTransfersAcknowledged(profileId:string|undefined, acknowledged:readonly string[]=[]) {
+  const pending=readBoardingRecords(profileId).filter(r=>r.status==='pending');
+  if(pending.some(r=>!acknowledged.includes(r.id)))throw new PendingTransferConfirmationError('Pending transfers changed. Confirm whether you want to send another.');
+}
 function validate(r: BoardingRecord): BoardingRecord {
   const q=r?.quote;
   const amounts=q && [q.amountSats,q.feeSats,q.netSats,q.maxSats,q.bitcoinAfterSats,q.arkadeAfterSats,q.totalAfterSats,q.expiresAt];
   if (!r || r.version!==1 || typeof r.id!=='string' || !r.id || typeof r.profileId!=='string' || !r.profileId ||
       !['pending','succeeded','not-submitted'].includes(r.status) ||
+      (r.createdAt!==undefined && (!Number.isSafeInteger(r.createdAt)||r.createdAt<0)) ||
+      (r.progress!==undefined && (!boardingStages.includes(r.progress.stage)||!Number.isSafeInteger(r.progress.observedAt)||r.progress.observedAt<0||!['running','awaiting-confirmation','interrupted'].includes(r.progress.execution)||(r.progress.action!==undefined&&!boardingActions.includes(r.progress.action)))) ||
       (r.phase!==undefined && !['prepared','submitting','registered'].includes(r.phase)) ||
       !Array.isArray(r.inputs) || !r.inputs.length || r.inputs.some(i=>!txid(i.txid)||!Number.isSafeInteger(i.vout)||i.vout<0) ||
       new Set(r.inputs.map(i=>`${i.txid}:${i.vout}`)).size!==r.inputs.length ||
       typeof r.bitcoinAddress!=='string' || !r.bitcoinAddress.startsWith('tb1') ||
       !q || q.profileId!==r.profileId || !['to-arkade','to-bitcoin'].includes(q.direction) || !txid(q.fingerprint) ||
       !amounts?.every(n=>Number.isSafeInteger(n)&&n>=0) || q.amountSats<=0 || q.netSats<=0 || q.amountSats>q.maxSats ||
+      (q.inputSats!==undefined && (!Number.isSafeInteger(q.inputSats)||q.inputSats<q.maxSats)) ||
+      (r.assetChange!==undefined && (q.direction!=='to-bitcoin'||!validBoardingAssetChange(r.assetChange,q.inputSats??q.maxSats,q.amountSats))) ||
+      ((q.inputSats??q.maxSats)>q.maxSats && !r.assetChange) ||
       q.totalAfterSats!==q.bitcoinAfterSats+q.arkadeAfterSats ||
       (r.intentId!==undefined && (typeof r.intentId!=='string'||!r.intentId)) ||
       (r.commitmentTxid!==undefined && !txid(r.commitmentTxid)) ||
-      (r.diagnostic!==undefined && !['registration-unconfirmed','settlement-interrupted','deadline-exceeded'].includes(r.diagnostic)) ||
+      (r.diagnostic!==undefined && !['registration-unconfirmed','settlement-interrupted','deadline-exceeded','response-mismatch','event-stream-closed','batch-failed'].includes(r.diagnostic)) ||
       (r.status==='succeeded' && !r.commitmentTxid) ||
       (r.status==='not-submitted' && r.phase!=='prepared')) throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.');
   return r;
 }
-export function readBoardingRecord(profileId: string | undefined): BoardingRecord | undefined {
-  try { return readWalletRecord(key, profileId, validate); }
+export function readBoardingRecords(profileId: string | undefined): BoardingRecord[] {
+  if(!profileId)return [];
+  try {
+    const first=readWalletRecord(key,profileId,validate);
+    const records=first?[first]:[];
+    const prefix=`${walletRecordKey(key,profileId)}:operation:`;
+    for(let i=0;i<localStorage.length;i++) {
+      const entry=localStorage.key(i);
+      if(!entry?.startsWith(prefix))continue;
+      const record=validate(JSON.parse(localStorage.getItem(entry)!));
+      if(record.profileId!==profileId||entry!==prefix+encodeURIComponent(record.id)||records.some(r=>r.id===record.id))throw Error('Invalid transfer owner or ID.');
+      records.push(record);
+    }
+    return records.sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+  }
   catch { throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.'); }
+}
+export function readBoardingRecord(profileId: string | undefined,id?:string): BoardingRecord | undefined {
+  const records=readBoardingRecords(profileId);
+  return id===undefined?records.at(-1):records.find(r=>r.id===id);
 }
 export function writeBoardingRecord(record: BoardingRecord) {
   validate(record);
   const raw=JSON.stringify(record);
-  const scopedKey=walletRecordKey(key,record.profileId);
+  const first=readWalletRecord(key,record.profileId,validate);
+  const scopedKey=walletRecordKey(key,record.profileId)+(first&&first.id!==record.id?`:operation:${encodeURIComponent(record.id)}`:'');
   localStorage.setItem(scopedKey,raw);
   if (localStorage.getItem(scopedKey)!==raw) throw new BoardingBlockedError('Transfer state could not be saved.');
 }
@@ -52,12 +88,23 @@ export function withWalletMutation<T>(work:()=>Promise<T>, profileId: string | u
   }));
 }
 export function assertNoPendingBoarding(profileId: string | undefined) {
-  if(readBoardingRecord(profileId)?.status==='pending')throw new BoardingBlockedError('A transfer is unresolved. Open Account Transfer and check its status before starting another transfer or clearing this account.');
+  if(readBoardingRecords(profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('A transfer is unresolved. Open Account Transfer and check its status before clearing this account or using these funds.');
 }
 export function updateBoardingRecord(id:string, patch:Partial<BoardingRecord>, profileId: string) {
-  const record=readBoardingRecord(profileId);
+  const record=readBoardingRecord(profileId,id);
   if (!record || record.id!==id || record.status!=='pending') throw new BoardingBlockedError('The transfer operation changed.');
   const next={...record,...patch};writeBoardingRecord(next);return next;
+}
+export function recordBoardingProgress(profileId:string,id:string,stage:BoardingStage,execution:NonNullable<BoardingRecord['progress']>['execution']='running',action?:BoardingAction,now=Date.now()) {
+  const record=readBoardingRecord(profileId,id);
+  if(!record||record.status!=='pending')return record;
+  const previous=record.progress;
+  if(previous && boardingStages.indexOf(previous.stage)>boardingStages.indexOf(stage))return record;
+  return updateBoardingRecord(id,{progress:{stage,execution,observedAt:Math.max(previous?.observedAt??0,now),...(action?{action}:{})}},profileId);
+}
+export async function withBoardingRecordLock<T>(profileId:string,id:string,work:()=>T|Promise<T>):Promise<T> {
+  if(!globalThis.navigator?.locks)return work();
+  return navigator.locks.request(`bis-signet-transfer-record:${encodeURIComponent(profileId)}:${encodeURIComponent(id)}`,{},work);
 }
 // Safe only while holding the mutation lock: no active attempt can register.
 export function recoverPreparedBoarding(record:BoardingRecord) {
@@ -70,22 +117,25 @@ export function createBoardingAttempt(id:string, isCurrent:()=>boolean, deadline
   let open=true;
   return {
     beforeRegister() {
-      const record=readBoardingRecord(profileId);
+      const record=readBoardingRecord(profileId,id);
       if(!open || !isCurrent() || now()>=deadline || record?.id!==id || record.status!=='pending' || record.phase!=='prepared') throw Error('Transfer details changed. Review again.');
       updateBoardingRecord(id,{phase:'submitting'},profileId);
     },
-    registered(intentId:string) {updateBoardingRecord(id,{phase:'registered',intentId},profileId);},
+    registered(intentId:string) {updateBoardingRecord(id,{phase:'registered',intentId},profileId);recordBoardingProgress(profileId,id,'registered','running',undefined,now());},
     committed(commitmentTxid:string) {
-      const record=readBoardingRecord(profileId);
-      if(record?.id===id && record.status==='pending')updateBoardingRecord(id,{commitmentTxid},profileId);
+      const record=readBoardingRecord(profileId,id);
+      if(record?.id===id && record.status==='pending'){updateBoardingRecord(id,{commitmentTxid},profileId);recordBoardingProgress(profileId,id,'broadcast','awaiting-confirmation',undefined,now());}
     },
     interrupted(diagnostic:NonNullable<BoardingRecord['diagnostic']>) {
-      const record=readBoardingRecord(profileId);
-      if(record?.id===id && record.status==='pending')updateBoardingRecord(id,{diagnostic},profileId);
+      const record=readBoardingRecord(profileId,id);
+      if(record?.id===id && record.status==='pending'){
+        updateBoardingRecord(id,{diagnostic},profileId);
+        if(record.phase==='registered'&&record.progress?.stage!=='broadcast'&&record.progress?.stage!=='confirmed')recordBoardingProgress(profileId,id,record.progress?.stage??'registered','interrupted',record.progress?.action,now());
+      }
     },
     close() {
       open=false;
-      const record=readBoardingRecord(profileId);
+      const record=readBoardingRecord(profileId,id);
       if(record?.id===id)recoverPreparedBoarding(record);
     },
   };

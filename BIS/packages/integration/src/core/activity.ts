@@ -1,5 +1,5 @@
 import type { BoardingRecord } from './boarding-record.ts';
-import { transferStatus } from './boarding-status.ts';
+import { transferStatus, transferProgressLines } from './boarding-status.ts';
 import type { BisTransferStatus } from './context.ts';
 import type { SendRecord } from './sending.ts';
 import { assetBaseUnits, type AssetRecord } from './assets.ts';
@@ -36,12 +36,34 @@ export function formatTransactionSummary(t: BisTransaction): string {
   const status = t.status.startsWith('Pending') ? 'Pending' : t.status === 'Settled offchain' ? 'Settled' : t.status;
   return `${amount} | ${t.direction} | ${status}`;
 }
+export function transactionRowPresentation(t: BisTransaction) {
+  const mint = t.kind === 'Asset mint' || t.direction === 'Mint';
+  const transferDirection = t.transfer?.direction ??
+    (t.direction === 'Bitcoin → Arkade' ? 'to-arkade' : t.direction === 'Arkade → Bitcoin' ? 'to-bitcoin' : undefined);
+  const operation = t.kind === 'Continue payment' || t.kind === 'Burn Asset' || t.kind === 'Transfer' ? t.kind : mint ? 'Mint Asset' : transferDirection ? `Transfer ${transferDirection === 'to-arkade' ? 'to Arkade' : 'to Bitcoin'}` :
+    t.kind === 'Asset transfer' ? (t.direction === 'Outgoing' ? 'Send Asset' : 'Receive Asset') :
+    t.direction === 'Outgoing' ? 'Send Balance' : 'Receive Balance';
+  const refs = t.identifier.split(/\s+/);
+  const bitcoin = t.bitcoin?.txid ? `bitcoin:${t.bitcoin.txid}` :
+    refs.find(ref => /^[a-f0-9]{64}(?::\d+)?$/i.test(ref));
+  const ark = refs.find(ref => ref.startsWith('ark:'));
+  const commitment = refs.find(ref => ref.startsWith('commitment:'));
+  const network = transferDirection ? (transferDirection === 'to-arkade' ? 'On-chain → Off-chain' : 'Off-chain → On-chain') :
+    bitcoin ? 'On-chain' : ark || mint || t.status.endsWith('offchain') ? 'Off-chain' : commitment ? 'On-chain' : 'Network unavailable';
+  const identifier = bitcoin ? (bitcoin.startsWith('bitcoin:') ? bitcoin : `bitcoin:${bitcoin}`) : ark ?? commitment ?? t.identifier;
+  return {
+    heading: `${operation} · ${t.satsUnknown ? 'Sats unknown' : `${t.amountSats.toLocaleString('en-US')} sats`}`,
+    network,
+    identifier,
+  };
+}
 export function formatTransactionDetail(t: BisTransaction): string {
   const date = new Date(t.createdAt ?? NaN);
   const timestamp = t.createdAt! > 0 && Number.isFinite(date.getTime())
     ? date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '') : 'Not yet reported';
   return [`Amount: ${t.satsUnknown ? 'Sats not yet reported' : `${t.amountSats} sats`}`, `Direction: ${t.direction}`, `Status: ${t.status}`,
     `Timestamp (UTC): ${timestamp}`,
+    ...(t.transfer?transferProgressLines(t.transfer):[]),
     ...(t.kind ? [`Type: ${t.kind}`] : []),
     ...(t.bitcoin ? [
       'Network: Bitcoin Signet (test network)',
@@ -92,11 +114,12 @@ export function withSendActivity(rows:readonly BisTransaction[],record:SendRecor
 // explicitly and never invent a transaction ID, timestamp, or confirmation.
 export function withTransferActivity(rows:readonly BisTransaction[], record:BoardingRecord|undefined, profileId:string):readonly BisTransaction[] {
   if(!record || record.profileId!==profileId)return rows;
+  rows=rows.filter(row=>row.id!==`transfer:${record.id}`);
   const recovery = Object.freeze({...transferStatus(record), verification: undefined});
   const status:BisTransaction['status']=record.status==='succeeded'?'Transfer verified':record.status==='not-submitted'?'Not submitted':record.phase==='registered'?'Pending — registered, awaiting verification':record.phase==='prepared'?'Pending — preparing':'Pending — outcome unknown';
   const refs=[`operation:${record.id}`,record.intentId&&`intent:${record.intentId}`,record.commitmentTxid&&`commitment:${record.commitmentTxid}`].filter(Boolean).join(' ');
-  const matches=(row:BisTransaction)=>!!record.commitmentTxid && row.identifier.split(' ').some(ref=>ref===record.commitmentTxid||ref===`commitment:${record.commitmentTxid}`||ref.startsWith(`${record.commitmentTxid}:`));
-  if(rows.some(matches))return Object.freeze(rows.map(row=>matches(row)?Object.freeze({...row,status,transfer:recovery,identifier:`${row.identifier} operation:${record.id}${record.intentId?` intent:${record.intentId}`:''}`}):row));
+  const matches=(row:BisTransaction)=>(!row.transfer?.operationId||row.transfer.operationId===record.id)&&!!record.commitmentTxid && row.identifier.split(' ').some(ref=>ref===record.commitmentTxid||ref===`commitment:${record.commitmentTxid}`||ref.startsWith(`${record.commitmentTxid}:`));
+  if(rows.some(matches))return Object.freeze(rows.map(row=>matches(row)?Object.freeze({...row,status,transfer:recovery,identifier:[...new Set(`${row.identifier} operation:${record.id}${record.intentId?` intent:${record.intentId}`:''}`.split(' '))].join(' ')}):row));
   const transfer:BisTransaction=Object.freeze({id:`transfer:${record.id}`,amountSats:record.quote.amountSats,direction:record.quote.direction==='to-arkade'?'Bitcoin → Arkade':'Arkade → Bitcoin',status,identifier:refs,transfer:recovery});
   return Object.freeze(record.status==='pending'?[transfer,...rows]:[...rows,transfer]);
 }

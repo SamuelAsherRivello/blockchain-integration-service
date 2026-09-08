@@ -1,5 +1,6 @@
 import {ReadonlyWallet,MnemonicIdentity,RestArkProvider,RestIndexerProvider,InMemoryWalletRepository,InMemoryContractRepository} from '@arkade-os/sdk';
 import {createAccountStorage} from '../../integration/src/core/account-storage';
+import {readContinuations} from '../../integration/src/core/continuation';
 import {SIGNET_OPERATOR,requireSignet,withTemporaryWallet} from '../../integration/src/arkade/account';
 const button=document.getElementById('inspect') as HTMLButtonElement;
 button.onclick=async()=>{
@@ -18,7 +19,8 @@ button.onclick=async()=>{
    const summarize=(coins:typeof raw)=>({count:coins.length,sats:coins.reduce((n,c)=>n+c.value,0)});
    return {history:history.map(tx=>({key:tx.key,type:tx.type,amount:tx.amount,settled:tx.settled,assets:tx.assets?.map(a=>({assetId:a.assetId,amount:String(a.amount)}))})),profileId:account.profileId,connection:wallet.getProviderConnectionState(),operator:{network:info.network,minimumSats:String(info.vtxoMinAmount),fees:info.fees},balance:{available:balance.available,total:balance.total,settled:balance.settled,preconfirmed:balance.preconfirmed,recoverable:balance.recoverable},raw:summarize(raw),strictSdkSpendable:summarize(strict),withRecoverable:summarize(recovery),afterFormerAssetFreeFilter:summarize(free),outputs:raw.map(c=>({txid:c.txid,vout:c.vout,sats:c.value,assetCount:c.assets?.length??0,assets:c.assets?.map(a=>({assetId:a.assetId,amount:String(a.amount)})),sdkSpendable:strict.some(s=>s.txid===c.txid&&s.vout===c.vout),state:c.virtualStatus?.state}))};
   },45000);
-  document.getElementById('result')!.textContent=JSON.stringify(result,null,2);
+  const recentPayments=readContinuations(account.profileId).slice(-5).map(record=>({status:record.status,message:record.message,submitted:!!record.send}));
+  document.getElementById('result')!.textContent=JSON.stringify({recentPayments,...result},null,2);
  }catch{document.getElementById('result')!.textContent='Live diagnostic unavailable. No wallet changes performed.';}
  finally{button.disabled=false;}
 };

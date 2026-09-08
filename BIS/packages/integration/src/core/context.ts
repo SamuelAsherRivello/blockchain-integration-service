@@ -1,21 +1,27 @@
+import {reconstructWalletReservations} from '../arkade/reservation-recovery.ts';
+import {eligibleUnreservedCoins, walletReservations} from './wallet-reservations.ts';
+import { createPaymentNotifications } from './payment-notifications.ts';
+import { paymentSender, type BisPlayerRecipient } from './game-player-payment.ts';
+import { validContinueRecipient } from '../arkade/continue-recipient.ts';
 import {submitContinuation,reconcileContinuation} from '../arkade/continuation.ts';
 import {validateContinue,readContinuations,type BisContinueRequest,type BisContinueResult} from './continuation.ts';
 import { readWithRetry } from './pending-read.ts';
 import { createToastQueue, type BisToastOptions } from './toasts.ts';
 import { watchActivity } from '../arkade/activity.ts';
+import { createSharedWalletObserver } from './shared-wallet-observer.ts';
 import { pendingLogoutOperations, type LogoutOperations } from './logout-cleanup.ts';
 import { loadSendFunds, quoteSend, submitSend, reconcileSend } from '../arkade/sending.ts';
-import { assertNoPendingSend, readSendRecord, sendStatus, SendError, type BisSendQuote, type BisSendStatus } from './sending.ts';
-import { listWalletAssets, mintWalletAsset, burnWalletAsset } from '../arkade/assets.ts';
+import { assertNoPendingSend, readSendRecord, readSendRecords, sendStatus, SendError, type BisSendQuote, type BisSendStatus } from './sending.ts';
+import { listWalletAssets, mintWalletAsset, burnWalletAsset, loadMintAvailability } from '../arkade/assets.ts';
 import { assertNoPendingBurn, BurnError, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult } from './burning.ts';
 import type { BisAssets } from './asset-presentation';
 import { AssetError, assetError, validateMint, readAssetRecords, type BisMintAssetRequest, type BisMintAssetResult, type BisListAssetsResult, type BisPendingMintResult } from './assets.ts';
 import { quoteBoarding, submitBoarding, reconcileBoarding } from '../arkade/boarding.ts';
-import { assertNoPendingBoarding, withWalletMutation, BoardingBlockedError, readBoardingRecord } from './boarding-record.ts';
+import { assertNoPendingBoarding, assertPendingTransfersAcknowledged, withWalletMutation, BoardingBlockedError, readBoardingRecord, readBoardingRecords } from './boarding-record.ts';
 import { boardingSubmissionEnabled, type BoardingQuote } from './boarding-quote.ts';
 import { transferStatus } from './boarding-status.ts';
 import type { BoardingRecord } from './boarding-record.ts';
-export type BisTransferStatus = Readonly<{status:'idle'|'pending'|'succeeded'|'not-submitted'; amountSats?:number; commitmentTxid?:string; operationId?:string; intentId?:string; direction?:BoardingQuote['direction']; phase?:BoardingRecord['phase']; diagnostic?:BoardingRecord['diagnostic']; verification?:'live'|'unavailable'}>;
+export type BisTransferStatus = Readonly<{status:'idle'|'pending'|'succeeded'|'not-submitted'; amountSats?:number; commitmentTxid?:string; operationId?:string; intentId?:string; direction?:BoardingQuote['direction']; phase?:BoardingRecord['phase']; diagnostic?:BoardingRecord['diagnostic']; verification?:'live'|'unavailable';stage?:NonNullable<BoardingRecord['progress']>['stage'];execution?:'running'|'awaiting-confirmation'|'interrupted'|'unknown'|'complete';observedAt?:number;action?:NonNullable<BoardingRecord['progress']>['action']} >;
 import { unavailableInvoiceReceiving, type BisInvoiceReceiving } from './invoice-receiving.ts';
 import { withTransferActivity, withMintActivity, withSendActivity, type BisActivity, type BisTransaction } from './activity.ts';
 import { createAccount, restoreAccount, identify, type AccountSecret } from '../arkade/account.ts';
@@ -49,10 +55,16 @@ export type BisState = Readonly<{
 }>;
 export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }> | Readonly<{ type: 'restartRequested'; reason: 'logout'; logoutId: string }>;
 export interface BisContext {
+  getWalletOperations?():Promise<import('./activity-operations').WalletOperationsReport>;
+  discardPreparedTransfer?(id:string):Promise<void>;
+  getContinueAvailability?(): Promise<{canPay:boolean;reason?:string;availableSats?:number}>;
+  getPaymentRecipient?(): Promise<BisPlayerRecipient>;
+  getContinueRecipient?(): string | undefined;
   showToast(message: string, options?: BisToastOptions): void;
   requestContinue(request:BisContinueRequest):Promise<BisContinueResult>;
   getContinueStatus(operationId?:string):Promise<readonly BisContinueResult[]>;
   burnAsset(request:BisBurnAssetRequest):Promise<BisBurnAssetResult>;
+  getMintAvailability(): Promise<{canMint:boolean;reason?:string;availableSats?:number;minimumSats?:number}>;
   mintAsset(request: BisMintAssetRequest): Promise<BisMintAssetResult>;
   listAssets(): Promise<BisListAssetsResult>;
   getPendingAssetMint(): Promise<BisPendingMintResult>;
@@ -70,7 +82,8 @@ export interface BisContext {
   openAccountDetails(): void;
   openAccountTransfer(): void;
   quoteAccountTransfer(amountSats?: number, direction?: BoardingQuote['direction']): Promise<BoardingQuote>;
-  confirmAccountTransfer(quote: BoardingQuote): Promise<BisTransferStatus>;
+  confirmAccountTransfer(quote: BoardingQuote, acknowledgedPendingIds?: readonly string[]): Promise<BisTransferStatus>;
+  getPendingAccountTransfers(): readonly BisTransferStatus[];
   checkAccountTransfer(): Promise<BisTransferStatus>;
   openAccountActivity(): void;
   openAccountAssets(): void;
@@ -99,9 +112,12 @@ export function getControls(context: BisContext): Controls {
   return result;
 }
 // Private dependency seam for isolated tests; not exported by the package.
-export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}): BisContext {
+export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: {continueRecipient?: string} = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined): BisContext {
   const toasts = createToastQueue();
+  const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
+  if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
   let issuedSend:BisSendQuote|undefined,sendRevision=0;
+  const guardIndependentSpend=()=>{if(state.profileId&&globalThis.localStorage)eligibleUnreservedCoins([],walletReservations(state.profileId));};
   const guardSend=()=>{if(globalThis.localStorage){assertNoPendingSend(state.profileId);assertNoPendingBurn(state.profileId);}};
   const idleAssets: BisAssets = Object.freeze({status:'idle'});
   let assetVersion = 0;
@@ -123,6 +139,64 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const clearRecovery = () => { revealedPhrase = undefined; recoveryVersion++; recoveryOperation.abort(); recoveryOperation=new AbortController(); };
   let previous: BisState['view'] = 'empty';
   let disposed = false, version = 0, generation = 0;
+  let transferTimer:ReturnType<typeof setTimeout>|undefined;
+  function scheduleTransferCheck() {
+    if(disposed||transferTimer)return;
+    transferTimer=setTimeout(async()=>{
+      transferTimer=undefined;
+      try {
+        if(!state.hasProfile||!context.getPendingAccountTransfers().length)return;
+        await context.checkAccountTransfer();
+        if(state.activity.status==='ready'||state.activity.status==='unavailable') {
+          const transactions=readBoardingRecords(state.profileId).reduce((rows,record)=>withTransferActivity(rows,record,state.profileId!),state.activity.transactions??[]);
+          update({activity:Object.freeze({...state.activity,transactions})});
+        }
+      }catch {/* Durable records stay pending when verification is unavailable. */}
+      if(!disposed)scheduleTransferCheck();
+    },10000);
+    (transferTimer as unknown as {unref?:()=>void}).unref?.();
+  }
+  let paymentProfile: string | undefined;
+  let paymentGeneration = -1;
+  let paymentOperation = new AbortController();
+  let paymentRetry: ReturnType<typeof setTimeout> | undefined;
+  function syncPaymentObserver() {
+    const profile = state.hasProfile ? state.profileId : undefined;
+    if (profile === paymentProfile && generation === paymentGeneration) return;
+    paymentOperation.abort(); clearTimeout(paymentRetry); toasts.clear();
+    paymentProfile = profile;
+    paymentGeneration = generation;
+    paymentOperation = new AbortController();
+    if (!profile || !observePayments) return;
+    const signal = paymentOperation.signal;
+    const notifications = createPaymentNotifications(message => {
+      if (!disposed && !signal.aborted && state.profileId === profile) {
+        toasts.enqueue(message);
+      }
+    }, row => paymentSender(row, profile));
+    const run = async () => {
+      try {
+        const saved = await storage.load();
+        if (signal.aborted || disposed || saved.account?.profileId !== profile) return;
+        await observePayments(saved.account, signal, rows => {
+          if (signal.aborted || disposed) return;
+          walletChanged(profile, false);
+          const merged = globalThis.localStorage ? readBoardingRecords(profile).reduce((items, record) => withTransferActivity(items, record, profile), rows) : rows;
+          notifications.observe(merged);
+          if (sharedWallet && activityVisible(state) && state.activity.status === 'unavailable') {
+            // Reattach a foreground consumer that ended while the source was offline.
+            update({activity:idleActivity});
+            void context.refreshActivity();
+          }
+        });
+      } catch { /* Preserve baseline on reconnect; never fabricate receipts. */ }
+      if (!signal.aborted && !disposed) {
+        paymentRetry = setTimeout(() => void run(), 10000);
+        (paymentRetry as unknown as {unref?:()=>void}).unref?.();
+      }
+    };
+    queueMicrotask(() => void run());
+  }
   let funding: number | undefined;
   let pending: AccountSecret | undefined;
   let restorePhrase: string | undefined;
@@ -169,6 +243,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses});
     }
     if (enteringActivity) queueMicrotask(() => { if (!disposed && activityVisible(state) && state.activity.status === 'idle') void context.refreshActivity(); });
+    syncPaymentObserver();
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
     if(entering) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void context.refreshBalance();});
   };
@@ -236,8 +311,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     try {
       acceptLoaded(await readWithRetry(() => readStable(current), operation.signal), current);
       try {
-        const record=globalThis.localStorage ? readBoardingRecord(state.profileId) : undefined;
-        if(record?.status==='pending' && record.profileId===state.profileId)void context.checkAccountTransfer().catch(()=>{});
+        if(globalThis.localStorage&&readBoardingRecords(state.profileId).some(r=>r.status==='pending'))scheduleTransferCheck();
       } catch { /* The transfer and clearing guards report corrupt/unavailable storage. */ }
     } catch {if(!disposed&&version===current) fail('load','Your saved account could not be opened. ');}
   }
@@ -282,41 +356,158 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if(!disposed&&version===current) update({phase:'restore-error',error:pending?'Your account could not be confirmed saved.':'The test service could not be reached.'});
     }
   }
+  let walletRefreshQueued = false;
+  let refreshWalletSource = false;
+  function walletChanged(profileId: string, refreshSource = true) {
+    if (disposed || state.profileId !== profileId || state.phase !== 'active') return;
+    refreshWalletSource ||= refreshSource;
+    if (walletRefreshQueued) return;
+    walletRefreshQueued = true;
+    const current = version;
+    // Invalidate in-flight pre-change reads before scheduling replacement work.
+    cancelBalance(); cancelAssets();
+    queueMicrotask(() => {
+      walletRefreshQueued = false;
+      const refresh = refreshWalletSource; refreshWalletSource = false;
+      if (disposed || version !== current || state.profileId !== profileId || state.phase !== 'active') return;
+      if (balanceVisible(state) || assetsVisible(state)) update({...(refresh ? {balance:idleBalance,addresses:idleAddresses} : {}),assets:idleAssets});
+      void refreshBalanceView(!refresh); void context.refreshAssets();
+      if (refresh) {
+        if (sharedWallet) sharedWallet.refresh();
+        else void context.refreshActivity();
+      }
+    });
+  }
+  function refreshAfterContinue(result: BisContinueResult, current: number) {
+    if (result.status !== 'succeeded' || disposed || current !== version || state.profileId !== result.profileId || state.phase !== 'active') return;
+    walletChanged(result.profileId);
+  }
+  async function refreshBalanceView(background = false) {
+      assertAlive();
+      if(!balanceVisible(state)||(!background && (state.balance.status==='loading'||state.addresses.status==='loading')))return;
+      cancelBalance();
+      const request=balanceVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
+      const signal=balanceOperation.signal;
+      const current=()=>!disposed && !signal.aborted && request===balanceVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && balanceVisible(state);
+      const receiving = state.accountReceive;
+      if (!background || receiving || state.balance.status !== 'ready') update({balance:receiving ? idleBalance : Object.freeze({status:'loading'}),addresses:receiving ? Object.freeze({status:'loading'}) : idleAddresses});
+      let identityReadFailed=false;
+      try {
+        const result = await readWithRetry(async attemptSignal => {
+          let saved: StoredAccount;
+          try {saved=await readStable(accountVersion);identityReadFailed=false;}
+          catch(error){identityReadFailed=true;throw error;}
+          attemptSignal.throwIfAborted();
+          if (!saved.account || saved.generation !== accountGeneration || saved.account.profileId !== profileId) {
+            if(current()) initialization=hydrate();
+            throw new Error('Account changed.');
+          }
+          return receiving
+            ? {addresses:await readAddresses(saved.account, attemptSignal)}
+            : {balance:await readBalance(saved.account, attemptSignal)};
+        }, signal);
+        if(current()) {
+          if(result.addresses) update({addresses:Object.freeze({status:'ready',...result.addresses})});
+          if(result.balance) update({balance:Object.freeze({status:'ready',...result.balance})});
+        }
+      } catch {
+        if(current() && identityReadFailed) fail('load','Your saved account could not be opened.');
+        else if(current()) update(receiving ? {addresses:Object.freeze({status:'unavailable'})} : {balance:Object.freeze({status:'unavailable'})});
+      } finally { if(request===balanceVersion) cancelBalance(); }
+  }
   const context: BisContext = {
+    getContinueRecipient: () => validContinueRecipient(options.continueRecipient) ? options.continueRecipient!.trim() : undefined,
+    async getPaymentRecipient() {
+      const account = await activeTransferAccount(), current = version;
+      const addresses = await readAddresses(account, operation.signal);
+      if (disposed || current !== version || state.phase !== 'active' || state.profileId !== account.profileId) throw Error('The player changed.');
+      return {profileId:account.profileId, address:addresses.arkadeAddress};
+    },
     showToast(message, options) { assertAlive(); toasts.enqueue(message, options); },
     async requestContinue(request) {
       validateContinue(request);
-      const input=Object.freeze({operationId:request.operationId,sats:request.sats,context:request.context});
+      const input=Object.freeze({operationId:request.operationId,sats:request.sats,context:request.context,...(request.recipient !== undefined ? {recipient:request.recipient} : {})});
+      const requestedVersion=version,requestedAccount=await activeTransferAccount();
+      // Refresh transfer reservations before selecting payment inputs. Recovery
+      // takes its own wallet/record locks, so run it outside the payment lock.
+      if(readBoardingRecords(requestedAccount.profileId).some(record=>record.status==='pending')) {
+        try {await transfers.reconcile(requestedAccount,operation.signal);}
+        catch { /* Unverified transfers keep their reservations. */ }
+      }
       return withActiveWalletMutation(async()=>{
+        if(requestedVersion!==version||requestedAccount.profileId!==state.profileId)throw Error('The account changed.');
         const account=await activeTransferAccount(),current=version;
         const existing=readContinuations(account.profileId).find(r=>r.request.operationId===input.operationId);
         if(existing) {
-          if(existing.request.sats!==input.sats || existing.request.context!==input.context)throw Error('Continuation identity was reused with changed inputs.');
-          return continuation.reconcile(account,existing,operation.signal);
+          if(existing.request.sats!==input.sats || existing.request.context!==input.context || (input.recipient !== undefined && existing.request.recipient!==input.recipient))throw Error('Continuation identity was reused with changed inputs.');
+          const result = await continuation.reconcile(account,existing,operation.signal);
+          refreshAfterContinue(result,current);
+          return result;
         }
-        guardSend();assertNoPendingBoarding(account.profileId);
+        const recipient = context.getContinueRecipient?.();
+        if (!recipient || (input.recipient !== undefined && input.recipient !== recipient)) throw Error('Configure a valid game wallet recipient before paying.');
+        const bound = Object.freeze({...input, recipient});
+        guardIndependentSpend();
         if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw Error('An asset operation is unresolved.');
-        return continuation.submit(account,{request:input,profileId:account.profileId,status:'pending'},operation.signal,()=>!disposed && current===version && state.profileId===account.profileId && state.phase==='active');
+        const result = await continuation.submit(account,{request:bound,profileId:account.profileId,status:'pending'},operation.signal,()=>!disposed && current===version && state.profileId===account.profileId && state.phase==='active');
+        refreshAfterContinue(result,current);
+        return result;
+      });
+    },
+    async getContinueAvailability() {
+      // Availability means the player can attempt payment. A withdrawal can
+      // temporarily reserve the current inputs; only submission should quote
+      // fresh funds and report that failure, rather than disabling B1.
+      if(disposed||!state.hasProfile||state.phase!=='active'||!state.profileId)return {canPay:false,reason:'Awaiting Player Wallet'};
+      if(!context.getContinueRecipient?.())return {canPay:false,reason:'Awaiting Game Wallet'};
+      return {canPay:true};
+    },
+    async getWalletOperations() {
+      const account=await activeTransferAccount(),current=version;
+      try {await reconstructWalletReservations(account,operation.signal);}catch {/* Preserve unknown reservations. */}
+      const records=walletReservations(account.profileId);
+      const operations=records.map(record=>{
+        const transfer=record.id.startsWith('transfer:')?readBoardingRecord(account.profileId,record.id.slice(9)):undefined;
+        const send=record.id.startsWith('send:')?readSendRecords(account.profileId).find(r=>r.id===record.id.slice(5)):record.id.startsWith('continue:')?readContinuations(account.profileId).find(r=>r.request.operationId===record.id.slice(9))?.send:undefined;
+        return {id:record.id,transactionId:send?.transactionId??record.transactionId,direction:transfer?(transfer.quote.direction==='to-arkade'?'Bitcoin → Arkade' as const:'Arkade → Bitcoin' as const):undefined,amountSats:transfer?.quote.amountSats??send?.quote.amountSats,reservedInputSats:transfer?(transfer.quote.inputSats??transfer.quote.maxSats):send?.quote.maxSats,inputsKnown:!!record.inputs?.length,canDiscard:transfer?.phase==='prepared'};
+      });
+      const outpoints=records.flatMap(r=>r.inputs?.map(i=>`${i.txid}:${i.vout}`)??[]);
+      const reservedInputSats=operations.every(op=>op.reservedInputSats!==undefined)&&new Set(outpoints).size===outpoints.length?operations.reduce((sum,op)=>sum+op.reservedInputSats!,0):undefined;
+      try {
+        const [availableSats,balance]=await Promise.all([loadSendFunds(account,operation.signal,true),readBalance(account,operation.signal)]);
+        if(disposed||current!==version)throw Error('Account changed.');
+        return {availableSats,totalSats:balance.totalSats,reservedInputSats,operations};
+      } catch {return {operations,reason:'Independent spendable funds could not be verified. Receiving and inspection remain available.'};}
+    },
+    async discardPreparedTransfer(id) {
+      await withActiveWalletMutation(async()=>{
+        const account=await activeTransferAccount();
+        const record=readBoardingRecord(account.profileId,id);
+        if(!record||record.status!=='pending'||record.phase!=='prepared')throw Error('Only a draft proven not submitted can be discarded.');
+        const {recoverPreparedBoarding}=await import('./boarding-record.ts');
+        recoverPreparedBoarding(record);
       });
     },
     async getContinueStatus(operationId) {
       return withActiveWalletMutation(async()=>{
-        const account=await activeTransferAccount();
+        const account=await activeTransferAccount(),current=version;
         const records=readContinuations(account.profileId).filter(r=>operationId===undefined || r.request.operationId===operationId);
         const results:BisContinueResult[]=[];
         for(const record of records)results.push(await continuation.reconcile(account,record,operation.signal));
+        const succeeded = results.find(result=>result.status==='succeeded');
+        if(succeeded)refreshAfterContinue(succeeded,current);
         return Object.freeze(results);
       });
     },
     async getSendSpendable() {
-      guardSend();assertNoPendingBoarding(state.profileId);const account=await activeTransferAccount(),current=version;
+      guardIndependentSpend();const account=await activeTransferAccount(),current=version;
       if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
       const amount=await sends.funds(account,operation.signal);
       if(disposed||current!==version)throw new SendError('The account changed.');return amount;
     },
     async quoteAccountSend(recipient,amountSats) {
       issuedSend=undefined;const request=++sendRevision;
-      guardSend();assertNoPendingBoarding(state.profileId);const account=await activeTransferAccount(),current=version;
+      guardIndependentSpend();const account=await activeTransferAccount(),current=version;
       if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
       const quote=await sends.quote(account,recipient,amountSats,operation.signal);
       if(disposed||current!==version||request!==sendRevision)throw new SendError('Send details changed. Review again.');
@@ -327,12 +518,12 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if(!issuedSend||quote!==issuedSend||quote.expiresAt<=Date.now())throw new SendError('Review a fresh send before confirming.');
       issuedSend=undefined;sendRevision++;
       return withActiveWalletMutation(async()=>{
-        guardSend();assertNoPendingBoarding(state.profileId);const account=await activeTransferAccount(),current=version;
+        guardIndependentSpend();const account=await activeTransferAccount(),current=version;
         if(account.profileId!==quote.profileId)throw new SendError('The account changed.');
         if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
         const result=await sends.submit(account,quote,()=>!disposed&&current===version&&state.profileId===account.profileId&&state.phase==='active');
         if(disposed||current!==version)throw new SendError('The account changed.');
-        if(result.status==='succeeded'){void context.refreshBalance();void context.refreshActivity();}
+        if(result.status==='succeeded')walletChanged(account.profileId);
         return sendStatus(result);
       });
     },
@@ -342,6 +533,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         try {record=await sends.reconcile(account,operation.signal);}
         catch {record=readSendRecord(account.profileId);if(!record||record.profileId!==account.profileId)throw new SendError('Send status is unavailable.');verification='unavailable';}
         if(disposed||current!==version)throw new SendError('The account changed.');
+        if(verification==='live' && record?.status==='succeeded')walletChanged(account.profileId);
         return sendStatus(record,verification);
       });
     },
@@ -358,11 +550,19 @@ export function createContext(storage: AccountStorage, create = createAccount, i
           if(!isCurrent())throw new BurnError('account-changed','The account changed.');
           const result=await burn(account,request,operation.signal,isCurrent);
           if(!isCurrent())throw new BurnError('account-changed','The account changed during the burn.');
+          if(result.status==='burned')walletChanged(account.profileId);
           return result;
         });
       } catch(error) {
         return {status:'error',code:error instanceof BurnError?error.code:'unavailable',message:error instanceof BurnError?error.message:'Burn unavailable. Check spendable funds and pending wallet operations, then try again.'};
       }
+    },
+    async getMintAvailability() {
+      const profileId=state.profileId,current=version;
+      try {
+        const result=await loadMintAvailability(await activeTransferAccount(),operation.signal);
+        return disposed||current!==version||state.profileId!==profileId?{canMint:false,reason:'The player wallet changed.'}:result;
+      } catch {return {canMint:false,reason:state.hasProfile?'Mint balance unavailable. Check eligible funds and pending operations.':'Log in to a player wallet first.'};}
     },
     async mintAsset(input) {
       const profileId = state.profileId, current = version;
@@ -374,11 +574,11 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       const isCurrent = () => !disposed && current === version && state.profileId === profileId && state.hasProfile && state.phase === 'active';
       try {
         return await withActiveWalletMutation(async () => {
-          guardSend();
-          assertNoPendingBoarding(state.profileId);
+          eligibleUnreservedCoins([],walletReservations(profileId!));
           const account = await activeTransferAccount();
           if (!isCurrent()) return assetError('account-changed', profileId, request.operationId);
           const result = await assets.mint(account, request, operation.signal, isCurrent);
+          if(isCurrent() && (result.status==='minted' || result.status==='already-minted'))walletChanged(account.profileId);
           return isCurrent() ? result : assetError(disposed ? 'disposed' : 'account-changed', profileId, request.operationId);
         });
       } catch (error) { return assetError(error instanceof AssetError ? error.code : error instanceof BoardingBlockedError ? 'busy' : !isCurrent() ? (disposed ? 'disposed' : 'account-changed') : 'unavailable', profileId, request.operationId); }
@@ -417,28 +617,33 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountSend) update({accountSend:true,accountReceive:false,accountTransfer:false,accountDetails:false,accountActivity:false,accountRecovery:false});
     },
     async quoteAccountTransfer(amountSats, direction='to-arkade') {
-      guardSend();
-      assertNoPendingBoarding(state.profileId);
+      guardIndependentSpend();
       const account=await activeTransferAccount();
       const accountVersion=version;
       const quote=await transfers.quote(account,amountSats,operation.signal,direction);
       if(disposed||accountVersion!==version||account.profileId!==state.profileId)throw Error('The account changed.');
       return quote;
     },
-    async confirmAccountTransfer(quote) {
+    getPendingAccountTransfers() {
+      assertAlive();
+      return readBoardingRecords(state.profileId).filter(r=>r.status==='pending').map(r=>transferStatus(r));
+    },
+    async confirmAccountTransfer(quote, acknowledgedPendingIds=[]) {
       if (!boardingSubmissionEnabled) throw Error('Transfer submission is disabled until interrupted-transfer recovery is verified.');
       return withActiveWalletMutation(async()=>{
-        guardSend();
-        assertNoPendingBoarding(state.profileId);
+        guardIndependentSpend();
+        assertPendingTransfersAcknowledged(state.profileId,acknowledgedPendingIds);
         const account=await activeTransferAccount();
         const current=version;
         const record=await transfers.submit(account,quote,()=>!disposed && version===current && state.profileId===account.profileId);
         if(disposed||current!==version||account.profileId!==state.profileId)throw Error('The account changed.');
+        scheduleTransferCheck();
+        if(record?.status==='succeeded')walletChanged(account.profileId);
         return transferStatus(record);
       });
     },
     async checkAccountTransfer() {
-      return withActiveWalletMutation(async()=>{
+      {
         const account=await activeTransferAccount();
         const current=version;
         let record:BoardingRecord|undefined;
@@ -446,14 +651,14 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         try {record=await transfers.reconcile(account,operation.signal);}
         catch {
           // A network failure must not hide the durable operation on first open.
-          record=readBoardingRecord(account.profileId);
+          record=readBoardingRecords(account.profileId).find(r=>r.status==='pending')??readBoardingRecord(account.profileId);
           if(!record||record.profileId!==account.profileId||record.status!=='pending')throw Error('Transfer status could not be verified. Try Check Status again.');
           verification='unavailable';
         }
         if(disposed||current!==version||account.profileId!==state.profileId)throw Error('The account changed.');
-        // Reconciliation is background-safe; foreground callers own their covered refresh.
+        if(verification==='live' && record?.status==='succeeded')walletChanged(account.profileId);
         return transferStatus(record,verification);
-      });
+      }
     },
     openAccountTransfer() {
       assertAlive();
@@ -500,12 +705,13 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     async refreshActivity() {
       assertAlive();
       if(!activityVisible(state) || state.activity.status==='loading') return;
+      if (state.activity.status !== 'idle') sharedWallet?.refresh();
       cancelActivity();
       const request=activityVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
       const signal=activityOperation.signal;
       const current=()=>!disposed && !signal.aborted && request===activityVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && activityVisible(state);
       const withOperations=(rows:readonly BisTransaction[])=>globalThis.localStorage
-        ? withSendActivity(withMintActivity(withTransferActivity(rows,readBoardingRecord(profileId),profileId!),readAssetRecords(profileId!)),readSendRecord(profileId),profileId!) : rows;
+        ? withSendActivity(withMintActivity(readBoardingRecords(profileId).reduce((items,record)=>withTransferActivity(items,record,profileId!),rows),readAssetRecords(profileId!)),readSendRecord(profileId),profileId!) : rows;
       let lastTransactions: readonly BisTransaction[] = state.activity.status === 'ready' || state.activity.status === 'unavailable' ? state.activity.transactions ?? [] : [];
       const unavailable=()=>{
         let transactions:readonly BisTransaction[]=lastTransactions;
@@ -555,39 +761,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         }
       }
     },
-    async refreshBalance() {
-      assertAlive();
-      if(!balanceVisible(state)||state.balance.status==='loading'||state.addresses.status==='loading')return;
-      cancelBalance();
-      const request=balanceVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
-      const signal=balanceOperation.signal;
-      const current=()=>!disposed && !signal.aborted && request===balanceVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && balanceVisible(state);
-      const receiving = state.accountReceive;
-      update({balance:receiving ? idleBalance : Object.freeze({status:'loading'}),addresses:receiving ? Object.freeze({status:'loading'}) : idleAddresses});
-      let identityReadFailed=false;
-      try {
-        const result = await readWithRetry(async attemptSignal => {
-          let saved: StoredAccount;
-          try {saved=await readStable(accountVersion);identityReadFailed=false;}
-          catch(error){identityReadFailed=true;throw error;}
-          attemptSignal.throwIfAborted();
-          if (!saved.account || saved.generation !== accountGeneration || saved.account.profileId !== profileId) {
-            if(current()) initialization=hydrate();
-            throw new Error('Account changed.');
-          }
-          return receiving
-            ? {addresses:await readAddresses(saved.account, attemptSignal)}
-            : {balance:await readBalance(saved.account, attemptSignal)};
-        }, signal);
-        if(current()) {
-          if(result.addresses) update({addresses:Object.freeze({status:'ready',...result.addresses})});
-          if(result.balance) update({balance:Object.freeze({status:'ready',...result.balance})});
-        }
-      } catch {
-        if(current() && identityReadFailed) fail('load','Your saved account could not be opened.');
-        else if(current()) update(receiving ? {addresses:Object.freeze({status:'unavailable'})} : {balance:Object.freeze({status:'unavailable'})});
-      } finally { if(request===balanceVersion) cancelBalance(); }
-    },
+    refreshBalance: () => refreshBalanceView(),
     openRestoreAccount() {
       assertAlive();if(state.phase!=='idle'||state.hasProfile)return;
       context.openAccountDialog();invalidate();failure=undefined;
@@ -704,7 +878,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       else if(failure==='save')await context.continueAccount();
       else {failure=undefined;update({phase:'idle',error:undefined});await context.createAccount();}
     },
-    dispose() {if(disposed)return;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
+    dispose() {if(disposed)return;paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
   };
   controls.set(context,{
     toasts,
@@ -779,7 +953,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   initialization=hydrate();
   return context;
 }
-export function createBisContext(): BisContext {return createContext(createAccountStorage());}
+export function createBisContext(options: {continueRecipient?: string} = {}): BisContext {return createContext(createAccountStorage(), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, options);}
 export function createBisAdminContext(context: BisContext) {
   const internal=getControls(context);internal.assertAlive();
   return Object.freeze({resetClient:()=>internal.reset(), fund1000Sats:()=>internal.fund(), getFundingAddress:()=>internal.fundingAddress()});

@@ -43,14 +43,14 @@ document.getElementById('run')!.onclick = async () => {
     await render('B', 'B', false, Date.now() + 60000); check(host.querySelector('output')?.textContent?.endsWith('valid'), 'Fresh quote resets expiry');
     await render('B'); check(host.querySelector('output')?.textContent?.endsWith('valid'), 'No quote clears expiry');
     const actions: string[] = [];
-    const admin = (open: boolean) => <AdminPanel selected="A2" accountOpen={open} canReset={false} onSelect={id => actions.push(id)} onReset={() => {}} canFund={false} funding={false} onFund={() => {}} onExplorer={() => {}} onMint={() => actions.push('C1')} onListAssets={() => actions.push('C4')} assetBusy={false} consoleOutput="" onContinue={() => actions.push('B1')} />;
+    const admin = (open: boolean) => <AdminPanel selected="A2" accountOpen={open} canReset={false} onSelect={id => actions.push(id)} onReset={() => {}} canFund={false} funding={false} onFund={() => {}} onExplorer={() => {}} onMint={() => actions.push('C1')} assetBusy={false} consoleOutput="" onContinue={() => actions.push('B1')} />;
     root.render(admin(false)); await tick();
     const story = (id: string) => [...host.querySelectorAll<HTMLButtonElement>('.story-button')].find(button => button.firstElementChild?.textContent === id)!;
     check(story('A2').getAttribute('aria-pressed') === 'true' && !!story('A2').querySelector('.story-arrow'), 'Mapped selection and arrow');
-    for (const id of ['A1', 'B1', 'C1', 'C4']) story(id).click();
-    check(actions.join('|') === 'A1|B1|C1|C4', 'Correct callbacks');
+    for (const id of ['A1', 'B1', 'C1']) story(id).click();
+    check(actions.join('|') === 'A1|B1|C1', 'Correct callbacks');
     check(!story('C1').hasAttribute('aria-pressed') && !story('C1').querySelector('.story-arrow'), 'Special actions retain presentation');
-    root.render(admin(true)); await tick(); check(['A1', 'B1', 'C1', 'C4'].every(id => story(id).disabled), 'Account disables story actions');
+    root.render(admin(true)); await tick(); check(['A1', 'B1', 'C1'].every(id => story(id).disabled), 'Account disables story actions');
     result.textContent = 'PASS: clipboard exact copy/denial/retry/duplicates, A B A, session replacement, unmount, disabled actions; quote expiry/reset; Admin story presentation and callbacks.';
   } catch (error) { result.textContent = `FAIL: ${error instanceof Error ? error.message : 'component checks'}`; }
   finally { root.render(<div />); if (original) Object.defineProperty(navigator, 'clipboard', original); else Reflect.deleteProperty(navigator, 'clipboard'); }

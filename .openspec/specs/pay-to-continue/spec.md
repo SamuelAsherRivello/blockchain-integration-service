@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Deliver B1. MVP Request Continue: a minimal game-facing operation with real test-sat sink payment and attributable, recoverable outcomes. B2-B4 game integration and expanded UI are outside this capability's MVP scope.
+Deliver B1. MVP Request Continue: a minimal game-facing operation with real Signet payment to a configured game wallet and attributable, recoverable outcomes. B2-B4 game integration and expanded UI are outside this capability's MVP scope.
 
 ## Requirements
 
@@ -22,18 +22,22 @@ The API SHALL accept numeric whole-sat amounts from 1,000 to 10,000 inclusive an
 - **THEN** the request reports insufficient funds and does not submit
 
 ### Requirement: Confirm real sink payment before reporting continuation success
-One explicit continuation request SHALL initiate at most one real Signet sink payment of the requested sats through a verified supported mechanism. It SHALL NOT require a second confirmation overlay or consume call. Submission alone SHALL NOT produce success. Success SHALL identify the request and confirmed paid amount; fees SHALL be distinguishable from that amount. Native-sat burning was not established. The explicitly authorized fallback SHALL pay a freshly generated recipient wallet and SHALL label success as sink payment, not proven Bitcoin destruction. Recipient creation SHALL NOT persist or activate that wallet, overwrite the player, or expose its secrets.
+One explicit continuation request SHALL initiate at most one real Signet payment of the requested sats to the configured game-wallet recipient. New requests SHALL NOT generate a sink wallet or fall back to another recipient. Missing, invalid, wrong-network or self-payment configuration SHALL prevent submission with an attributable error. It SHALL NOT require a second confirmation overlay or consume call. Submission alone SHALL NOT produce success. Success SHALL identify the request, recipient and confirmed paid amount; fees SHALL be distinguishable from that amount. New results SHALL identify game-wallet payment, while historical sink results SHALL remain truthfully labeled and recoverable from their original evidence. Receiving SHALL require neither Admin to be open nor game-wallet signing credentials in the player host.
 
 #### Scenario: Confirmed completion
-- **WHEN** authoritative operation evidence confirms the requested payment
-- **THEN** the caller receives a success result associated with that request and amount
+- **WHEN** authoritative operation evidence confirms payment to the configured game recipient
+- **THEN** the caller receives success associated with the request, recipient and amount
 
 #### Scenario: Unsupported mechanism
-- **WHEN** a supported native-sat burn and reliable confirmation cannot be established
-- **THEN** the authorized generated-recipient fallback is used with exact amount/output checks and truthful sink-payment results
+- **WHEN** recipient configuration is missing or unsupported
+- **THEN** no new payment is submitted and no generated-recipient fallback is used
+
+#### Scenario: Admin is offline
+- **WHEN** the player pays a valid configured game recipient while Admin is closed
+- **THEN** payment can complete using only the player's signing identity
 
 ### Requirement: Preserve operation identity across uncertainty
-Requests SHALL carry a stable operation identity bound to the account, amount, and caller continuation context. Repeating an identity SHALL reconcile or return the original result without a second payment; changing its bound inputs SHALL fail. Submitted unknown outcomes SHALL remain pending and survive reload. Confirmed failure SHALL be distinguished from timeout or lost response. Closing UI SHALL NOT cancel the operation. Results SHALL remain attributable to their original context so a host can ignore obsolete runs, and SHALL NOT claim that gameplay resumed.
+Requests SHALL carry a stable operation identity bound to the account, amount, caller continuation context and captured recipient for new payments. Repeating an identity SHALL reconcile or return the original result without a second payment; changing its bound inputs SHALL fail. Submitted unknown outcomes SHALL remain pending and survive reload. Confirmed failure SHALL be distinguished from timeout or lost response. Closing UI SHALL NOT cancel the operation. Results SHALL remain attributable to their original context so a host can ignore obsolete runs, and SHALL NOT claim that gameplay resumed. Configuration changes SHALL NOT redirect existing operations. Legacy sink-payment journals SHALL remain recoverable using their stored send evidence without current recipient configuration.
 
 #### Scenario: Duplicate request
 - **WHEN** the same request is repeated during uncertainty or after success
@@ -47,6 +51,13 @@ Requests SHALL carry a stable operation identity bound to the account, amount, a
 - **WHEN** the original operation succeeds after the host has started another run
 - **THEN** its result retains the original context and does not authorize continuation of the replacement run
 
+#### Scenario: Recipient changes between deployments
+- **WHEN** a pending operation is recovered under a different build-configured recipient
+- **THEN** recovery uses its original stored destination and does not submit a replacement payment
+
+#### Scenario: Legacy sink journal
+- **WHEN** an existing submitted sink-payment journal is loaded by the updated host
+- **THEN** it reconciles its original send without creating a game-wallet payment
 
 ### Requirement: Preserve assets while paying native sats
 B1 SHALL accept SDK-eligible spendable inputs carrying assets and return every original asset quantity to the player's change output. It SHALL bind assets to the quote and verify the complete transaction extension before submission. Pending reconciliation SHALL verify the recipient contains only the requested sats and that player-owned change contains the expected sats and complete asset manifest. Ordinary Account Send selection is outside this repair.

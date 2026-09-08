@@ -2,13 +2,14 @@
 export const boardingSubmissionEnabled = true;
 export type BoardingQuote = Readonly<{
   profileId: string; direction: 'to-arkade' | 'to-bitcoin'; amountSats: number; feeSats: number; netSats: number;
-  maxSats: number; bitcoinAfterSats: number; arkadeAfterSats: number; totalAfterSats: number;
+  maxSats: number; inputSats?: number; bitcoinAfterSats: number; arkadeAfterSats: number; totalAfterSats: number;
   expiresAt: number; fingerprint: string;
 }>;
 
 export function assertQuoteUnchanged(reviewed: BoardingQuote, fresh: BoardingQuote, now = Date.now()) {
   if (reviewed.expiresAt <= now || reviewed.profileId !== fresh.profileId || reviewed.direction !== fresh.direction ||
       reviewed.fingerprint !== fresh.fingerprint || reviewed.amountSats !== fresh.amountSats ||
+      reviewed.maxSats !== fresh.maxSats || reviewed.inputSats !== fresh.inputSats ||
       reviewed.feeSats !== fresh.feeSats || reviewed.netSats !== fresh.netSats ||
       reviewed.totalAfterSats !== fresh.totalAfterSats || reviewed.bitcoinAfterSats !== fresh.bitcoinAfterSats ||
       reviewed.arkadeAfterSats !== fresh.arkadeAfterSats) throw Error('Transfer details changed. Review again.');

@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBisContinue,getContinuePriceSats} from '../src/core/game-continue.ts';
+import {BoardingBlockedError} from '../src/core/boarding-record.ts';
+
+test('B1 reports an unresolved transfer after confirming no payment was submitted', async () => {
+ const message='A transfer is unresolved. Open Account Transfer and check its status before clearing this account or using these funds.';
+ const controller=createBisContinue({
+  getState:()=>({hasProfile:true,phase:'active',profileId:'p'}),subscribe:()=>()=>{},showToast(){},
+  requestContinue:async()=>{throw new BoardingBlockedError(message);},getContinueStatus:async()=>[],
+ },{context:'blocked-transfer',onSuccess(){assert.fail('Blocked payment must not succeed');}});
+ await controller.pay();assert.equal(controller.getState().status,'failed');
+ assert.equal(controller.getState().message,message);controller.dispose();
+});
 
 function fixture() {
  let state={hasProfile:true,phase:'active',profileId:'p'}, submitted=[],toasts=[],success=[],records=[],result='pending',release;
@@ -37,4 +48,14 @@ test('wrong result never grants continuation; disposal drops late success',async
 test('a different account cannot receive the original payment gameplay effect',async()=>{
  const f=fixture();f.setResult('wait');const pending=f.controller.pay();f.replace({hasProfile:true,phase:'active',profileId:'other'});f.release();await pending;
  assert.equal(f.success.length,0);assert.match(f.controller.getState().message,/original account/);f.controller.dispose();
+});
+
+test('a verified failed payment preserves its actionable failure reason',async()=>{
+ const f=fixture();await f.controller.pay();
+ const message='Insufficient eligible spendable funds for this 1,000-sat payment. No payment was submitted.';
+ f.setRecords([{...f.receipt(f.submitted[0],'failed'),message}]);
+ await f.controller.check();
+ assert.equal(f.controller.getState().message,message);
+ assert.equal(f.controller.getState().canPay,true);
+ assert.equal(f.success.length,0);f.controller.dispose();
 });

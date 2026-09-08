@@ -78,10 +78,10 @@
 .bis-card-activity > * { flex-shrink: 0; }
 .bis-card-activity .bis-activity { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .bis-transaction-list { flex: 1; min-height: 0; list-style: none; padding: 0 4.8px 0 0; margin: 0; overflow-y: scroll; overflow-x: hidden; scrollbar-gutter: stable; }
-.bis-layer .bis-transaction-list, .bis-layer .bis-asset-list { scrollbar-width: auto; scrollbar-color: #8da6ae #e7eef0; }
-.bis-layer .bis-transaction-list::-webkit-scrollbar, .bis-layer .bis-asset-list::-webkit-scrollbar { display: block; width: 8px; }
-.bis-layer .bis-transaction-list::-webkit-scrollbar-track, .bis-layer .bis-asset-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 4.8px; }
-.bis-layer .bis-transaction-list::-webkit-scrollbar-thumb, .bis-layer .bis-asset-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 4.8px; border: 1.6px solid #e7eef0; }
+.bis-layer .bis-transaction-list, .bis-layer .bis-asset-list, .bis-layer .bis-report-scrollable textarea { scrollbar-width: auto; scrollbar-color: #8da6ae #e7eef0; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar, .bis-layer .bis-asset-list::-webkit-scrollbar, .bis-layer .bis-report-scrollable textarea::-webkit-scrollbar { display: block; width: 8px; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar-track, .bis-layer .bis-asset-list::-webkit-scrollbar-track, .bis-layer .bis-report-scrollable textarea::-webkit-scrollbar-track { background: #e7eef0; border-radius: 4.8px; }
+.bis-layer .bis-transaction-list::-webkit-scrollbar-thumb, .bis-layer .bis-asset-list::-webkit-scrollbar-thumb, .bis-layer .bis-report-scrollable textarea::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 4.8px; border: 1.6px solid #e7eef0; }
 .bis-transaction-list li + li { margin-top: 4.8px; }
 .bis-transaction-row { display: grid; gap: 2.4px; width: 100%; padding: 8.8px 7.2px; border: 0.8px solid #c8d7dc; border-radius: 6.4px; background: #fff; color: #294650; text-align: left; font: 9.6px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
 .bis-transaction-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -90,6 +90,9 @@
 .bis-transaction-row[aria-pressed="true"] { background: #d4eee4; border-color: #258369; box-shadow: inset 2.4px 0 #258369; }
 .bis-transaction-row:focus-visible { outline: 1.6px solid #30977f; outline-offset: -1.6px; }
 .bis-transaction-back { margin-top: 11.2px; }
+.bis-transaction-recovery-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.bis-transaction-recovery-actions .bis-button { min-width: 0; padding: 7px 4px; font-size: 9px; white-space: normal; }
+.bis-transaction-recovery-actions p { grid-column: 1 / -1; }
 .bis-activity .bis-copy-field-heading { margin-bottom: 4.8px; }
 .bis-activity textarea { display: block; width: 100%; max-width: 100%; height: 152px; resize: vertical; padding: 8px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; background: #fff; color: #294650; font: 8.8px/1.7 ui-monospace, monospace; overflow: auto; }
 .bis-activity textarea:focus-visible { outline: 1.6px solid #30977f; }
@@ -238,6 +241,11 @@
 /* Reports use measured pages rather than nested scrolling or clipped content. */
 .bis-report { min-width: 0; width: 100%; flex: 1; min-height: 112px; display: flex; flex-direction: column; gap: 6px; }
 .bis-layer .bis-report textarea { flex: 1; width: 100%; height: 128px; min-height: 64px; resize: none; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
-.bis-report-pages { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 9.6px; }
-.bis-report-pages .bis-button { padding: 5px 8px; font-size: 9.6px; }
+.bis-layer .bis-report-scrollable textarea { overflow-y: scroll; scrollbar-width: auto; scrollbar-gutter: stable; }
 .bis-card-activity .bis-activity > .bis-report { flex-shrink: 1; }
+
+
+.bis-network-anchor { position: relative; display: inline-block; }
+.bis-version-label { position: absolute; left: 100%; top: 50%; transform: translateY(calc(-50% + 1px)); margin-left: 6px; white-space: nowrap; opacity: .3; font-size: 7px; letter-spacing: 0; text-transform: none; font-weight: 500; }
+
+.bis-recovery-dialog { z-index: 2; }

@@ -43,7 +43,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(paged===formatTransactions(rows),`clipboard failure exposes complete selectable export (${paged.length}/${formatTransactions(rows).length}; first difference ${[...paged].findIndex((v,i)=>v!==formatTransactions(rows)[i])})`);
     copyFail=false;copyAll!.click();await wait(()=>copyAll!.title==='Copied' && !host.querySelector('[aria-label="All transactions for manual copy"]'));
     const row=host.querySelector('.bis-transaction-row')!;
-    check(row.children.length===3&&row.querySelector('strong')?.textContent==='100 sats · Incoming'&&row.querySelector('span')?.textContent==='Pending'&&row.querySelector('code')?.getAttribute('title')===rows[0].identifier,'three-line row layout');
+    check(row.children.length===3&&row.querySelector('strong')?.textContent==='Receive Asset · 100 sats'&&row.querySelector('span')?.textContent==='On-chain'&&row.querySelector('code')?.getAttribute('title')===rows[0].identifier,'three-line row layout');
     check(!row.querySelector('svg,img'),'transaction rows have no icon');
     const activityHeight=host.querySelector('.bis-card')!.getBoundingClientRect().height;
     check(activityHeight===384,'native compact activity height');
@@ -55,8 +55,15 @@ document.getElementById('run')!.onclick=async()=>{
     host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();
     await tick();
     check(!!host.querySelector('textarea'),'first click opens transaction details');
-    const detailText=await readReportPages(host.querySelector('textarea')!);
-    check(detailText===formatTransactionDetail(rows[0]),`complete paginated transaction detail (${detailText.length}/${formatTransactionDetail(rows[0]).length})`);
+    const detailField=host.querySelector('textarea')!;
+    const detailText=detailField.value;
+    check(detailText===formatTransactionDetail(rows[0]),'complete transaction detail in one field');
+    check(!host.querySelector('.bis-report-pages'),'transaction detail has no pagination');
+    check(getComputedStyle(detailField).overflowY==='scroll' && getComputedStyle(detailField).scrollbarWidth!=='none','persistent transaction detail scrollbar');
+    check(detailField.scrollHeight>detailField.clientHeight,'long transaction detail scrolls internally');
+    detailField.scrollTop=detailField.scrollHeight;
+    check(detailField.scrollTop>0 && detailField.scrollWidth<=detailField.clientWidth,'detail scrolls to the end without horizontal overflow');
+    detailField.scrollTop=0;
     check(detailText.includes('9007199254740993 base units'),'exact asset quantity');
     check(detailText.includes('Confirmations: 0'),'confirmation count in detail');
     check(detailText.includes('Waiting for the first block'),'pending wait guidance');

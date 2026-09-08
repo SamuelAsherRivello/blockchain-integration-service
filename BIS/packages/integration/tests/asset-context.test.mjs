@@ -128,13 +128,13 @@ for (const [name, write] of [
   ['send', () => writeSendRecord(sendRecord('profile-a'))],
   ['transfer', () => writeBoardingRecord(transferRecord('profile-a'))],
 ]) {
-  test(`pending ${name} blocks mint before the adapter while fresh listing remains read-only`, async () => {
+  test(`pending ${name} with known inputs permits the reservation-aware mint adapter while listing remains read-only`, async () => {
     const fixture = setup();
     await fixture.context.ready();
     write();
     const journals = [...values.entries()];
-    assert.equal((await fixture.context.mintAsset(request)).status, 'error');
-    assert.equal(fixture.calls.mint, 0);
+    assert.equal((await fixture.context.mintAsset(request)).status, 'minted');
+    assert.equal(fixture.calls.mint, 1);
     const locksBefore = lockCalls.length;
     assert.equal((await fixture.context.listAssets()).status, 'success');
     assert.equal(lockCalls.length, locksBefore);

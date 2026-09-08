@@ -9,7 +9,7 @@ const report = value => {assert.equal(typeof status.formatTransferRecoveryReport
 
 test('pending report contains exact public identifiers, facts and investigation questions',()=>{
  const result=report(pending);
- for(const text of ['Network: Signet','Direction: Arkade → Bitcoin','Amount: 1000 sats',operationId,intentId,'Recorded phase: Registered','Verification: Latest check returned; completion remains unverified','batch/commitment outcome','cannot subsequently settle','Do not resubmit','not proof of cancellation'])assert.ok(result.includes(text),text);
+ for(const text of ['Network: Signet','Direction: Arkade → Bitcoin','Amount: 1000 sats',operationId,intentId,'Recorded phase: Registered','Verification: Latest check returned; completion remains unverified','batch/commitment outcome','cannot subsequently settle','Do not replay this transfer','not proof of cancellation'])assert.ok(result.includes(text),text);
  assert.match(report({...pending,direction:'to-arkade',commitmentTxid:'a'.repeat(64)}),/Direction: Bitcoin → Arkade/);
  assert.ok(report({...pending,commitmentTxid:'a'.repeat(64)}).includes('a'.repeat(64)));
 });

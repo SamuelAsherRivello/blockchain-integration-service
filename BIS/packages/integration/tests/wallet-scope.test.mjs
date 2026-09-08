@@ -61,7 +61,8 @@ test('current wallet status and spending ignore foreign pending operations, then
   await switchTo('a');
   assert.equal((await context.checkAccountTransfer()).status,'pending');
   assert.equal((await context.checkAccountSend()).status,'pending');
-  await assert.rejects(context.getSendSpendable(),/unresolved/);
+  // Known reservations permit the adapter to report independently spendable funds.
+  assert.equal(await context.getSendSpendable(),1000);
   await assert.rejects(context.confirmAccountSend(quote),/Review a fresh/);
   await switchTo('b');
   assert.equal(await context.getSendSpendable(),1000);

@@ -1,6 +1,6 @@
 import {SendError} from '../core/sending.ts';
-import {createAccount,type AccountSecret} from './account.ts';
-import {loadAddresses} from './addresses.ts';
+import {type AccountSecret} from './account.ts';
+import {validContinueRecipient} from './continue-recipient.ts';
 import {quoteSend,submitSend,reconcileSend,type SendJournal} from './sending.ts';
 import {continueResult,readContinuations,writeContinuation,type ContinueRecord} from '../core/continuation.ts';
 
@@ -22,15 +22,15 @@ export async function reconcileContinuation(account:AccountSecret,record:Continu
 export async function submitContinuation(account:AccountSecret,record:ContinueRecord,signal:AbortSignal,isCurrent:()=>boolean) {
   writeContinuation(record);
   try {
-    // This identity is never saved to AccountStorage or activated. Only its public address survives.
-    const recipient=await createAccount(signal);
-    const {arkadeAddress}=await loadAddresses(recipient,signal);
-    const quote=await quoteSend(account,arkadeAddress,record.request.sats,signal,true);
+    if (!validContinueRecipient(record.request.recipient)) throw new SendError('Configure a valid game wallet recipient before paying.');
+    const arkadeAddress = record.request.recipient!;
+    const quote=await quoteSend(account,arkadeAddress,record.request.sats,signal,true,`continue:${record.request.operationId}`);
     if(!isCurrent())throw Error('Account changed.');
-    await submitSend(account,quote,isCurrent,journal(record),true);
+    await submitSend(account,quote,isCurrent,journal(record),true,`continue:${record.request.operationId}`);
   } catch(error) {
     const saved=readContinuations(account.profileId).find(r=>r.request.operationId===record.request.operationId)!;
     if(!saved.send)writeContinuation({...saved,status:'failed',message:error instanceof SendError?error.message:'Payment preparation failed; no payment was submitted.'});
   }
   return continueResult(readContinuations(account.profileId).find(r=>r.request.operationId===record.request.operationId)!);
 }
+

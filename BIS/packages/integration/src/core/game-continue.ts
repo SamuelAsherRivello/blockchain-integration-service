@@ -1,5 +1,7 @@
 import type { BisContext } from './context';
 import type { BisContinueRequest, BisContinueResult } from './continuation';
+import { BoardingBlockedError } from './boarding-record.ts';
+import { SendError } from './sending.ts';
 
 /** Demo price, owned by BIS. Client-side pricing is not trusted enforcement. */
 export function getContinuePriceSats(): number { return 1000; }
@@ -23,8 +25,8 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
     return state.hasProfile && state.phase === 'active' && Boolean(state.profileId);
   };
   const getState = (): BisGameContinueState => Object.freeze({
-    sats: getContinuePriceSats(), status, message,
-    canPay: !disposed && loggedIn() && (status === 'idle' || status === 'failed'),
+    sats: getContinuePriceSats(), status, message: message || (context.getContinueRecipient && !context.getContinueRecipient() ? 'Game wallet recipient is not configured.' : ''),
+    canPay: !disposed && (!context.getContinueRecipient || !!context.getContinueRecipient()) && loggedIn() && (status === 'idle' || status === 'failed'),
   });
   const publish = () => { if (!disposed) for (const listener of listeners) listener(); };
   const unsubscribe = context.subscribe(publish);
@@ -35,12 +37,12 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
   function accept(result: BisContinueResult) {
     if (disposed || !request || delivered) return;
     if (result.operationId !== request.operationId || result.context !== request.context
-      || result.profileId !== profileId || result.sats !== request.sats) {
+      || result.profileId !== profileId || result.sats !== request.sats || (request.recipient !== undefined && result.recipient !== request.recipient)) {
       message = 'Payment is still being checked.'; publish(); schedule(); return;
     }
     status = result.status;
     message = status === 'pending' ? 'Payment is still processing…'
-      : status === 'failed' ? 'Payment failed. No continue was granted. You can try again or restart.' : '';
+      : status === 'failed' ? result.message || 'Payment failed. No continue was granted. You can try again or restart.' : '';
     if (status === 'succeeded') {
       delivered = true;
       clearTimeout(timer);
@@ -72,11 +74,11 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
     async pay() {
       if (!getState().canPay) return;
       profileId = context.getState().profileId;
-      request = Object.freeze({operationId: crypto.randomUUID(), sats: getContinuePriceSats(), context: options.context});
+      request = Object.freeze({operationId: crypto.randomUUID(), sats: getContinuePriceSats(), context: options.context, ...(context.getContinueRecipient?.() ? {recipient:context.getContinueRecipient()!} : {})});
       status = 'pending'; message = 'Payment is processing…'; publish();
       let result: BisContinueResult | undefined;
       try { result = await context.requestContinue(request); }
-      catch {
+      catch (error) {
         // Reacquire B1's status lock before declaring a thrown call unsubmitted.
         // A recorded or unreadable attempt remains subject to reconciliation.
         try {
@@ -84,7 +86,9 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
           const records = await context.getContinueStatus(request.operationId);
           result = records.find(item => item.operationId === request!.operationId);
           if (!result && !disposed) {
-            status = 'failed'; message = 'Payment could not be submitted. Check your account and funds, then try again or restart.'; publish();
+            status = 'failed'; message = error instanceof BoardingBlockedError || error instanceof SendError
+              ? error.message
+              : 'Payment could not be submitted. Check your account and funds, then try again or restart.'; publish();
           }
         } catch { schedule(); }
       }
@@ -93,3 +97,4 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
     dispose() { disposed = true; clearTimeout(timer); unsubscribe(); listeners.clear(); },
   };
 }
+

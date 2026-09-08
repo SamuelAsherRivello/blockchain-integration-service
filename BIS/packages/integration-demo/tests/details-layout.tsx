@@ -1,6 +1,7 @@
 import { createContext } from '../../integration/src/core/context';
 import { createBisUi } from '@bis/integration';
 import '@bis/integration/style.css';
+import { version } from '../../integration/package.json';
 
 const host = document.getElementById('host')!;
 const result = document.getElementById('result')!;
@@ -22,7 +23,8 @@ document.getElementById('run')!.onclick = async () => {
     await context.ready(); context.openAccountDialog(); context.openAccountDetails(); await tick();
     const fields = Array.from(host.querySelectorAll('input'));
     check(fields.length === 3, 'Only the three balance fields must exist before values load');
-    check(host.querySelector('.bis-network-label')?.textContent === 'Network: Signet', 'Network label appears at the top of Account Details');
+    check(host.querySelector('.bis-network-text')?.textContent === 'Network: Signet', 'Network label appears at the top of Account Details');
+    check(host.querySelector('.bis-version-label')?.textContent === `BIS: v${version}`, 'Header identifies the integration package version');
     check(!Array.from(host.querySelectorAll('label')).some(label => label.textContent?.includes('Network')), 'Network is not repeated in the details fields');
     const card = host.querySelector('.bis-card')!;
     const bounds = () => JSON.stringify([card.getBoundingClientRect().height, ...Array.from(host.querySelectorAll('input, .bis-actions button')).map(node => node.getBoundingClientRect().top)]);

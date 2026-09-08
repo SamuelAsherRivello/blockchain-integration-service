@@ -117,7 +117,8 @@ test('late result cannot alter a replacement operation',()=>{
  writeBoardingRecord(record());const attempt=createBoardingAttempt('operation',()=>true,2000,'profile',()=>1000);
  attempt.beforeRegister();writeBoardingRecord({...record(),id:'new-operation'});
  attempt.committed(commitment);attempt.close();assert.equal(readBoardingRecord('profile').id,'new-operation');assert.equal(readBoardingRecord('profile').commitmentTxid,undefined);
- assert.throws(()=>attempt.registered('old-intent'));
+ assert.doesNotThrow(()=>attempt.registered('old-intent'));
+ assert.equal(readBoardingRecord('profile','operation').intentId,'old-intent');
 });
 test('completion requires confirmed input spend, exact owned receipt and exact Bitcoin change',()=>{
  const r=record();const transaction={txid:commitment,status:{confirmed:true},vin:[{txid:tx,vout:0}],vout:[{scriptpubkey_address:'tb1-test',value:'1000'}]};
@@ -155,16 +156,18 @@ test('public confirmation serializes duplicate callers and reload resumes status
  let submits=0,reconciles=0,release;
  const barrier=new Promise(r=>release=r);
  const transfers={quote:async()=>record().quote,submit:async(_account,_quote,isCurrent)=>{
-   submits++;assert.equal(isCurrent(),true);writeBoardingRecord({...record(),phase:'submitting'});await barrier;return readBoardingRecord('profile');
+   submits++;assert.equal(isCurrent(),true);writeBoardingRecord({...record(),phase:'submitting'});await barrier;assert.equal(isCurrent(),true,'navigation preserves the owning account session');return readBoardingRecord('profile');
  },reconcile:async()=>{reconciles++;return readBoardingRecord('profile');}};
  const make=()=>createContext(storage,undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,transfers);
  const c=make();await c.ready();
  const first=c.confirmAccountTransfer(record().quote);
  await new Promise(r=>setImmediate(r));
+ c.openAccountDialog();c.closeAccount();c.openAccountDialog();c.openAccountActivity();c.closeAccount();
+ assert.equal(submits,1,'presentation navigation cannot start another signing operation');
  await assert.rejects(c.confirmAccountTransfer(record().quote),/Another wallet operation/);
  release();await first;assert.equal(submits,1);
- await assert.rejects(c.confirmAccountTransfer(record().quote),/unresolved/);
- c.dispose();const reloaded=make();await reloaded.ready();await new Promise(r=>setImmediate(r));
+ await assert.rejects(c.confirmAccountTransfer(record().quote),/Pending transfers changed/);
+ c.dispose();const reloaded=make();await reloaded.ready();await reloaded.checkAccountTransfer();
  assert.ok(reconciles>=1);assert.equal(submits,1);reloaded.dispose();
 });
 

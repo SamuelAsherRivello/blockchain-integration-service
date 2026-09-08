@@ -46,8 +46,8 @@ The production surface SHALL expose non-secret state updates sufficient to obser
 - **THEN** it receives the opening state change and no subsequent notifications from that client
 
 ### Requirement: Honest profile routing boundary
-Only Accounts Details SHALL display the Account ID field and its Copy action. Copy SHALL copy the complete active public profile ID. Account and all other BIS windows SHALL NOT repeat the Account ID in their subtitles. The shortened ID displayed on Accounts Details SHALL use its first four and last four characters separated by an ellipsis. Existing logged-in and Network: Signet messaging SHALL remain available without repeating the ID.
-A1 SHALL remain the entry-button demonstration. A2 SHALL own creation and its minimal active-account endpoint. A3 SHALL own restoration and share that endpoint. All account entry paths SHALL recognize a real persisted active account and show the title Account with enabled lightning-prefixed Account Details, enabled lightning-prefixed Transactions immediately below Account Details, enabled lightning-prefixed Log Out, and enabled Back; they SHALL hide Create Account and Restore Account. Log Out SHALL open A6's backup confirmation without immediately clearing the account. Back SHALL restore the preceding host presentation. A4 SHALL provide an Account Details dialog reached through Account Details, with the title Account Details, the identity message, Network: Signet, live available/total balances and only lightning-prefixed Refresh and plain Back actions. Back from Details SHALL return to Account and clear balances; Account SHALL NOT initiate a balance read. Log Out SHALL NOT appear in Details; A5 SHALL provide the Transactions dialog reached through Transactions; Assets SHALL appear immediately below Transactions and open the two-page Assets and Asset Detail inspection flow specified by account-assets; opening Account alone SHALL NOT request asset holdings; achievement claiming remains deferred, and receiving details follow their separate capability; A6 SHALL own working logout. The demo SHALL NOT manufacture profiles or report unimplemented stories as complete.
+Only Accounts Details SHALL display the Account ID field and its Copy action. Copy SHALL copy the complete active public profile ID. Account and all other BIS windows SHALL NOT repeat the Account ID in their subtitles. The shortened ID SHALL use its first four and last four characters separated by an ellipsis. Existing logged-in and Network: Signet messaging SHALL remain available without repeating the ID.
+A1 SHALL remain the entry-button demonstration. A2 SHALL own creation and A3 SHALL own restoration; both SHALL return to the actual active Account menu without manufacturing profiles. An active account SHALL hide Create Account and Restore Account and expose Accounts Details, the existing Send/Receive/Swap routes, Log Out and Back. Accounts Details SHALL open a submenu with Balance, Transactions immediately below Balance, Assets immediately below Transactions, and Back to Account. Opening Account or its submenu alone SHALL NOT request balances, history or assets. Balance SHALL use A4's live available/total balances and Refresh; A5 SHALL own Transactions and its detail/copy flow; account-assets SHALL own Assets and Asset Detail. Back from Balance, Transactions or Assets SHALL return to Accounts Details, while Back from Transaction Detail or Asset Detail SHALL return to its list. Existing recovery access, receiving, sending, transfer and logout behavior SHALL retain their separate capability boundaries. Log Out SHALL use A6's production confirmation and SHALL NOT immediately clear the account. Back from Account SHALL restore the preceding host presentation. The demo SHALL NOT report unverified stories as complete.
 
 #### Scenario: Saved account opens safely
 - **WHEN** a player opens Account with a saved active profile
@@ -56,9 +56,29 @@ A1 SHALL remain the entry-button demonstration. A2 SHALL own creation and its mi
 
 #### Scenario: Route validation does not imply wallet functionality
 - **WHEN** profile routing is tested and documented
-- **THEN** logged-out creation entry, the shared A4 active dialog, and A6 logout are distinguished
-- **AND** A3 restores account access only before entering the shared A4 dialog; balance loading belongs to A4; A5 owns all SDK-provided incoming and outgoing transaction history, Assets owns runtime asset inspection, and other unimplemented menu features remain deferred
+- **THEN** logged-out creation entry, the active Account menu, the Accounts Details submenu, A4 Balance, and A6 logout are distinguished
+- **AND** A3 restores account access only before entering Account; balance loading belongs to A4; A5 owns all SDK-provided incoming and outgoing transaction history, Assets owns runtime asset inspection, and other unimplemented menu features remain deferred
 #### Scenario: Open owned assets from Account
-- **WHEN** a player with an active profile selects Assets immediately below Transactions
+- **WHEN** a player with an active profile selects Assets immediately below Transactions in Accounts Details
 - **THEN** the production Assets list opens and reads that account's current holdings
-- **AND** Back from Asset Detail returns to Assets, while Back from Assets returns to Account
+- **AND** Back from Asset Detail returns to Assets, while Back from Assets returns to Accounts Details
+
+### Requirement: Shared form network and BIS version header
+Every production BIS form displaying Network: Signet SHALL retain that network label centered horizontally relative to its form. It SHALL display `BIS: v<version>` immediately to the right on the same header line, vertically aligned with the network text, using the running @bis/integration package version. The version SHALL be very faded relative to the network label while remaining visible. The network label SHALL NOT shift to center the combined pair. Existing sticky header behavior SHALL remain intact.
+
+#### Scenario: Open a production form
+- **WHEN** a user opens any production form with the network header
+- **THEN** Network: Signet remains centered in the form
+- **AND** the running BIS version appears immediately to its right in very faded text
+- **AND** the version has a lowercase v prefix and does not introduce an interactive control
+
+#### Scenario: Package version changes
+- **WHEN** a different integration package version is built and loaded
+- **THEN** its header displays that package version automatically without editing a hardcoded UI version
+- **AND** development source and built-library consumers follow the same version source
+
+#### Scenario: Narrow preview and scrolling
+- **WHEN** a form appears in the supported narrow portrait preview or its body scrolls
+- **THEN** both labels remain visible without overlap or horizontal overflow
+- **AND** the network stays centered and the strip retains its sticky behavior
+

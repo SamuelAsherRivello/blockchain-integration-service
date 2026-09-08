@@ -112,11 +112,11 @@ These questions and recommendations are not approved design decisions. The next 
 
 ## A5 Account Activity
 
-- Current delivery uses Transactions immediately below Balance. Its three-line rows show grouped sats/direction, status and a shortened identifier without icons. One click opens Transaction Detail. Back retains selection; leaving Activity clears it. Both dialogs retain fixed 480px height capped by available host space, with internal scrolling.
+- Current delivery uses Account > Accounts Details > Transactions immediately below Balance. Its three-line rows show operation/amount, On-chain or Off-chain network, and a shortened primary identifier without icons. Full direction and supported status remain in detail and Copy-all. One click opens Transaction Detail. Detail Back retains selection; list Back returns to Accounts Details and clears Activity. Both dialogs retain native compact 384px height capped by available host space, with persistent internal list/detail scrollbars. Account ID and its Copy action appear only on Accounts Details. Empty lists retain their heading, disabled copy icon and scrollbar without an empty-state message.
 - Copy all transactions preserves A5's full-list export: every current record in order, one logical line with full identifiers, exact asset quantities, amount/direction and supported status. Empty/loading lists disable it. Clipboard failure exposes the complete selectable text and permits retry. Transaction Detail keeps its own selectable report and Copy for only that entry. Incoming/outgoing, confirmed and spent history remains limited to what the SDK supplies.
 
 - A read-only SDK wallet supplies history, coin metadata, and notifications; periodic SDK reconciliation catches missed events and stale connections. No payments or settlement run. Data and observation are transient and cleared on leaving or account change.
-- Live pending receipt and automatic refresh, isolated browser checks, and package tests pass. Live confirmation and outgoing/spent evidence remain pending; see ../../.openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md.
+- Earlier live pending receipt and automatic updates are recorded. Live outgoing and confirmed-state rendering and Copy-all were rechecked on 2026-09-08; the same-transaction live confirmation transition remains pending. See ../../.openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md for the current evidence and remaining limits.
 
 ## Bitcoin presentation precedence
 

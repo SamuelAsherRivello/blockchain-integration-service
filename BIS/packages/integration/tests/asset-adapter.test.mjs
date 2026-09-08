@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ArkAddress, AssetManager, Extension, InMemoryContractRepository, InMemoryWalletRepository, ReadonlyWallet, RestArkProvider, RestIndexerProvider, Wallet } from '@arkade-os/sdk';
-import { listWalletAssets, mintWalletAsset } from '../src/arkade/assets.ts';
+import { listWalletAssets, mintWalletAsset, loadMintAvailability } from '../src/arkade/assets.ts';
+import {writeSendRecord} from '../src/core/sending.ts';
 import { readAssetRecords, writeAssetRecord } from '../src/core/assets.ts';
 
 // A published BIP39 test vector, used only behind mocked wallet/provider factories.
@@ -138,6 +139,44 @@ test('real adapter and SDK issue preserve the external holding, exact amount, ic
   assert.notEqual(f.state.storages[0].walletRepository, f.state.storages[1].walletRepository);
   assert.doesNotThrow(() => JSON.stringify({ result, assets }));
   assert.equal(f.state.disposed, 2);
+});
+
+function reserveCoin(coin) {
+  writeSendRecord({version:1,id:'other-send',profileId:account.profileId,status:'pending',transactionId:'d'.repeat(64),
+    quote:{id:'other-send',profileId:account.profileId,recipient:'tark1fixture',amountSats:100,feeSats:0,totalSats:100,maxSats:1000,expiresAt:Date.now()+60000,fingerprint:'e'.repeat(64)},
+    inputs:[{txid:coin.txid,vout:coin.vout}],recipientScript:'5120'+'f'.repeat(64)});
+}
+
+test('mint availability and actual SDK issuance use only unreserved inputs',async t=>{
+  const f=fixture(t),reserved=f.state.coins[0],free={txid:'c'.repeat(64),vout:0,value:1000};
+  reserveCoin(reserved);f.state.coins.push(free);
+  const ready=await loadMintAvailability(account,new AbortController().signal);
+  assert.equal(ready.canMint,true);
+  assert.equal(ready.availableSats,1000);
+  assert.equal((await f.mint()).status,'minted');
+  assert.deepEqual(f.state.packets[0].inputs.map(c=>c.txid),[free.txid]);
+});
+
+test('reserved balance alone cannot fund issuance',async t=>{
+  const f=fixture(t);reserveCoin(f.state.coins[0]);
+  const ready=await loadMintAvailability(account,new AbortController().signal);
+  assert.equal(ready.canMint,false);assert.equal(ready.availableSats,0);
+  await assert.rejects(f.mint());assert.equal(f.state.submitted,0);
+});
+
+test('unverifiable pending inputs still block availability and submission',async t=>{
+  const f=fixture(t);
+  writeAssetRecord(account.profileId,{request:{...request,operationId:'unknown-old-mint'},status:'pending'});
+  const ready=await loadMintAvailability(account,new AbortController().signal);
+  assert.equal(ready.canMint,false);assert.match(ready.reason,/inputs could not be verified/);
+  await assert.rejects(f.mint());assert.equal(f.state.submitted,0);
+});
+
+test('new reservation after SDK selection prevents network submission',async t=>{
+  const f=fixture(t);
+  f.state.beforeSubmit=()=>reserveCoin(f.state.coins[0]);
+  await assert.rejects(f.mint());assert.equal(f.state.submitted,0);
+  assert.equal(readAssetRecords(account.profileId).length,0);
 });
 
 test('completed same-ID retry does not recreate a wallet or issue again; new ID is independent', async t => {

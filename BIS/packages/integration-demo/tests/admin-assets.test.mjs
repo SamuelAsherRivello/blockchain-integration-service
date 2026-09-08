@@ -12,10 +12,37 @@ async function loadAdmin() {
     const story = await transformWithOxc(storySource, 'StoryAction.tsx', { jsx: { runtime: 'automatic' } });
     const storyModule = story.code.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')));
     const moduleText = code.replace('"./StoryAction"', JSON.stringify(`data:text/javascript,${encodeURIComponent(storyModule)}`)).replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime'))).replace('"react/jsx-dev-runtime"', JSON.stringify(import.meta.resolve('react/jsx-dev-runtime')));
-    const resolved = moduleText.replace('"@bis/integration"', JSON.stringify(import.meta.resolve('../../integration/src/core/game-continue.ts')));
+    const sectionSource=await readFile(new URL('../src/admin/StorySection.tsx',import.meta.url),'utf8');
+    const section=await transformWithOxc(sectionSource,'StorySection.tsx',{jsx:{runtime:'automatic'}});
+    const sectionModule=section.code.replace('"react/jsx-runtime"',JSON.stringify(import.meta.resolve('react/jsx-runtime')));
+    const resolved = moduleText.replace('"@bis/integration"', JSON.stringify(import.meta.resolve('../../integration/src/core/game-continue.ts'))).replace('"./StorySection"',JSON.stringify(`data:text/javascript,${encodeURIComponent(sectionModule)}`));
     const { AdminPanel } = await import(`data:text/javascript,${encodeURIComponent(resolved)}`);
     return AdminPanel;
 }
+
+test('B1 stays enabled with the Account dialog open and retains payment guards', async () => {
+  const AdminPanel = await loadAdmin();
+  for (const accountOpen of [false, true]) {
+    for (const [continueAvailable, continueBusy, disabled] of [[true, false, false], [true, true, true], [false, false, true]]) {
+      const html = renderToStaticMarkup(createElement(AdminPanel, {
+        accountOpen, continueAvailable, continueBusy, consoleOutput: '',
+      }));
+      const button = html.match(/<button\b[^>]*><span>B1<\/span>/)?.[0];
+      assert.ok(button, 'B1 is rendered');
+      assert.equal(button.includes('disabled=""'), disabled, `accountOpen=${accountOpen}, available=${continueAvailable}, busy=${continueBusy}`);
+    }
+  }
+});
+
+test('C1 uses game wallet readiness and shows Awaiting Balance when unfunded',async()=>{
+ const AdminPanel=await loadAdmin();
+ for(const mintAvailable of [false,true])for(const playerActive of [false,true]) {
+  const html=renderToStaticMarkup(createElement(AdminPanel,{mintAvailable,mintReason:mintAvailable?undefined:'Awaiting Balance',playerActive,accountOpen:true,assetBusy:false,consoleOutput:''}));
+  const button=html.match(/<button\b[^>]*><span>C1<\/span>/)?.[0];assert.ok(button);
+  assert.equal(button.includes('disabled=""'),!mintAvailable);
+  if(!mintAvailable)assert.match(html,/Mint Asset &amp; Send \(Awaiting Balance\)/);
+ }
+});
 
 test('Admin renders implemented asset stories and omits empty categories', async () => {
     const AdminPanel = await loadAdmin();
@@ -23,14 +50,15 @@ test('Admin renders implemented asset stories and omits empty categories', async
     const html = renderToStaticMarkup(createElement(AdminPanel, {
       selected: null, accountOpen: false, canReset: false, onSelect: unexpected, onReset: unexpected,
       canFund: false, funding: false, onFund: unexpected, onExplorer: unexpected,
-      onMint: unexpected, onListAssets: unexpected, assetBusy: false, consoleOutput: '',
+      onMint: unexpected, mintAvailable:true, assetBusy: false, consoleOutput: '',
     }));
     assert.match(html, />A\. Account</);
     assert.match(html, />C\. Assets</);
-    assert.match(html, /<span>C1<\/span>Mint Asset/);
-    assert.match(html, /<span>C4<\/span>List Assets/);
+    assert.match(html, /<span>C1<\/span><span[^>]*>Mint Asset &amp; Send/);
+    assert.doesNotMatch(html, /<span>C4<\/span>List Assets/);
+    assert.doesNotMatch(html, /C6|Reward Player With Trophy After Level Complete/);
     assert.match(html, />B\. Pay-to-play</);
-    assert.match(html, /&quot;Pay 1000 Sats To Coninue&quot;/);
+    assert.match(html, /&quot;Pay 1000 Sats To Continue&quot;/);
     assert.match(html, /aria-label="Console output"/);
 });
 
@@ -40,7 +68,7 @@ test('D1/D2 and E1/E2 retain independent availability and exact action routing',
   const props = {
     selected: null, accountOpen: true, canReset: false, onSelect: id => calls.push(id), onReset() {},
     canFund: true, funding: false, onFund: () => calls.push('fund'), onExplorer: () => calls.push('explorer'),
-    onMint() {}, onListAssets() {}, assetBusy: true, consoleOutput: '',
+    onMint() {}, assetBusy: true, consoleOutput: '',
     canShowToast: true, onShowToast: () => calls.push('toast'), onShowToastWithIcon: () => calls.push('toast-icon'),
   };
   function actions(element, found = new Map()) {
@@ -59,11 +87,11 @@ test('D1/D2 and E1/E2 retain independent availability and exact action routing',
   }
   assert.deepEqual(calls, ['toast','toast-icon','fund','explorer']);
   const markup = renderToStaticMarkup(createElement(AdminPanel, props));
-  assert.match(markup, />D\. UI</); assert.match(markup, /<span>D1<\/span>Show Toast/);
-  assert.match(markup, /<span>D2<\/span>Show Toast With Icon/);
+  assert.match(markup, />D\. UI</); assert.match(markup, /<span>D1<\/span><span[^>]*>Show Toast/);
+  assert.match(markup, /<span>D2<\/span><span[^>]*>Show Toast With Icon/);
   assert.match(markup, />E\. Admin Tools</);
-  assert.match(markup, /<span>E1<\/span>Fund Signet Sats/);
-  assert.match(markup, /<span>E2<\/span>Open On Mempool.space/);
+  assert.match(markup, /<span>E1<\/span><span[^>]*>Fund Signet Sats/);
+  assert.match(markup, /<span>E2<\/span><span[^>]*>Open On Mempool.space/);
   for (const options of [{canFund: false}, {funding: true}]) {
     const disabled = actions(AdminPanel({...props,...options}));
     assert.equal(disabled.get('E1').props.disabled, true);

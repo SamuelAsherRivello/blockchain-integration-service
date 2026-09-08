@@ -18,6 +18,8 @@ body { margin: 0; background: #11151c; }
 .story-button { box-sizing: border-box; white-space: nowrap; }
 @media (min-width: 701px) { .workspace { grid-template-columns: minmax(340px, var(--admin-width, 32%)) 10px minmax(0, 1fr); } }
 .story-button > span { min-width: 0; }
+.admin-panel button { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.story-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .story-button > span:first-child, .story-arrow { flex-shrink: 0; white-space: nowrap; }
 .preview-panel { container-type: inline-size; }
 .preview-controls { flex-wrap: wrap; }
@@ -34,7 +36,15 @@ body { margin: 0; background: #11151c; }
 .admin-console { box-sizing: border-box; width: 100%; min-height: 130px; resize: vertical; padding: 12px; border: 1px solid #394657; border-radius: 9px; background: #11151c; color: #bec9d7; font: 12px/1.6 Consolas, 'Cascadia Code', monospace; }
 .admin-console:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 3px; }
 .demo-app .panel-title { font-size: 22px; font-weight: 500; letter-spacing: -.03em; margin: 0; }
-.category-title { font-size: 12px; color: #a9b6c7; font-weight: 500; margin: 16px 0; }
+.story-section + .story-section { margin-top: 24px; }
+.story-section-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.story-section-toggle::-webkit-details-marker { display: none; }
+.story-section-toggle .admin-section-title { margin: 0; }
+.story-section-chevron { display: inline-block; color: #dce5ef; font-size: 16px; line-height: 1; flex-shrink: 0; }
+.story-section[open] > .story-section-toggle .story-section-chevron { transform: rotate(90deg); }
+.story-section-toggle:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 4px; border-radius: 3px; }
+.story-section-content { padding-top: 16px; }
+.admin-panel .story-summary { margin: -8px 0 12px; color: #a9b6c7; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .funding-status { color: #a9b6c7; font-size: 12px; line-height: 1.5; margin: 10px 0 0; overflow-wrap: anywhere; }
 .admin-section-title { font-size: 16px; color: #dce5ef; font-weight: 500; margin: 0 0 16px; }
 .documentation-link { color: #a9d9c3; font-size: 13px; text-decoration: none; }
@@ -78,3 +88,21 @@ body { margin: 0; background: #11151c; }
 /* Stack the heading on small screens where the three items cannot fit side by side. */
 @container (max-width: 650px) { .preview-heading { grid-area: auto; } .preview-stage { grid-area: auto; padding-top: 12px; } }
 @media (max-width: 700px) { .preview-heading { grid-area: auto; } .preview-stage { grid-area: auto; padding-top: 12px; } }
+
+.game-wallet-panel dd { margin: 4px 0 12px; overflow-wrap: anywhere; font-size: 12px; user-select: text; }
+.game-wallet-panel dt, .game-wallet-panel label { color: var(--muted, #a3a9b8); font-size: 12px; }
+.game-wallet-panel input { box-sizing: border-box; width: 100%; padding: 8px; margin: 8px 0; background: #171b25; color: #fff; border: 1px solid #454b5a; border-radius: 6px; }
+.game-wallet-panel p { font-size: 12px; overflow-wrap: anywhere; }
+.game-wallet-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border: 1px solid #303644; border-radius: 8px; }
+.game-wallet-label { font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game-wallet-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.game-wallet-actions button { background: #242b37; color: #e5e9ef; border: 1px solid #454f60; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
+.game-wallet-actions button:disabled { opacity: .45; cursor: default; }
+.game-wallet-actions button:focus-visible { outline: 2px solid #a7d6c7; outline-offset: 2px; }
+
+.game-wallet-balance { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; color: #b8e6d2; }
+.game-wallet-actions { min-width: 0; flex-wrap: nowrap; justify-content: flex-end; flex-shrink: 1; }
+.game-wallet-payment-row { background: #1e2632; }
+.game-wallet-payment-row > .story-button { flex: 1; min-width: 0; width: auto; padding: 4px; border-color: transparent; background: transparent; }
+.game-wallet-payment-row > .game-wallet-actions { flex: 0 1 auto; }
+.game-wallet-payment-row .game-wallet-actions button { flex-shrink: 0; }

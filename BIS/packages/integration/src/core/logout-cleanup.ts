@@ -8,9 +8,20 @@ const owns = (key: string) => journalPrefixes.some(prefix => key === prefix || k
 function keys(storage: WebStorage) {
   return Array.from({length: storage.length}, (_, i) => storage.key(i)).filter((key): key is string => key !== null);
 }
+function gameBoarding(key: string, storage: WebStorage) {
+  const mintPrefix='bis-signet-mints-v1:';
+  if(key.startsWith(mintPrefix)&&storage.getItem('bis-game-wallet-mint-owner:'+key.slice(mintPrefix.length))==='1')return true;
+  const sendPrefix = 'bis-signet-send-operation-v1:';
+  if (key.startsWith(sendPrefix) && storage.getItem('bis-game-wallet-send-owner:' + key.slice(sendPrefix.length).split(':operation:')[0]) === '1') return true;
+  const prefix = 'bis-signet-boarding-operation-v1:';
+  if (!key.startsWith(prefix)) return false;
+  const owner = key.slice(prefix.length).split(':operation:')[0];
+  return storage.getItem('bis-game-wallet-boarding-owner:' + owner) === '1';
+}
 export function pendingLogoutOperations(storage: WebStorage | undefined = globalThis.localStorage): LogoutOperations {
   const pending = new Set<string>();
   if (storage) for (const key of keys(storage)) {
+    if (gameBoarding(key, storage)) continue;
     if(key.startsWith(continuationPrefix))assertNoPendingContinue(decodeURIComponent(key.slice(continuationPrefix.length)),storage);
     const prefix = journalPrefixes.find(prefix => key === prefix || key.startsWith(`${prefix}:`));
     if (!prefix) continue;
@@ -33,6 +44,7 @@ export function pendingLogoutOperations(storage: WebStorage | undefined = global
 export function clearBrowserPreferences(storage: WebStorage | undefined) {
   if (!storage) return;
   for (const key of keys(storage).filter(owns)) {
+    if (gameBoarding(key, storage)) continue;
     storage.removeItem(key);
     if (storage.getItem(key) !== null) throw Error('Browser cleanup could not be verified.');
   }
