@@ -7,9 +7,9 @@ import { createContext } from '../src/core/context.ts';
 
 const addresses = { arkadeAddress: 'tark1-test-address', bitcoinAddress: 'tb1p-test-address' };
 const tick = () => new Promise(resolve => setImmediate(resolve));
-function setup() {
+function setup(factory = createContext) {
   const account = { phrase: 'test-placeholder', profileId: 'test-profile' };
-  return createContext({ load: async () => ({ account, generation: 0 }), save: async () => { throw Error('Unexpected write'); }, reset: async () => { throw Error('Unexpected reset'); }, subscribe: () => () => {} }, undefined, async () => account.profileId, undefined, async () => { throw Error('Unexpected balance request'); }, undefined, async () => addresses);
+  return factory({ load: async () => ({ account, generation: 0 }), save: async () => { throw Error('Unexpected write'); }, reset: async () => { throw Error('Unexpected reset'); }, subscribe: () => () => {} }, undefined, async () => account.profileId, undefined, async () => { throw Error('Unexpected balance request'); }, undefined, async () => addresses);
 }
 
 test('invoice capability is unavailable and navigation leaves address receiving usable', async () => {
@@ -33,8 +33,11 @@ test('invoice capability is unavailable and navigation leaves address receiving 
 
 test('production Receive hides deferred invoice UI and keeps address Copy and Back enabled', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
-  const context = setup();
+  let context;
   try {
+    // The UI and context must share Vite's module instance and private controls registry.
+    const { createContext: factory } = await server.ssrLoadModule('/BIS/packages/integration/src/core/context.ts');
+    context = setup(factory);
     const { BisView } = await server.ssrLoadModule('/BIS/packages/integration/src/ui/client.tsx');
     await context.ready();
     context.openAccountDialog();
@@ -49,5 +52,5 @@ test('production Receive hides deferred invoice UI and keeps address Copy and Ba
     assert.ok(html.includes(addresses.arkadeAddress) && html.includes(addresses.bitcoinAddress));
     assert.match(html, /<button[^>]*>Back<\/button>/);
     assert.ok(!html.match(/<button[^>]*disabled[^>]*>Back<\/button>/));
-  } finally { context.dispose(); await server.close(); }
+  } finally { context?.dispose(); await server.close(); }
 });

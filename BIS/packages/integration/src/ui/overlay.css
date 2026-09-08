@@ -203,6 +203,17 @@
 
 /* The operation layer belongs to this runtime host, not the surrounding Admin app. */
 .bis-runtime, .bis-runtime-content { position: absolute; inset: 0; }
+.bis-toast-viewport { position: absolute; inset: 0; z-index: 30; overflow: hidden; pointer-events: none; padding: 12.8px; display: flex; justify-content: center; align-items: flex-start; }
+.bis-toast { box-sizing: border-box; width: min(100%, 288px); padding: 12.8px 16px; border: 1px solid #c8dcd5; border-top: 3px solid #487d66; border-radius: 10px; background: #f8fbfc; color: #182d39; box-shadow: 0 8px 24px #0003; font: 12.8px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; text-align: center; overflow-wrap: anywhere; white-space: pre-wrap; pointer-events: none; }
+.bis-toast[data-phase="entering"] { animation: bis-toast-enter var(--bis-toast-motion) ease-out both; }
+.bis-toast-with-image { display: flex; align-items: center; gap: 12px; text-align: left; }
+.bis-toast-image { flex: 0 0 48px; width: 48px; height: 48px; object-fit: contain; }
+.bis-toast-lightning { flex: 0 0 24px; font-size: 24px; line-height: 1; text-align: center; }
+.bis-toast-text { min-width: 0; }
+.bis-toast[data-phase="exiting"] { animation: bis-toast-exit var(--bis-toast-motion) ease-in both; }
+@keyframes bis-toast-enter { from { transform: translateY(calc(-100% - 48px)); } to { transform: translateY(0); } }
+@keyframes bis-toast-exit { from { transform: translateY(0); } to { transform: translateY(calc(-100% - 48px)); } }
+@media (prefers-reduced-motion: reduce) { .bis-toast { animation: none !important; } }
 .bis-runtime { isolation: isolate; }
 .bis-pending-backdrop { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 12.8px; background: #142330b8; pointer-events: auto; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; color: #182d39; color-scheme: light; }
 .bis-pending-dialog { box-sizing: border-box; width: min(224px, 100%); max-height: 100%; overflow: auto; padding: 22.4px 19.2px; border: 0.8px solid #d7e5df; border-radius: 14.4px; background: #f8fbfc; box-shadow: 0 16px 44px #0004; text-align: center; outline: none; }

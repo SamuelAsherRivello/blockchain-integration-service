@@ -17,7 +17,7 @@ export function usePendingNotice(busy: boolean, label: string, error: string | u
 }
 
 /** A host-local modal: document-level showModal would also disable the Admin panel. */
-export function PendingOperations({children}: {children: ReactNode}) {
+export function PendingOperations({children, overlay}: {children: ReactNode; overlay?: ReactNode}) {
   const runtime = useVisibleViewport();
   const [notices,setNotices] = useState<Map<string,Notice>>(()=>new Map());
   const register = useCallback<Register>((id,notice)=>setNotices(previous=>{
@@ -65,6 +65,7 @@ export function PendingOperations({children}: {children: ReactNode}) {
             : <span className="bis-lightning" aria-hidden="true">⚡</span>}
         </div>
       </div>}
+      {overlay}
     </div>
   </PendingContext.Provider>;
 }

@@ -41,6 +41,15 @@ test('documentation has a clean standalone route and no filesystem URL', async (
     const page = await (await fetch(new URL('documentation/user-stories/', base))).text();
     assert.match(page, /User Story Diagrams/);
     assert.match(page, /documentation\.tsx/);
+    for (const path of ['BIS/documentation/user-stories/', 'BIS/documentation/user-stories', 'BIS/documentation/user-stories/?view=all']) {
+      const alias = await fetch(new URL(path, base), { redirect: 'manual' });
+      assert.equal(alias.status, 302, `Expected documentation redirect for ${path}`);
+      const target = '/documentation/user-stories/' + (path.includes('?') ? '?view=all' : '');
+      assert.equal(alias.headers.get('location'), target);
+      const documentation = await fetch(new URL(path, base));
+      assert.equal(documentation.status, 200);
+      assert.match(await documentation.text(), /<title>User Story Diagrams/);
+    }
     const legacy = new URL('/@fs/' + resolve('BIS/documentation/User Story Diagrams.md').replaceAll('\\', '/'), base);
     const redirect = await fetch(legacy, { redirect: 'manual' });
     assert.equal(redirect.status, 302);

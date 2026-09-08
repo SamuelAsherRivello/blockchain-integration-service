@@ -138,7 +138,19 @@ Isolated regression fixtures include `/tests/ui-components-host.html` (clipboard
 
 ## Independent game host
 
+For optional host-defined rewards, use `createBisAssetCollection(context, { asset, successMessage })`. Supply mint metadata without an operation ID, call `refresh()`, subscribe to `getState()`, and bind explicit actions to `collect()`, `check()` and `acknowledge()`. Disable menu navigation while `busy`; dispose when leaving the host screen. Positive holdings match exact name/ticker/decimals regardless of icon version. This is a demo ownership policy, not issuer authentication. Uncertain submissions retain their request ID for explicit reconciliation. Only a confirmed receipt triggers the supplied success message with its result image through the shared toast UI. The game owns level catalogs, trophy presets and progression; X1 game-controlled issuance remains separate.
+
 See the [BIS-to-game smoke runbook](../../documentation/SMOKE_TEST_BIS_TO_GAME.md) for the fixed package snapshot, Windows tunnels and acceptance sequence. Vite hosts consuming the development source export must configure `esbuild: { jsx: "automatic" }` and `optimizeDeps: { esbuildOptions: { jsx: "automatic" } }`; production consumes the built export. Hosts must handle `restartRequested` after confirmed logout, deduplicate its `logoutId`, and clean up event/state subscriptions, UI and context on teardown. The library no longer reloads the browser. Ordinary Account close preserves stored access; different ports/hostnames use separate browser origins.
+
+## Game pay-to-continue (B2)
+
+Payment-success toasts show a lightning logo to the left of the message. This uses the optional `icon: 'lightning'` toast option and requires no external artwork request.
+
+`getContinuePriceSats()` supplies the fixed 1000-sat demo price. Use `createBisContinue(context, { context: uniqueLossId, onSuccess })` once per defeat. Read `controller.getState()` and subscribe to changes for `sats`, `canPay`, `status` and `message`; `pay()` initiates the payment once. While `status === 'pending'`, disable Pay and Restart. BIS reconciles automatically and never converts a read error or timeout into failure. A definitive failure permits a deliberate retry. The lower-level B1 API remains available and compatible.
+
+After confirmed success the controller sends `User paid 1000 sats to continue` through the shared toast UI and invokes `onSuccess(result)` once, only for the original account. Keep `createBisUi` mounted in a transparent, pointer-pass-through host outside Account so the toast is visible during gameplay. The host owns revival and must dispose the controller when its loss/session is abandoned. Disposal cannot cancel a submitted payment or refund it. Old journal results never grant continuation to a new controller or session.
+
+The stealth game shows a left lightning icon, dynamically inserts the BIS price into `Pay 1000 Sats To Continue`, and places `Restart Game` below. Logged-out Pay is always greyed out. Success replaces the defeated player through the same row/column spawn function used at level start, preserving its position and loadout with full health and fresh rendering/input. It removes enemies in the centered 3x3 grid cells before resuming; other state remains intact. See [B2 verification](../../../.openspec/changes/archive/2026-09-07-add-b2-game-pay-to-continue/verification.md).
 
 ## Native UI size (v0.12.0)
 

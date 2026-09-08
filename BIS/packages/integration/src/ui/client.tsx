@@ -1,4 +1,5 @@
 import { PendingOperations, usePendingNotice } from './PendingOperationDialog';
+import { ToastViewport } from './ToastViewport';
 import { AccountAssets } from './AccountAssets';
 import { AccountBalances } from './AccountBalances';
 import { AccountSend } from './AccountSend';
@@ -16,7 +17,7 @@ import { FitTextButton } from './FitTextButton';
 import { IconButton } from './IconButton';
 import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
 export function BisView({ context }: { context: BisContext }) {
-  return <PendingOperations><BisScreen context={context} /></PendingOperations>;
+  return <PendingOperations overlay={<ToastViewport context={context} />}><BisScreen context={context} /></PendingOperations>;
 }
 function BisScreen({ context }: { context: BisContext }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
@@ -124,7 +125,7 @@ export function createBisUi(context: BisContext) {
       root.render(<BisView context={context} />);
     },
     showAccountButton() { internal.present(); },
-    unmount() { internal.hideAssets(); root?.unmount(); root = undefined; host = undefined; },
+    unmount() { internal.toasts.clear(); internal.hideAssets(); root?.unmount(); root = undefined; host = undefined; },
   };
 }
 export function GameOverlay() {

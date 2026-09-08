@@ -1,6 +1,7 @@
 import {submitContinuation,reconcileContinuation} from '../arkade/continuation.ts';
 import {validateContinue,readContinuations,type BisContinueRequest,type BisContinueResult} from './continuation.ts';
 import { readWithRetry } from './pending-read.ts';
+import { createToastQueue, type BisToastOptions } from './toasts.ts';
 import { watchActivity } from '../arkade/activity.ts';
 import { pendingLogoutOperations, type LogoutOperations } from './logout-cleanup.ts';
 import { loadSendFunds, quoteSend, submitSend, reconcileSend } from '../arkade/sending.ts';
@@ -48,6 +49,7 @@ export type BisState = Readonly<{
 }>;
 export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }> | Readonly<{ type: 'restartRequested'; reason: 'logout'; logoutId: string }>;
 export interface BisContext {
+  showToast(message: string, options?: BisToastOptions): void;
   requestContinue(request:BisContinueRequest):Promise<BisContinueResult>;
   getContinueStatus(operationId?:string):Promise<readonly BisContinueResult[]>;
   burnAsset(request:BisBurnAssetRequest):Promise<BisBurnAssetResult>;
@@ -89,7 +91,7 @@ export interface BisContext {
   dispose(): void;
 }
 export function accountDestination(hasProfile: boolean) { return hasProfile ? 'account-menu' : 'account-chooser'; }
-type Controls = { dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void> };
+type Controls = { toasts: ReturnType<typeof createToastQueue>; dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void> };
 const controls = new WeakMap<BisContext, Controls>();
 export function getControls(context: BisContext): Controls {
   const result = controls.get(context);
@@ -98,6 +100,7 @@ export function getControls(context: BisContext): Controls {
 }
 // Private dependency seam for isolated tests; not exported by the package.
 export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}): BisContext {
+  const toasts = createToastQueue();
   let issuedSend:BisSendQuote|undefined,sendRevision=0;
   const guardSend=()=>{if(globalThis.localStorage){assertNoPendingSend(state.profileId);assertNoPendingBurn(state.profileId);}};
   const idleAssets: BisAssets = Object.freeze({status:'idle'});
@@ -280,6 +283,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     }
   }
   const context: BisContext = {
+    showToast(message, options) { assertAlive(); toasts.enqueue(message, options); },
     async requestContinue(request) {
       validateContinue(request);
       const input=Object.freeze({operationId:request.operationId,sats:request.sats,context:request.context});
@@ -700,9 +704,10 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       else if(failure==='save')await context.continueAccount();
       else {failure=undefined;update({phase:'idle',error:undefined});await context.createAccount();}
     },
-    dispose() {if(disposed)return;clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
+    dispose() {if(disposed)return;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
   };
   controls.set(context,{
+    toasts,
     dismissOperationError() {
       if(state.view==='account')context.closeAccount();
       else update({error:undefined});

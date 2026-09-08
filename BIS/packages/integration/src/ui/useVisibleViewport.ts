@@ -37,12 +37,15 @@ export function useVisibleViewport() {
     };
     const observer = new ResizeObserver(update); observer.observe(host);
     window.addEventListener('resize', update);
+    // A demo/runtime can scroll into view without resizing its host (including nested scrollers).
+    window.addEventListener('scroll', update, true);
     viewport?.addEventListener('resize', update); viewport?.addEventListener('scroll', update);
     runtime.addEventListener('focusin', update);
     update();
     return () => {
       cancelAnimationFrame(frame); observer.disconnect();
       window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
       viewport?.removeEventListener('resize', update); viewport?.removeEventListener('scroll', update);
       runtime.removeEventListener('focusin', update);
     };

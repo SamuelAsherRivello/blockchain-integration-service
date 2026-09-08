@@ -5,14 +5,20 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 
-test('Admin renders implemented asset stories and omits empty categories', async () => {
+async function loadAdmin() {
     const source = await readFile(new URL('../src/admin/AdminPanel.tsx', import.meta.url), 'utf8');
     const { code } = await transformWithOxc(source, 'AdminPanel.tsx', { jsx: { runtime: 'automatic' } });
     const storySource = await readFile(new URL('../src/admin/StoryAction.tsx', import.meta.url), 'utf8');
     const story = await transformWithOxc(storySource, 'StoryAction.tsx', { jsx: { runtime: 'automatic' } });
     const storyModule = story.code.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')));
     const moduleText = code.replace('"./StoryAction"', JSON.stringify(`data:text/javascript,${encodeURIComponent(storyModule)}`)).replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime'))).replace('"react/jsx-dev-runtime"', JSON.stringify(import.meta.resolve('react/jsx-dev-runtime')));
-    const { AdminPanel } = await import(`data:text/javascript,${encodeURIComponent(moduleText)}`);
+    const resolved = moduleText.replace('"@bis/integration"', JSON.stringify(import.meta.resolve('../../integration/src/core/game-continue.ts')));
+    const { AdminPanel } = await import(`data:text/javascript,${encodeURIComponent(resolved)}`);
+    return AdminPanel;
+}
+
+test('Admin renders implemented asset stories and omits empty categories', async () => {
+    const AdminPanel = await loadAdmin();
     const unexpected = () => { throw Error('Rendering must not invoke an action'); };
     const html = renderToStaticMarkup(createElement(AdminPanel, {
       selected: null, accountOpen: false, canReset: false, onSelect: unexpected, onReset: unexpected,
@@ -24,6 +30,47 @@ test('Admin renders implemented asset stories and omits empty categories', async
     assert.match(html, /<span>C1<\/span>Mint Asset/);
     assert.match(html, /<span>C4<\/span>List Assets/);
     assert.match(html, />B\. Pay-to-play</);
-    assert.match(html, /Request Continue - 1,000 sats/);
+    assert.match(html, /&quot;Pay 1000 Sats To Coninue&quot;/);
     assert.match(html, /aria-label="Console output"/);
+});
+
+test('D1/D2 and E1/E2 retain independent availability and exact action routing', async () => {
+  const AdminPanel = await loadAdmin();
+  const calls = [];
+  const props = {
+    selected: null, accountOpen: true, canReset: false, onSelect: id => calls.push(id), onReset() {},
+    canFund: true, funding: false, onFund: () => calls.push('fund'), onExplorer: () => calls.push('explorer'),
+    onMint() {}, onListAssets() {}, assetBusy: true, consoleOutput: '',
+    canShowToast: true, onShowToast: () => calls.push('toast'), onShowToastWithIcon: () => calls.push('toast-icon'),
+  };
+  function actions(element, found = new Map()) {
+    if (!element || typeof element !== 'object') return found;
+    if (Array.isArray(element)) { element.forEach(child => actions(child, found)); return found; }
+    if (typeof element.type === 'function') {
+      if (element.props.id) found.set(element.props.id, element.type(element.props));
+      else actions(element.type(element.props), found);
+    } else actions(element.props?.children, found);
+    return found;
+  }
+  const enabled = actions(AdminPanel(props));
+  for (const id of ['D1','D2','E1','E2']) {
+    assert.equal(enabled.get(id).props.disabled, false);
+    enabled.get(id).props.onClick();
+  }
+  assert.deepEqual(calls, ['toast','toast-icon','fund','explorer']);
+  const markup = renderToStaticMarkup(createElement(AdminPanel, props));
+  assert.match(markup, />D\. UI</); assert.match(markup, /<span>D1<\/span>Show Toast/);
+  assert.match(markup, /<span>D2<\/span>Show Toast With Icon/);
+  assert.match(markup, />E\. Admin Tools</);
+  assert.match(markup, /<span>E1<\/span>Fund Signet Sats/);
+  assert.match(markup, /<span>E2<\/span>Open On Mempool.space/);
+  for (const options of [{canFund: false}, {funding: true}]) {
+    const disabled = actions(AdminPanel({...props,...options}));
+    assert.equal(disabled.get('E1').props.disabled, true);
+    assert.equal(disabled.get('E2').props.disabled, true);
+    assert.equal(disabled.get('D1').props.disabled, false);
+    assert.equal(disabled.get('D2').props.disabled, false);
+  }
+  assert.equal(actions(AdminPanel({...props, canShowToast: false})).get('D1').props.disabled, true);
+  assert.equal(actions(AdminPanel({...props, canShowToast: false})).get('D2').props.disabled, true);
 });
