@@ -58,3 +58,20 @@ test('Reject returns the original reward and an unresolved refund prevents repla
   assert.equal((await s.runtime.call(player,'start',{request:request('next')})).result.status,'unavailable');assert.deepEqual(s.calls,['fund','refund']);
  }finally{await s.close();}
 });
+
+test('the service refunds an expired offer without a connected browser and releases the slot',async t=>{
+ const s=fixture();try{
+  await s.runtime.admin('importWallet',['synthetic-input']);await wait(()=>s.runtime.wallet.getState().status==='ready');
+  const req=request('expires'),offer=(await s.runtime.call(player,'start',{request:req})).result.contract;
+  await wait(()=>s.runtime.wallet.getState().status==='ready');await navigator.locks.request('bis-signet-contracts-v1',()=>{});await new Promise(r=>setTimeout(r,30));
+  t.mock.method(Date,'now',()=>req.expiresAt+1);
+  // The production service timer, rather than a browser query, performs cleanup.
+  for(let i=0;i<140&&!s.calls.includes('refund');i++)await new Promise(r=>setTimeout(r,50));
+  await navigator.locks.request('bis-signet-contracts-v1',()=>{});
+  assert.deepEqual(s.calls,['fund','refund']);
+  const doc=await s.runtime.storage.load();assert.equal(doc.ledger.contracts[0].financial,'refunded');
+  assert.equal((await s.runtime.call(player,'claim',{id:offer.id})).result.status,'too-late');
+  const next=await s.runtime.call(player,'start',{request:request('after-expiry')});
+  assert.equal(next.result.contract.financial,'funded');assert.deepEqual(s.calls,['fund','refund','fund']);
+ }finally{await s.close();}
+});

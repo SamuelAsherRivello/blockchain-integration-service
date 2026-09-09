@@ -34,6 +34,16 @@ Automatic onboarding SHALL wait for confirmed, eligible, unexpired and unreserve
 - **WHEN** available funds cannot satisfy both output minima or the operator introduces unsupported fees
 - **THEN** onboarding explains the funding or policy blocker, does not submit an invalid leg, and retains any already-submitted leg for reconciliation
 
+#### Scenario: Selection and submission use the same funding plan
+- **WHEN** a complete assessment finds several confirmed eligible unreserved boarding inputs
+- **THEN** the 50% plan includes that complete eligible set and does not silently shrink it to satisfy operator limits
+- **AND** the exact set and applicable terms are revalidated before the submission boundary
+
+#### Scenario: Funding changes before submission
+- **WHEN** a selected input becomes ineligible while registration is provably impossible
+- **THEN** the unsent draft is retired and fresh assessment proceeds automatically without retaining a permanent stale-input hold
+- **AND** the same observation after submission may have occurred instead preserves the original plan and triggers reconciliation without replay
+
 ### Requirement: Attributable two-settlement route
 BIS SHALL represent onboarding as one durable parent with separately attributable boarding and Bitcoin-return legs. The first leg SHALL board the full frozen total without Bitcoin outputs. The second SHALL use only verified owned first-leg receipts to return the frozen remainder to the same account and retain the target in owned Arkade outputs. Each leg SHALL retain its own inputs, intended outputs, registration boundary, known public identifiers, progress and outcome. Unrelated deposits, Arkade funds and assets SHALL NOT fund this route. Returned Bitcoin SHALL NOT start another onboarding.
 
@@ -60,6 +70,14 @@ Onboarding SHALL complete when evidence proves the exact final Bitcoin return an
 #### Scenario: Final receipt verification unavailable
 - **WHEN** a commitment exists but final ownership, amounts or spendability cannot be verified
 - **THEN** onboarding remains Pending with unavailable verification and never substitutes another account balance as proof
+
+#### Scenario: Completion is saved but presentation fails
+- **WHEN** final completion and output release are durable but the page fails before displaying them
+- **THEN** reload reconstructs the same completed operation and release without repeating settlement or counting another completion sample
+
+#### Scenario: Completed setup with later unavailable funds
+- **WHEN** onboarding previously completed but a later payment cannot verify current eligibility
+- **THEN** that payment is blocked with the actual eligibility reason while historical setup remains complete and no new automatic onboarding begins
 
 ### Requirement: Safe automatic recovery with durable boundaries
 BIS SHALL persist each attempt before registration can occur and preserve uncertain outcomes across ordinary restart. It SHALL automatically retry bounded observation work and continue a leg proven never submitted under exclusive operation ownership. A rejected attempt SHALL permit automatic replacement only with authoritative evidence excluding later settlement and after the retryable cause is resolved. Timeouts, missing responses/history, unspent inputs and local cancellation labels SHALL NOT authorize replay or release. Signing continuation SHALL require a proven exact-operation path; observation restart alone SHALL NOT imply signing restarted. Unsupported recovery SHALL retain reservations and explain the actual blocker.
@@ -99,6 +117,11 @@ Only selection of the current intent or activity attributable to its selected ba
 #### Scenario: Matching progress after early stream startup
 - **WHEN** observation began before registration returned and the stream later selects the current intent and reports its signing progress
 - **THEN** those matching events renew its deadline, subsequent unrelated events do not, and a failure of its selected batch still reaches recovery
+
+#### Scenario: Duplicate matching events cannot prolong a stall
+- **WHEN** the selected batch repeatedly emits previously observed selection or signing events without new attributable progress
+- **THEN** duplicate events do not renew the progress deadline or regress the known stage
+- **AND** an absolute bounded attempt deadline still applies even when new matching events continue, with timeout leading to cleanup and reconciliation rather than inferred financial failure
 
 ### Requirement: Recovery waits for actual cleanup and durable checkpoints
 A timed-out worker SHALL stop its actual event source and resolve prior signer/connection ownership before replacement execution. Pending cleanup SHALL retain protection without freezing status inspection. A network wait or checkpoint save SHALL NOT deadlock recovery through nested non-reentrant locks. Timed-out persistence SHALL remain quarantined until the underlying write terminates; no failed or uncertain write SHALL be presented as durable success. Transport deadlines SHALL cover response bodies and caller cancellation, and retry scheduling SHALL honor provider cooldown floors.
@@ -145,6 +168,14 @@ Onboarding SHALL update automatically while the account is active, with a normal
 - **WHEN** a completed cohort includes a development reload or recovery delays
 - **THEN** its full observed durations and interruption markers remain available separately from uninterrupted averages, with sample counts and milestone boundaries
 - **AND** time to final spendability is measured separately from Bitcoin confirmation; historical spike totals are not presented as BIS completion deadlines or measured savings
+
+#### Scenario: Automatic recovery countdown
+- **WHEN** a background check is delayed by backoff or a provider cooldown
+- **THEN** details show its actual next scheduled check and last successful verification, and reaching that time initiates a check rather than implying completion
+
+#### Scenario: No remaining observation work
+- **WHEN** setup is complete and all required confirmation tracking has finished
+- **THEN** onboarding stops its periodic checks without changing other account subscriptions or payment eligibility rules
 
 ### Requirement: Delivery requires fresh BIS evidence
 Delivery SHALL include regression verification of allocation, both legs, callback failures, account changes, exclusive ownership, restart boundaries and final reservation release. A fresh real BIS Signet run SHALL establish exact final receipts and usable target funds through automatic execution without manual transfer initiation. A successful normal spend SHALL verify usability; simulation, registration, spike evidence or tests alone SHALL NOT close live acceptance. Before-block completion SHALL additionally have deterministic regression coverage, and live before-block evidence SHALL be recorded when observed rather than fabricated.

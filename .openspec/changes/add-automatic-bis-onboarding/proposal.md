@@ -12,6 +12,7 @@ BIS currently requires a manual transfer journey, and its partial boarding quote
 - Persist parent operation and leg boundaries; automatically restart bounded observation work and continue a provably unsubmitted leg. Reconcile uncertain submissions without replay. Preserve safe callback diagnostics and use reassuring, evidence-supported recovery copy.
 - Carry over the spike's tested batch isolation: only the current intent's selected batch can fail its execution or renew its progress deadline. Abort the actual event source on timeout and await signer/SDK cleanup before recovery. Prevent nested checkpoint-lock deadlocks and overlapping connections after reload.
 - Extend shared reservations and account isolation so intermediate receipts cannot be spent by another operation, while final target funds become usable immediately upon verified handoff.
+- Close funding and receipt races: revalidate the frozen plan at submission, classify newly observed outputs before other payments select them, and make final release durable and idempotent. Duplicate events cannot keep a stalled attempt alive indefinitely.
 - Keep manual Swap, sends, cancellation and Admin wallet workflows under their existing authorization contracts. Explicitly scope the new automatic behavior as an onboarding exception to current read-only and manual-transfer specifications.
 
 ## Capabilities

@@ -13,3 +13,12 @@ test('private vault restores wallets and journals, rejects a second writer, and 
   assert.equal(readFileSync(resolve(dir,'state.sqlite')).includes(Buffer.from(marker)),false);
   const b=openVault(dir);assert.equal(b.get('wallet').phrase,marker);assert.deepEqual(b.get('journal'),{submission:'unknown',id:'original'});b.close();
 });
+
+test('a failed serialization preserves the last durable journal and closed storage rejects writes',()=>{
+ const dir=resolve('output/tests/hosted-wallet',crypto.randomUUID()),vault=openVault(dir);
+ vault.set('journal',{submission:'unknown',id:'original'});
+ assert.throws(()=>vault.set('journal',{unsupported:1n}));
+ assert.deepEqual(vault.get('journal'),{submission:'unknown',id:'original'});
+ vault.close();assert.throws(()=>vault.set('journal',{submission:'confirmed'}));
+ const restored=openVault(dir);assert.deepEqual(restored.get('journal'),{submission:'unknown',id:'original'});restored.close();
+});

@@ -74,7 +74,11 @@ The BIS G1/G2 demo SHALL exercise production public APIs and may simulate host g
 
 #### Scenario: Package delivery
 - **WHEN** the new BIS package is installed into Stealth & Steel
-- **THEN** browser verification checks the actual loaded version, same-origin signer readiness, visible chest flow and independent gameplay during asynchronous operations
+- **THEN** browser verification checks the actual loaded version, hosted game-wallet readiness, visible chest flow and independent gameplay during asynchronous operations
+
+#### Scenario: Shared wallet in local and deployed games
+- **WHEN** the owner has imported the game wallet through Admin and opens either game build
+- **THEN** the game automatically uses the configured hosted wallet service, contains no game-wallet import UI or game signing secret, and reports service unavailability without blocking ordinary play
 
 ### Requirement: Developer demo controls
 The BIS G2 demonstration SHALL provide always-clickable Start LTO and Claim LTO buttons with a 90-second countdown on the same compact horizontal story row used by the other demonstrations. Each click SHALL immediately update the console, followed by its outcome and asynchronous status changes. These controls SHALL use the same contract guards as the game and SHALL remain separate from the game's Start menu and collision dialogue.

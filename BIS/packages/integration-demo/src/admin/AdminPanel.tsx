@@ -6,12 +6,13 @@ const userStoriesUrl = './documentation/user-stories/';
 const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1, C2' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
 
 const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A4', category: 'Account', label: 'Account Dialog' }] as const;
-export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, contracts, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
+export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, contracts, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
   continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; contracts?:ReactNode; continueAvailable?: boolean;
   onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
   onContinue?():void; continueBusy?:boolean;
   selected: string | null; accountOpen: boolean; canReset: boolean; onSelect(id: string): void; onReset(): void;
   canFund: boolean; funding: boolean; onFund(): void; onExplorer(): void;
+  onOpenOnboarding?(): void;
   onCompleteLevel?(): void; completionOpen?: boolean;
   onMint(): void; assetBusy: boolean; consoleOutput: string;
 }) {
@@ -40,9 +41,10 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
       </StorySection>)}
     </nav>
     <StorySection title="E. Admin Tools">
-      <p className="story-summary">Stories: E1, E2</p>
+      <p className="story-summary">Stories: E1, E2, E3</p>
       <StoryAction id="E1" label="Open Signet Faucet(s)" disabled={!canFund || funding} onClick={onFund} />
       <StoryAction id="E2" label="Open On Mempool.space" disabled={!canFund || funding} onClick={onExplorer} />
+      <StoryAction id="E3" label="Open Onboarding" disabled={!playerActive || !onOpenOnboarding} onClick={onOpenOnboarding} />
     </StorySection>
     {gameWallet}
     {contracts}

@@ -193,6 +193,11 @@ The user withdrew B3 optional payment review/guidance and B4 extended pending-pa
 
 The user selected the deployed-game architecture and requested the same workflow for local play. Import the game wallet once in BIS Admin, persist it in a private server-side disk store, and have both local and deployed games use the same hosted wallet service automatically. The Admin page does not need to stay open. The service reads the signing material; games read public configuration and request supported wallet operations. Remove the game's separate Developer Game Wallet import UI when the replacement is implemented.
 
-This decision supersedes the earlier no-custom-backend constraint for the game signer and per-origin signer provisioning. It does not authorize putting recovery phrases or private keys in public game bundles, downloadable configuration, logs, or source control. Existing G1/G2 acceptance covers the prior implementation; the hosted wallet service has not been implemented or deployed by recording this decision.
+This decision supersedes the earlier no-custom-backend constraint for the game signer and per-origin signer provisioning. It does not authorize putting recovery phrases or private keys in public game bundles, downloadable configuration, logs, or source control. The hosted follow-up is implemented and verified locally on 2026-09-09: Admin persistence, service restart, shared contract recovery, browser player signing and automatic game connection. The separate game import UI is removed. Deployment configuration is documented, but an HTTPS signer hosting target has not been selected or deployed. See [shared wallet setup](../packages/wallet-service/README.md) and the active G1/G2 verification record for exact evidence limits.
 
 Add X8. Add security to game wallet as a deferred story to rethink the shared wallet's security, including authorization, spending limits, secret management and recovery. This follow-up does not replace the shared wallet implementation or mark its security review complete.
+
+
+### G1/G2 shared-wallet acceptance and archive — 2026-09-09
+
+The user confirmed the completed local treasure flow works and requested sync/archive. The hosted-wallet requirements are synced to the main specifications. See the [archived acceptance record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Preserve the recorded unobserved checks, deployment limitation and X8 follow-up; user acceptance is not additional live transaction evidence.

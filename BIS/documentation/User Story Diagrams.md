@@ -72,8 +72,8 @@ Reviewed against the current checkout and recorded acceptance evidence on 2026-0
 | F1. Admin game wallet / Accept User Pay To Continue | F. Game Wallet | Implemented locally; consumer delivery and live payment verification pending. |
 | F2. Board Wallet ✓ | F. Game Wallet / Details / Board Wallet | Complete, confirmed by the user on 2026-09-09. |
 | F3. Send 1000 Sats (Game->Player) ✓ | F. Game Wallet / Send 1000 Sats | Complete, confirmed by the user on 2026-09-09. |
-| G1. Contracts UI | Planned: Account Details / Contracts | Planned; generic list and details for BIS-tracked unresolved contracts. No implementation or live contract verification yet. |
-| G2. LTO Treasure Chest | Planned: Limited-Time Offer / treasure challenge | Planned; one funded 1,000-sat offer per player, 90-second gameplay eligibility, claim and refund lifecycle. SDK/Signet contract feasibility remains unverified. |
+| G1. Contracts UI ✓ | Account Details / Contracts | Complete and user-accepted 2026-09-09; shared list/details and eligible actions. Specs synced; change archived. |
+| G2. LTO Treasure Chest ✓ | BIS G2 demo / Stealth & Steel Level01 | Complete locally and user-accepted 2026-09-09; 1,000-sat, 90-second chest with shared persistent game wallet. Specs synced; archived with verification limits retained. HTTPS service deployment remains outstanding. |
 | H1. Arkade onboarding spike | [Standalone spike](http://127.0.0.1:5174/spike1/) | ✓ Original six-step experiment complete and its specification synced. Robustness proposal in progress; two additional transfers recovered to spendable targets but still awaited final Bitcoin confirmation at the post-mortem snapshot. |
 | X2a. Receive funds using addresses ✓ | Account / Account Dialog | Complete: address journey, dedicated demo, isolated error checks, and real-account demo/independent-host verification. X2b remains blocked. |
 | X2b. Receive funds using Lightning invoices | Not enabled | Blocked on a supported Arkade Signet receiving route and verified quote/recovery support. Live invoices, receipt processing, and related account-clearing guards are not implemented. |
@@ -532,7 +532,7 @@ As a developer, I click **E2. Open On Mempool.space** to view the active account
 
 Admin has an independent game wallet, imported through one recovery-phrase field. Importing another wallet retains earlier wallets; re-entering a phrase selects that wallet again. Reload restores the last selection. Player logout and reset leave game-wallet storage intact.
 
-**Confirmed next architecture — 2026-09-09:** Import the game wallet once in BIS Admin and persist it in a private server-side disk store. Both the local and deployed game use the same hosted wallet service and signing workflow automatically; the Admin browser need not remain open. Remove the game's separate Settings → Developer → Game Wallet import path when this replacement is delivered. The game reads public wallet configuration and requests supported operations; the server reads the saved signing material. Never include that material in public game files. This supersedes separate browser-origin provisioning and the earlier client-only constraint for the game signer. The hosted service is not implemented yet. Track the later security rethink separately in [X8](#x8-add-security-to-game-wallet).
+**Shared wallet implementation — 2026-09-09:** Import the game wallet once in BIS Admin and persist it in a private server-side disk store. Local and deployed games use the same configurable service API and signing workflow; the Admin browser need not remain open. The game's separate Settings → Developer → Game Wallet import path is removed. The game reads public wallet configuration and requests supported operations; the server reads the saved signing material. Never include that material in public game files. This supersedes separate browser-origin provisioning and the earlier client-only constraint for the game signer. The implementation and local runtime are verified; deploying the HTTPS signer endpoint remains outstanding. See [service setup and play instructions](../packages/wallet-service/README.md). Track the later security rethink separately in [X8](#x8-add-security-to-game-wallet).
 
 The **F1. Game Wallet** row shows **Login** initially and **Logout** after import. Wallet **Details** and usable balance appear beside F3. Details refreshes public addresses and balances into the Admin console. Logout deselects the wallet across reloads without deleting saved identities. Copy BTC Addr appears immediately to the left of Logout and copies the selected game wallet Bitcoin funding address for use in a faucet or funding wallet. Copy results and a manual-copy fallback appear in the Admin console.
 
@@ -556,11 +556,11 @@ BIS observes incoming Bitcoin/Arkade sats and own transfers throughout the logge
 
 ## G. Contracts
 
-G1 and G2 are implemented and user-accepted as of 2026-09-09 after the asset-preserving funding fix. The canonical [proposal, design, specs and tasks](../../.openspec/changes/add-contracts-ui-and-lto-treasure-chest/proposal.md) cover BIS and Stealth & Steel. BIS owns reusable contract tracking and operations; the game owns gameplay and placement. The implementation now enables creation by default with per-operation runtime validation; the linked verification document separates automated acceptance from historical and unobserved live scenarios.
+G1 and G2, including the shared persistent game-wallet follow-up, are implemented locally and user-accepted as of 2026-09-09. The user confirmed “works great” and requested spec sync and archive. Main specs are synced and the change is archived; the three unobserved broader checks remain recorded without being marked passed. HTTPS signer deployment and X8 remain separate. The canonical [proposal, design, specs and tasks](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/proposal.md) cover BIS and Stealth & Steel. BIS owns reusable contract tracking and operations; the game owns gameplay and placement. The implementation now enables creation by default with per-operation runtime validation; the linked verification document separates automated acceptance from historical and unobserved live scenarios.
 
 ### G1. Contracts UI
 
-Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.
+Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.
 
 ```text
 [G1.01] Account Details --> Contracts
@@ -581,7 +581,7 @@ Status: complete for the delivered feature; user confirmed it works on 2026-09-0
 
 ### G2. LTO Treasure Chest
 
-Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/add-contracts-ui-and-lto-treasure-chest/verification.md). LTO means Limited-Time Offer: a funded reward bound to a specific player, with a player claim path and a game refund path. The gameplay demonstration is a timed treasure chest in Stealth & Steel.
+Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). LTO means Limited-Time Offer: a funded reward bound to a specific player, with a player claim path and a game refund path. The gameplay demonstration is a timed treasure chest in Stealth & Steel.
 
 ```text
 [G2.01] Enter start menu --> silently check contracts / eligible cleanup
@@ -1065,7 +1065,7 @@ F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Oth
 
 **User story:** As a player, I want BIS to start onboarding automatically once my account is funded, explain its progress and recover safely, so my intended Arkade funds become usable without manual transfer steps or unnecessary waits.
 
-**Status:** Proposed, not implemented or verified in BIS. See [automatic onboarding proposal](../../.openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../.openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../.openspec/changes/add-automatic-bis-onboarding/tasks.md). This planning replaces the earlier X7 manual-review recommendation with the user's confirmed automatic 50% onboarding decisions. X4 manual transfers and X5 cancellation/recovery retain their separate contracts.
+**Status:** Implemented with deterministic and browser verification; fresh Signet settlement/payment acceptance remains open. See [verification and recovery limits](../../.openspec/changes/add-automatic-bis-onboarding/verification.md), [automatic onboarding proposal](../../.openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../.openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../.openspec/changes/add-automatic-bis-onboarding/tasks.md). This planning replaces the earlier X7 manual-review recommendation with the user's confirmed automatic 50% onboarding decisions. X4 manual transfers and X5 cancellation/recovery retain their separate contracts.
 
 **Evidence and current BIS gaps:**
 
@@ -1084,7 +1084,7 @@ F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Oth
 - In Accounts Details → Balance, immediately above Get Recovery Phrase, show Onboarding: Start?, Onboarding: Pending, or Onboarding: Complete. Clicking opens details; it does not trigger the transfer.
 - Complete as soon as the final target Arkade funds are verified spendable and released from onboarding holds. Bitcoin block confirmation continues independently and does not delay usable funds. The temporary full-total first-leg receipt is not completion.
 
-**Proposed flow:**
+**Implemented flow:**
 
 ```text
 [X7.01] Active account --> reconcile existing onboarding; assess fresh funding

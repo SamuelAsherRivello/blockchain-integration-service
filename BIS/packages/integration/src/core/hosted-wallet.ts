@@ -15,14 +15,19 @@ export function serviceUrl(value:string) {
 }
 export function createHostedGameWallet(options:HostedWalletOptions):GameWalletController {
  const url=serviceUrl(options.serviceUrl),listeners=new Set<()=>void>();
+ const migrationKey=`bis-hosted-game-wallet-v1:${url}`;
  let snapshot:Snapshot={state:{status:'loading'}},disposed=false,migrationChecked=false,refreshing:Promise<void>|undefined;
  const update=(next:Snapshot)=>{if(disposed)return;snapshot=next;listeners.forEach(fn=>fn());};
  async function refresh(){if(disposed)return;if(refreshing)return refreshing;return refreshing=(async()=>{
   try{const response=await fetch(`${url}/v1/wallet`,{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error();update(await response.json());
-   if(options.migrateSavedWallet&&!migrationChecked&&snapshot.state.status==='empty') {
-    migrationChecked=true;const saved=createGameWalletStorage();
-    try {const account=await saved.load();if(account)await withWalletMutation(async()=>{if(walletReservations(account.profileId).length)throw Error('Resolve the previous wallet operations before migration.');if(!await admin('importWallet',account.phrase))throw Error('Import unavailable.');},account.profileId);}
-    catch{update({...snapshot,state:{...snapshot.state,message:'Saved game wallet could not be moved to the service. Resolve any existing wallet operations, then retry Admin import.'}});}finally{saved.dispose();}
+   if(options.migrateSavedWallet&&!migrationChecked&&snapshot.state.status!=='loading') {
+    migrationChecked=true;
+    if(snapshot.state.profileId)localStorage.setItem(migrationKey,'configured');
+    else if(snapshot.state.status==='empty'&&localStorage.getItem(migrationKey)===null) {
+     const saved=createGameWalletStorage();
+     try {const account=await saved.load();if(account)await withWalletMutation(async()=>{if(walletReservations(account.profileId).length)throw Error('Resolve the previous wallet operations before migration.');if(!await admin('importWallet',account.phrase))throw Error('Import unavailable.');localStorage.setItem(migrationKey,'configured');await saved.logout();},account.profileId);}
+     catch{update({...snapshot,state:{...snapshot.state,message:'Saved game wallet could not be moved to the service. Resolve any existing wallet operations, then retry Admin import.'}});}finally{saved.dispose();}
+    }
    }
   }
   catch{update({state:{status:'unavailable',message:'Game wallet service unavailable.'}});}finally{refreshing=undefined;}
@@ -36,7 +41,7 @@ export function createHostedGameWallet(options:HostedWalletOptions):GameWalletCo
  const wallet={
   getState:()=>snapshot.state,subscribe(fn:()=>void){listeners.add(fn);return()=>{listeners.delete(fn);};},refresh,
   async importWallet(phrase:string){try{return await admin('importWallet',phrase);}catch{update({...snapshot,state:{...snapshot.state,message:'Game wallet import failed. Check the private Admin connection and recovery phrase.'}});return false;}},
-  async logout(){try{await admin('logout');}catch{update({...snapshot,state:{...snapshot.state,message:'Game wallet logout unavailable while recovery is pending.'}});}},
+  async logout(){try{await admin('logout');localStorage.setItem(migrationKey,'deselected');}catch{update({...snapshot,state:{...snapshot.state,message:'Game wallet logout unavailable while recovery is pending.'}});}},
   getPlayerPaymentBalance:()=>snapshot.paymentBalance,getPlayerPaymentBlockReason:reason,canPayPlayer:()=>reason()===undefined,hasPendingPlayerPayment:()=>snapshot.pendingPayment??false,
   getMintAvailability:()=>admin('getMintAvailability'),getPendingAssetMint:()=>admin('getPendingAssetMint'),mintAsset:(request:unknown)=>admin('mintAsset',request),
   payPlayer:(recipient:unknown,current?:()=>boolean)=>{if(current&&!current())return Promise.reject(Error('The player changed.'));return admin('payPlayer',recipient);},

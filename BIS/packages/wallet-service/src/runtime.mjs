@@ -11,8 +11,10 @@ import {mergeClaimSignature} from './protocol.mjs';
 import {Transaction,claimWithPreimageIdentity} from '@arkade-os/sdk';
 import {withWalletMutation} from '../../integration/src/core/boarding-record.ts';
 import {publishContractReservations} from '../../integration/src/core/contract-reservations.ts';
+import {locks} from 'node:worker_threads';
 
 export function createWalletRuntime(vault,{adapter={},walletDependencies={}}={}) {
+ Object.defineProperty(globalThis.navigator,'locks',{configurable:true,value:locks});
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:journalStorage(vault)});
  const eventLists=new Map(),notified=new Set(),epoch=crypto.randomUUID();let eventId=0;
  const eventsFor=id=>{if(!eventLists.has(id))eventLists.set(id,[]);return eventLists.get(id);};
@@ -64,8 +66,8 @@ export function createWalletRuntime(vault,{adapter={},walletDependencies={}}={})
  // A game-owned recovery worker continues after every browser closes.
  const recoveryContext={getState:()=>({profileId:wallet.getState().profileId,phase:'active'}),refreshBalance:async()=>{},showToast(){}};
  const recovery=createLtoService({context:recoveryContext,gameWallet:wallet},{storage,gameStorage,playerStorage:{load:async()=>({account:null})},poll:false,prepare:prepareLtoRecovery,submit:submitLtoSpend,reconcile:reconcileLtoSpend,resume:resumeLtoFinalization,...adapter});
- let sweep=false;
- const timer=setInterval(async()=>{if(sweep)return;sweep=true;try{if(wallet.getState().status!=='ready')await wallet.refresh();await recovery.reconcile();}finally{sweep=false;}},5000);timer.unref();
+ let sweep=false,adminActive=false,reads=0;
+ const timer=setInterval(async()=>{if(sweep)return;sweep=true;try{if(!adminActive&&!challenges.size&&(wallet.getState().status!=='ready'||++reads%3===0))await wallet.refresh();await recovery.reconcile();}finally{sweep=false;}},5000);timer.unref();
  return {
   wallet,storage,
   publicState:()=>({state:wallet.getState(),paymentBalance:wallet.getPlayerPaymentBalance(),paymentReason:wallet.getPlayerPaymentBlockReason(),pendingPayment:wallet.hasPendingPlayerPayment()}),
@@ -74,8 +76,8 @@ export function createWalletRuntime(vault,{adapter={},walletDependencies={}}={})
    const allowed=['importWallet','logout','refresh','getMintAvailability','getPendingAssetMint','mintAsset','payPlayer','checkPlayerPayment','quoteBoarding','board','checkBoarding','checkLiveBoardingState','checkLiveBoardingWait'];
    if(!allowed.includes(method))throw Error('Unsupported administrative action.');
    // The wallet's existing mutation locks and journals also serialize Admin spending with LTO funding.
-   adminPlayer=method==='payPlayer'?args[0]?.profileId:undefined;
-   try{return await wallet[method](...args);}finally{adminPlayer=undefined;}
+   adminActive=true;adminPlayer=method==='payPlayer'?args[0]?.profileId:undefined;
+   try{return await wallet[method](...args);}finally{adminPlayer=undefined;adminActive=false;}
   },
   async call(player,method,args={}) {
    const {service,events}=session(player);let result;

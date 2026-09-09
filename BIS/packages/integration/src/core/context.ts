@@ -1,3 +1,6 @@
+import {createOnboardingAdapter,onboardingScope} from '../arkade/onboarding.ts';
+import {startOnboarding,type OnboardingAdapter,type OnboardingView} from './onboarding-service.ts';
+import {readAccountOnboarding} from './onboarding-record.ts';
 import {reconstructWalletReservations} from '../arkade/reservation-recovery.ts';
 import { queryAccountContracts, contractController, type BisContractFilter, type BisContractsResult, type BisContractActionResult } from './lto-service.ts';
 import {eligibleUnreservedCoins, walletReservations} from './wallet-reservations.ts';
@@ -52,11 +55,15 @@ export type BisState = Readonly<{
   accountActivity: boolean;
   accountAssets: boolean;
   accountContracts?: boolean;
+  accountOnboarding?: boolean;
+  onboarding?: OnboardingView;
   assets: BisAssets;
   activity: BisActivity;
 }>;
 export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }> | Readonly<{ type: 'restartRequested'; reason: 'logout'; logoutId: string }>;
 export interface BisContext {
+  openAccountOnboarding?():void;
+  refreshOnboarding?():void;
   checkContracts?(filter?:BisContractFilter):Promise<BisContractsResult>;
   openAccountContracts?():void;
   claimContract?(id:string):Promise<BisContractActionResult>;
@@ -119,7 +126,7 @@ export function getControls(context: BisContext): Controls {
   return result;
 }
 // Private dependency seam for isolated tests; not exported by the package.
-export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: {continueRecipient?: string} = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined): BisContext {
+export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: {continueRecipient?: string} = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined, onboardingFactory:((account:AccountSecret,current:()=>boolean)=>OnboardingAdapter)|undefined = create===createAccount&&identifyAccount===identify&&readBalance===loadBalance?createOnboardingAdapter:undefined): BisContext {
   const toasts = createToastQueue();
   const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
   if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
@@ -198,6 +205,22 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     (transferTimer as unknown as {unref?:()=>void}).unref?.();
   }
   let paymentProfile: string | undefined;
+  let onboardingProfile:string|undefined,onboardingGeneration=-1;
+  let onboardingOperation=new AbortController(),onboardingWorker:ReturnType<typeof startOnboarding>|undefined;
+  function syncOnboarding(){
+    const profile=state.hasProfile&&['active','logout-confirmation'].includes(state.phase)?state.profileId:undefined;
+    if(profile===onboardingProfile&&generation===onboardingGeneration)return;
+    onboardingOperation.abort();onboardingWorker=undefined;onboardingOperation=new AbortController();
+    onboardingProfile=profile;onboardingGeneration=generation;
+    state=Object.freeze({...state,onboarding:undefined});
+    if(!profile||!onboardingFactory)return;
+    const signal=onboardingOperation.signal,expected=generation;
+    const current=()=>!disposed&&!signal.aborted&&state.profileId===profile&&state.hasProfile&&generation===expected;
+    queueMicrotask(()=>void (async()=>{
+      const saved=await storage.load();if(!current()||saved.account?.profileId!==profile||saved.generation!==expected)return;
+      onboardingWorker=startOnboarding(onboardingScope(profile),onboardingFactory(saved.account,current),view=>{if(current())update({onboarding:view});},work=>withWalletMutation(work,profile),signal,()=>{if(current())walletChanged(profile,true,true);});
+    })().catch(()=>{if(current())update({onboarding:{status:'pending',detail:'Account storage could not be read. Onboarding is paused safely.',transactions:[]}});}));
+  }
   let paymentGeneration = -1;
   let paymentOperation = new AbortController();
   let paymentRetry: ReturnType<typeof setTimeout> | undefined;
@@ -227,6 +250,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
           const receipt = notifications.observe(merged);
           const snapshot = JSON.stringify(merged);
           walletChanged(profile, false, receipt.newArkadeReceipt && state.accountDetails, snapshot === previousSnapshot);
+          if(snapshot!==previousSnapshot)onboardingWorker?.refresh();
           previousSnapshot = snapshot;
           if (sharedWallet && activityVisible(state) && state.activity.status === 'unavailable') {
             // Reattach a foreground consumer that ended while the source was offline.
@@ -263,6 +287,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     if(disposed) return;
     const before=state;
     state=Object.freeze({...state,...patch});
+    if(state.accountOnboarding&&(state.view!=='account'||state.phase!=='active'||!state.hasProfile||before.profileId!==state.profileId||patch.accountAssets||patch.accountContracts||patch.accountActivity||patch.accountDetails||patch.accountTransfer||patch.accountReceive||patch.accountSend||patch.accountRecovery))state=Object.freeze({...state,accountOnboarding:false});
     if(state.accountContracts&&(state.view!=='account'||state.phase!=='active'||!state.hasProfile||before.profileId!==state.profileId||patch.accountAssets||patch.accountActivity||patch.accountDetails||patch.accountTransfer||patch.accountReceive||patch.accountSend||patch.accountRecovery))state=Object.freeze({...state,accountContracts:false});
     if (!['logout-confirmation','logging-out','logout-error'].includes(state.phase)) {
       logoutOperations=undefined;
@@ -290,6 +315,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     }
     if (enteringActivity) queueMicrotask(() => { if (!disposed && activityVisible(state) && state.activity.status === 'idle') void context.refreshActivity(); });
     syncPaymentObserver();
+    syncOnboarding();
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
     if(entering) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void context.refreshBalance();});
   };
@@ -744,6 +770,10 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       assertAlive();
       if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountDetails) update({accountTransfer:false,accountDetails:true,accountActivity:false,accountRecovery:false,accountReceive:false,accountSend:false});
     },
+    openAccountOnboarding(){
+      assertAlive();if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountOnboarding:true,accountDetails:false,accountAssets:false,accountContracts:false,accountActivity:false,accountTransfer:false,accountReceive:false,accountSend:false,accountRecovery:false});
+    },
+    refreshOnboarding(){assertAlive();onboardingWorker?.refresh();},
     async checkContracts(filter) {
       const profileId=state.profileId;
       const result=await (contractController(context)?.checkContracts?.(filter)??queryAccountContracts(profileId,filter));
@@ -844,6 +874,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     },
     closeAccount() {
       assertAlive();if(state.view!=='account'||state.phase==='resetting'||state.phase==='logging-out'||state.phase==='restore-saving') return;
+      if(state.accountOnboarding){context.openAccountDetails();return;}
       if(state.accountContracts) {update({accountContracts:false,accountDetails:true});return;}
       if(state.accountTransfer) {context.openAccountDetails();return;}
       if(state.accountRecovery) {update({accountRecovery:false,...recoveryReturn});return;}
@@ -949,7 +980,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       else if(failure==='save')await context.continueAccount();
       else {failure=undefined;update({phase:'idle',error:undefined});await context.createAccount();}
     },
-    dispose() {if(disposed)return;paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
+    dispose() {if(disposed)return;onboardingOperation.abort();paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
   };
   controls.set(context,{
     toasts,
@@ -1012,6 +1043,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     async reset() {
       assertAlive();if(state.phase==='resetting')return;
       guardSend();
+      if(state.profileId&&globalThis.localStorage&&readAccountOnboarding(state.profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('Onboarding is unresolved. Open Account → Balance → Onboarding before resetting this account.');
       invalidate();logoutTarget=undefined;update({phase:'resetting',error:undefined,logoutBackupAcknowledged:false});
       try {await storage.reset();if(disposed)return;previous='empty';update({view:'empty'});initialization=hydrate();await initialization;}
       catch (error) {const message=error instanceof BoardingBlockedError?error.message:'Reset did not finish. Your account has not been confirmed cleared.';if(!disposed)fail('load',message);throw new Error(message);}

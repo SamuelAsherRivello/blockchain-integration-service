@@ -1,9 +1,10 @@
 import {assertNoPendingContinue,continuationPrefix} from './continuation.ts';
 import {readContractReservations} from './contract-reservations.ts';
+import {onboardingKey,readOnboardingRecord} from './onboarding-record.ts';
 export const browserMutationLock = 'bis-signet-browser-mutation';
 export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
 type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
-const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1'];
+const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1','bis-signet-onboarding-v1'];
 const cleanupPrefixes = [...journalPrefixes, 'bis-signet-continuations-v1', 'bis-signet-wallet-operations-v2'];
 const owns = (key: string) => cleanupPrefixes.some(prefix => key === prefix || key.startsWith(`${prefix}:`)) ||
   ['bis.integration-demo.admin-split-percent', 'bis.integration-demo.preview-scale'].includes(key);
@@ -33,10 +34,14 @@ export function pendingLogoutOperations(storage: WebStorage | undefined = global
     if(key.startsWith(continuationPrefix))assertNoPendingContinue(decodeURIComponent(key.slice(continuationPrefix.length)),storage);
     const prefix = journalPrefixes.find(prefix => key === prefix || key.startsWith(`${prefix}:`));
     if (!prefix) continue;
+    if(prefix==='bis-signet-onboarding-v1'&&key.includes(':archive:'))continue;
     const raw = storage.getItem(key);
     if (raw === null) continue;
     const record = JSON.parse(raw);
-    if (prefix === 'bis-signet-mints-v1') {
+    if(prefix==='bis-signet-onboarding-v1'){
+      if(onboardingKey(record)!==key||!readOnboardingRecord(record,storage))throw Error('Pending operations could not be counted.');
+      if(record.status==='pending')pending.add(`${prefix}:${record.profileId}:${record.id}`);
+    } else if (prefix === 'bis-signet-mints-v1') {
       if (!Array.isArray(record?.operations)) throw Error('Pending operations could not be counted.');
       for (const op of record.operations) {
         if (!['pending','succeeded'].includes(op?.status) || typeof op.request?.operationId !== 'string') throw Error('Pending operations could not be counted.');

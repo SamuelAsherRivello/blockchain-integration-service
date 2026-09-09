@@ -1,5 +1,6 @@
 import type { AccountSecret } from '../arkade/account.ts';
 import { assertNoPendingSend } from './sending.ts';
+import {readAccountOnboarding} from './onboarding-record.ts';
 import { assertNoPendingBoarding, BoardingBlockedError } from './boarding-record.ts';
 import { readContractReservations } from './contract-reservations.ts';
 import { browserMutationLock, clearBrowserPreferences, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
@@ -130,6 +131,7 @@ export function createAccountStorage(): AccountStorage {
       assertNoPendingSend(profileId);
       // Administrative reset retains its existing unresolved-transfer guard.
       assertNoPendingBoarding(profileId);
+      if(profileId&&readAccountOnboarding(profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('Onboarding is unresolved. Open Account → Balance → Onboarding before resetting this account.');
       await transaction<void>('readwrite',(store,set,tx)=> {
         const request=store.get('generation');
         const identity=store.get('identity');

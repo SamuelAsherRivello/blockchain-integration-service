@@ -23,7 +23,7 @@ The public LTO factory SHALL enable creation by default, with each operation val
 - **AND** explicitly disabling creation prevents new funding while preserving query, Claim/Reject/Refund and reconciliation for existing contracts
 
 ### Requirement: Wallet-scoped automatic funding
-The host SHALL be able to initiate funding through a public API without opening Admin or requiring another acceptance click, using an already configured same-origin game signer. BIS SHALL validate current player/game identities, readiness, network and eligible unreserved funds. A public receiving address SHALL NOT count as game signing access. Session and operation identifiers SHALL make repeated host calls idempotent.
+The host SHALL be able to initiate funding through a public API without opening Admin or requiring another acceptance click, using the shared hosted game signer previously imported through BIS Admin. Local and deployed games SHALL use the same workflow. BIS SHALL validate current player/game identities, readiness, network and eligible unreserved funds. A public receiving address SHALL NOT count as game signing access. Session and operation identifiers SHALL make repeated host calls idempotent.
 
 #### Scenario: Game signer absent
 - **WHEN** only the game's public receiving address is configured
@@ -41,11 +41,11 @@ BIS SHALL enforce an account/network/operator/game-scoped host-supplied exclusiv
 - **THEN** the old slot remains occupied and that session creates no replacement, including after later cleanup completes
 
 #### Scenario: Concurrent tabs
-- **WHEN** cooperating same-origin contexts attempt offers for the same key
+- **WHEN** independent browsers or origins attempt offers for the same key through the shared service
 - **THEN** only one obtains the durable funding slot and conflicting input reservations are rejected
 
 ### Requirement: Deadline-aware claim and refund
-BIS SHALL revalidate claim eligibility against the immutable elapsed-time deadline at request and before submission. Reject/session end SHALL request supported cancellation returning sats to the game; while the client runs, expiry SHALL trigger eligible refund cleanup, and host start-menu checks SHALL invoke the same cleanup path. Expiry alone SHALL NOT imply a completed spend or disable a cryptographically valid claim branch. Once an operation might be submitted, BIS SHALL reconcile its actual outcome before competing spending.
+BIS SHALL revalidate claim eligibility against the immutable elapsed-time deadline at request and before submission. Reject/session end SHALL request supported cancellation returning sats to the game; while the shared service runs, expiry SHALL trigger eligible refund cleanup independently of browser lifetime, and host start-menu checks SHALL invoke the same cleanup path. Expiry alone SHALL NOT imply a completed spend or disable a cryptographically valid claim branch. Once an operation might be submitted, BIS SHALL reconcile its actual outcome before competing spending.
 
 #### Scenario: Claim after deadline
 - **WHEN** the deadline has passed before claim submission eligibility is accepted
@@ -63,8 +63,9 @@ BIS SHALL revalidate claim eligibility against the immutable elapsed-time deadli
 BIS SHALL persist sanitized contract records and encrypted recovery material before submission, reserve inputs/outpoints, preserve existing asset holdings, and correlate terminal evidence to the specific contract and recipient. Reload, timer suspension and wallet changes SHALL NOT imply completion or trigger duplicate operations. Contract records SHALL participate in existing logout pending-loss acknowledgement and Admin Reset policies; player cleanup SHALL NOT erase separate game-owned refund recovery.
 
 #### Scenario: Browser closed at expiry
-- **WHEN** the browser reopens after an unresolved offer's deadline
-- **THEN** it restores and reconciles the original operation and requests eligible cleanup without claiming that a timer executed while closed
+- **WHEN** the browser is closed when an unresolved offer's deadline passes
+- **THEN** the running service performs eligible cleanup, and reopening the browser reads the original operation's verified state without creating a replacement
+- **AND** if the service was also stopped, its restart resumes durable recovery without claiming cleanup occurred while it was stopped
 
 #### Scenario: Player logout
 - **WHEN** the player confirms logout under existing acknowledgement rules
@@ -99,3 +100,18 @@ Funding SHALL prefer asset-free unreserved inputs, but SHALL support eligible ga
 #### Scenario: Asset change cannot be verified
 - **WHEN** receipt evidence omits, redirects or reduces an input asset in the game change
 - **THEN** BIS does not confirm funding or release the unresolved operation's reservations
+
+### Requirement: Admin-managed persistent game wallet
+Admin import SHALL save the game signing material privately on the service's disk. Local and deployed games SHALL automatically use that wallet without a separate game import or an open Admin tab. Neither public configuration nor player responses SHALL disclose game signing material. Players SHALL retain their own signing material in their browser. Administrative wallet changes SHALL be protected and SHALL preserve unresolved recovery. Service restart SHALL restore the selected wallet and transaction journals without regenerating identities or replaying uncertain submissions.
+
+#### Scenario: Play after Admin closes
+- **WHEN** the owner imports a funded game wallet and closes Admin
+- **THEN** a connected player can start and claim a treasure through either local or deployed play without importing the game wallet
+
+#### Scenario: Service restarts with an unresolved offer
+- **WHEN** the service restarts after submission but before confirmed acknowledgement
+- **THEN** it restores the original wallet, operation and reservations, reconciles exact receipts, and does not submit a competing spend
+
+#### Scenario: Untrusted signing request
+- **WHEN** a caller requests another player's operation, arbitrary game-wallet signing or modified claim outputs
+- **THEN** the service rejects the request without disclosing keys or signing the substituted transaction

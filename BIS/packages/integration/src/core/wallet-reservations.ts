@@ -4,8 +4,9 @@ import {readContinuations} from './continuation.ts';
 import {readAssetRecords} from './assets.ts';
 import {readBurnRecord} from './burning.ts';
 import {readContractReservations} from './contract-reservations.ts';
+import {readAccountOnboarding} from './onboarding-record.ts';
 
-export type ReservedOperation = {id:string; transactionId?:string; inputs?:readonly {txid:string;vout:number}[]};
+export type ReservedOperation = {id:string; transactionId?:string; inputs?:readonly {txid:string;vout:number}[]; independent?:readonly {txid:string;vout:number}[]};
 export class ReservationError extends Error {}
 const journalKey=(profileId:string)=>`bis-signet-wallet-operations-v2:${encodeURIComponent(profileId)}`;
 type Journal={version:2;profileId:string;operations:ReservedOperation[]};
@@ -32,6 +33,7 @@ export function migrateWalletReservations(profileId:string) {
 export function walletReservations(profileId:string):ReservedOperation[] {
   const saved=readJournal(profileId);
   const operations:ReservedOperation[]=[];
+  for(const r of readAccountOnboarding(profileId))if(r.status==='pending'&&r.plan)operations.push({id:`onboarding:${r.id}`,inputs:[...r.plan.inputs,...r.boarding.receipts??[],...r.returning.receipts??[]],independent:r.independent??[]});
   for(const r of readContractReservations())if(r.pending&&(r.gameId===profileId||r.playerId===profileId))operations.push({id:`contract:${r.id}`,inputs:r.inputs,transactionId:r.transactionId});
   for(const r of readBoardingRecords(profileId))if(r.status==='pending')operations.push({id:`transfer:${r.id}`,inputs:r.inputs});
   for(const r of readSendRecords(profileId))if(r.status==='pending')operations.push({id:`send:${r.id}`,inputs:r.inputs});
@@ -58,5 +60,5 @@ export function eligibleUnreservedCoins<T extends {txid:string;vout:number}>(coi
     if(!operation.inputs?.length)throw new ReservationError('Pending operation inputs could not be verified. Open recovery details; receiving and inspection remain available.');
     for(const input of operation.inputs)reserved.add(`${input.txid}:${input.vout}`);
   }
-  return coins.filter(coin=>!reserved.has(`${coin.txid}:${coin.vout}`));
+  return coins.filter(coin=>!reserved.has(`${coin.txid}:${coin.vout}`)&&operations.every(r=>!r.independent||r.independent.some(i=>i.txid===coin.txid&&i.vout===coin.vout)));
 }

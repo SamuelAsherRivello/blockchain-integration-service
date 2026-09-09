@@ -43,7 +43,7 @@ BIS SHALL enforce an account/network/operator/game-scoped host-supplied exclusiv
 - **THEN** only one obtains the durable funding slot and conflicting input reservations are rejected
 
 ### Requirement: Deadline-aware claim and refund
-BIS SHALL revalidate claim eligibility against the immutable elapsed-time deadline at request and before submission. Reject/session end SHALL request supported cancellation returning sats to the game; while the client runs, expiry SHALL trigger eligible refund cleanup, and host start-menu checks SHALL invoke the same cleanup path. Expiry alone SHALL NOT imply a completed spend or disable a cryptographically valid claim branch. Once an operation might be submitted, BIS SHALL reconcile its actual outcome before competing spending.
+BIS SHALL revalidate claim eligibility against the immutable elapsed-time deadline at request and before submission. Reject/session end SHALL request supported cancellation returning sats to the game; while the shared service runs, expiry SHALL trigger eligible refund cleanup independently of browser lifetime, and host start-menu checks SHALL invoke the same cleanup path. Expiry alone SHALL NOT imply a completed spend or disable a cryptographically valid claim branch. Once an operation might be submitted, BIS SHALL reconcile its actual outcome before competing spending.
 
 #### Scenario: Claim after deadline
 - **WHEN** the deadline has passed before claim submission eligibility is accepted
@@ -61,8 +61,9 @@ BIS SHALL revalidate claim eligibility against the immutable elapsed-time deadli
 BIS SHALL persist sanitized contract records and encrypted recovery material before submission, reserve inputs/outpoints, preserve existing asset holdings, and correlate terminal evidence to the specific contract and recipient. Reload, timer suspension and wallet changes SHALL NOT imply completion or trigger duplicate operations. Contract records SHALL participate in existing logout pending-loss acknowledgement and Admin Reset policies; player cleanup SHALL NOT erase separate game-owned refund recovery.
 
 #### Scenario: Browser closed at expiry
-- **WHEN** the browser reopens after an unresolved offer's deadline
-- **THEN** it restores and reconciles the original operation and requests eligible cleanup without claiming that a timer executed while closed
+- **WHEN** the browser is closed when an unresolved offer's deadline passes
+- **THEN** the running service performs eligible cleanup, and reopening the browser reads the original operation's verified state without creating a replacement
+- **AND** if the service was also stopped, its restart resumes durable recovery without claiming cleanup occurred while it was stopped
 
 #### Scenario: Player logout
 - **WHEN** the player confirms logout under existing acknowledgement rules

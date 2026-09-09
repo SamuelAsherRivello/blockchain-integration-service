@@ -6,7 +6,7 @@ import {openVault} from './vault.mjs';
 import {createWalletRuntime} from './runtime.mjs';
 import {privateAdminRequest,verifyProof} from './protocol.mjs';
 
-export function walletHttpServer(runtime,{origins=['http://127.0.0.1:5173','http://127.0.0.1:5174','http://localhost:5173','http://localhost:5174']}={}) {
+export function walletHttpServer(runtime,{origins=['http://127.0.0.1:5173','http://127.0.0.1:5174','http://127.0.0.1:15174','http://localhost:5173','http://localhost:5174']}={}) {
  const allowed=new Set(origins),seen=new Map();let adminBusy=false;
  return createServer(async(request,response)=>{
   response.setHeader('Content-Type','application/json');response.setHeader('Cache-Control','no-store');response.setHeader('X-Content-Type-Options','nosniff');

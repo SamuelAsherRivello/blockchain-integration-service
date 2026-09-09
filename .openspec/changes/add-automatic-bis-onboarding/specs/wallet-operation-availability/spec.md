@@ -18,3 +18,12 @@ Every wallet mutation path SHALL honor automatic onboarding's frozen input and i
 #### Scenario: Another tab races return registration
 - **WHEN** two cooperating contexts attempt to submit the same onboarding return leg
 - **THEN** only one can own its reserved inputs and cross the registration boundary
+
+#### Scenario: Intermediate receipt appears before its journal update
+- **WHEN** a first-leg output becomes visible to a payment before onboarding persists its exact receipt outpoint
+- **THEN** the payment cannot select that output until ancestry classification and durable handoff establish its availability
+- **AND** inputs proven independent remain usable; an older quote must revalidate this protection at submission
+
+#### Scenario: Final release is replayed after a crash
+- **WHEN** final receipt verification is delivered twice or the app restarts between durable completion and presentation refresh
+- **THEN** completion and reservation release resolve from the same durable revision, without a duplicate settlement, premature release or residual onboarding hold on the final target

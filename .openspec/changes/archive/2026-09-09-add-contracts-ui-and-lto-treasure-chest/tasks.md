@@ -41,16 +41,20 @@ The checked tasks in sections 1–5 record the accepted original implementation.
 - [x] 5.5 Reconcile G1/G2 story documentation and game consumer documentation with delivered scope, distinguish proposal defaults from verified behavior, and document one-time signer setup outside the start menu. Keep physical-device limitations explicit where only emulation was available.
 - [x] 5.6 Verify explicit creation-disabled rollback preserves query/refund/recovery for outstanding contracts; validate OpenSpec and report BIS delivery, game package delivery and live financial evidence separately. Do not mark an unobserved live scenario as passed.
 
-## Apply checkpoint — 2026-09-09
-
 ## 6. Shared hosted game wallet follow-up
 
-- [ ] 6.1 Add private disk-backed wallet and contract/journal persistence with one service writer. Verify encrypted restart recovery, failed writes, concurrent writer rejection and no public secret exposure.
-- [ ] 6.2 Host existing game-wallet and LTO operations with shared reservations, authenticated player actions and narrowly scoped browser claim signing. Verify duplicate requests, different players/origins, altered signing responses, unknown submission recovery and exact asset-preserving receipts.
-- [ ] 6.3 Connect BIS Admin import, wallet actions and G1/G2 to the service; verify one import persists and works after Admin closes, truthful pending/errors and no secret console output.
-- [ ] 6.4 Connect the game through the public BIS API and remove its separate Game Wallet import UI. Repackage BIS and verify the installed inventory, both builds and an actual Level01 collision flow with the service.
-- [ ] 6.5 Provide identical local/deployed service configuration and deployment instructions for a private persistent volume and HTTPS endpoint. Verify service health, protected Admin access, configured game origin, and document any unavailable deployment evidence explicitly.
-- [ ] 6.6 Run service, browser and game acceptance for Start, Claim, Reject, expiry, two clients and restart. Update play instructions and retain X8 as the deferred security rethink. Record real network outcomes separately from isolated fixtures.
+- [x] 6.1 Add private disk-backed wallet and contract/journal persistence with one service writer. Verify encrypted restart recovery, failed writes, concurrent writer rejection and no public secret exposure.
+- [x] 6.2 Host existing game-wallet and LTO operations with shared reservations, authenticated player actions and narrowly scoped browser claim signing. Verify duplicate requests, different players/origins, altered signing responses, unknown submission recovery and exact asset-preserving receipts.
+- [x] 6.3 Connect BIS Admin import, wallet actions and G1/G2 to the service; verify one import persists and works after Admin closes, truthful pending/errors and no secret console output.
+- [x] 6.4 Connect the game through the public BIS API and remove its separate Game Wallet import UI. Repackage BIS and verify the installed inventory, both builds and an actual Level01 collision flow with the service.
+- [x] 6.5 Provide identical local/deployed service configuration and deployment instructions for a private persistent volume and HTTPS endpoint. Verify service health, protected Admin access, configured game origin, and document any unavailable deployment evidence explicitly.
+- [x] 6.6 Run service, browser and game acceptance for Start, Claim, Reject, expiry, two clients and restart. Update play instructions and retain X8 as the deferred security rethink. Record real network outcomes separately from isolated fixtures.
+
+## Hosted implementation acceptance — 2026-09-09
+
+29/32 tasks are checked. The six hosted implementation tasks are complete against the evidence in verification.md: 62 contract/service tests, 16 focused game tests, production bundles, an exact 102-file game package inventory, actual-game guest browser checks, and read-only confirmation that the existing Admin wallet restored ready after service restart. Financial flows, cross-client exclusion and interrupted checkpoint recovery were exercised against isolated adapters/operator fixtures, not live user transactions. The hosted service is running locally. No deployed HTTPS signer endpoint was supplied or deployed; task 6.5 covers deployment configuration/instructions and records this missing deployment evidence explicitly.
+
+The three historical broader editor/full-game/live-evidence tasks remain unchecked. The final whole-repository typecheck passes; earlier transient errors in concurrently edited onboarding code were resolved by that separate work. X8 remains deferred. No human acceptance click is required and this change is not archived.
 
 ## Historical apply checkpoint — 2026-09-09
 
@@ -75,3 +79,8 @@ The user explicitly requested replacing the live acceptance blocker. Current pol
 The user confirmed “works great” after the asset-carrier funding fix and requested spec sync. G1/G2's delivered runtime feature is accepted. The main account-contracts, limited-time-offers and treasure-lto-demo specs now include the final runtime policy, shared collection layout, G2 controls, preserved asset change and sanitized preparation failures.
 
 Tasks 5.1 and 5.4 are complete on the recorded automated/build/browser evidence: relevant regressions pass; the known unrelated full-suite failures remain documented. 23/26 original checklist items are checked. The three unchecked items retain broader verification requirements: Tiled editor round-trip, the complete actual-game browser matrix, and exact extended live transaction/balance evidence. User confirmation is not fabricated evidence for those individual scenarios. These notes do not disable the accepted runtime and do not request further human testing. The change is synced, not archived.
+
+
+## Final user acceptance and archive — 2026-09-09
+
+The user confirmed “works great” for the shared-wallet treasure flow and explicitly requested sync and archive. Final hosted-wallet requirements are synced into the three main capabilities; the accepted change is archived. This acceptance does not invent additional transaction receipts or close the three broader unobserved editor/full-game/live-evidence checks (4.4, 5.2, 5.3). They remain unchecked historical verification limits. HTTPS signer deployment remains outstanding, and X8 remains the deferred security rethink. No new human acceptance action is requested.

@@ -1,3 +1,4 @@
+import {AccountOnboarding,onboardingLabel} from './AccountOnboarding';
 import { PendingOperations, usePendingNotice } from './PendingOperationDialog';
 import { ToastViewport } from './ToastViewport';
 import { AccountAssets } from './AccountAssets';
@@ -46,6 +47,7 @@ function BisScreen({ context }: { context: BisContext }) {
   const savedRecovery = state.accountRecovery;
   const logout = !savedRecovery && ['logout-confirmation','logging-out','logout-error'].includes(state.phase);
   const transfer = state.phase === 'active' && state.accountTransfer;
+  const onboarding = state.phase === 'active' && state.accountOnboarding;
   const details = state.phase === 'active' && state.accountDetails;
   const activity = state.phase === 'active' && state.accountActivity;
   const assets = state.phase === 'active' && state.accountAssets;
@@ -53,7 +55,7 @@ function BisScreen({ context }: { context: BisContext }) {
   const [contractOpen,setContractOpen]=useState(false);
   const receive = state.phase === 'active' && state.accountReceive;
   const send = state.phase === 'active' && state.accountSend;
-  const menu = state.phase === 'active' && !details && !transfer && !activity && !assets && !contracts && !savedRecovery && !receive && !send;
+  const menu = state.phase === 'active' && !onboarding && !details && !transfer && !activity && !assets && !contracts && !savedRecovery && !receive && !send;
   const submenu = menu && detailsMenuSession === menuSession;
   const recovery = state.phase === 'recovery' || state.phase === 'saving';
   const recoverySession = useMemo(() => ({}), [context, recovery, savedRecovery, state.profileId]);
@@ -63,7 +65,7 @@ function BisScreen({ context }: { context: BisContext }) {
   useEffect(() => {
     if (state.view === 'account') heading.current?.focus();
     if (state.view === 'account-button') button.current?.focus();
-  }, [state.view, state.phase, state.accountDetails, state.accountTransfer, state.accountActivity, state.accountAssets, assetOpen, state.accountRecovery, state.accountReceive, state.accountSend, submenu]);
+  }, [state.view, state.phase, state.accountOnboarding, state.accountDetails, state.accountTransfer, state.accountActivity, state.accountAssets, assetOpen, state.accountRecovery, state.accountReceive, state.accountSend, submenu]);
   const data = assets ? state.assets : activity ? state.activity : receive ? state.addresses : details || transfer ? state.balance : undefined;
   const phaseLabels: Record<string,string> = {loading:'Loading...',creating:'Creating...',saving:'Saving...',resetting:'Resetting...', 'logging-out':'Logging out...', restoring:'Restoring...', 'restore-saving':'Saving...'};
   const pageLoading = !!data && (data.status === 'idle' || data.status === 'loading');
@@ -76,17 +78,18 @@ function BisScreen({ context }: { context: BisContext }) {
     {contracts && <AccountContracts key={state.profileId} context={context} onDetailChange={setContractOpen} />}
     {activity && <AccountActivity key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
   </div>;
-  const title = assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Account Transfer' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Balance' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : submenu ? 'Accounts Details' : 'Account';
+  const title = onboarding ? 'Onboarding' : assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Account Transfer' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Balance' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : submenu ? 'Accounts Details' : 'Account';
   return <div className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
-      <AccountCard className={assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}
+      <AccountCard className={onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
         headingActions={(assets || details || transfer || activity || receive) && <IconButton className="bis-title-icon" label={`Refresh ${title}`} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : state.balance.status === 'loading' || state.balance.status === 'idle'} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : context.refreshBalance())}>
             <span className="bis-refresh-image" aria-hidden="true" />
           </IconButton>}
-        description={(send ? 'Send Signet test funds to another Arkade address.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout removes your saved wallet access and local transaction records. Submitted transactions are not cancelled.' : state.hasProfile ? (assets || details || transfer || activity || submenu ? null : <>You are logged in.<br />This account has access to Bitcoin Lightning.</>) : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
+        description={(send ? 'Send Signet test funds to another Arkade address.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout removes your saved wallet access and local transaction records. Submitted transactions are not cancelled.' : state.hasProfile ? (onboarding || assets || details || transfer || activity || submenu ? null : <>You are logged in.<br />This account has access to Bitcoin Lightning.</>) : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
         {submenu && <AccountIdentity profileId={state.profileId} />}
         {details && <AccountBalances balance={state.balance} />}
+        {onboarding && <AccountOnboarding key={state.profileId} view={state.onboarding} />}
         {transfer && <AccountTransfer context={context} key={state.profileId} balance={state.balance} onBack={() => context.closeAccount()} />}
         {receive && <AccountAddresses addresses={state.addresses} />}
         {send && <AccountSend context={context} key={state.profileId} />}
@@ -106,9 +109,10 @@ function BisScreen({ context }: { context: BisContext }) {
             <button className="bis-button" onClick={()=>context.openAccountContracts?.()}>Contracts</button>
             <button className="bis-button" title="Transaction" onClick={()=>context.openAccountActivity()}>Transaction</button>
           </div>}
+          {details && <button className="bis-button" onClick={()=>context.openAccountOnboarding?.()}>{onboardingLabel(state.onboarding)}</button>}
           {details && <button className="bis-button" onClick={()=>context.openAccountRecovery()}>Get Recovery Phrase</button>}
           {menu && !submenu && <div className="bis-transfer-actions"><FitTextButton onClick={()=>context.openAccountSend()}>⚡ Send</FitTextButton><FitTextButton onClick={()=>context.openAccountReceive()}>⚡ Receive</FitTextButton><FitTextButton onClick={()=>context.openAccountTransfer()}>⚡ Swap</FitTextButton></div>}
-{savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : submenu || details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || (state.logoutPendingCount !== null && state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
+{savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : onboarding || submenu || details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || (state.logoutPendingCount !== null && state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
             <button className="bis-button bis-primary" onClick={()=>void context.createAccount()}>⚡ Create Account</button>
             <button className="bis-button" onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button>
           </>}
