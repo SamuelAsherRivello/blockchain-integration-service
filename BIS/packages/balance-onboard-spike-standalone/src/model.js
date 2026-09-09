@@ -15,9 +15,14 @@ export function half(coins) {
 }
 export function verifiedReceipt(state, transactions, receipts, address) {
   if (!state.inputs?.length || !state.target || !Number.isSafeInteger(state.change)) return;
+  if(state.mode==='board-then-return'){
+    if(!state.boardingCommitment||!state.commitment)return;
+    const board=transactions.find(tx=>tx.txid===state.boardingCommitment&&tx.status.confirmed);
+    if(!board||!state.inputs.every(i=>board.vin?.some(v=>v.txid===i.txid&&v.vout===i.vout)))return;
+  }
   for (const tx of transactions) {
     if (!tx.status.confirmed || (state.commitment && state.commitment !== tx.txid)) continue;
-    if (!state.inputs.every(i => tx.vin?.some(v => v.txid === i.txid && v.vout === i.vout))) continue;
+    if (state.mode!=='board-then-return' && !state.inputs.every(i => tx.vin?.some(v => v.txid === i.txid && v.vout === i.vout))) continue;
     const values = tx.vout.filter(o => o.scriptpubkey_address === address).map(o=>Number(o.value));
     if(values.some(v=>!Number.isSafeInteger(v)||v<0))continue;
     const change = values.reduce((n,v)=>n+v,0);

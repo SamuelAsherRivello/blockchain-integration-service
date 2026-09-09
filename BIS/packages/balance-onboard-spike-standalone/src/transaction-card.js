@@ -23,6 +23,15 @@ export function incomingCard(row,address,isChange=false){
 export function transferBadge(phase){
  if(phase==='success')return statusBadge('Confirmed','confirmed');
  if(phase==='uncertain')return statusBadge('Status unknown','unknown');
- if(['submitting','registered','committed'].includes(phase))return statusBadge('Unconfirmed','unconfirmed');
+ if(['submitting','registered','boarded','committed'].includes(phase))return statusBadge('Unconfirmed','unconfirmed');
  return statusBadge('Not started','neutral');
+}
+
+export function settlementCard(txid,label,confirmed){
+ const card=document.createElement('article');card.className='transaction-card';
+ const header=document.createElement('div');header.className='transaction-header';
+ const name=document.createElement('strong');name.textContent=label;
+ header.append(name,statusBadge(confirmed===true?'Confirmed':confirmed===false?'Unconfirmed':'Checking confirmation',confirmed===true?'confirmed':confirmed===false?'unconfirmed':'unknown'));
+ const link=document.createElement('a');link.className='transaction-id';link.href=`https://mempool.signet.arkade.sh/tx/${txid}`;link.textContent=txid;link.target='_blank';link.rel='noopener noreferrer';
+ const body=document.createElement('div');body.className='transaction-body';body.append(link);card.append(header,body);return card;
 }

@@ -61,3 +61,14 @@ The spike SHALL show fresh Bitcoin and Arkade balances, fees and public transact
 #### Scenario: Registration alone
 - **WHEN** the operator returns an intent ID without verified settlement
 - **THEN** the spike remains pending rather than showing success
+
+### Requirement: Operator-compatible half onboarding
+The spike SHALL board the frozen input total without Bitcoin outputs, then return the non-target half to the original Bitcoin address in a second settlement. It SHALL show both phases and retain both public commitments. The intermediate whole-total Arkade balance MUST NOT satisfy success. Later deposits SHALL remain untouched.
+
+#### Scenario: Bitcoin change is not accepted with boarding inputs
+- **WHEN** onboarding the captured total
+- **THEN** the first intent contains only an Arkade output; the second spends only the resulting Arkade receipts and outputs the exact Bitcoin remainder plus the exact Arkade target
+
+#### Scenario: Second settlement awaits confirmation
+- **WHEN** the final Arkade target is spendable but either Bitcoin commitment remains unconfirmed
+- **THEN** the spike continues verification and does not claim full completion

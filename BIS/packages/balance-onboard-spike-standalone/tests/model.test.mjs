@@ -29,3 +29,15 @@ test('success requires confirmed input spend, exact Bitcoin change and linked re
  assert.equal(verifiedReceipt({...s,change:4999},[tx],v,'own'),undefined);
  assert.equal(verifiedReceipt({...s,inputs:[{txid:'other',vout:0}]},[tx],v,'own'),undefined);
 });
+test('two-settlement success requires both Bitcoin commitments and final exact Arkade balance',()=>{
+ const state={mode:'board-then-return',inputs:[{txid:'fund',vout:0}],target:6000,change:6000,boardingCommitment:'board',commitment:'return'};
+ const board={txid:'board',status:{confirmed:true},vin:[{txid:'fund',vout:0}],vout:[]};
+ const back={txid:'return',status:{confirmed:true},vin:[],vout:[{scriptpubkey_address:'own',value:6000}]};
+ const receipt=[{value:6000,commitmentTxIds:['return']}];
+ assert.equal(verifiedReceipt(state,[board,back],receipt,'own'),'return');
+ assert.equal(verifiedReceipt({...state,commitment:undefined},[board,back],receipt,'own'),undefined);
+ assert.equal(verifiedReceipt(state,[board,{...back,status:{confirmed:false}}],receipt,'own'),undefined);
+ assert.equal(verifiedReceipt(state,[board,{...back,vout:[{scriptpubkey_address:'own',value:5999}]}],receipt,'own'),undefined);
+ assert.equal(verifiedReceipt(state,[{...board,status:{confirmed:false}},back],receipt,'own'),undefined);
+ assert.equal(verifiedReceipt(state,[board,back],[{value:12000,commitmentTxIds:['board']}],'own'),undefined);
+});

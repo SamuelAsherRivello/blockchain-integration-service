@@ -13,8 +13,8 @@ panels=[...document.querySelectorAll('.panel')];
 originalEstimates=panels.map(panel=>panel.querySelector('.estimate').textContent);
 panels.forEach((panel,index)=>{
  const view=document.createElement('div');view.className='step-timing';
- view.innerHTML='<p class="timing-average"></p><p class="timing-calculation"></p><p class="timing-current"></p><small></small>';
- view.querySelector('small').textContent=descriptions[index];panel.append(view);
+ view.innerHTML='<p class="timing-current"></p><p class="timing-average"></p><details><summary>Calculation &amp; measurement</summary><p class="timing-calculation"></p><small></small></details>';
+ view.querySelector('small').textContent=descriptions[index];panel.querySelector('.timing-slot').append(view);
 });
 }
 export function renderTimings(run,now=Date.now()){

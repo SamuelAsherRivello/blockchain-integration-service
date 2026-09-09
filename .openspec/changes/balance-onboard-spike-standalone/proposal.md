@@ -19,4 +19,4 @@ None.
 
 ## Impact
 
-New `BIS/packages/balance-onboard-spike-standalone/` package and independent localhost Vite port. No imports from BIS integration and no existing wallet state changes. SDK/operator partial boarding and actual funded settlement remain live verification gates, not assumed successes.
+New `BIS/packages/balance-onboard-spike-standalone/` package and independent localhost Vite port. No imports from BIS integration and no existing wallet state changes. Operator-compatible half onboarding uses a full boarding settlement followed by a Bitcoin-return settlement; the operator rejects direct partial boarding with onchain change. Both commitments and the final exact spendable target must be verified live.

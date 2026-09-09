@@ -14,3 +14,38 @@
 
 #recovery-visible{margin-top:14px}#recovery-visible[hidden]{display:none}#recovery-value{display:block;width:100%;resize:vertical;background:#10151b;border:1px solid #52697a;border-radius:7px;color:#e1f5e9;padding:14px;font:15px/1.6 monospace;margin-bottom:10px}#recovery-label{font-size:16px;margin-top:22px}
 
+/* Step UI: compact shared structure for every stage. */
+.step-ui{padding:14px 18px;margin:12px 0;border-radius:10px}
+.step-ui-header{padding-bottom:8px}.step-ui h2{font-size:19px;margin:5px 0 0}.step-ui .owner{padding:3px 6px}
+.step-ui-row{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;padding:7px 0;border-top:1px solid #2c3944;align-items:start}
+.step-ui .section-label{font-size:10px;line-height:20px;text-transform:uppercase;letter-spacing:1px;color:#91a6b8;margin:0;font-weight:600}
+.section-content{min-width:0;font-size:12px;line-height:1.4}.section-content p{margin:0;line-height:1.4}.section-content p:empty,.section-content pre:empty{display:none}
+.step-ui button{padding:6px 10px;font-size:12px;min-height:30px}.step-ui .primary{margin:0 5px 0 0}.step-ui input{padding:7px 9px;font-size:12px}
+.step-ui .address{margin-top:3px;gap:6px}.step-ui label,.step-ui .muted{font-size:12px}.step-ui #copied{margin:0;font-size:11px}
+.step-ui .step-timing{margin:0;padding:0;border:0}.step-ui .step-timing p{margin:0;font-size:11px;line-height:1.45}.step-ui details{margin-top:3px;font-size:11px;color:#98aabd}.step-ui summary{cursor:pointer}.step-ui details small{margin-top:3px;font-size:11px}
+.step-ui #status{margin:0;padding:0;background:none;font-size:12px;line-height:1.4}.step-ui .transfer-badge{margin:0 0 5px;text-align:left}
+.step-ui dl{border:0;padding:0;margin:0;gap:4px 12px;grid-template-columns:125px minmax(0,1fr);font-size:12px}
+.step-ui #recovery-label{margin:0;font-size:12px}.step-ui #recovery-visible{margin-top:5px}.step-ui #recovery-value{font-size:12px;padding:8px;margin-bottom:5px}
+.step-ui #callback-errors{max-height:140px;overflow:auto;font-size:10px;color:#ffc49a;margin:5px 0 0}
+.step-ui .transaction-count{font-size:13px;margin:0 0 5px}.step-ui .transaction-card{margin:6px 0}.step-ui .transaction-header{padding:8px 10px}.step-ui .transaction-body{padding:10px}.step-ui .transaction-footer{margin-top:8px}.step-ui .transaction-destination{padding:7px}.step-ui .transaction-badge{font-size:12px;padding:5px 9px}
+@media(max-width:540px){.step-ui{padding:12px}.step-ui-row{grid-template-columns:53px minmax(0,1fr);gap:7px}.step-ui .step{gap:6px}.step-ui .estimate{font-size:10px}.step-ui h2{font-size:17px}.step-ui dl{grid-template-columns:100px minmax(0,1fr)}.section-content button{margin-bottom:3px}}
+.step-ui .recovery-row{display:flex;align-items:center;gap:6px}.step-ui .recovery-row label{flex-shrink:0;margin-right:4px}.step-ui .recovery-row input{flex:1;width:0;margin:0;padding:7px 9px;font:12px monospace}.step-ui .recovery-row button{flex-shrink:0;margin:0;display:inline-flex;align-items:center;justify-content:center}.step-ui .recovery-row #recovery-label{margin:0 4px 0 0;font-size:12px}@media(max-width:540px){.step-ui .recovery-row{flex-wrap:wrap}.step-ui .recovery-row label{flex-basis:100%}}
+/* Only outputs containing transaction cards get a bounded, persistent scroll area. */
+.step-ui [data-section="output"] > .section-content:has(.transaction-card){max-height:100px;overflow-y:scroll;scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#647d90 #10171e;padding-right:8px}
+.step-ui [data-section="output"] > .section-content:has(.transaction-card)::-webkit-scrollbar{width:10px}
+.step-ui [data-section="output"] > .section-content:has(.transaction-card)::-webkit-scrollbar-track{background:#10171e;border-radius:5px}
+.step-ui [data-section="output"] > .section-content:has(.transaction-card)::-webkit-scrollbar-thumb{background:#647d90;border:2px solid #10171e;border-radius:5px}
+/* Native disclosure keeps each step independently keyboard-accessible and open initially. */
+.step-ui > .step-ui-header{display:block;list-style:none;cursor:pointer;margin:-14px -18px 0;padding:12px 18px 10px;border-radius:9px 9px 0 0;background:#161e26}
+.step-ui > .step-ui-header::-webkit-details-marker{display:none}
+.step-ui:not([open]) > .step-ui-header{margin-bottom:-14px;border-radius:9px}
+.step-ui .step-caret{font-size:23px;line-height:16px;letter-spacing:0;transform:rotate(90deg);transition:transform .15s ease}
+.step-ui:not([open]) .step-caret{transform:rotate(0)}
+.step-ui .step-completion{font-size:10px;letter-spacing:0;color:#98aabd}
+.step-ui.step-complete > .step-ui-header{background:#203d2e}
+.step-ui.step-complete > .step-ui-header .step-completion{color:#b0f0c9}
+.step-ui.step-complete > .step-ui-header h2{color:#d1f5df}
+.step-ui > .step-ui-header:focus-visible{outline:2px solid #a5e9c1;outline-offset:3px}
+@media(max-width:540px){.step-ui > .step-ui-header{margin:-12px -12px 0;padding:10px 12px}.step-ui:not([open]) > .step-ui-header{margin-bottom:-12px}}
+h1.spike-title{font-size:clamp(24px,4vw,32px);line-height:1.2;letter-spacing:-.5px;margin:0 0 24px}
+.step-ui button.danger{background:#b82e43;border-color:#e45b6f;color:#fff;font-weight:650}.step-ui button.danger:hover:not(:disabled){background:#ce374e}
