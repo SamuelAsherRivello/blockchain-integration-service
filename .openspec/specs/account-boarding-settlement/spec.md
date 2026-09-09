@@ -5,6 +5,8 @@ Let a player review movement between the Bitcoin and Arkade parts of their Signe
 
 ## Requirements
 
+Explicit player logout follows account-logout: backup acknowledgement and, when pending operations exist, separate pending-loss acknowledgement permit local player journal cleanup without cancelling submitted transactions. This exception does not relax Admin Reset guards or authorize spending reserved inputs.
+
 ### Requirement: Account Transfer presentation
 Account Transfer SHALL show Total, Bitcoin and Arkade balances, selectable Bitcoin-to-Arkade and Arkade-to-Bitcoin directions, an editable nonnegative integer sats amount with minus/plus/Max controls, Review Transfer and Back. Back from review SHALL return to entry; Back from entry SHALL return to Account Details. Entry SHALL reset on leaving or account replacement.
 
@@ -134,6 +136,18 @@ Arkade-to-Bitcoin SHALL select SDK-spendable VTXOs, including asset-bearing outp
 - **WHEN** reverse transfer completes and the player refreshes or reopens the account
 - **THEN** received Bitcoin stays on the Bitcoin side until explicit boarding confirmation
 
+#### Scenario: Requested amount consumes asset reserve
+- **WHEN** an otherwise eligible withdrawal would leave too few sats to retain the account's assets
+- **THEN** the review SHALL explain the minimum Arkade reserve and direct the player to Max without submitting an operation
+
+#### Scenario: Asset-free full withdrawal
+- **WHEN** all selected spendable outputs are asset-free and the full amount satisfies current operator limits
+- **THEN** Max SHALL allow the entire eligible amount without reserving sats for assets
+
+#### Scenario: Recover a pre-fix operation
+- **WHEN** an existing operation record lacks the new full-input amount and asset-change metadata
+- **THEN** recovery SHALL retain its original amount interpretation and pending-state safeguards without clearing or replaying it
+
 ### Requirement: Transfer state in Account Activity
 The Transactions field SHALL include the active account's durable transfer operation before it appears in SDK history. It SHALL show the requested sats, transfer direction, precise pending/registered/unverified status, and separately labeled operation, intent and known commitment identifiers. No transaction ID, timestamp or confirmation SHALL be invented. Pending transfer entries SHALL appear first. When matching commitment history exists, annotate its status instead of adding a duplicate row. Verified and not-submitted outcomes SHALL remain distinct from pending. Copy Transactions SHALL include the visible transfer status.
 
@@ -184,3 +198,60 @@ The application SHALL retain operation-scoped public evidence for registration, 
 - **WHEN** a validated explorer-compatible transaction ID is available
 - **THEN** Transactions SHALL offer the matching Signet explorer while distinguishing any unconfirmed status
 - **AND** operation and intent IDs alone SHALL NOT be treated as Bitcoin transaction IDs
+
+### Requirement: Attributable settlement failures
+Each submitted withdrawal SHALL distinguish observed batch participation, signing progress, commitment availability and verified receipt. An interrupted operation SHALL retain its exact identity and the last safely observable attempted and acknowledged stage, plus a sanitized failure category when available. Missing legacy evidence SHALL be reported as unknown rather than reconstructed as fact. Progress observations SHALL NOT authorize success, replay or input release.
+
+#### Scenario: Failure after participation confirmation
+- **WHEN** participation is acknowledged but tree validation, signing initialization, provider submission or event delivery fails
+- **THEN** the operation reports interruption and its observed failure boundary without claiming broadcast or completion
+- **AND** no replacement withdrawal is automatically submitted
+
+#### Scenario: Private failure payload
+- **WHEN** an underlying failure contains a signed proof, nonce, recovery phrase or arbitrary provider payload
+- **THEN** persisted and displayed diagnostics contain only allowed public fields and static failure labels
+
+### Requirement: Withdrawal completion acceptance after payments and minting
+Withdrawal repair SHALL require an actual confirmed Bitcoin receipt and exact owned asset change, not registration, a completed UI flow or a simulated settlement result. The original operation SHALL remain attributable across navigation and read-only reconciliation. A local post-broadcast failure SHALL NOT prevent later recognition of valid completion or authorize replay.
+
+#### Scenario: Full player sequence
+- **WHEN** a player logs in, logs out, restores a funded account, pays 1,000 sats to continue, mints to the player, pays 1,000 sats again, and explicitly confirms a 1,000-sat Arkade-to-Bitcoin withdrawal
+- **THEN** successful withdrawal acceptance requires the matching confirmed Bitcoin receipt, exact Arkade change and preserved asset IDs and quantities
+- **AND** the same account can pay 1,000 sats afterward from sufficient fresh eligible funds without logout
+
+#### Scenario: Pending same-input payment
+- **WHEN** the player attempts B1 before the sole input's withdrawal has resolved
+- **THEN** that payment cannot reuse the reserved input or claim success
+- **AND** its result explains the reservation rather than describing the positive total balance as zero
+
+#### Scenario: Broadcast followed by local failure
+- **WHEN** settlement has broadcast but local processing fails before the application records success
+- **THEN** later verified receipt reconciliation resolves the original withdrawal without another submission
+
+#### Scenario: Infrastructure checks only
+- **WHEN** diagnostics, builds and isolated tests pass but no matching live confirmed receipt is available
+- **THEN** withdrawal completion acceptance remains outstanding
+
+### Requirement: Composed withdrawal status and confirmation
+Arkade-to-Bitcoin transfers requiring preparation SHALL follow withdrawal-input-preparation within the existing transfer flow. Preparation SHALL have an independently recorded transaction identifier and outcome linked to the original transfer. Preparation completion SHALL NOT be represented as Bitcoin withdrawal success. A fresh confirmation after restart SHALL authorize only an outstanding unsubmitted leg and SHALL NOT replay a registered withdrawal. Existing direct asset-bearing withdrawals SHALL retain asset-change output validation.
+
+#### Scenario: Navigation during withdrawal preparation
+- **WHEN** a player navigates away after confirming preparation and withdrawal
+- **THEN** the same authorized worker and operation retain ownership, and returning shows the actual stage without starting either leg again
+
+#### Scenario: Bitcoin completion after B1 spent prepared change
+- **WHEN** B1 consumes the independently prepared asset-bearing change before the Bitcoin withdrawal confirms
+- **THEN** withdrawal reconciliation verifies its dedicated input and exact Bitcoin receipt without requiring that already-spent preparation change remain an unspent withdrawal output
+- **AND** asset preservation is verified through the preparation and subsequent payment evidence
+
+### Requirement: Existing interrupted account recovery remains a delivery gate
+This change SHALL preserve all previously registered transfer identities and reservations. Preparation SHALL NOT spend an input reserved by an older unresolved intent. The issue SHALL NOT be declared fully resolved until the reported existing operation has verified completion or supported authoritative terminal cancellation/failure, its affected reservation is durably released, and B1 succeeds on the same restored account without clearing history or adding funds to mask the hold. Unsupported operator recovery SHALL remain an explicit undelivered dependency, distinct from successful preparation of new withdrawals.
+
+#### Scenario: Reported existing operation remains unresolved
+- **WHEN** operation 4428bcbe-72db-43e9-a59d-f39150837dae has only a recorded validation error and an unspent input, without sufficient terminal evidence
+- **THEN** it remains unresolved and protected; tests passing on new withdrawals do not count as recovery of that operation
+
+#### Scenario: Existing operation verified resolved
+- **WHEN** supported evidence verifies the old transfer's completion or terminal cancellation/failure
+- **THEN** its original record gains the verified outcome, only its reservations are released, and shared account state refreshes before a separately requested B1 payment
+- **AND** receipt evidence for that B1 payment is required to close the existing-account acceptance gate

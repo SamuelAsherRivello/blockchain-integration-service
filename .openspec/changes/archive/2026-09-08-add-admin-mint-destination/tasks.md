@@ -1,3 +1,7 @@
+## Current story status — 2026-09-09
+
+Complete, confirmed by the user. The current asset catalog contains C1. Mint Asset and C2. Reward Player With Trophy After Level Complete (formerly C6). Other C-level entries are removed from the current catalog. Historical task IDs and verification evidence below are retained.
+
 ## 1. Destination form and routing
 
 - [x] 1.1 Add the labeled Destination selector, Game wallet default, helper text and matching responsive styling in MintAssetDialog; verify keyboard selection, presets, idle dismissal and narrow-window layout in a browser.

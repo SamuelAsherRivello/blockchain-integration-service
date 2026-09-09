@@ -1,0 +1,6 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Transaction card visual samples</title><main><h2>Visual samples only</h2><p>Static card examples. No wallet, funding, storage or transaction submission.</p><div id="samples"></div></main><script type="module">
+import '../src/style.css';
+import {incomingCard} from '../src/transaction-card.js';
+const sample={txid:'f6e38ee1328645a0f6f4863115137f0311e1eaaf74fb9955de68ef6cc5e204b3',amount:11000,unspent:11000};
+for(const confirmed of [false,true])document.querySelector('#samples').append(incomingCard({...sample,confirmed},'tb1p-example-address-for-visual-preview-only'));
+</script></html>

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Deliver B1. MVP Request Continue: a minimal game-facing operation with real Signet payment to a configured game wallet and attributable, recoverable outcomes. B2-B4 game integration and expanded UI are outside this capability's MVP scope.
+Deliver B1. MVP Request Continue: a minimal game-facing operation with real Signet payment to a configured game wallet and attributable, recoverable outcomes. B2 game integration is specified separately in game-pay-to-continue.
 
 ## Requirements
 

@@ -1,3 +1,5 @@
+**F2. Board Wallet: Complete ✓**, confirmed by the user on 2026-09-09. Historical verification evidence is retained; this update records user acceptance without claiming new automated or live checks.
+
 ## Why
 
 The Game Wallet section should follow the operator's sequence: log in, board, then pay the player. Its current numbering and mixed identity/balance controls obscure that sequence.

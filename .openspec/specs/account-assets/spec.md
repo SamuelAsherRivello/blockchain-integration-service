@@ -60,12 +60,23 @@ Detail Refresh SHALL retain selection and navigation context underneath the cove
 - **THEN** the prepared detail shows the exact new quantity or the prepared list is revealed with appropriate focus and scroll
 
 ### Requirement: Account isolation and API compatibility
-Asset presentation SHALL belong to the active account and current presentation session. Leaving the asset flow, switching or clearing accounts, reset, unmount, and disposal SHALL clear presentation values and invalidate delayed reads and copy feedback. Existing public asset listing SHALL remain UI-independent and SHALL NOT navigate or update runtime asset presentation as a side effect. C1 Mint Asset and C4 List Assets SHALL retain their existing Admin behavior. Inspection SHALL NOT submit transactions or require unrelated pending wallet operations to complete.
+Asset presentation SHALL belong to the active account and current presentation session. Leaving the asset flow, switching or clearing accounts, reset, unmount, and disposal SHALL clear presentation values and invalidate delayed reads and copy feedback. Existing public asset listing SHALL remain UI-independent and SHALL NOT navigate or update runtime asset presentation as a side effect. C1 Mint Asset and Asset listing SHALL retain their existing Admin behavior. Inspection SHALL NOT submit transactions or require unrelated pending wallet operations to complete.
 
 #### Scenario: Leave and reenter during loading
 - **WHEN** a player leaves a pending asset read and enters Assets again, or another account becomes active
 - **THEN** only results for the new presentation session and account can populate the view
 
 #### Scenario: Admin listing while runtime exists
-- **WHEN** a host calls the public listing API or executes the existing C4 action where enabled
+- **WHEN** a host calls the public listing API or executes the existing asset-listing action where enabled
 - **THEN** results remain available to that caller without opening, clearing, or changing the runtime view
+
+### Requirement: Event-driven visible asset updates
+While Assets is open, BIS SHALL observe output changes for the current account receive scripts, including subdust, and refresh holdings on incoming, spent or swept output events without periodic asset polling. Event refreshes SHALL preserve an already prepared page without a covering progress dialog and coalesce bursts into a bounded number of reads. Leaving Assets, changing account or disposing the context SHALL stop observation and invalidate late results. Stream unavailability SHALL leave manual Refresh available without introducing a polling fallback.
+
+#### Scenario: Holding changes while visible
+- **WHEN** the stream reports an output change while Assets is open
+- **THEN** a fresh read updates quantities or removes absent holdings without requiring a click or opening a progress overlay
+
+#### Scenario: Exit and late events
+- **WHEN** the player leaves Assets or changes account
+- **THEN** the subscription is stopped and late callbacks cannot refresh or reopen the former view

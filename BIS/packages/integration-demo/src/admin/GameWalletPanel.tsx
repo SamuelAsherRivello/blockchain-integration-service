@@ -1,3 +1,4 @@
+import { StoryButton } from './StoryButton';
 import { StorySection } from './StorySection';
 import { useEffect, useRef, useState } from 'react';
 import { createBisGameWallet, type BisGameWalletState, type BisContext } from '@bis/integration';
@@ -145,6 +146,16 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
       setBoardingMessage('Boarding unavailable. Funds must be eligible for boarding and providers reachable. If already submitted, use Details; do not submit again while pending.');
     } finally { setBoardingBusy(false); }
   }
+  async function copyBitcoinAddress() {
+    const address = controller?.getState().addresses?.bitcoinAddress;
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      onDetails({operation:'Copy BTC Addr', message:'Bitcoin funding address copied.', bitcoinReceivingAddress:address});
+    } catch {
+      onDetails({operation:'Copy BTC Addr', message:'Clipboard unavailable. Copy the Bitcoin funding address below manually.', bitcoinReceivingAddress:address});
+    }
+  }
   async function details() {
     if (!controller) return;
     onDetails({operation:'F3 Wallet Status', status:'loading'});
@@ -165,29 +176,22 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
   return <StorySection title="F. Game Wallet" className="game-wallet-panel">
 
     <p className="story-summary">Stories: F1, F2, F3</p>
-    <div className="game-wallet-row">
-      <span className="game-wallet-label">F1. Game Wallet</span>
-      <div className="game-wallet-actions">
-        {state.profileId ? <button disabled={busy} onClick={() => {setPhrase('');setEntry(false);void controller?.logout();}}>Logout</button>
+    <StoryButton label="F1. Game Wallet">
+        {state.profileId ? <><button disabled={busy || !state.addresses?.bitcoinAddress} onClick={() => void copyBitcoinAddress()}>Copy BTC Addr</button><button disabled={busy} onClick={() => {setPhrase('');setEntry(false);void controller?.logout();}}>Logout</button></>
           : <button disabled={busy} onClick={() => {setEntry(!entry);setPhrase('');}}>Login</button>}
-      </div>
-    </div>
-    <div className="game-wallet-row">
-      <span className="game-wallet-label">F2. Board Wallet</span>
-      <div className="game-wallet-actions">
+    </StoryButton>
+    <StoryButton label="F2. Board Wallet" sublabel={boardingState === 'boarded' ? <span role="status">Boarded</span> : undefined}>
         <button disabled={busy || !state.profileId} onClick={() => void boardingAction('check')}>Details</button>
-        {boardingState === 'boarded' ? <span role="status">Boarded</span> :
+        {boardingState !== 'boarded' &&
           <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
-      </div>
-    </div>
-    <div className="game-wallet-row game-wallet-payment-row">
-    <button className="story-button" data-payment-revision={paymentRevision} aria-describedby="game-payment-status" disabled={busy || !playerActive || !controller?.canPayPlayer?.()} onClick={() => void payPlayer()}>F3. Send 1000 Sats (Game-&gt;Player){paymentBlockReason === 'Awaiting Balance' ? ' (Awaiting Balance)' : ''}</button>
-    <div className="game-wallet-actions">
+    </StoryButton>
+    <StoryButton label="F3. Send 1000 Sats (Game->Player)" sublabel={<>
       <span className="game-wallet-balance" role="status">Balance: {paymentBalance !== undefined ? `${paymentBalance} sats` : state.status === 'loading' ? 'Loading…' : 'Unavailable'}</span>
+      <span id="game-payment-status" role="status">{paymentBlockReason}</span>
+    </>}>
+      <button data-payment-revision={paymentRevision} aria-describedby="game-payment-status" disabled={busy || !playerActive || !controller?.canPayPlayer?.()} onClick={() => void payPlayer()}>Send 1000 Sats</button>
       <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
-    </div>
-    </div>
-    <p id="game-payment-status" role="status">{paymentBlockReason && paymentBlockReason !== 'Awaiting Balance' ? paymentBlockReason : ''}</p>
+    </StoryButton>
     {entry && !state.profileId && <form onSubmit={async event => {
       event.preventDefault();const input=phrase;setPhrase('');
       if(await controller?.importWallet(input))setEntry(false);
@@ -198,6 +202,7 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
     </form>}
   </StorySection>;
 }
+
 
 
 

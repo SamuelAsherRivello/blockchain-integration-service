@@ -4,6 +4,8 @@
 
 Allow players to deliberately end their local account session after acknowledging their backup, with reliable clearing and observable completion.
 
+**Story status:** A6 ✓ — complete, confirmed by the user on 2026-09-09.
+
 ## Requirements
 
 ### Requirement: Backup confirmation
@@ -20,26 +22,26 @@ The active account's Log Out action SHALL open a confirmation titled "Account Lo
 - **AND** the reopened checkbox is unchecked
 
 ### Requirement: Confirmed local logout
-Confirmed logout SHALL clear only integration-owned remembered account material and end the active local session. It SHALL preserve unrelated browser data and wallet assets and SHALL NOT depend on operator connectivity when no send, transfer, payable invoice, or receipt processing/reconciliation is unresolved. On confirmed success the Account dialogue SHALL remain open with Create Account / Restore Account visible; Restore SHALL be enabled and open A3 restoration. Back SHALL restore the preceding host presentation. Ordinary gameplay SHALL remain available. A payable invoice or unresolved receipt SHALL retain its receiving-operation clearing guard, including unknown receiving states. An unresolved send SHALL block account clearing, even when backup acknowledgement is checked, until reconciliation proves completion or safe failure. This guard SHALL apply across live contexts and after restart; offline uncertainty SHALL preserve recovery state rather than permit clearing.
+Confirmed logout SHALL clear integration-owned player account material and player operation/recovery journals after backup acknowledgement and separate pending-loss acknowledgement when the current pending count exceeds zero. A changed pending-operation set SHALL require fresh acknowledgement. Cleanup SHALL preserve unrelated browser data, remote wallet assets and separate Admin game-wallet identities. It SHALL NOT cancel submitted transactions or claim their completion. Confirmed cleanup SHALL invalidate live player sessions and request host-owned restart; ordinary gameplay SHALL remain available. Admin Reset SHALL retain its unresolved-operation guards.
 
 #### Scenario: Successful logout and reload
-- **WHEN** a player confirms logout with no unresolved send, transfer, payable invoice, or receipt processing/reconciliation and clearing succeeds
-- **THEN** no active profile remains and the logged-out Account dialogue appears
+- **WHEN** the player completes the required acknowledgements and local cleanup succeeds
+- **THEN** no active player profile or player recovery journal remains and the host receives the restart request
 - **AND** reloading the same origin does not restore the cleared account
 
 #### Scenario: Offline logout
-- **WHEN** the operator is unreachable but local storage is available and no send, transfer, payable invoice, or receipt processing/reconciliation is unresolved
-- **THEN** confirmed logout can complete without a wallet transaction or operator request
+- **WHEN** the operator is unreachable but local cleanup can be verified and the required acknowledgements are current
+- **THEN** logout can complete without a wallet transaction or operator request
 
 #### Scenario: Unresolved send
-- **WHEN** logout is requested while a send is submitting, pending or uncertain
-- **THEN** clearing is blocked with a status explanation and account/recovery material remains intact
-- **AND** navigation and ordinary gameplay remain available
+- **WHEN** the player requests logout while a send is pending or uncertain
+- **THEN** backup acknowledgement alone is insufficient; separate pending-loss acknowledgement is required
+- **AND** successful logout removes local recovery information without cancelling the send
 
 #### Scenario: Payable invoice or unresolved receipt
-- **WHEN** a payable invoice or unresolved receipt exists, including one hidden by navigation
-- **THEN** Log Out cannot clear the account and explains why it is blocked
-- **AND** Back and ordinary navigation remain available
+- **WHEN** supported receiving operations contribute unresolved recovery state to the pending-operation inventory
+- **THEN** explicit player logout requires the same current pending-loss acknowledgement and does not claim network cancellation
+- **AND** Admin Reset remains guarded while receipt recovery is unresolved
 
 ### Requirement: Truthful failure and retry
 While logout is pending the Pending Operation Dialog SHALL show Logging out... and prevent duplicate submission and cancellation of that operation. If clearing fails or cannot be confirmed, it SHALL show the failure without exposing secrets and offer only OK in the Pending Operation Dialog. It SHALL NOT claim success or emit a successful-disconnection event before confirmed clearing. OK SHALL close the dialog and the failed logout page, reconcile the account state, and require a fresh confirmation before another cleanup attempt. An unchecked acknowledgement SHALL prevent a further destructive submission.
@@ -70,7 +72,7 @@ The public production surface SHALL expose non-secret logout state and a disconn
 - **THEN** it does not publish later state or events to former subscribers
 
 ### Requirement: Protect unresolved transfers
-Once transaction execution is supported, Log Out and Reset SHALL be blocked while a transfer is unresolved, including after restart and across same-origin contexts. Merely editing a transfer without submission SHALL NOT block account clearing.
+Admin Reset SHALL remain blocked while a transfer is unresolved, including after restart and across same-origin contexts. Explicit player Log Out SHALL instead require backup and pending-loss acknowledgements under Confirmed local logout. Merely editing a transfer without submission SHALL NOT add a pending-loss acknowledgement.
 
 #### Scenario: Form without submission
 - **WHEN** the player has only entered an amount without submitting a transfer
@@ -78,4 +80,4 @@ Once transaction execution is supported, Log Out and Reset SHALL be blocked whil
 
 #### Scenario: Unresolved submission
 - **WHEN** a submitted transfer has not been reconciled
-- **THEN** account clearing is blocked with an explanation until resolution
+- **THEN** Admin Reset is blocked until resolution; explicit player logout remains available only through the required acknowledgement flow

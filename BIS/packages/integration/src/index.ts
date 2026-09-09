@@ -19,3 +19,5 @@ export {createBisContinue,getContinuePriceSats} from './core/game-continue';
 export type {BisGameContinueState,BisGameContinueOptions} from './core/game-continue';
 
 export type { BisPlayerRecipient } from './core/game-player-payment';
+
+export { MessageType } from './core/toasts';

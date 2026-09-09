@@ -8,17 +8,18 @@ import { useClipboardCopy } from './useClipboardCopy';
 import { CopyableValueField } from './CopyableValueField';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import { ConfirmationDialog } from './ConfirmationDialog';
+import type { BisToastOptions } from '../core/toasts';
 import type { BisBurnAssetRequest, BisBurnAssetResult } from '../core/burning';
 
 const preparedIcons = new Set<string>();
-function AssetIcon({url}: {url?:string}) {
+function AssetIcon({url, background = false}: {url?:string; background?:boolean}) {
   const [failed,setFailed]=useState<string>();
   let source:string|undefined;
   try {const parsed=new URL(url!);if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password)source=parsed.href;} catch { /* Missing or malformed metadata uses local artwork. */ }
   const [ready,setReady]=useState<string>();
   const image=useRef<HTMLImageElement>(null);
   const loading=!!source && failed!==source && ready!==source && !preparedIcons.has(source);
-  usePendingNotice(loading,'Loading...',undefined,()=>{});
+  usePendingNotice(loading && !background,'Loading...',undefined,()=>{});
   useEffect(()=>{
     if(!loading)return;
     const timer=setTimeout(()=>setFailed(source),30000);
@@ -32,7 +33,7 @@ function AssetIcon({url}: {url?:string}) {
   return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>}</span>;
 }
 
-function AssetDetails({asset}: {asset: BisAsset}) {
+function AssetDetails({asset, background}: {asset: BisAsset; background?:boolean}) {
   const id = useId();
   const report = formatAssetDetail(asset);
   const idCopy = useClipboardCopy(() => asset.assetId, asset);
@@ -40,7 +41,7 @@ function AssetDetails({asset}: {asset: BisAsset}) {
   return <>
     <CopyFieldLabel label="Details" copied={detailsCopy.status==='copied'} disabled={detailsCopy.status==='copying'} onCopy={()=>void detailsCopy.copy()} />
     <div className="bis-asset-summary">
-      <AssetIcon url={asset.iconUrl} />
+      <AssetIcon url={asset.iconUrl} background={background} />
       <strong className="bis-asset-quantity">{formatAssetQuantity(asset)}</strong>
       <span>{assetName(asset)}</span>
     </div>
@@ -66,25 +67,28 @@ function AssetListHeading({ report }: { report: string }) {
   </div>;
 }
 
-export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh, onBusyChange}: {assets: BisAssets; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void}) {
+export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [confirmation,setConfirmation]=useState<BisAsset>();
   const [burning,setBurning]=useState(false);
   const [burnError,setBurnError]=useState('');
+  const [backgroundImages,setBackgroundImages]=useState(false);
   const burnInFlight=useRef(false), burnOrigin=useRef(false), mounted=useRef(true);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;onBusyChange(false);};},[onBusyChange]);
   useEffect(()=>{onBusyChange(burning||!!confirmation);},[burning,confirmation,onBusyChange]);
   async function burn(asset:BisAsset) {
     if(burnInFlight.current)return;
     burnInFlight.current=true;burnOrigin.current=true;setConfirmation(undefined);setBurning(true);setBurnError('');
+    let confirmed=false;
     try {
+      onToast('Asset burn (Pending)', {messageType:'info'});
       const result=await onBurn({operationId:crypto.randomUUID(),assetId:asset.assetId,quantity:asset.quantity});
       if(!mounted.current)return;
       if(result.status!=='burned')setBurnError(result.code==='outcome-unknown'?'Outcome not yet confirmed. The burn may still complete. Do not submit it again.':result.message);
-      if(result.status==='burned'){setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;await onRefresh();}
-    } catch {if(mounted.current)setBurnError('Outcome not yet confirmed. The burn may still complete. Do not submit it again.');}
+      if(result.status==='burned'){confirmed=true;onToast('Asset burn (Confirmed)', {messageType:'success'});setBackgroundImages(true);setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;await onRefresh();}
+    } catch {if(mounted.current)setBurnError(confirmed?'Assets could not be loaded.':'Outcome not yet confirmed. The burn may still complete. Do not submit it again.');}
     finally {burnInFlight.current=false;if(mounted.current)setBurning(false);}
   }
   const rows = assets.status === 'ready' ? assets.assets : [];
@@ -121,7 +125,8 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   }, [detailOpen, assets, selectedId]);
   const loading = assets.status === 'idle' || assets.status === 'loading';
   useLayoutEffect(()=>{if(!burning && !burnError && assets.status==='ready')burnOrigin.current=false;},[burning,burnError,assets.status]);
-  usePendingNotice(burning || loading,burning?'Burning...':'Loading...', burnError || (assets.status==='unavailable'?'Assets could not be loaded.':undefined),()=>{
+  useEffect(()=>{if(loading && !burning)setBackgroundImages(false);},[loading,burning]);
+  usePendingNotice(loading && !burning,'Loading...', burnError || (assets.status==='unavailable'?'Assets could not be loaded.':undefined),()=>{
     setBurnError('');
     if(detailOpen || burnOrigin.current){burnOrigin.current=false;setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;if(assets.status!=='ready')void onRefresh();}
     else onBack();
@@ -130,12 +135,12 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
     <div className="bis-assets-content" aria-busy={loading}>
       {!detailOpen && <AssetListHeading key={report} report={report} />}
       {detailOpen ? <div className="bis-asset-detail">
-        {selected && <AssetDetails key={selected.assetId} asset={selected} />}
+        {selected && <AssetDetails key={selected.assetId} asset={selected} background={assets.status==='ready'&&assets.background} />}
       </div> : <ul ref={list} className="bis-asset-list" aria-label="Owned assets" onScroll={event => { scroll.current = event.currentTarget.scrollTop; }}>
         {rows.map(asset => <li key={asset.assetId}><button className="bis-asset-row" type="button" aria-pressed={selectedId === asset.assetId}
           ref={element => { if (element) buttons.current.set(asset.assetId, element); else buttons.current.delete(asset.assetId); }}
           onClick={() => { if (list.current) scroll.current = list.current.scrollTop; setSelectedId(asset.assetId); setNotice('');setBurnError(''); setDetailOpen(true); }}>
-          <AssetIcon url={asset.iconUrl} /><span className="bis-asset-row-text"><strong>{assetName(asset)}</strong><span>{formatAssetQuantity(asset)}</span><code>{shortAssetId(asset.assetId)}</code></span>
+          <AssetIcon url={asset.iconUrl} background={backgroundImages || assets.status==='ready'&&assets.background} /><span className="bis-asset-row-text"><strong>{assetName(asset)}</strong><span>{formatAssetQuantity(asset)}</span><code>{shortAssetId(asset.assetId)}</code></span>
         </button></li>)}
       </ul>}
       {notice && assets.status === 'ready' && <p role="status">{notice}</p>}
@@ -143,7 +148,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
     <div className={`bis-actions${detailOpen && selected ? ' bis-asset-detail-actions' : ''}`}>
       {detailOpen && selected && <button type="button" className="bis-button" disabled={burning || !explorerUrl} title={!explorerUrl ? 'Explorer unavailable: invalid asset ID.' : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>}
       {detailOpen && selected && <button className="bis-button bis-danger" disabled={burning} onClick={()=>setConfirmation(selected)}>Burn</button>}
-      <button className="bis-button" disabled={burning} onClick={() => {
+      <button className="bis-button bis-back" disabled={burning} onClick={() => {
       if (detailOpen) { restoreFocus.current = true; setDetailOpen(false); } else onBack();
     }}>Back</button></div>
     {confirmation && <ConfirmationDialog onCancel={()=>setConfirmation(undefined)} onConfirm={()=>void burn(confirmation)} />}

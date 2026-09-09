@@ -3,6 +3,8 @@
 ## Purpose
 Allow players and host applications to inspect and copy all Signet transaction history supplied by Arkade, including pending incoming funds and past incoming and outgoing transactions.
 
+**Story status:** A5 ✓ — complete, confirmed by the user on 2026-09-09.
+
 ## Requirements
 
 ### Requirement: Pending activity belongs to Transactions

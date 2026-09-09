@@ -48,12 +48,12 @@ document.getElementById('run')!.onclick=async()=>{
     button('OK').click();await wait(()=>!dialog());assert(!c.getState().accountAssets,'OK closes failed source page');checks.push('One retry, final error, OK closes source');
     mode='ready';c.openAccountAssets();await wait(()=>!dialog()&&!!host.querySelector('.bis-asset-row'));host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
     button('Burn').click();await tick();button('Cancel').click();await tick();assert(burns===0,'Confirmation cancel does not submit');
-    button('Burn').click();await tick();button('OK').click();await wait(()=>burns===1&&!!dialog());assert(dialog()?.textContent?.includes('Burning...'),'Burn label');
+    button('Burn').click();await tick();button('OK').click();await wait(()=>burns===1);assert(!dialog()&&!covered(),'Burn has no covering progress');assert(host.textContent?.includes('Asset burn (Pending)'),'Pending toast');assert(button('Burn').disabled,'Duplicate burn disabled');
     mode='pending';finishBurn!();await wait(()=>reads>failedBefore+2&&c.getState().assets.status==='loading');await tick();
-    assert(dialog()?.textContent?.includes('Burning...'),'Burning stays through refresh');assert(!host.textContent?.includes('Asset burned.'),'No completion message');
-    finishRead!([]);await wait(()=>!dialog());assert(!!host.querySelector('.bis-asset-list') && !host.querySelector('.bis-asset-row') && !host.textContent?.includes('No assets found.'),'Fresh empty holdings revealed');assert(burns===1,'Single submission');checks.push('Burn confirmation, one submission, continuous refresh, clean success');
+    assert(!dialog()&&!covered(),'Refresh has no covering progress');assert(!host.textContent?.includes('Asset burned.'),'No completion message');
+    finishRead!([]);await wait(()=>c.getState().assets.status==='ready'&&!dialog());assert(!!host.querySelector('.bis-asset-list') && !host.querySelector('.bis-asset-row') && !host.textContent?.includes('No assets found.'),'Fresh empty holdings revealed');assert(burns===1,'Single submission');const queue=getControls(c).toasts;const pending=queue.getSnapshot();assert(pending?.message==='Asset burn (Pending)'&&pending.messageType==='info','Pending classification');queue.complete(pending!.id);await tick();assert(host.textContent?.includes('Asset burn (Confirmed)')&&queue.getSnapshot()?.messageType==='success','Confirmed toast rendered');queue.clear();checks.push('Burn confirmation, one submission, nonblocking refresh, typed toast sequence');
     mode='ready';data=[asset];await c.refreshAssets();await wait(()=>!dialog());host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
-    button('Burn').click();await tick();button('OK').click();await wait(()=>burns===2&&!!dialog());
+    button('Burn').click();await tick();button('OK').click();await wait(()=>burns===2);assert(!dialog(),'Second burn has no covering progress');
     const beforeFailedRefresh=reads;mode='fail';finishBurn!();await wait(()=>!!dialog()?.querySelector('button'));
     assert(reads===beforeFailedRefresh+2&&burns===2,'Failed post-burn refresh retries only the read');
     mode='ready';button('OK').click();await wait(()=>!dialog());assert(c.getState().accountAssets&&host.querySelector('h2')?.textContent==='Assets','Failed burn preparation returns to prepared parent Assets');
@@ -69,6 +69,17 @@ document.getElementById('run')!.onclick=async()=>{
     c.closeAccount();c.openAccountReceive();await wait(()=>!dialog()&&!!host.querySelector('input'));assert(host.querySelector<HTMLInputElement>('input')?.value==='fixture-bitcoin','Receive prepared');
     c.closeAccount();c.openAccountDetails();await wait(()=>!dialog()&&!!host.querySelector('.bis-account-balances'));checks.push('Receive and balances prepared');
     c.openAccountRecovery();await wait(()=>!dialog()&&c.getState().recoveryStatus==='ready');getControls(c).hideRecovery();c.closeAccount();checks.push('Recovery preparation');
+    c.closeAccount();mode='ready';data=[asset];c.openAccountAssets();await wait(()=>!dialog()&&!!host.querySelector('.bis-asset-row'));
+    getControls(c).toasts.clear();
+    c.burnAsset=async request=>{data=[{...asset,assetId:'c'.repeat(68),iconUrl:'https://127.0.0.1:1/unavailable.png'}];return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:'d'.repeat(64)};};
+    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Burn').click();await tick();button('OK').click();await wait(()=>!host.querySelector('dialog')&&!!host.querySelector('.bis-asset-list'));await tick();
+    assert(!dialog(),'Immediate burn and uncached artwork do not open loading overlay');
+    const fastQueue=getControls(c).toasts,fastPending=fastQueue.getSnapshot();assert(fastPending?.message==='Asset burn (Pending)','Immediate success retains pending first');fastQueue.complete(fastPending!.id);assert(fastQueue.getSnapshot()?.message==='Asset burn (Confirmed)','Immediate success queues confirmed');fastQueue.clear();
+    checks.push('Immediate success FIFO and unavailable refreshed artwork');
+    data=[asset];await c.refreshAssets();await wait(()=>!dialog()&&!!host.querySelector('.bis-asset-row'));
+    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
+    let late:(()=>void)|undefined;c.burnAsset=async request=>{await new Promise<void>(resolve=>late=resolve);return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:'e'.repeat(64)};};
+    button('Burn').click();await tick();button('OK').click();await wait(()=>!!late);c.dispose();await tick();late!();await tick();assert(getControls(c).toasts.getSnapshot()===null,'Disposed callback does not revive notifications');checks.push('Disposed burn callback ignored');
     result.textContent='PASS\n'+checks.join('\n')+'\nFixtures only; no live wallet mutations.';
   } catch(error) {result.textContent='FAIL: '+(error instanceof Error?error.message:String(error))+'\n'+checks.join('\n');}
 };

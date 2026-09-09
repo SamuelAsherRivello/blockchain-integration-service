@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import { bech32m } from '@scure/base';
-import { ArkAddress, ReadonlyWallet, RestArkProvider, CSVMultisigTapscript, Wallet, Intent, networks } from '@arkade-os/sdk';
+import { ArkAddress, ReadonlyWallet, RestArkProvider, CSVMultisigTapscript, Wallet, Intent, networks, Transaction, Extension, Batch } from '@arkade-os/sdk';
 import { quoteBoarding, submitBoarding, inspectBoardingAssets } from '../src/arkade/boarding.ts';
 import { verifiedBoardingCommitment } from '../src/core/boarding-reconciliation.ts';
 import { writeBoardingRecord, readBoardingRecord } from '../src/core/boarding-record.ts';
@@ -15,7 +16,7 @@ const assets=[{assetId:'a'.repeat(64)+'0000',amount:9007199254740993n}];
 function fixture(t,{withAssets=true,value=280715}={}) {
  storage(t);
  const coin={txid:'b'.repeat(64),vout:0,value,...(withAssets?{assets}: {})};
- const info={network:'signet',fees:{txFeeRate:'0',intentFee:{}},utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n};
+ const info={network:'signet',sessionDuration:60n,fees:{txFeeRate:'0',intentFee:{}},utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n};
  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>info);
  t.mock.method(CSVMultisigTapscript,'decode',()=>({params:{timelock:{type:'blocks',value:100n}}}));
  const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:value,total:value,boarding:{total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async options=>{assert.deepEqual(options,{withRecoverable:false,withUnrolled:false});return [coin];}};
@@ -95,12 +96,61 @@ async function sdkOutputs(params) {
  const facade={getAddress:async()=>own.encode(),logUngatedInputs:async()=>{},network:networks.signet,
   recipientAddressContext:()=>({hrp:'tark',signerSet:{active:Buffer.from(point).toString('hex'),deprecated:[]}}),
   identity:{signerSession:()=>({getPublicKey:async()=>point})},
-  makeRegisterIntentSignature:async(_coins,outputs)=>{captured=outputs;throw stop;},makeDeleteIntentSignature:async()=>{}};
+  makeRegisterIntentSignature:async(_coins,outputs,onchainIndexes)=>{assert.deepEqual(onchainIndexes,params.outputs.flatMap((o,i)=>o.address===bitcoinAddress?[i]:[]));captured=outputs;throw stop;},makeDeleteIntentSignature:async()=>{}};
  await assert.rejects(Wallet.prototype._settleImpl.call(facade,params),error=>error===stop);
  return captured;
 }
+
+// Operator f48445b8: getOutputVtxosLeaves removes onchain receivers while
+// AssetGroup.toBatchLeafAssetGroup preserves asset output indices. Reproduce
+// those transformations on REAL SDK output construction, not a hand-corrected
+// leaf packet. No signing or network is involved.
+async function operatorRecipients(params) {
+ const outputs=await sdkOutputs(params);
+ const intent=new Transaction({version:3});
+ for(const output of outputs)intent.addOutput(output);
+ const packet=Extension.fromTx(intent).getAssetPacket();
+ const commitment=new Transaction({version:3});
+ const leaf=new Transaction({version:3});
+ const change=params.outputs.find(o=>o.address===own.encode());
+ commitment.addInput({txid:'d'.repeat(64),index:0,witnessUtxo:{script:own.pkScript,amount:BigInt(params.inputs.reduce((sum,c)=>sum+c.value,0))}});
+ commitment.addOutput({script:own.pkScript,amount:change.amount});
+ for(let i=0;i<params.outputs.length;i++) {
+  (params.outputs[i].address===bitcoinAddress?commitment:leaf).addOutput(outputs[i]);
+ }
+ if(packet)leaf.addOutput(Extension.create([packet.leafTxPacket(new Uint8Array(32).fill(1))]).txOut());
+ leaf.addInput({txid:commitment.id,index:0,witnessUtxo:{script:own.pkScript,amount:change.amount}});
+ const recipients=params.outputs.map(o=>({address:o.address,amount:Number(o.amount),...(o.address===own.encode()?{assets:params.inputs.flatMap(c=>c.assets??[])}:{})}));
+ let nonces=0;
+ const provider={confirmRegistration:async()=>{},submitTreeNonces:async()=>{nonces++;}};
+ const session={getPublicKey:async()=>point,init:async()=>{},getNonces:async()=>new Map()};
+ const handler=Wallet.prototype.createBatchHandler.call({arkProvider:provider,network:networks.signet,forfeitPubkey:point},'fixture-intent',params.inputs,recipients,session);
+ const psbt=tx=>Buffer.from(tx.toPSBT()).toString('base64');
+ async function* events(){
+  yield {type:'batch_started',id:'fixture-batch',intentIdHashes:[createHash('sha256').update('fixture-intent').digest('hex')],batchExpiry:172032n};
+  yield {type:'tree_tx',id:'fixture-batch',batchIndex:0,chunk:{tx:psbt(leaf),children:{}}};
+  yield {type:'tree_signing_started',id:'fixture-batch',unsignedCommitmentTx:psbt(commitment),cosignersPublicKeys:[Buffer.from(point).toString('hex')]};
+ }
+ try {await Batch.join(events(),handler);}
+ catch(error){if(error.message!=='event stream closed')throw error;}
+ assert.equal(nonces,1,'Real tree and recipient validators must pass before nonce submission');
+}
+
+test('Bitcoin-first asset withdrawal reproduces operator leaf index mismatch',async t=>{
+ const f=fixture(t,{value:263715});
+ await assert.rejects(operatorRecipients({inputs:[f.coin],outputs:[{address:bitcoinAddress,amount:1000n},{address:own.encode(),amount:262715n}]}),/asset output not found.*index 0/);
+});
+
+test('production withdrawal output order preserves asset indices through operator leaf construction',async t=>{
+ const f=fixture(t,{value:263715});let captured;
+ f.coin.assets=[{assetId:'2ad590810a27d0568431a9eda264d0d1e37440605193341c27924196de1da1950000',amount:1n},{assetId:'dc84cce91c3c9cb943ea5016ece2ccc309a97ed7a7df535accb7d809ddcc91110000',amount:1n}];
+ t.mock.method(Wallet,'create',async()=>({...f.wallet,settle:async params=>{captured=params;throw Error('stop before signing');}}));
+ await submitBoarding(account,await f.quote(1000));
+ assert.ok(captured);
+ await operatorRecipients(captured);
+});
 function intentProof(coins,outputs) {
- const tx=Intent.create({type:'register',onchain_output_indexes:[0],valid_at:0,expire_at:0,cosigners_public_keys:[]},
+ const tx=Intent.create({type:'register',onchain_output_indexes:[1],valid_at:0,expire_at:0,cosigners_public_keys:[]},
   coins.map(coin=>({txid:coin.txid,index:coin.vout,witnessUtxo:{script:own.pkScript,amount:BigInt(coin.value)}})),outputs);
  return Buffer.from(tx.toPSBT()).toString('base64');
 }
@@ -112,12 +162,12 @@ function storage(t) {
  return values;
 }
 test('SDK settlement preserves exact asset quantities; altered asset proofs are rejected',async t=>{
- const f=fixture(t),params={inputs:[f.coin],outputs:[{address:bitcoinAddress,amount:1000n},{address:own.encode(),amount:279715n}]};
+ const f=fixture(t),params={inputs:[f.coin],outputs:[{address:own.encode(),amount:279715n},{address:bitcoinAddress,amount:1000n}]};
  const outputs=await sdkOutputs(params);
  const change={script:Buffer.from(own.pkScript).toString('hex'),sats:279715,assets:assets.map(a=>({...a,amount:String(a.amount)}))};
  assert.equal(outputs.length,3);
  assert.doesNotThrow(()=>inspectBoardingAssets(intentProof(params.inputs,outputs),params,change));
- for(const changed of [outputs.slice(0,2),[outputs[0],{...outputs[1],amount:279714n},outputs[2]],[outputs[0],{...outputs[1],script:new Uint8Array([0x51])},outputs[2]],[outputs[0],outputs[1],{...outputs[2],script:new Uint8Array([0x6a])}]]) {
+ for(const changed of [outputs.slice(0,2),[{...outputs[0],amount:279714n},outputs[1],outputs[2]],[{...outputs[0],script:new Uint8Array([0x51])},outputs[1],outputs[2]],[outputs[0],outputs[1],{...outputs[2],script:new Uint8Array([0x6a])}]]) {
   assert.throws(()=>inspectBoardingAssets(intentProof(params.inputs,changed),params,change));
  }
  assert.throws(()=>inspectBoardingAssets(intentProof([{...f.coin,txid:'c'.repeat(64)}],outputs),params,change));
@@ -125,7 +175,7 @@ test('SDK settlement preserves exact asset quantities; altered asset proofs are 
 test('SDK settlement aggregates multiple assets from multiple inputs without depending on asset order',async t=>{
  const f=fixture(t);f.coin.assets=[{assetId:'f'.repeat(68),amount:2n},...assets];
  const other={...f.coin,txid:'c'.repeat(64),value:1000,assets:[{...assets[0],amount:3n}]};
- const params={inputs:[f.coin,other],outputs:[{address:bitcoinAddress,amount:281385n},{address:own.encode(),amount:330n}]};
+ const params={inputs:[f.coin,other],outputs:[{address:own.encode(),amount:330n},{address:bitcoinAddress,amount:281385n}]};
  const change={script:Buffer.from(own.pkScript).toString('hex'),sats:330,assets:[{...assets[0],amount:String(assets[0].amount+3n)},{assetId:'f'.repeat(68),amount:'2'}]};
  const outputs=await sdkOutputs(params);
  assert.doesNotThrow(()=>inspectBoardingAssets(intentProof(params.inputs,outputs),params,change));
@@ -169,7 +219,7 @@ test('altered settlement proofs cannot reach registration',async t=>{
    if(kind==='quantity')proofInputs=[{...f.coin,assets:[{...assets[0],amount:1n}]}];
    if(kind==='input')proofInputs=[{...f.coin,txid:'c'.repeat(64)}];
    const outputs=await sdkOutputs({...params,inputs:proofInputs});
-   if(kind==='allocation')outputs[1]={...outputs[1],script:outputs[0].script};
+   if(kind==='allocation')outputs[0]={...outputs[0],script:outputs[1].script};
    await options.arkProvider.registerIntent({proof:intentProof(proofInputs,outputs)});
    throw Error('unexpected registration');
   }}));

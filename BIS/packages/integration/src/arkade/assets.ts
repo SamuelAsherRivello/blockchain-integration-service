@@ -1,4 +1,4 @@
-import { MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, type AssetDetails } from '@arkade-os/sdk';
+import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, type AssetDetails } from '@arkade-os/sdk';
 import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
 import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, assertNoPendingBurn, type BisBurnAssetRequest, type BisBurnAssetResult } from '../core/burning.ts';
@@ -165,4 +165,30 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
     if (submitted) throw new AssetError('outcome-unknown');
     throw e;
   } finally { open = false; }
+}
+
+/** Stream wallet output changes directly; no history or balance polling. */
+export async function watchAssetChanges(account: AccountSecret, signal: AbortSignal, changed: () => void): Promise<void> {
+  const p = providers(signal);
+  const identity = await MnemonicIdentity.fromMnemonic(account.phrase, {isMainnet:false}).toReadonly();
+  const wallet = await ReadonlyWallet.create({identity, arkProvider:p.arkProvider, indexerProvider:p.indexerProvider, storage:storage()});
+  try {
+    signal.throwIfAborted();
+    const address = ArkAddress.decode(await wallet.getAddress());
+    const hex = (bytes:Uint8Array) => Array.from(bytes, byte=>byte.toString(16).padStart(2,'0')).join('');
+    await observeAssetScripts(p.indexerProvider, [hex(address.pkScript), hex(address.subdustPkScript)], signal, changed);
+  } finally { await wallet.dispose(); }
+}
+
+export async function observeAssetScripts(provider: Pick<RestIndexerProvider,'subscribeForScripts'|'getSubscription'|'unsubscribeForScripts'>, scripts:string[], signal:AbortSignal, changed:()=>void):Promise<void> {
+  const id = await provider.subscribeForScripts(scripts);
+  try {
+    signal.throwIfAborted();
+    // Re-read once after registration to close the initial read/subscription gap.
+    changed();
+    for await (const event of provider.getSubscription(id, signal)) {
+      if(signal.aborted)break;
+      if(event.newVtxos.length || event.spentVtxos.length || event.sweptVtxos.length) changed();
+    }
+  } finally { await provider.unsubscribeForScripts(id).catch(()=>{}); }
 }

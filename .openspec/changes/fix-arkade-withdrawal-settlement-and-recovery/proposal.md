@@ -6,7 +6,7 @@ Arkade-to-Bitcoin withdrawals have registered and confirmed batch participation 
 
 - Diagnose and repair the actual failure between batch participation and completed settlement, using the installed SDK batch/signing path and structured, secret-free evidence rather than a mocked successful `settle()` return.
 - Establish an operation-specific recovery path for existing interrupted withdrawals: verify completion first, inspect supported intent lookup, and enable explicit cancellation only after its targeting and settlement-race semantics are proven.
-- Preserve original operation identities and reservations across navigation, reload and account logout/restoration until verified terminal resolution; logout is not financial recovery.
+- Preserve original operation identities and reservations across navigation, reload and restoration until verified terminal resolution; allow backup-acknowledged logout to clear player transaction journals and reservations; administrative reset guards remain.
 - Refresh spendable funds, balances and Activity after verified resolution; distinguish temporarily reserved funds from a genuinely insufficient balance when B1 attempts payment.
 - Require the user's full account-switch/pay/mint/pay/withdraw/pay sequence, a real confirmed Signet Bitcoin receipt, retained assets and post-resolution payment without logout as acceptance evidence.
 - Record official documentation and current upstream issue findings in the design. No reviewed issue establishes the exact local signing failure; proof-based lookup is a capability candidate, not a terminal-status guarantee.
@@ -31,4 +31,4 @@ The baseline dependency is `@arkade-os/sdk` 0.4.67. No SDK upgrade, custom signi
 
 This change follows the unfinished live gates of `fix-asset-bearing-arkade-withdrawals` and `add-bitcoin-boarding-settlement`, and the documented incomplete outcome of archived `repair-transfer-settlement-lifecycle`. It overlaps `cancel-pending-transfer`; implementation must reconcile shared requirements rather than create a second cancellation controller. Those changes' open acceptance gates remain open until independently satisfied.
 
-Unresolved: the exact SDK/operator failure, deployed operator support for proof-based lookup, and whether its cancellation semantics can prove finality for the old intents. These are explicit investigation gates, not assumed capabilities. Implementation must not be declared complete merely because it reports these limitations more clearly.
+The asset-bearing withdrawal output-index defect is now reproduced through the installed SDK handler and corrected by placing Arkade asset change before Bitcoin output; see VERIFICATION.md. Still unresolved: live completion after the correction, deployed operator support for proof-based lookup, and whether cancellation semantics can prove finality for the old intents. Implementation must not be declared complete merely because it reports these limitations more clearly.

@@ -1,9 +1,12 @@
 import type { BoardingRecord } from './boarding-record.ts';
+import { boardingFailureLabels, publicBoardingFailure } from './boarding-record.ts';
 import type { BisTransferStatus } from './context.ts';
 import { boardingWorkerActive } from './boarding-execution.ts';
 export function settlementDiagnostic(error:unknown):NonNullable<BoardingRecord['diagnostic']> {
+  try {
   if(error instanceof Error&&error.name==='ServerResponseMismatchError')return 'response-mismatch';
   if(error instanceof Error&&error.message==='event stream closed')return 'event-stream-closed';
+  } catch { /* Raw provider errors are not trusted data. */ }
   return 'settlement-interrupted';
 }
 export function transferProgressLines(status:BisTransferStatus):string[] {
@@ -12,9 +15,13 @@ export function transferProgressLines(status:BisTransferStatus):string[] {
   const actions:Record<string,string>={'confirm-registration':'Confirm batch participation','tree-nonces':'Submit signing nonces','tree-signatures':'Submit tree signatures','forfeit-signatures':'Submit final signatures','event-stream':'Read settlement updates',settlement:'Settle transfer','validate-tree':'Validate proposed transaction tree','validate-finalization':'Validate final transaction'};
   const stage=stages[status.stage??''],execution=executions[status.execution??''],action=actions[status.action??''];
   const time=new Date(Number.isSafeInteger(status.observedAt)&&status.observedAt!>0?status.observedAt!:NaN);
+  const failure=publicBoardingFailure(status.failure);
   return [`Progress: ${typeof stage==='string'?stage:'Unknown'}`,`Processing: ${typeof execution==='string'?execution:'Active processing cannot be confirmed'}`,
     ...(typeof action==='string'?[`Last signing action attempted: ${action}`]:[]),
-    ...(Number.isFinite(time.getTime())?[`Progress observed by this app (UTC): ${time.toISOString()}`]:[])];
+    ...(Number.isFinite(time.getTime())?[`Progress observed by this app (UTC): ${time.toISOString()}`]:[]),
+    ...(failure?[`Failure detail: ${boardingFailureLabels[failure.code]}`,
+      `Last observed boundary at failure: ${failure.stage?stages[failure.stage]:'Unknown'}${failure.action?`; ${actions[failure.action]}`:''}`,
+      ...(failure.sdkVersion?[`Arkade SDK: ${failure.sdkVersion}`]:[]),...(failure.batchId?[`Observed batch: ${failure.batchId}`]:[])]:[])];
 }
 
 /** A public-data projection, never a serialization of wallet or provider state. */
@@ -63,5 +70,5 @@ export function settlementTimeoutMs(session: {sessionDuration: bigint; scheduled
 export function transferStatus(record?: BoardingRecord, verification: 'live' | 'unavailable' = 'live') {
   const stage=record?.status==='succeeded'?'confirmed':record?.progress?.stage??(record?.commitmentTxid?'broadcast':record?.phase==='registered'?'registered':undefined);
   const execution=record?.status==='succeeded'?'complete':record?.commitmentTxid||record?.progress?.execution==='awaiting-confirmation'?'awaiting-confirmation':record?.progress?.execution==='interrupted'||record?.diagnostic?'interrupted':record&&boardingWorkerActive(record.profileId,record.id)?'running':'unknown';
-  return Object.freeze({status:record?.status??'idle',amountSats:record?.quote.amountSats,commitmentTxid:record?.commitmentTxid,operationId:record?.id,intentId:record?.intentId,direction:record?.quote.direction,phase:record?.phase,diagnostic:record?.diagnostic,verification,stage,execution,observedAt:record?.progress?.observedAt,action:record?.progress?.action});
+  return Object.freeze({status:record?.status??'idle',amountSats:record?.quote.amountSats,commitmentTxid:record?.commitmentTxid,operationId:record?.id,intentId:record?.intentId,direction:record?.quote.direction,phase:record?.phase,diagnostic:record?.diagnostic,verification,stage,execution,observedAt:record?.progress?.observedAt,action:record?.progress?.action,failure:publicBoardingFailure(record?.failure)});
 }

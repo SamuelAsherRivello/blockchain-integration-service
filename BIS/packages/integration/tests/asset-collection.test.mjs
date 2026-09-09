@@ -24,7 +24,7 @@ test('fresh ownership permits recollection and preflight catches a newly acquire
 });
 test('successful mint delivers one image toast, duplicate clicks are suppressed',async()=>{
   const f=fixture();await f.controller.refresh();f.setResult('wait');const first=f.controller.collect();await new Promise(resolve=>setTimeout(resolve,0));assert.equal(f.controller.getState().busy,true);
-  await f.controller.collect();f.release();await first;assert.equal(f.calls.length,1);assert.equal(f.controller.getState().status,'owned');assert.deepEqual(f.toasts,[['Level 1 Trophy collected!',{imageUrl:holding.iconUrl}]]);f.controller.dispose();
+  await f.controller.collect();f.release();await first;assert.equal(f.calls.length,1);assert.equal(f.controller.getState().status,'owned');assert.deepEqual(f.toasts,[['Level 1 Trophy collected!',{imageUrl:holding.iconUrl,messageType:'success'}]]);f.controller.dispose();
 });
 test('pending same trophy reconciles exact request and unrelated pending blocks collection',async()=>{
   const f=fixture();const prior={...asset,operationId:'original',iconUrl:'https://example.com/old.png'};f.setPending(prior);await f.controller.refresh();assert.equal(f.controller.getState().status,'uncertain');await f.controller.check();assert.deepEqual(f.calls,[prior]);f.controller.dispose();

@@ -12,7 +12,10 @@ function headingAnchors() {
     const text = (node: HeadingNode): string => node.type === 'text' ? node.value ?? '' : (node.children ?? []).map(text).join('');
     const visit = (node: HeadingNode) => {
       if (node.tagName && /^h[1-6]$/.test(node.tagName)) {
-        const base = text(node).toLowerCase().replace(/[^\p{L}\p{N}\p{M}_\-\s]/gu, '').replace(/ /g, '-');
+        const title = text(node).replace(/\s*✓\s*$/, '').trim();
+        const base = title.startsWith('E1. Open Signet Faucet(s)') ? 'e1-fund-signet-sats'
+          : title === 'F1. Admin game wallet / Accept User Pay To Continue' ? 'f1-admin-game-wallet-and-pay-to-continue'
+          : title.toLowerCase().replace(/[^\p{L}\p{N}\p{M}_\-\s]/gu, '').replace(/ /g, '-');
         let id = base;
         for (let suffix = 1; used.has(id); suffix++) id = `${base}-${suffix}`;
         used.add(id);

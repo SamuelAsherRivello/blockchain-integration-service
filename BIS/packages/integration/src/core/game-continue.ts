@@ -38,18 +38,18 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
     if (disposed || !request || delivered) return;
     if (result.operationId !== request.operationId || result.context !== request.context
       || result.profileId !== profileId || result.sats !== request.sats || (request.recipient !== undefined && result.recipient !== request.recipient)) {
-      message = 'Payment is still being checked.'; publish(); schedule(); return;
+      message = `You sent ${getContinuePriceSats()} sats (Pending)`; publish(); schedule(); return;
     }
     status = result.status;
-    message = status === 'pending' ? 'Payment is still processing…'
-      : status === 'failed' ? result.message || 'Payment failed. No continue was granted. You can try again or restart.' : '';
+    message = status === 'pending' ? `You sent ${getContinuePriceSats()} sats (Pending)`
+      : status === 'failed' ? `You could not send ${getContinuePriceSats()} sats (Failed)` : '';
     if (status === 'succeeded') {
       delivered = true;
       clearTimeout(timer);
       const sameAccount = loggedIn() && context.getState().profileId === profileId;
       if (!sameAccount) message = 'Payment succeeded for the original account. Restart to begin a new session.';
       publish();
-      context.showToast(`User paid ${result.sats} sats to continue`, {icon: 'lightning'});
+      context.showToast(`You sent ${result.sats} sats (Confirmed)`, {messageType: 'success'});
       if (sameAccount && !disposed) options.onSuccess(result);
       return;
     }
@@ -75,7 +75,7 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
       if (!getState().canPay) return;
       profileId = context.getState().profileId;
       request = Object.freeze({operationId: crypto.randomUUID(), sats: getContinuePriceSats(), context: options.context, ...(context.getContinueRecipient?.() ? {recipient:context.getContinueRecipient()!} : {})});
-      status = 'pending'; message = 'Payment is processing…'; publish();
+      status = 'pending'; message = `You sent ${getContinuePriceSats()} sats (Pending)`; publish();
       let result: BisContinueResult | undefined;
       try { result = await context.requestContinue(request); }
       catch (error) {
@@ -88,7 +88,7 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
           if (!result && !disposed) {
             status = 'failed'; message = error instanceof BoardingBlockedError || error instanceof SendError
               ? error.message
-              : 'Payment could not be submitted. Check your account and funds, then try again or restart.'; publish();
+              : `You could not send ${getContinuePriceSats()} sats (Failed)`; publish();
           }
         } catch { schedule(); }
       }

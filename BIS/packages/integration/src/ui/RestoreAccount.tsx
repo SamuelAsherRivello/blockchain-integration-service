@@ -78,7 +78,7 @@ export function RestoreAccount({ context, phase }: { context: BisContext; phase:
     {pasteError && <p role="alert">{pasteError}</p>}
     <div className="bis-actions">
       <button className="bis-button bis-primary" disabled={busy||pasting||!valid} onClick={()=>{revision.current++;setShow(false);void (phase==='restore-error'?context.retry():getControls(context).restore(words.join(' ')));}}>{phase==='restore-error'?'Retry':'⚡ Restore'}</button>
-      <button className="bis-button" disabled={phase==='restore-saving'} onClick={()=>context.closeAccount()}>Back</button>
+      <button className="bis-button bis-back" disabled={phase==='restore-saving'} onClick={()=>context.closeAccount()}>Back</button>
     </div>
   </>;
 }

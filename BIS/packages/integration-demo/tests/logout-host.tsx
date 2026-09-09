@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import { clearBrowserPreferences } from '../../integration/src/core/logout-cleanup';
 import { createContext } from '../../integration/src/core/context';
 import { createBisUi } from '@bis/integration';
 import { GamePreview } from '../src/preview/GamePreview';
@@ -10,7 +11,7 @@ const pendingCount = new URLSearchParams(location.search).has('pending') ? 5 : 0
 const journal = new Map<string,string>();
 Object.defineProperty(window, 'localStorage', {configurable:true, value:{
   get length(){return journal.size;}, key:(i:number)=>[...journal.keys()][i]??null,
-  getItem:(key:string)=>journal.get(key)??null,
+  getItem:(key:string)=>journal.get(key)??null, removeItem:(key:string)=>{journal.delete(key);},
 }});
 function seedPending() {
   journal.clear();
@@ -26,7 +27,7 @@ function fixture() {
     reset:async(expected)=>{
       if(fail){fail=false;throw Error('test failure');}
       if(expected!==generation)throw Error('stale');
-      account=null;generation++;clears++;
+      clearBrowserPreferences(localStorage);account=null;generation++;clears++;
     },
     subscribe:()=>()=>{},
   },async()=>{throw Error('Creation outside this fixture');},async()=>'component-test');
@@ -58,11 +59,15 @@ document.getElementById('run')!.onclick=async()=>{
       assert(check.labels?.[0]?.textContent?.includes('I have backed up my wallet'),'checkbox label');
       assert(!target.querySelector('.bis-recovery') && !target.textContent?.includes('Copy to Clipboard'),'no recovery access');
       check.click();await tick();
-      let pendingCheck=target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1];
-      assert(!!pendingCheck === (pendingCount>0),'pending checkbox visibility');
+      assert(target.querySelectorAll('input[type=checkbox]').length===(pendingCount ? 2 : 1),'pending checkbox visibility');
       if(pendingCount){
-        assert(pendingCheck.labels?.[0]?.textContent==='I accept losing my (5) pending transactions.','exact pending label');
-        assert(button(target,'Log Out').disabled,'pending consent required');pendingCheck.click();await tick();
+        const pending=target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1];
+        assert(pending.labels?.[0]?.textContent==='I accept losing my (5) pending transactions.','original pending label');
+        assert(button(target,'Log Out').disabled,'pending acknowledgement required');
+        pending.click();await tick();
+        assert(!button(target,'Log Out').disabled,'both checked');
+        pending.click();await tick();assert(button(target,'Log Out').disabled,'unchecking pending disables logout');
+        pending.click();await tick();
       }
       assert(!button(target,'Log Out').disabled,'checked gate');
       check.click();await tick();assert(button(target,'Log Out').disabled,'unchecked again');
@@ -72,8 +77,7 @@ document.getElementById('run')!.onclick=async()=>{
       check=target.querySelector<HTMLInputElement>('input[type=checkbox]')!;
       assert(!check.checked,'reopening resets acknowledgement');
       check.click();await tick();
-      pendingCheck=target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1];
-      if(pendingCount){assert(!pendingCheck.checked,'pending acknowledgement resets');pendingCheck.click();await tick();}
+      if(pendingCount){const pending=target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1];assert(!pending.checked,'reopening resets pending acknowledgement');pending.click();await tick();}
       f.failNext();button(target,'Log Out').click();await tick();
       assert(f.context.getState().phase==='logout-error' && target.querySelector('.bis-pending-dialog'),'error prompt');
       button(target,'OK').click();await tick();
@@ -82,9 +86,10 @@ document.getElementById('run')!.onclick=async()=>{
       if(pendingCount){target.querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1].click();await tick();}
       button(target,'Log Out').click();await tick();
       assert(!f.context.getState().hasProfile && f.clears()===1,'confirmed success');
+      assert(journal.size===0,'player transaction records cleared');
       assert(!target.querySelector('[role="dialog"]') && !button(target,'⚡ Create Account') && !button(target,'⚡ Restore Account'),'success closes without chooser');
       assert(button(target,'⚡ Account'),'prior host destination');
     }
-    output.textContent=`PASS: ${targets.length} host(s), ${pendingCount} pending — checkbox, cancellation, reopening, failure/OK, fresh confirmation, success, destination, no recovery access.`;
+    output.textContent=pendingCount?`PASS: ${targets.length} host(s), pending operations allow confirmed logout and clear recovery data.`:`PASS: ${targets.length} host(s), checkbox, cancellation, reopening, failure/OK, fresh confirmation, success, destination, no recovery access.`;
   }catch(error){output.textContent=`FAIL: ${error instanceof Error?error.message:'component checks'}`;}
 };

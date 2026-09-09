@@ -1,7 +1,7 @@
 import type { AccountSecret } from '../arkade/account.ts';
 import { assertNoPendingSend } from './sending.ts';
 import { assertNoPendingBoarding, withWalletMutation } from './boarding-record.ts';
-import { browserMutationLock, clearBrowserPreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
+import { browserMutationLock, clearBrowserPreferences, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
 export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
 export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
 export interface AccountStorage {
@@ -102,8 +102,6 @@ export function createAccountStorage(): AccountStorage {
         await withBrowserMutation(async () => {
           const loaded = await this.load();
           if (loaded.account?.profileId !== options.profileId || (expectedGeneration !== undefined && loaded.generation !== expectedGeneration)) throw Error('The account changed.');
-          const operations = pendingLogoutOperations();
-          if (operations.fingerprint !== options.operations.fingerprint || operations.count !== options.operations.count) throw Error('Pending operations changed. Review logout again.');
           // No SDK IndexedDB repositories are used by this app: all SDK wallets
           // explicitly use in-memory repositories. Never clear an unrelated SDK DB.
           clearBrowserPreferences(globalThis.localStorage);

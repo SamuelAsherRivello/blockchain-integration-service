@@ -1,3 +1,5 @@
+**F2. Board Wallet: Complete ✓**, confirmed by the user on 2026-09-09. Historical verification evidence is retained; this update records user acceptance without claiming new automated or live checks.
+
 ## 1. Implement
 
 - [x] 1.1 Extend live boarding classification for confirmed matching transactions; verify confirmed, pending, unrelated and missing evidence with focused tests.

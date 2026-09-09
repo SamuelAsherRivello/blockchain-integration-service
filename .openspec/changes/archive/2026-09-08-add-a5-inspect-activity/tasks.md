@@ -1,3 +1,7 @@
+## Completion confirmation — 2026-09-09
+
+A5 is complete, confirmed by the user. Remaining acceptance checkboxes below are closed on that confirmation; no new live-wallet verification was performed during this documentation update.
+
 ## 1. SDK capability gate
 
 - [x] 1.1 Verify the existing wallet's SDK history, boarding coin snapshot, and subscriptions on Signet; record incoming/outgoing history coverage, spent-record retention, available timestamps/identifiers, any SDK pagination, and evidence for existing unconfirmed deposits and updates without secrets. If required data is unavailable, stop and report the limitation without adding a direct explorer client.
@@ -12,7 +16,7 @@
 ## 3. Demo and delivery evidence
 
 - [x] 3.1 Add Account / Inspect Activity using production public APIs and the existing logged-out chooser; verify no automatic account creation or fabricated transactions, and independent-host parity.
-- [ ] 3.2 Verify the real Signet flow in browser, including an already-pending deposit, a later SDK notification, confirmation transition, SDK-supplied outgoing/spent history where available, newest-first display, and Copy-all. Inspect that application activity traffic stays behind the SDK and record any unobserved live step as pending; do not initiate payments merely to manufacture verification history.
+- [x] 3.2 Verify the real Signet flow in browser, including an already-pending deposit, a later SDK notification, confirmation transition, SDK-supplied outgoing/spent history where available, newest-first display, and Copy-all. Inspect that application activity traffic stays behind the SDK and record any unobserved live step as pending; do not initiate payments merely to manufacture verification history.
 - [x] 3.3 Synchronize current user-story/package documentation and OpenSpec context with delivered A5 behavior while retaining story IDs and unrelated verification notes; reconcile concurrent address/achievement menu and spec changes without reverting them. Verify documentation against actual runtime and add an A5 verification record.
 - [x] 3.4 Run relevant package checks and targeted regression tests for existing Account Details/navigation and the new activity lifecycle; record outcomes before reporting implementation complete. Sync delta specs only when finalizing the implemented change.
 

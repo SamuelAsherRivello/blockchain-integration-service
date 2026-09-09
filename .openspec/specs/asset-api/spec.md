@@ -3,6 +3,8 @@
 ## Purpose
 Provide generic UI-independent asset minting and ownership queries for hosts, with exact quantities, safe retries, and no game-specific rules.
 
+**Story status:** C1. Mint Asset ✓ — complete, confirmed by the user on 2026-09-09. Historical verification records retain their original coverage and limitations.
+
 ## Requirements
 
 ### Requirement: Mint through a UI-independent public API

@@ -25,7 +25,7 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
  let account={profileId:'first-account',phrase:'legal winner thank year wave sausage worth useful legal winner thank yellow'},generation=0;
  const listeners=new Set();
  const storage={load:async()=>({account,generation}),subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);},reset:async()=>{account=null;generation++;clearBrowserPreferences(localStorage);}};
- let coins=[],payments=0,metadata,release,workerDone;
+ let coins=[],payments=0,metadata,release,workerDone,transactions=[],consumed=[];
  const gate=new Promise(r=>release=r),finished=new Promise(r=>workerDone=r);
  const total=()=>coins.reduce((n,c)=>n+c.value,0);
  const info={network:'signet',fees:{txFeeRate:'0',intentFee:{}},sessionDuration:60n,utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n};
@@ -33,10 +33,10 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
  t.mock.method(RestArkProvider.prototype,'registerIntent',async()=> 'pending-sequence-swap');
  t.mock.method(RestArkProvider.prototype,'submitTx',async()=>({arkTxid:'c'.repeat(64),signedCheckpointTxs:[]}));
  t.mock.method(RestArkProvider.prototype,'finalizeTx',async()=>{});
- t.mock.method(RestIndexerProvider.prototype,'getVtxos',async()=>({vtxos:coins}));
+ t.mock.method(RestIndexerProvider.prototype,'getVtxos',async()=>({vtxos:[...coins,...consumed]}));
  t.mock.method(RestIndexerProvider.prototype,'getAssetDetails',async assetId=>({assetId,metadata}));
  t.mock.method(CSVMultisigTapscript,'decode',()=>({params:{timelock:{type:'blocks',value:100n}}}));
- const base=()=>({dustAmount:330n,boardingTapscript:{exitScript:'00'},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoin,getBoardingUtxos:async()=>[],getSpendableVtxos:async()=>coins,getVtxos:async()=>coins,getBalance:async()=>({available:total(),total:total(),boarding:{total:0},assets:coins.flatMap(c=>c.assets??[])}),getProviderConnectionState:()=>({mode:'online',source:'live'}),onchainProvider:{getChainTip:async()=>({height:1}),getTransactions:async()=>[]},dispose:async()=>{}});
+ const base=()=>({dustAmount:330n,boardingTapscript:{exitScript:'00'},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoin,getBoardingUtxos:async()=>[],getSpendableVtxos:async()=>coins,getVtxos:async()=>coins,getBalance:async()=>({available:total(),total:total(),boarding:{total:0},assets:coins.flatMap(c=>c.assets??[])}),getProviderConnectionState:()=>({mode:'online',source:'live'}),onchainProvider:{getChainTip:async()=>({height:1}),getTransactions:async()=>transactions},dispose:async()=>{}});
  t.mock.method(ReadonlyWallet,'create',async options=>{const w={...base(),...options};w.assetManager=new AssetManager(w);return w;});
  t.mock.method(Wallet,'create',async options=>{
   let settling=false;
@@ -69,7 +69,7 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
     const stop=new Error('capture signing boundary');let outputs;
     const facade={getAddress:async()=>own.encode(),logUngatedInputs:async()=>{},network:networks.signet,recipientAddressContext:()=>({hrp:'tark',signerSet:{active:Buffer.from(points[0]).toString('hex'),deprecated:[]}}),identity:{signerSession:()=>({getPublicKey:async()=>points[0]})},makeRegisterIntentSignature:async(_inputs,next)=>{outputs=next;throw stop;},makeDeleteIntentSignature:async()=>{}};
     await assert.rejects(Wallet.prototype._settleImpl.call(facade,params),e=>e===stop);
-    const proof=Intent.create({type:'register',onchain_output_indexes:[0],valid_at:0,expire_at:0,cosigners_public_keys:[]},params.inputs.map(c=>({txid:c.txid,index:c.vout,witnessUtxo:{script:own.pkScript,amount:BigInt(c.value)}})),outputs);
+    const proof=Intent.create({type:'register',onchain_output_indexes:params.outputs.flatMap((o,i)=>o.address===bitcoin?[i]:[]),valid_at:0,expire_at:0,cosigners_public_keys:[]},params.inputs.map(c=>({txid:c.txid,index:c.vout,witnessUtxo:{script:own.pkScript,amount:BigInt(c.value)}})),outputs);
     await options.arkProvider.registerIntent({proof:encoded(proof)});
     await gate;throw Error('Controlled teardown of pending fixture settlement');
    }};
@@ -101,6 +101,28 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
   assert.equal(eligibleUnreservedCoins(coins,walletReservations(account.profileId)).length,0);
   const last=await pay('third-payment');
   t.diagnostic(JSON.stringify({firstTwoPayments:payments,swap:record.status,swapAmount:1000,reservedInputSats:record.quote.inputSats,expectedArkadeChangeSats:record.assetChange.sats,thirdPayment:last.status,message:last.message}));
-  assert.equal(last.status,'succeeded',last.message);
+  assert.equal(last.status,'failed');
+  assert.match(last.message,/265,715 sats.*reserved.*pending transfer/i);
+  assert.match(last.message,/Transactions/);
+  assert.doesNotMatch(last.message,/Insufficient eligible spendable funds/);
+  assert.equal(payments,2,'A pending sole input must not reach payment submission');
+  assert.equal((await context.getContinueAvailability()).canPay,true,'B1 remains actionable');
+  // Public ledger fixtures exercise real receipt reconciliation. This does not
+  // claim the SDK batch handler or a live operator completed the withdrawal.
+  release();await finished;
+  const commitment='d'.repeat(64),input=coins[0];
+  consumed=[{...input,isSpent:true,settledBy:commitment}];
+  coins=[{txid:'e'.repeat(64),vout:0,value:264715,script:record.assetChange.script,assets:input.assets,commitmentTxIds:[commitment]}];
+  transactions=[{txid:commitment,status:{confirmed:true},vout:[{scriptpubkey_address:bitcoin,value:1000}]}];
+  const recovered=await pay('after-verified-withdrawal');
+  assert.equal(recovered.status,'succeeded',recovered.message);
+  assert.equal(readBoardingRecord(account.profileId).status,'succeeded');
+  assert.equal(readBoardingRecord(account.profileId).id,record.id);
+  assert.equal(readBoardingRecord(account.profileId).commitmentTxid,commitment);
+  assert.equal(walletReservations(account.profileId).length,0);
+  assert.equal(payments,3);assert.equal(total(),263715);
+  assert.equal(coins[0].assets[0].assetId,minted.asset.assetId);
+  assert.equal(coins[0].assets[0].amount,1n);
+  assert.equal(context.getState().profileId,'funded-player');
  } finally {release();if(started)await finished;context.dispose();}
 });

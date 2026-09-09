@@ -1,5 +1,5 @@
 import { readReportPages } from './report-pages';
-import { createContext } from '../../integration/src/core/context';
+import { createContext, getControls } from '../../integration/src/core/context';
 import { createBisUi } from '@bis/integration';
 import { formatAssetDetail } from '../../integration/src/core/asset-presentation';
 import type { BisAsset } from '../../integration/src/core/assets';
@@ -95,7 +95,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(document.activeElement===button('Cancel'),'Cancel initially focused');check(burns===beforeBurns,'opening confirmation does not burn');button('Cancel').click();await tick();check(burns===beforeBurns&&!host.querySelector('dialog'),'Cancel does not burn');
     button('Burn').click();await wait(()=>!!host.querySelector('dialog[open]'));host.querySelector('dialog')!.dispatchEvent(new Event('cancel',{cancelable:true}));await tick();check(burns===beforeBurns&&!host.querySelector('dialog'),'Escape cancellation does not burn');
     button('Burn').click();await wait(()=>!!host.querySelector('dialog[open]'));const ok=button('OK');ok.click();ok.click();await wait(()=>burns===beforeBurns+1);
-    check(button('Burn').disabled&&button('Back').disabled&&button('Refresh Asset Detail').disabled,'busy actions disabled');finishBurn?.(false);await wait(()=>host.textContent?.includes('Fixture burn unavailable.')===true);check(!!host.querySelector('.bis-pending-dialog'),'failed burn stays covered');button('OK').click();await wait(()=>!host.querySelector('.bis-pending-dialog'));host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
+    check(!host.querySelector('.bis-pending-dialog'),'burn progress has no dialog');check(getControls(context).toasts.getSnapshot()?.message==='Asset burn (Pending)','pending toast queued');check(button('Burn').disabled&&button('Back').disabled&&button('Refresh Asset Detail').disabled,'busy actions disabled');finishBurn?.(false);await wait(()=>host.textContent?.includes('Fixture burn unavailable.')===true);check(!!host.querySelector('.bis-pending-dialog'),'failed burn stays covered');button('OK').click();await wait(()=>!host.querySelector('.bis-pending-dialog'));host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
     button('Burn').click();await wait(()=>!!host.querySelector('dialog[open]'));button('OK').click();await wait(()=>burns===beforeBurns+2);finishBurn?.(true);await wait(()=>host.querySelectorAll('.bis-asset-row').length===23);check(!host.textContent?.includes('Asset burned.')&&!host.querySelector('.bis-pending-dialog'),'success reveals refreshed list without completion banner');
     result.textContent='PASS: exact amounts, row/detail icons, single-line ID and metadata copy, clipboard failure/race, refresh states, safe metadata fallback, navigation/focus/scroll, narrow layout, confirmation Cancel/Escape, single burn after OK, busy state, failed burn and success refresh. Fixtures only; no live asset burned.';
   } catch(error) {result.textContent='FAIL: '+(error instanceof Error?error.message:'checks');}

@@ -1,7 +1,7 @@
 import type { BisAsset } from './assets';
 
 export type BisAssets = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }>
-  | Readonly<{ status: 'ready'; assets: readonly BisAsset[] }>;
+  | Readonly<{ status: 'ready'; background?: boolean; assets: readonly BisAsset[] }>;
 
 export function assetExplorerUrl(assetId: string): string | undefined {
   return /^[a-f0-9]{68}$/i.test(assetId) ? `https://explorer.signet.arkade.sh/asset/${assetId}` : undefined;

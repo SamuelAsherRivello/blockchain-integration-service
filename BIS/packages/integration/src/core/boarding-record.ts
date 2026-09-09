@@ -11,6 +11,7 @@ export type BoardingRecord = {
   bitcoinAddress: string; intentId?: string; commitmentTxid?: string;
   assetChange?: BoardingAssetChange;
   createdAt?: number;
+  failure?: BoardingFailure;
   progress?: {stage:BoardingStage;observedAt:number;execution:'running'|'awaiting-confirmation'|'interrupted';action?:BoardingAction};
   diagnostic?: 'registration-unconfirmed' | 'settlement-interrupted' | 'deadline-exceeded' | 'response-mismatch' | 'event-stream-closed' | 'batch-failed';
 };
@@ -18,6 +19,45 @@ export const boardingStages=['registered','batch-selected','signing','signatures
 export type BoardingStage=typeof boardingStages[number];
 export const boardingActions=['confirm-registration','tree-nonces','tree-signatures','forfeit-signatures','event-stream','settlement','validate-tree','validate-finalization'] as const;
 export type BoardingAction=typeof boardingActions[number];
+export const boardingFailureLabels={
+  unknown:'Unclassified settlement error',
+  'response-mismatch':'SDK rejected a mismatching operator response',
+  'event-stream-closed':'Settlement event stream closed',
+  'sweep-root-missing':'Sweep tree initialization missing',
+  'vtxo-tree-missing':'VTXO tree initialization missing',
+  'shared-output-missing':'Shared commitment output missing',
+  'nonce-state-missing':'Signing nonce state missing',
+  'asset-destination-missing':'Owned asset destination missing',
+  'asset-output-missing':'Asset allocation does not match the Arkade change output index',
+} as const;
+export type BoardingFailure={code:keyof typeof boardingFailureLabels;observedAt:number;stage?:BoardingStage;action?:BoardingAction;sdkVersion?:string;batchId?:string;endReason?:BoardingRecord['diagnostic']};
+/** Diagnostic payloads are optional. Discard malformed detail, never the reservation. */
+export function publicBoardingFailure(value:unknown):BoardingFailure|undefined {
+  if(!value||typeof value!=='object')return;
+  const f=value as BoardingFailure;
+  if(!Object.hasOwn(boardingFailureLabels,f.code)||!Number.isSafeInteger(f.observedAt)||f.observedAt<0||
+    (f.stage!==undefined&&!boardingStages.includes(f.stage))||(f.action!==undefined&&!boardingActions.includes(f.action))||
+    (f.sdkVersion!==undefined&&(typeof f.sdkVersion!=='string'||!/^\d{1,5}\.\d{1,5}\.\d{1,5}$/.test(f.sdkVersion)))||
+    (f.batchId!==undefined&&(typeof f.batchId!=='string'||!/^([a-f0-9]{64}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i.test(f.batchId)))||
+    (f.endReason!==undefined&&!['registration-unconfirmed','settlement-interrupted','deadline-exceeded','response-mismatch','event-stream-closed','batch-failed'].includes(f.endReason)))return;
+  return {code:f.code,observedAt:f.observedAt,...(f.stage?{stage:f.stage}:{}),...(f.action?{action:f.action}:{}),...(f.sdkVersion?{sdkVersion:f.sdkVersion}:{}),...(f.batchId?{batchId:f.batchId}:{}),...(f.endReason?{endReason:f.endReason}:{})};
+}
+function failureCode(error:unknown):BoardingFailure['code'] {
+  // Never retain messages, causes, stacks or arbitrary provider fields.
+  try {
+    if(!(error instanceof Error))return 'unknown';
+    if(error.name==='ServerResponseMismatchError')return /^asset output not found in asset group [a-f0-9]{68} at index [0-9]{1,10}$/.test(error.message)?'asset-output-missing':'response-mismatch';
+    switch(error.message) {
+      case 'event stream closed':return 'event-stream-closed';
+      case 'Sweep tap tree root not set':return 'sweep-root-missing';
+      case 'vtxo tree not initialized':return 'vtxo-tree-missing';
+      case 'Shared output not found':return 'shared-output-missing';
+      case 'nonces not set':case 'nonces not generated':case 'missing private nonce':case 'missing aggregate nonce':return 'nonce-state-missing';
+      case 'Cannot assign assets: no output matches the destination address':return 'asset-destination-missing';
+    }
+  } catch { /* Even an error accessor can throw. */ }
+  return 'unknown';
+}
 const key = 'bis-signet-boarding-operation-v1';
 const txid = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
 export class BoardingBlockedError extends Error {}
@@ -48,7 +88,9 @@ function validate(r: BoardingRecord): BoardingRecord {
       (r.diagnostic!==undefined && !['registration-unconfirmed','settlement-interrupted','deadline-exceeded','response-mismatch','event-stream-closed','batch-failed'].includes(r.diagnostic)) ||
       (r.status==='succeeded' && !r.commitmentTxid) ||
       (r.status==='not-submitted' && r.phase!=='prepared')) throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.');
-  return r;
+  const {failure:rawFailure,...record}=r;
+  const failure=publicBoardingFailure(rawFailure);
+  return failure?{...record,failure}:record;
 }
 export function readBoardingRecords(profileId: string | undefined): BoardingRecord[] {
   if(!profileId)return [];
@@ -72,8 +114,7 @@ export function readBoardingRecord(profileId: string | undefined,id?:string): Bo
   return id===undefined?records.at(-1):records.find(r=>r.id===id);
 }
 export function writeBoardingRecord(record: BoardingRecord) {
-  validate(record);
-  const raw=JSON.stringify(record);
+  const raw=JSON.stringify(validate(record));
   const first=readWalletRecord(key,record.profileId,validate);
   const scopedKey=walletRecordKey(key,record.profileId)+(first&&first.id!==record.id?`:operation:${encodeURIComponent(record.id)}`:'');
   localStorage.setItem(scopedKey,raw);
@@ -126,10 +167,12 @@ export function createBoardingAttempt(id:string, isCurrent:()=>boolean, deadline
       const record=readBoardingRecord(profileId,id);
       if(record?.id===id && record.status==='pending'){updateBoardingRecord(id,{commitmentTxid},profileId);recordBoardingProgress(profileId,id,'broadcast','awaiting-confirmation',undefined,now());}
     },
-    interrupted(diagnostic:NonNullable<BoardingRecord['diagnostic']>) {
+    interrupted(diagnostic:NonNullable<BoardingRecord['diagnostic']>,error?:unknown,metadata:{sdkVersion?:string;batchId?:string}={}) {
       const record=readBoardingRecord(profileId,id);
       if(record?.id===id && record.status==='pending'){
-        updateBoardingRecord(id,{diagnostic},profileId);
+        const detail={code:failureCode(error),observedAt:now(),endReason:diagnostic,...(record.progress?.stage?{stage:record.progress.stage}:{}),...(record.progress?.action?{action:record.progress.action}:{})};
+        const failure=error===undefined?record.failure:publicBoardingFailure({...detail,...metadata})??publicBoardingFailure(detail);
+        updateBoardingRecord(id,{diagnostic,...(failure?{failure}:{})},profileId);
         if(record.phase==='registered'&&record.progress?.stage!=='broadcast'&&record.progress?.stage!=='confirmed')recordBoardingProgress(profileId,id,record.progress?.stage??'registered','interrupted',record.progress?.action,now());
       }
     },

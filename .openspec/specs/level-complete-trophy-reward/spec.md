@@ -4,6 +4,8 @@
 
 Let players optionally collect self-funded level trophies while retaining completion menus, truthful wallet outcomes, and independent game progression.
 
+**Story status:** C2. Reward Player With Trophy After Level Complete ✓ — complete, confirmed by the user on 2026-09-09. Historical verification records retain their original coverage and limitations.
+
 ## Requirements
 
 ### Requirement: Completion menus and progression

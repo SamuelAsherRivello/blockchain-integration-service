@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createContext, getControls } from '../src/core/context.ts';
 import { startToastPlayback } from '../src/ui/toast-playback.ts';
+import {createToastQueue} from '../src/core/toasts.ts';
+test('four message types retain literal text and default safely',()=>{
+ const q=createToastQueue();
+ for(const messageType of ['info','warning','error','success',undefined,'invalid']) {
+ q.enqueue('Bitcoin Arkade ID: AbCd',{messageType});
+ assert.equal(q.getSnapshot().messageType,['info','warning','error','success'].includes(messageType)?messageType:'info');
+ assert.equal(q.getSnapshot().message,'Bitcoin Arkade ID: AbCd');q.complete(q.getSnapshot().id);
+ }
+});
 
 function setup() {
   let walletCalls = 0;

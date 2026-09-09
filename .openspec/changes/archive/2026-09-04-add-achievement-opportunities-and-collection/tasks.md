@@ -1,3 +1,7 @@
+## Current story status — 2026-09-09
+
+Complete, confirmed by the user. The current asset catalog contains C1. Mint Asset and C2. Reward Player With Trophy After Level Complete (formerly C6). Other C-level entries are removed from the current catalog. Historical task IDs and verification evidence below are retained.
+
 ## 1. Contract and feasibility
 
 Apply verification on 2026-09-04 minted another Level 1 asset for the reported identity, listed both distinct holdings, and retried the completed operation without another issuance. Public identifiers, reference comparison, controlled tests and browser evidence are recorded in C1_C4_VERIFICATION.md. Prior transfer/funding blockers there are historical and were not reproduced by the current mint. Broad pending-transfer recovery remains separate.

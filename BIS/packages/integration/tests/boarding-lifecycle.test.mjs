@@ -28,6 +28,59 @@ test('SDK interruption classification projects codes without raw error payloads'
  const report=formatTransferRecoveryReport({status:'pending',diagnostic:settlementDiagnostic(error)});
  assert.match(report,/mismatching operator response/);assert.ok(!report.includes('PRIVATE_SENTINEL'));
 });
+
+test('failure detail survives reload with the last observed signing boundary',()=>{
+ const attempt=createBoardingAttempt('operation',()=>true,2000,'lifecycle',()=>1000);
+ attempt.beforeRegister();attempt.registered('intent');
+ recordBoardingProgress('lifecycle','operation','batch-selected','running','validate-tree',1000);
+ attempt.interrupted('settlement-interrupted',new Error('Sweep tap tree root not set'));
+ const status=transferStatus(readBoardingRecord('lifecycle'));
+ assert.deepEqual(status.failure,{code:'sweep-root-missing',stage:'batch-selected',action:'validate-tree',observedAt:1000,endReason:'settlement-interrupted'});
+ assert.match(formatTransferRecoveryReport(status),/Sweep tree initialization missing/);
+ assert.equal(status.status,'pending');assert.equal(status.commitmentTxid,undefined);
+});
+
+test('asset index mismatch retains a specific safe code instead of losing the validator reason',()=>{
+ const attempt=createBoardingAttempt('operation',()=>true,2000,'lifecycle',()=>1000);
+ attempt.beforeRegister();attempt.registered('intent');
+ const error=new Error(`asset output not found in asset group ${'a'.repeat(64)}0000 at index 0`);error.name='ServerResponseMismatchError';
+ attempt.interrupted('response-mismatch',error);
+ assert.equal(readBoardingRecord('lifecycle').failure.code,'asset-output-missing');
+ assert.ok(!JSON.stringify(readBoardingRecord('lifecycle').failure).includes('a'.repeat(64)));
+ error.message+=' PRIVATE_SENTINEL';attempt.interrupted('response-mismatch',error);
+ assert.equal(readBoardingRecord('lifecycle').failure.code,'response-mismatch');
+ assert.ok(!JSON.stringify(readBoardingRecord('lifecycle').failure).includes('PRIVATE_SENTINEL'));
+});
+
+test('failure metadata is an allowlisted projection, including adversarial payloads',()=>{
+ const attempt=createBoardingAttempt('operation',()=>true,2000,'lifecycle',()=>1000);
+ attempt.beforeRegister();attempt.registered('intent');
+ const error=new Error('PRIVATE_SENTINEL');error.proof='PRIVATE_SENTINEL';
+ attempt.interrupted('settlement-interrupted',error);
+ assert.equal(readBoardingRecord('lifecycle').failure.code,'unknown');
+ const record=readBoardingRecord('lifecycle');
+ writeBoardingRecord({...record,failure:{...record.failure,proof:'PRIVATE_SENTINEL'}});
+ assert.ok(!localStorage.getItem(localStorage.key(0)).includes('PRIVATE_SENTINEL'));
+ assert.ok(!formatTransferRecoveryReport({...transferStatus(record),failure:{code:'PRIVATE_SENTINEL',action:'PRIVATE_SENTINEL',observedAt:Infinity}}).includes('PRIVATE_SENTINEL'));
+ writeBoardingRecord({...record,failure:{code:'unknown',stage:'PRIVATE_SENTINEL',observedAt:1000}});
+ assert.equal(readBoardingRecord('lifecycle').failure,undefined);
+ const hostile=new Error();Object.defineProperty(hostile,'message',{get(){throw Error('PRIVATE_SENTINEL');}});
+ assert.doesNotThrow(()=>attempt.interrupted('settlement-interrupted',hostile));
+ assert.equal(readBoardingRecord('lifecycle').failure.code,'unknown');
+});
+
+test('failure provenance contains only valid public SDK and batch identifiers',()=>{
+ const attempt=createBoardingAttempt('operation',()=>true,2000,'lifecycle',()=>1000);
+ attempt.beforeRegister();attempt.registered('intent');
+ const batchId='11111111-1111-4111-8111-111111111111';
+ attempt.interrupted('event-stream-closed',new Error('event stream closed'),{sdkVersion:'0.4.67',batchId});
+ const report=formatTransferRecoveryReport(transferStatus(readBoardingRecord('lifecycle')));
+ assert.match(report,/Arkade SDK: 0.4.67/);assert.ok(report.includes(batchId));
+ attempt.interrupted('settlement-interrupted',new Error('Shared output not found'),{sdkVersion:'PRIVATE_SENTINEL',batchId:'PRIVATE_SENTINEL'});
+ const failure=readBoardingRecord('lifecycle').failure;
+ assert.equal(failure.code,'shared-output-missing');assert.equal(failure.sdkVersion,undefined);
+ assert.ok(!JSON.stringify(failure).includes('PRIVATE_SENTINEL'));
+});
 test('late lower-stage observations cannot erase broadcast evidence',()=>{
  const attempt=createBoardingAttempt('operation',()=>true,2000,'lifecycle',()=>1000);
  attempt.beforeRegister();attempt.registered('intent');attempt.committed('b'.repeat(64));

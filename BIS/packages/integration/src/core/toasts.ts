@@ -1,5 +1,7 @@
-export type BisToastOptions = Readonly<{ durationMs?: number; imageUrl?: string; icon?: 'lightning' }>;
-export type ToastEntry = Readonly<{ id: number; message: string; durationMs: number; imageUrl?: string; icon?: 'lightning' }>;
+export const MessageType = {Info:'info', Warning:'warning', Error:'error', Success:'success'} as const;
+export type MessageType = typeof MessageType[keyof typeof MessageType];
+export type BisToastOptions = Readonly<{ messageType?: MessageType; durationMs?: number; imageUrl?: string; icon?: 'lightning' }>;
+export type ToastEntry = Readonly<{ id: number; messageType: MessageType; message: string; durationMs: number; imageUrl?: string; icon?: 'lightning' }>;
 
 function toastImageUrl(value?: string): string | undefined {
   if (typeof value !== 'string' || !value.trim()) return;
@@ -28,7 +30,7 @@ export function createToastQueue() {
       if (disposed || !message.trim()) return;
       const duration = options.durationMs;
       const durationMs = typeof duration === 'number' && Number.isFinite(duration) && duration > 0 && duration <= 2147483647 ? duration : 3000;
-      entries.push(Object.freeze({id: ++nextId, message, durationMs, imageUrl: toastImageUrl(options.imageUrl), ...(options.icon === 'lightning' ? {icon: 'lightning' as const} : {})}));
+      entries.push(Object.freeze({id: ++nextId, messageType: Object.values(MessageType).includes(options.messageType!) ? options.messageType! : MessageType.Info, message, durationMs, imageUrl: toastImageUrl(options.imageUrl), ...(options.icon === 'lightning' ? {icon: 'lightning' as const} : {})}));
       if (entries.length === 1) publish();
     },
     complete(id: number) {

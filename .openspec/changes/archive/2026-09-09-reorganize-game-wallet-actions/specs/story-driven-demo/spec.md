@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: F2 pay player demonstration
-Admin SHALL display F3 `Send 100 Sats (Game->Player)` under F. Game Wallet after F2. Without an active logged-in Runtime Preview player account, F3 SHALL be visibly greyed out and disabled for pointer and keyboard activation. Availability SHALL react to account changes and also require an eligible F1 sender and no unresolved F3 payment. Activating F3 SHALL use the production payment API; receipt feedback SHALL appear in Runtime Preview through the shared toast UI.
+Admin SHALL display F3 `Send 1000 Sats (Game->Player)` under F. Game Wallet after F2. Without an active logged-in Runtime Preview player account, F3 SHALL be visibly greyed out and disabled for pointer and keyboard activation. Availability SHALL react to account changes and also require an eligible F1 sender and no unresolved F3 payment. Activating F3 SHALL use the production payment API; receipt feedback SHALL appear in Runtime Preview through the shared toast UI.
 
 #### Scenario: No preview player
 - **WHEN** Runtime Preview has no active player account
@@ -33,6 +33,6 @@ F3 SHALL append (Awaiting Balance) only for balance loading or shortage. Other b
 - **THEN** F3 identifies the operation-related block and F3 shows 0 payment-usable sats
 
 #### Scenario: Balance missing or insufficient
-- **WHEN** an otherwise eligible wallet is loading its balance or has fewer than 100 usable sats
+- **WHEN** an otherwise eligible wallet is loading its balance or has fewer than 1000 usable sats
 - **THEN** F3 appends (Awaiting Balance)
 

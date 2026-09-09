@@ -15,6 +15,8 @@ export type BisTransaction = Readonly<{
   kind?: string;
   assets?: readonly Readonly<{assetId?:string;quantity:string;name?:string;ticker?:string;decimals?:number}>[];
   satsUnknown?: boolean;
+  /** Fresh owned spendable outputs verify this Arkade receipt, independently of batch settlement. */
+  receiptVerified?: boolean;
   transfer?: BisTransferStatus;
   bitcoin?: Readonly<{ txid: string; confirmations?: number; blockHeight?: number }>;
 }>;

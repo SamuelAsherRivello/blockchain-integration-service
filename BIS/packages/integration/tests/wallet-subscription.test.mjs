@@ -2,6 +2,50 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createContext,getControls} from '../src/core/context.ts';
 const tick=()=>new Promise(r=>setImmediate(r));
+const receipt=(status='Pending offchain')=>({id:'f3',identifier:'ark:f3',amountSats:1000,direction:'Incoming',status});
+
+test('new Arkade receipt shows one Balance loading cycle and settlement refreshes silently',async()=>{
+ let hold=false,release;
+ const amounts={availableSats:3000,totalSats:3000,bitcoinSats:0,arkadeSats:3000};
+ const s=setup(async()=>hold?new Promise(r=>release=()=>r(amounts)):amounts);
+ const states=[];
+ try {
+ await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ s.c.subscribe(()=>states.push(s.c.getState().balance.status));
+ hold=true;s.emit([receipt()]);await tick();
+ assert.deepEqual(s.c.getState().balance,{status:'loading'});
+ s.emit([receipt()]);await tick();assert.equal(s.c.getState().balance.status,'loading');
+ hold=false;release();await tick();assert.equal(s.c.getState().balance.arkadeSats,3000);
+ const loadingCount=states.filter((x,i)=>x==='loading'&&states[i-1]!=='loading').length;
+ s.emit([receipt('Settled offchain')]);await tick();
+ assert.equal(states.filter((x,i)=>x==='loading'&&states[i-1]!=='loading').length,loadingCount);
+ assert.equal(loadingCount,1);
+ }finally{s.c.dispose();}
+});
+test('receipt read failure is bounded and clears prior amounts',async()=>{
+ let fail=false,attempts=0;const s=setup(async()=>{if(fail){attempts++;throw Error('offline');}return {availableSats:2,totalSats:2,bitcoinSats:0,arkadeSats:2};});
+ try{await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ fail=true;s.emit([receipt()]);await tick();assert.equal(attempts,2);assert.deepEqual(s.c.getState().balance,{status:'unavailable'});
+ }finally{s.c.dispose();}
+});
+test('receipt with Balance closed queues both toasts without opening Balance',async()=>{
+ const s=setup();try{await s.c.ready();await tick();const view=s.c.getState().view;
+ s.emit([{...receipt(),receiptVerified:true}]);await tick();
+ const queue=getControls(s.c).toasts;assert.match(queue.getSnapshot().message,/\(Pending\)$/);queue.complete(queue.getSnapshot().id);
+ assert.match(queue.getSnapshot().message,/\(Confirmed\)$/);assert.equal(s.c.getState().view,view);assert.equal(s.c.getState().accountDetails,false);
+ }finally{s.c.dispose();}
+});
+test('independent receipt invalidates a held read without interrupting the loading cycle',async()=>{
+ let hold=false;const pending=[];const values=n=>({availableSats:n,totalSats:n,bitcoinSats:0,arkadeSats:n});
+ const s=setup(async()=>hold?new Promise(r=>pending.push(r)):values(2000));
+ try{await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ hold=true;s.emit([receipt()]);await tick();
+ s.emit([receipt(),{...receipt(),id:'other',identifier:'ark:other'}]);await tick();
+ assert.equal(s.c.getState().balance.status,'loading');assert.equal(pending.length,2);
+ pending[0](values(3000));await tick();assert.equal(s.c.getState().balance.status,'loading');
+ pending[1](values(4000));await tick();assert.equal(s.c.getState().balance.arkadeSats,4000);
+ }finally{s.c.dispose();}
+});
 function setup(readBalance) {
  let account={profileId:'wallet',phrase:'fixture-only'},generation=0,changed,rows=[],sats=2000,holdings=[];
  const sources=[];
@@ -60,11 +104,13 @@ test('one retained source serves Activity navigation and rejects old-account cal
  assert.equal(getControls(s.c).toasts.getSnapshot(),null);
  }finally{s.c.dispose();if(s.sources.length)assert.equal(s.sources.at(-1).signal.aborted,true);}
 });
-test('asset-only wallet observations refresh visible holdings',async()=>{
+test('periodic activity observations do not poll assets; explicit refresh remains available',async()=>{
  const s=setup();try{
  await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountAssets();await tick();
  assert.deepEqual(s.c.getState().assets.assets,[]);
  s.emit([],2000,[{assetId:'asset',quantity:'3'}]);await tick();
+ assert.deepEqual(s.c.getState().assets.assets,[]);
+ await s.c.refreshAssets();
  assert.deepEqual(s.c.getState().assets.assets,[{assetId:'asset',quantity:'3'}]);
  }finally{s.c.dispose();}
 });

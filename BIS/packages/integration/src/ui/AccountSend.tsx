@@ -79,7 +79,7 @@ export function AccountSend({context}:{context:BisContext}) {
    {!pending&&!done&&(quote?<button className="bis-button bis-primary" disabled={busy||expired} onClick={()=>void confirm()}>⚡ Confirm Send</button>:<button className="bis-button bis-primary" disabled={busy||!validAddress||!validAmount} onClick={()=>void review()}>⚡ Review Send</button>)}
    {done&&<button className="bis-button bis-primary" disabled={busy} onClick={()=>{setRecipient('');setAmount('');setQuote(undefined);void check(true);}}>New Send</button>}
    {(pending||error)&&<button className="bis-button" disabled={busy} onClick={()=>void check()}>Check Status</button>}
-   <button className="bis-button" onClick={()=>{if(quote&&!busy){setQuote(undefined);requestAnimationFrame(()=>recipientInput.current?.focus());}else context.closeAccount();}}>Back</button>
+   <button className="bis-button bis-back" onClick={()=>{if(quote&&!busy){setQuote(undefined);requestAnimationFrame(()=>recipientInput.current?.focus());}else context.closeAccount();}}>Back</button>
   </div>
  </div>;
 }

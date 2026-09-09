@@ -1,3 +1,7 @@
+## Completion confirmation — 2026-09-09
+
+A6 is complete, confirmed by the user. Remaining acceptance checkboxes below are closed on that confirmation; no new live-wallet verification was performed during this documentation update.
+
 ## 1. Core contract and guarded clearing
 
 - [x] 1.1 Add logout state, acknowledgement, confirmation/cancellation methods, and public disconnection event types; verify type checking and storage-double tests for unchecked rejection, cancellation, and fresh-opening reset.
@@ -19,5 +23,5 @@
 
 - [x] 4.1 Run the repository's relevant test, type-check, and build commands after inspecting their scripts for destructive operations; record results and verify A1/A2 entry, creation, and disposal regressions are covered without executing real database deletion.
 - [x] 4.2 Verify production confirmation visually in Runtime Preview and an independent host, including existing preview scales, keyboard interaction, and cancellation; record browser evidence with no recovery material in screenshots.
-- [ ] 4.3 Deliver a manual disposable-Signet-account checklist for real logout, reload, offline logout, two-tab reconciliation, unrelated-data preservation, and continued host usability; leave this task pending until the user performs the deletion-based checks and supplies results, as required by repository database rules.
-- [ ] 4.4 Validate the OpenSpec change and review evidence against every requirement; report A6 complete only when all applicable automated and manual checks have passed, keeping unrelated future feature decisions explicitly deferred.
+- [x] 4.3 Deliver a manual disposable-Signet-account checklist for real logout, reload, offline logout, two-tab reconciliation, unrelated-data preservation, and continued host usability; leave this task pending until the user performs the deletion-based checks and supplies results, as required by repository database rules.
+- [x] 4.4 Validate the OpenSpec change and review evidence against every requirement; report A6 complete only when all applicable automated and manual checks have passed, keeping unrelated future feature decisions explicitly deferred.

@@ -1,3 +1,5 @@
+**F3. Send 1000 Sats (Game->Player): Complete ✓**, confirmed by the user on 2026-09-09. The historical change name uses F2. Remaining acceptance is closed on user confirmation; no new live payment was performed in this update.
+
 ## 1. Payment controller and recovery
 
 - [x] 1.1 Add focused controller/adapter tests for fixed 1000 sats, distinct identities, missing accounts, fees, asset preservation and stale preparation; verify each rejects incorrect submission behavior.
@@ -18,6 +20,6 @@
 
 - [x] 4.1 Run relevant integration/controller/adapter tests, workspace typecheck and build commands; record commands and outcomes in this change's verification artifact.
 - [x] 4.2 Verify the real Admin and Runtime Preview in a browser, including account transitions, repeated clicks, Account-open toast coexistence and narrow/scaled 9:16 layout; record visible results and distinguish fixtures from live outcomes.
-- [ ] 4.3 Verify one actual two-wallet Signet F2 payment: 1000 sats received, sender debit plus actual fees, correlated receipt evidence and exactly one correct toast; record only public evidence and mark any unavailable live verification pending.
+- [x] 4.3 Verify one actual two-wallet Signet F2 payment: 1000 sats received, sender debit plus actual fees, correlated receipt evidence and exactly one correct toast; record only public evidence and mark any unavailable live verification pending.
 
 Apply explicitly requested after interview. Keep unverified live acceptance pending.

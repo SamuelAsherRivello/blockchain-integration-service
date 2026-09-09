@@ -51,7 +51,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
       if(result.status!=='succeeded')logAsset('Request Continue',result);
       if(result.message && result.status!==notifiedStatus && (result.status==='pending' || result.status==='failed')) {
         notifiedStatus=result.status;
-        current.context.showToast(result.message);
+        current.context.showToast(result.message, {messageType: result.status === 'failed' ? 'error' : 'info'});
       }
     });
     if(!controller.getState().canPay){
@@ -59,7 +59,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
         ? controller.getState().message || 'Payment is unavailable. Try again when your account is ready.'
         : 'Log in to pay to continue.';
       logAsset('Request Continue',{status:'error',message});
-      current.context.showToast(message);
+      current.context.showToast(message, {messageType: 'warning'});
       return;
     }
     await controller.pay();
@@ -94,22 +94,25 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
   async function fundAccount(explorer = false) {
     const current = session.current;
     if (!current || funding) return;
-    const faucet = window.open('about:blank', '_blank');
-    if (!faucet) return;
-    faucet.opener = null;
+    const urls = explorer ? ['about:blank'] : ['https://bitcoinsignetfaucet.com/', 'https://signetfaucet.com/', 'https://signet.2nd.dev/'];
+    const tabs = urls.map(url => {
+      const tab = window.open(url, '_blank');
+      if (tab) tab.opener = null;
+      return tab;
+    });
+    if (tabs.some(tab => !tab)) setConsoleLines(['Allow pop-ups for this demo to open all requested pages.']);
+    if (tabs.every(tab => !tab)) return;
     setFunding(true);
     try {
       const address = await current.adminContext.getFundingAddress();
-      if (session.current !== current) { faucet.close(); return; }
+      if (session.current !== current) { if (explorer) tabs[0]?.close(); return; }
       if (explorer) {
-        faucet.location.href = `https://mempool.space/signet/address/${encodeURIComponent(address)}`;
+        if (tabs[0]) tabs[0].location.href = `https://mempool.space/signet/address/${encodeURIComponent(address)}`;
         return;
       }
       try { await navigator.clipboard.writeText(address); } catch { /* Clipboard access is optional for opening the faucet. */ }
-      if (session.current !== current) { faucet.close(); return; }
-      faucet.location.href = 'https://signetfaucet.com/';
     } catch {
-      faucet.close();
+      if (explorer) tabs[0]?.close();
     } finally { if (session.current === current) setFunding(false); }
   }
   const playerProfileId = useCallback(() => session.current?.context.getState().profileId, []);
@@ -165,7 +168,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
   return <div className="demo-app">
     <header className="app-header"><div className="identity"><span className="brand-mark" aria-hidden="true">↗</span>Blockchain Integration Service - Demo</div><div className="version-tag"><span>v{version}</span><a className="github-link" href="https://github.com/SamuelAsherRivello/blockchain-integration-service" target="_blank" rel="noopener noreferrer" aria-label="View repository on GitHub"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.23c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.23 1.84 1.23 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.93.43.37.81 1.1.81 2.22v3.3c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z" /></svg></a><a className="github-link" href="https://docs.arkadeos.com/" target="_blank" rel="noopener noreferrer" aria-label="View Arkade documentation" title="Arkade documentation"><img src={arkadeLogo} width="18" height="18" alt="" /></a></div></header>
     <SplitWorkspace>
-      <AdminPanel mintAvailable={gameMintPresent || (!!state?.hasProfile && state.phase === 'active')} mintReason="Awaiting Wallet" playerActive={!!state?.hasProfile && state.phase === 'active'} continueReason={continueReadiness.reason} continueAvailable={!!state?.hasProfile && state.phase === 'active' && continueReadiness.canPay} gameWallet={<GameWalletPanel onController={setGameWalletController} playerContext={session.current?.context} playerActive={!!state?.hasProfile && state.phase === 'active'} onRecipientChange={onRecipientChange} walletFactory={gameWalletFactory} onDetails={details => logAsset('Game Wallet', details)} playerProfileId={playerProfileId} recipient={recipient} />} onCompleteLevel={()=>{session.current?.context.closeAccount();setCompletionOpen(true);setSelected('C6');}} completionOpen={completionOpen} onShowToast={showToast} onShowToastWithIcon={showToastWithIcon} canShowToast={!!state} onContinue={()=>void requestContinue()} continueBusy={continueBusy} onMint={()=>void openMint()} assetBusy={assetBusy} consoleOutput={consoleLines.join("\n\n")} selected={selected} accountOpen={completionBusy || state?.view === 'account' || state?.phase === 'loading' || state?.phase === 'resetting'} canReset={!completionBusy && state?.phase !== 'loading' && state?.phase !== 'resetting' && (!!selected || !!state?.canReset)} onSelect={selectStory} onReset={()=>void reset()} canFund={!!state?.hasProfile && state?.phase === 'active'} funding={funding} onFund={()=>void fundAccount()} onExplorer={()=>void fundAccount(true)} />
+      <AdminPanel mintAvailable={gameMintPresent || (!!state?.hasProfile && state.phase === 'active')} mintReason="Awaiting Wallet" playerActive={!!state?.hasProfile && state.phase === 'active'} continueReason={continueReadiness.reason} continueAvailable={!!state?.hasProfile && state.phase === 'active' && continueReadiness.canPay} gameWallet={<GameWalletPanel onController={setGameWalletController} playerContext={session.current?.context} playerActive={!!state?.hasProfile && state.phase === 'active'} onRecipientChange={onRecipientChange} walletFactory={gameWalletFactory} onDetails={details => logAsset('Game Wallet', details)} playerProfileId={playerProfileId} recipient={recipient} />} onCompleteLevel={()=>{session.current?.context.closeAccount();setCompletionOpen(true);setSelected('C2');}} completionOpen={completionOpen} onShowToast={showToast} onShowToastWithIcon={showToastWithIcon} canShowToast={!!state} onContinue={()=>void requestContinue()} continueBusy={continueBusy} onMint={()=>void openMint()} assetBusy={assetBusy} consoleOutput={consoleLines.join("\n\n")} selected={selected} accountOpen={completionBusy || state?.view === 'account' || state?.phase === 'loading' || state?.phase === 'resetting'} canReset={!completionBusy && state?.phase !== 'loading' && state?.phase !== 'resetting' && (!!selected || !!state?.canReset)} onSelect={selectStory} onReset={()=>void reset()} canFund={!!state?.hasProfile && state?.phase === 'active'} funding={funding} onFund={()=>void fundAccount()} onExplorer={()=>void fundAccount(true)} />
       <GamePreview containerRef={container}>{completionOpen && session.current && <CompletionPreview context={session.current.context} onRestart={()=>{setCompletionOpen(false);setSelected(null);}} onBusy={setCompletionBusy} />}</GamePreview>
     </SplitWorkspace>
     {mintOpen && <MintAssetDialog prepare={prepareMint} onBusy={setAssetBusy} onClose={()=>setMintOpen(false)} />}

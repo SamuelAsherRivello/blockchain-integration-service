@@ -3,12 +3,18 @@ export const browserMutationLock = 'bis-signet-browser-mutation';
 export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
 type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
 const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1'];
-const owns = (key: string) => journalPrefixes.some(prefix => key === prefix || key.startsWith(`${prefix}:`)) ||
+const cleanupPrefixes = [...journalPrefixes, 'bis-signet-continuations-v1', 'bis-signet-wallet-operations-v2'];
+const owns = (key: string) => cleanupPrefixes.some(prefix => key === prefix || key.startsWith(`${prefix}:`)) ||
   ['bis.integration-demo.admin-split-percent', 'bis.integration-demo.preview-scale'].includes(key);
 function keys(storage: WebStorage) {
   return Array.from({length: storage.length}, (_, i) => storage.key(i)).filter((key): key is string => key !== null);
 }
 function gameBoarding(key: string, storage: WebStorage) {
+  const sharedPrefix = ['bis-signet-wallet-operations-v2:', 'bis-signet-continuations-v1:', 'bis-signet-burn-operation-v1:'].find(prefix => key.startsWith(prefix));
+  if (sharedPrefix) {
+    const owner = key.slice(sharedPrefix.length).split(':')[0];
+    return ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:'].some(prefix => storage.getItem(prefix + owner) === '1');
+  }
   const mintPrefix='bis-signet-mints-v1:';
   if(key.startsWith(mintPrefix)&&storage.getItem('bis-game-wallet-mint-owner:'+key.slice(mintPrefix.length))==='1')return true;
   const sendPrefix = 'bis-signet-send-operation-v1:';
@@ -43,11 +49,15 @@ export function pendingLogoutOperations(storage: WebStorage | undefined = global
 }
 export function clearBrowserPreferences(storage: WebStorage | undefined) {
   if (!storage) return;
+
   for (const key of keys(storage).filter(owns)) {
     if (gameBoarding(key, storage)) continue;
     storage.removeItem(key);
     if (storage.getItem(key) !== null) throw Error('Browser cleanup could not be verified.');
   }
+}
+export function assertLogoutResolvable(storage: WebStorage | undefined = globalThis.localStorage) {
+  if(pendingLogoutOperations(storage).count>0)throw Error('Wallet operations are unresolved. Open Account → Transactions and check recovery status before logging out.');
 }
 
 // Exclusive logout cannot overlap an SDK mutation from any wallet on this origin.

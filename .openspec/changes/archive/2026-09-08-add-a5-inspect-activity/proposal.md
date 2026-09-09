@@ -1,3 +1,5 @@
+**Status: Complete ✓ — A5, confirmed by the user on 2026-09-09.** This confirmation supersedes earlier outstanding acceptance notes; historical implementation and verification records are retained.
+
 ## Why
 
 Refreshing Account Details balances does not explain whether an incoming transaction has been detected. A5 should give the player a minimal, copyable view of all transaction history Arkade supplies, including incoming funds before they become spendable.

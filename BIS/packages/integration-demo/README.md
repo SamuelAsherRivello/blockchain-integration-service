@@ -56,9 +56,9 @@ Admin **D3a Send Funds** opens the production Arkade-address Send flow for an ac
 
 ## Pending Operation Dialog
 
-Runtime pages render immediately underneath a host-scoped covering layer. Loading..., Creating..., Saving..., Restoring..., Sending..., Transferring..., Burning..., Checking... and Logging out... appear above the spinning bolt. The backdrop keeps the page inert while data, rendering and required images finish; Admin remains usable. There is no inline loading/progress/completion text.
+Runtime pages render immediately underneath a host-scoped covering layer. Loading..., Creating..., Saving..., Restoring..., Sending..., Transferring..., Checking... and Logging out... appear above the spinning bolt. The backdrop keeps the page inert while data, rendering and required images finish; Admin remains usable. There is no inline loading/progress/completion text.
 
-Read failures retry once automatically with existing deadlines (Transactions 75 seconds per attempt, Assets 30 seconds; otherwise 30 seconds where missing). Final errors show only OK, closing the prompt and source page. Mutation submissions are never automatically repeated. Unconfirmed outcomes retain recovery records and show truthful feedback with OK. Burning... remains through holdings refresh; success reveals refreshed Assets without Asset burned. Background reconciliation does not open a loading prompt.
+Read failures retry once automatically with existing deadlines (Transactions 75 seconds per attempt, Assets 30 seconds; otherwise 30 seconds where missing). Final errors show only OK, closing the prompt and source page. Mutation submissions are never automatically repeated. Unconfirmed outcomes retain recovery records and show truthful feedback with OK. Burn keeps the Are you sure? / OK / Cancel confirmation, then shows Asset burn (Pending) and, on verified success, Asset burn (Confirmed) toasts. Submission and its holdings refresh do not open a progress overlay; errors and unknown outcomes retain OK acknowledgment. Background reconciliation does not open a loading prompt.
 
 `/tests/pending-operation-host.html` exercises production components with delayed isolated reads and callbacks, including Burn/refresh, errors, source-page closure, lifecycle operations, keyboard containment and host sizing. It performs no live wallet mutations. See `.openspec/changes/archive/2026-09-04-add-pending-operation-dialog/verification.md` for results.
 
@@ -67,7 +67,7 @@ B1 **"Pay 1000 Sats To Continue" (Player->Game)** uses the shared public continu
 
 ### F. Game Wallet
 
-Import the game wallet directly in Admin using its recovery phrase. Never put that phrase in an environment file, chat, GitHub Secret or build configuration. Imported wallets are retained separately from the player; re-enter a phrase to select a prior wallet. Reload restores the last selection. The F1. Game Wallet row shows Login, then Logout after import. Wallet Details and balance are beside F3. Details refreshes addresses and balances into the Admin console for inspection and manual copying. Logout deselects the wallet without deleting saved identities. No new funding button is provided.
+Import the game wallet directly in Admin using its recovery phrase. Never put that phrase in an environment file, chat, GitHub Secret or build configuration. Imported wallets are retained separately from the player; re-enter a phrase to select a prior wallet. Reload restores the last selection. The F1. Game Wallet row shows Login, then Logout after import. Wallet Details and balance are beside F3. Details refreshes addresses and balances into the Admin console for inspection and manual copying. Logout deselects the wallet without deleting saved identities. Copy BTC Addr appears immediately to the left of Logout and copies the selected game wallet Bitcoin funding address. Copy results and a manual-copy fallback appear in the Admin console.
 
 Importing or restoring the selected F1 wallet automatically sets the demo's Continue recipient to its Arkade receiving address. B1 becomes available when that address is loaded and the player is logged in. Logout clears the demo recipient. Existing pending payments keep their original recipient. Admin can be closed while receiving.
 
@@ -84,3 +84,10 @@ Shared session notifications announce incoming sats and own transfers, with `(Pe
 
 
 F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Other eligibility blockers retain their safeguards and appear separately from the button suffix. F2 uses live transaction evidence for boarding status.
+
+
+### F3 receipt feedback
+
+With the player's Balance page open, a new F3 Arkade receipt shows one loading dialog while fresh balances are prepared. Duplicate observations and later status updates refresh silently. The pending toast is followed by a toast ending in (Confirmed) when fresh owned spendable outputs verify the specific transaction and amount, or settlement is verified. Confirmed means Arkade receipt; it does not claim Bitcoin confirmation or batch settlement. F3 still sends 1000 sats. Historical login data stays silent, and a receipt never opens a closed Balance page.
+
+The open Assets window subscribes to SDK indexer output events for the account receive scripts (including subdust). Incoming, spent and swept output events trigger coalesced fresh holdings reads without polling or a loading overlay. Observation stops on exit or account change. If streaming becomes unavailable, manual Refresh or reopening Assets remains available; no polling fallback is added. This covers the current single-identity account addresses.

@@ -1,3 +1,5 @@
+**F3. Send 1000 Sats (Game->Player): Complete ✓**, confirmed by the user on 2026-09-09. The historical change name uses F2. Remaining acceptance is closed on user confirmation; no new live payment was performed in this update.
+
 ## Why
 
 The demo can inspect an independent F1 game wallet but cannot pay the Runtime Preview player from it. F2 provides a fixed-value payment demonstration with truthful receipt feedback inside the preview.

@@ -5,6 +5,15 @@ import { createContext } from '../src/core/context.ts';
 import { formatTransactions } from '../src/core/activity.ts';
 const tick=()=>new Promise(r=>setImmediate(r));
 const tx=(id,createdAt=0,extra={})=>({key:{boardingTxid:id,arkTxid:'',commitmentTxid:''},amount:100,type:'RECEIVED',settled:false,createdAt,...extra});
+test('receipt verification requires exact owned spendable transaction amount and unique outputs',()=>{
+ const incoming=tx('',1,{key:{arkTxid:'f3'},amount:1000});
+ const coin={txid:'f3',vout:0,value:1000};
+ assert.equal(normalizeHistory([incoming],[],undefined,[coin])[0].receiptVerified,true);
+ assert.equal(normalizeHistory([incoming],[],undefined,[{...coin,txid:'other'}])[0].receiptVerified,undefined);
+ assert.equal(normalizeHistory([incoming],[],undefined,[{...coin,value:999}])[0].receiptVerified,undefined);
+ assert.equal(normalizeHistory([incoming],[],undefined,[coin,coin])[0].receiptVerified,undefined);
+ assert.equal(normalizeHistory([{...incoming,type:'SENT'}],[],undefined,[coin])[0].receiptVerified,undefined);
+});
 test('confirmation counts use chain tip and confirmed height, never timestamps',()=>{
  const coin={txid:'a',vout:0,value:100,status:{confirmed:true,block_height:100}};
  assert.deepEqual(normalizeHistory([tx('a')],[coin],102)[0].bitcoin,{txid:'a',confirmations:3,blockHeight:100});

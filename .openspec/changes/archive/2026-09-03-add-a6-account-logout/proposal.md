@@ -1,3 +1,5 @@
+**Status: Complete ✓ — A6, confirmed by the user on 2026-09-09.** This confirmation supersedes earlier outstanding acceptance notes; historical implementation and verification records are retained.
+
 ## Why
 
 Players can create and remember an account, but cannot log out through the production Account dialogue. A6 adds deliberate logout with a permanent backup acknowledgement and truthful failure handling.

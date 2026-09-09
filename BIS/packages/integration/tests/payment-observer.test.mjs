@@ -9,7 +9,7 @@ test('payment observer runs with Account closed, reconnects silently and stops o
  const c=createContext(storage,undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,async()=>{},undefined,undefined,undefined,undefined,undefined,{},observer);
  await c.ready();await tick();assert.ok(publish);assert.equal(c.getState().accountActivity,false);
  publish([{id:'new',identifier:'ark:new',direction:'Incoming',amountSats:1234,status:'Settled offchain'}]);
- assert.equal(getControls(c).toasts.getSnapshot().message,'Unknown User Sent You 1234 Sats');
+ assert.equal(getControls(c).toasts.getSnapshot().message,'Unknown user sent you 1234 sats (Confirmed)');
  const oldSignal=signal,oldPublish=publish;account={profileId:'other',phrase:'fixture-only'};changed();await tick();await tick();
  assert.equal(oldSignal.aborted,true);assert.equal(getControls(c).toasts.getSnapshot(),null);
  oldPublish([{id:'late',identifier:'ark:late',direction:'Incoming',amountSats:10,status:'Settled offchain'}]);

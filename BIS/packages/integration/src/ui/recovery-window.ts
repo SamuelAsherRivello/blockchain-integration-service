@@ -36,6 +36,6 @@ export function RecoveryInfoDialog({ report, trigger, onBack }: { report: string
       copy.status === 'failed' && createElement('p', { role: 'status' }, 'Could not copy. Select the text and copy it manually.'),
       createElement('span', { className: 'bis-sr-only', role: 'status' }, copy.status === 'copied' ? 'Recovery info copied.' : ''),
       createElement('div', { className: 'bis-actions bis-transaction-back' },
-        createElement('button', { type: 'button', className: 'bis-button', onClick: onBack }, 'Back'))),
+        createElement('button', { type: 'button', className: 'bis-button bis-back', onClick: onBack }, 'Back'))),
   })), host);
 }

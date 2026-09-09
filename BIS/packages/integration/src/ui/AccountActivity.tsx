@@ -60,7 +60,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
       <div className="bis-actions bis-transaction-back">
         <button type="button" className="bis-button" disabled={!recoveryText} onClick={event => setRecoveryDialog({ report: recoveryText, trigger: event.currentTarget })}>View Recovery Info</button>
         <button type="button" className="bis-button" disabled={!explorerUrl} title={!explorerUrl ? 'Explorer unavailable: no supported transaction ID has been reported yet.' : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>
-        <button className="bis-button" onClick={() => {
+        <button className="bis-button bis-back" onClick={() => {
         const previous = opened.id;
         setDetailOpen(false); onDetailChange(false);
         requestAnimationFrame(() => buttons.current.get(previous)?.focus());

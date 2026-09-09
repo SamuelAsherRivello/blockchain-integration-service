@@ -51,7 +51,7 @@ for(const phase of ['prepared','registered'])test(`B1 reconciles a ${phase} with
   } else {
    // Missing live settlement evidence cannot release registered inputs.
    assert.equal(result.status,'failed');
-   assert.match(result.message,/0 sats available/);
+   assert.match(result.message,/2,000 sats are reserved by pending transfer/);
    assert.equal(f.submits(),0);
    assert.equal(readBoardingRecord('p','withdrawal').status,'pending');
   }

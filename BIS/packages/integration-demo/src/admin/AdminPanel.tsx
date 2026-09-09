@@ -3,7 +3,7 @@ import { StoryAction } from './StoryAction';
 import { StorySection } from './StorySection';
 import { getContinuePriceSats } from '@bis/integration';
 const userStoriesUrl = './documentation/user-stories/';
-const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
+const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1, C2' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
 
 const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A4', category: 'Account', label: 'Account Dialog' }] as const;
 export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
@@ -22,6 +22,8 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
       <h2 id="documentation-title" className="admin-section-title">User Stories</h2>
       <a className="documentation-link" href={userStoriesUrl} target="_blank" rel="noopener noreferrer">Documentation ↗</a>
     </section>
+    <section aria-labelledby="implementation-title">
+    <h2 id="implementation-title" className="admin-section-title">Implementation</h2>
     <nav aria-label="User stories">
       {categories.map(category => <StorySection key={category.name} title={category.title}>
         <p className="story-summary">Stories: {category.stories}</p>
@@ -39,10 +41,11 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
     </nav>
     <StorySection title="E. Admin Tools">
       <p className="story-summary">Stories: E1, E2</p>
-      <StoryAction id="E1" label="Fund Signet Sats" disabled={!canFund || funding} onClick={onFund} />
+      <StoryAction id="E1" label="Open Signet Faucet(s)" disabled={!canFund || funding} onClick={onFund} />
       <StoryAction id="E2" label="Open On Mempool.space" disabled={!canFund || funding} onClick={onExplorer} />
     </StorySection>
     {gameWallet}
+    </section>
     <section aria-labelledby="console-title">
       <h2 id="console-title" className="admin-section-title">Console</h2>
       {/* Only production BisContext return values belong here; admin helpers do not. */}
@@ -52,5 +55,4 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
     </div>
   </aside>;
 }
-
 

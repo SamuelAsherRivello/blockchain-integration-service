@@ -19,10 +19,16 @@ function ToastCard({ entry, reducedMotion, complete, imageUrl }: { entry: ToastE
   const showImage = !!imageUrl && !imageFailed;
   const showLightning = !showImage && entry.icon === 'lightning';
   useLayoutEffect(() => startToastPlayback(entry.durationMs, reducedMotion, setPhase, () => complete(entry.id)), [entry, reducedMotion, complete]);
-  return <div className={`bis-toast${showImage || showLightning ? ' bis-toast-with-image' : ''}`} data-phase={phase} data-toast-id={entry.id} aria-hidden="true"
+  return <div className="bis-toast bis-toast-with-image" data-message-type={entry.messageType} data-phase={phase} data-toast-id={entry.id} aria-hidden="true"
     style={{'--bis-toast-motion': `${TOAST_MOTION_MS}ms`} as CSSProperties}>
+    <svg className="bis-toast-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {entry.messageType === 'info' && <><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></>}
+      {entry.messageType === 'warning' && <><path d="M12 3 22 21H2L12 3Z"/><path d="M12 9v5M12 18h.01"/></>}
+      {entry.messageType === 'error' && <><circle cx="12" cy="12" r="9"/><path d="m6 18 12-12"/></>}
+      {entry.messageType === 'success' && <path d="m4 12 5 5L20 6"/>}
+    </svg>
     {showImage && <img className="bis-toast-image" src={imageUrl} alt="" width="48" height="48" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} />}
-    {showLightning && <span className="bis-toast-lightning" aria-hidden="true">⚡</span>}
+    {showLightning && <span className="bis-bolt bis-toast-lightning" aria-hidden="true">⚡</span>}
     <span className="bis-toast-text">{entry.message}</span>
   </div>;
 }
@@ -36,9 +42,9 @@ function PreparedToast({ entry, reducedMotion, complete, announce }: { entry: To
     // An empty interval makes repeated identical notifications separate live-region updates.
     announce('');
     if (!image.ready) return;
-    const timer = setTimeout(() => announce(entry.message), 0);
+    const timer = setTimeout(() => announce(`${entry.messageType}. ${entry.message}`), 0);
     return () => { clearTimeout(timer); announce(''); };
-  }, [image.ready, entry.message, announce]);
+  }, [image.ready, entry.message, entry.messageType, announce]);
   return image.ready ? <ToastCard entry={entry} reducedMotion={reducedMotion} complete={complete} imageUrl={image.url} /> : null;
 }
 

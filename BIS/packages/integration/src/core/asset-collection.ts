@@ -82,7 +82,7 @@ export function createBisAssetCollection(context: BisContext, options: BisAssetC
       if (result.profileId !== identity || result.operationId !== original.operationId || !matches(result.asset) || BigInt(result.asset.quantity) <= 0n) throw Error('mismatched receipt');
       request = undefined;
       set('owned', 'Already collected.');
-      context.showToast(options.successMessage, {imageUrl: result.asset.iconUrl});
+      context.showToast(options.successMessage, {imageUrl: result.asset.iconUrl, messageType: 'success'});
     } else if (['insufficient-funds','invalid-input','unsupported-environment','account-required','busy'].includes(result.code)) {
       request = undefined; needsAcknowledgment = true; set('error', result.message);
     } else set('uncertain', 'The mint outcome is unknown. Check its status before trying again.');

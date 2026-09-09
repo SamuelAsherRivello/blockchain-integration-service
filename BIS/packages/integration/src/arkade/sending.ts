@@ -33,15 +33,26 @@ function assetTotals(coins: {assets?: {assetId:string;amount:bigint}[]}[]) {
 async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:string,ignoreOperation?:string) {
  const info=await new RestArkProvider(SIGNET_OPERATOR).getInfo();requireSignet(info.network);
  if(info.fees.txFeeRate!=='0'||Object.values(info.fees.intentFee).some(v=>v!==''&&v!=='0'))throw new SendError('The operator fee schedule changed. Sending needs fee verification.');
- const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),profileId?walletReservations(profileId).filter(r=>r.id!==ignoreOperation):[]).filter(c=>preserveAssets||!c.assets?.length).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
+ const candidates=(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false})).filter(c=>preserveAssets||!c.assets?.length);
+ const reservations=profileId?walletReservations(profileId).filter(r=>r.id!==ignoreOperation):[];
+ const coins=eligibleUnreservedCoins(candidates,reservations).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
  const balance=await readFreshBalance(wallet);
  const total=coins.reduce((sum,c)=>sum+c.value,0);
- if(!Number.isSafeInteger(total)||total<0||total>balance.availableSats||coins.some(c=>!Number.isSafeInteger(c.value)||c.value<=0))throw new SendError('Live send data is unavailable.');
- return {info,coins,total,dust:Math.max(Number(wallet.dustAmount),Number(info.vtxoMinAmount),1)};
+ const eligibleTotal=candidates.reduce((sum,c)=>sum+c.value,0);
+ if(!Number.isSafeInteger(eligibleTotal)||eligibleTotal<0||eligibleTotal>balance.availableSats||!Number.isSafeInteger(total)||total<0||candidates.some(c=>!Number.isSafeInteger(c.value)||c.value<=0))throw new SendError('Live send data is unavailable.');
+ const outpoints=new Set(candidates.map(c=>`${c.txid}:${c.vout}`));
+ const blocking=reservations.filter(r=>r.inputs?.some(i=>outpoints.has(`${i.txid}:${i.vout}`)));
+ return {info,coins,total,reservedSats:eligibleTotal-total,blocking,dust:Math.max(Number(wallet.dustAmount),Number(info.vtxoMinAmount),1)};
 }
 async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requested?:number,preserveAssets=false,ignoreOperation?:string) {
  const own=await wallet.getAddress();const address=sendRecipient(recipient,own);
- const {info,coins,total,dust}=await funds(wallet,preserveAssets,profileId,ignoreOperation), amounts=sendAmounts(total,requested,dust);
+ const {info,coins,total,dust,reservedSats,blocking}=await funds(wallet,preserveAssets,profileId,ignoreOperation);
+ if(reservedSats>0&&(requested===undefined?total===0:Number.isSafeInteger(requested)&&requested>total&&requested<=total+reservedSats)) {
+  const transfers=blocking.filter(r=>r.id.startsWith('transfer:'));
+  const ids=transfers.map(r=>r.id.slice(9)).filter(id=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id));
+  throw new SendError(`${reservedSats.toLocaleString('en-US')} sats are reserved by ${transfers.length===blocking.length?'pending transfer(s)':'pending wallet operations'}${ids.length?` (${ids.join(', ')})`:''}. Open Account → Transactions → Recovery Info to check their status. No payment was submitted.`);
+ }
+ const amounts=sendAmounts(total,requested,dust);
  if(info.vtxoMaxAmount>0n&&(BigInt(amounts.amountSats)>info.vtxoMaxAmount||BigInt(amounts.changeSats)>info.vtxoMaxAmount))throw new SendError('Amount exceeds the operator limit.');
  const retained=assetTotals(coins);
  if(retained.length && amounts.changeSats<dust)throw new SendError('This payment must leave enough sats in change to preserve your assets.');

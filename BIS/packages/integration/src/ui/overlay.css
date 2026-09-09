@@ -15,6 +15,8 @@
 .bis-card h2 { margin: 0 0 8px; font: inherit; font-size: 19.2px; font-weight: 650; letter-spacing: -.04em; }
 .bis-actions { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .bis-actions .bis-button { width: 100%; }
+.bis-back { position: relative; margin-top: 6px; }
+.bis-back::before { content: ''; position: absolute; left: 50%; top: -8px; width: 2px; height: 2px; border-radius: 50%; background: rgba(82, 107, 116, 0.28); box-shadow: -6px 0 rgba(82, 107, 116, 0.28), 6px 0 rgba(82, 107, 116, 0.28); transform: translateX(-50%); pointer-events: none; }
 .bis-card p { margin: 0 0 19.2px; font-size: 9.6px; line-height: 1.6; color: #667a84; }
 
 .bis-card h2:focus { outline: none; }
@@ -23,9 +25,18 @@
 .bis-recovery li { background: #e9f1ef; border: 0.8px solid #d7e5df; padding: 4.8px 6.4px; border-radius: 5.6px; font-size: 9.6px; }
 .bis-recovery li span { color: #667a84; font-size: 8px; }
 .bis-progress { display: flex; flex-direction: column; align-items: center; gap: 4.8px; margin-bottom: 14.4px; font-size: 9.6px; }
-.bis-lightning { display: inline-block; font-size: 22.4px; animation: bis-turn 1.5s ease-in-out infinite; }
-@keyframes bis-turn { 0% { transform: rotate(0deg); } 65%, 100% { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .bis-lightning { animation: none; } }
+.bis-bolt { display: inline-block; }
+/* Offset the rotation pivot from center: positive X moves right, positive Y moves down.
+   Adjust these properties on the bolt; they do not move its layout box. */
+.bis-bolt-spin {
+  --bis-bolt-pivot-x: 0px;
+  --bis-bolt-pivot-y: 3px;
+  transform-origin: calc(50% + var(--bis-bolt-pivot-x)) calc(50% + var(--bis-bolt-pivot-y));
+  animation: bis-turn 1.363636s linear infinite;
+}
+.bis-lightning { font-size: 22.4px; }
+@keyframes bis-turn { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .bis-bolt-spin { animation: none; } }
 
 .bis-copy-status { font-size: 9.6px; color: #526b74; }
 .bis-sr-only { position: absolute; width: 0.8px; height: 0.8px; padding: 0; margin: -0.8px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -220,9 +231,14 @@
 .bis-runtime { isolation: isolate; }
 .bis-pending-backdrop { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 12.8px; background: #142330b8; pointer-events: auto; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; color: #182d39; color-scheme: light; }
 .bis-pending-dialog { box-sizing: border-box; width: min(224px, 100%); max-height: 100%; overflow: auto; padding: 22.4px 19.2px; border: 0.8px solid #d7e5df; border-radius: 14.4px; background: #f8fbfc; box-shadow: 0 16px 44px #0004; text-align: center; outline: none; }
+.bis-pending-backdrop { opacity: 1; transition: opacity 0.1s linear; }
+.bis-pending-backdrop[data-closing] { opacity: 0; }
+@starting-style { .bis-pending-backdrop { opacity: 0; } }
+.bis-pending-dialog { height: 100px; scrollbar-width: none; -webkit-user-select: none; user-select: none; }
+.bis-pending-dialog::-webkit-scrollbar { display: none; }
 .bis-pending-dialog h2 { margin: 0 0 14.4px; font-size: 16px; font-weight: 650; }
 .bis-pending-dialog p { font-size: 10.4px; line-height: 1.6; overflow-wrap: anywhere; margin: 0 0 16px; }
-.bis-pending-dialog .bis-lightning { font-size: 28.8px; }
+.bis-pending-dialog .bis-lightning { position: relative; top: -13px; left: -3px; font-size: 28.8px; }
 .bis-pending-dialog .bis-button { width: 100%; }
 
 .bis-balance-columns-with-direction { grid-template-columns: minmax(0, 1fr) 22.4px minmax(0, 1fr); column-gap: 4.8px; row-gap: 4.8px; }
@@ -249,3 +265,8 @@
 .bis-version-label { position: absolute; left: 100%; top: 50%; transform: translateY(calc(-50% + 1px)); margin-left: 6px; white-space: nowrap; opacity: .3; font-size: 7px; letter-spacing: 0; text-transform: none; font-weight: 500; }
 
 .bis-recovery-dialog { z-index: 2; }
+.bis-toast[data-message-type="info"] { background: #dceff8; color: #174c65; border-color: #83b8d0; border-top-color: #246b8c; }
+.bis-toast[data-message-type="warning"] { background: #fff3ce; color: #674a0c; border-color: #d8bb67; border-top-color: #8a6514; }
+.bis-toast[data-message-type="error"] { background: #fbe1df; color: #822e2b; border-color: #d89994; border-top-color: #a43c36; }
+.bis-toast[data-message-type="success"] { background: #e0f2df; color: #275a31; border-color: #91bd91; border-top-color: #397345; }
+.bis-toast-type-icon { flex: 0 0 24px; width: 24px; height: 24px; }

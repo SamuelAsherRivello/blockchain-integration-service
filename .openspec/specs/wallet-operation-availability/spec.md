@@ -6,6 +6,8 @@ Allow independently funded wallet operations while preserving pending-operation 
 
 ## Requirements
 
+Explicit player logout follows account-logout: backup acknowledgement and, when pending operations exist, separate pending-loss acknowledgement permit local player journal cleanup without cancelling submitted transactions. This exception does not relax Admin Reset guards or authorize spending reserved inputs.
+
 ### Requirement: Durable input reservations
 The system SHALL maintain multiple account/network/operator-scoped operations, reserving every input of unresolved operations before network submission. It SHALL preserve legacy records during migration and prevent conflicting submissions across cooperating same-origin contexts. Incomplete or corrupt unresolved input records SHALL block spending with an explicit reason. Completion SHALL release only the corresponding operation's reservations.
 
@@ -27,11 +29,15 @@ The system SHALL maintain multiple account/network/operator-scoped operations, r
 - **AND** while uncertainty remains it explains the specific spending hold and keeps receiving, inspection and recovery available without signing or resubmitting
 
 ### Requirement: Consistent operation availability
-Max, quotes and submissions SHALL use fresh eligible unreserved inputs including fees, revalidated at confirmation. Mint input control SHALL be proven before independent minting is enabled. The UI SHALL distinguish insufficient independent funds, unavailable verification, unsupported input selection and input conflict. SDK balance alone SHALL NOT override reservations.
+Max, quotes and submissions SHALL use fresh eligible unreserved inputs including fees, revalidated at confirmation. New partial Arkade-to-Bitcoin withdrawals SHALL prepare independent change under withdrawal-input-preparation when the selected funds exceed the required withdrawal funding, rather than reserve the excess through settlement. Mint input control SHALL be proven before independent minting is enabled. The UI SHALL distinguish insufficient independent funds, unavailable verification, unsupported input selection and input conflict. SDK balance alone SHALL NOT override reservations. Verified preparation SHALL transition reservations atomically between its completed input spend and the dedicated withdrawal output; surplus change SHALL NOT remain reserved by the parent transfer.
 
 #### Scenario: Small request reserves large coin
-- **WHEN** a pending 1,000-sat transfer consumes the account's sole 289,715-sat eligible input
-- **THEN** no independent spendable funds are advertised and the UI explains that the whole input remains reserved
+- **WHEN** an existing unresolved 1000-sat transfer predates preparation and consumes the account's sole 289715-sat eligible input
+- **THEN** no independent spendable funds are advertised and the UI explains that the whole input remains reserved pending verified recovery
+
+#### Scenario: New small withdrawal preserves change
+- **WHEN** a newly confirmed 1000-sat withdrawal starts from the sole 263715-sat eligible input at verified zero fees
+- **THEN** withdrawal registration follows verified preparation and only 1000 sats remain reserved for that withdrawal; the 262715-sat change is independently spendable
 
 #### Scenario: Independent funding arrives
 - **WHEN** a fresh read verifies a newly received independent spendable coin
@@ -83,3 +89,39 @@ Delivery SHALL report supported and unavailable actions separately, including SD
 #### Scenario: Cancellation remains blocked
 - **WHEN** independent spending and recovery pass verification but cancellation guarantees remain unproven
 - **THEN** those features are reported delivered with their evidence, cancellation remains explicitly undelivered, and the current account's actual eligible funds determine whether it can spend
+
+### Requirement: Resolution refreshes spendability without logout
+Verified completion or terminal cancellation SHALL durably release only the resolved operation's reservation and refresh the owning account's balances, assets, Activity and payment availability. Unresolved operations SHALL retain reservations across ordinary navigation and restart. Explicit logout after wallet-backup acknowledgement and, when the pending count exceeds zero, pending-loss acknowledgement SHALL clear player transaction and recovery records, including continuation and reservation journals, without requiring pending operations to resolve. Separate Admin game-wallet records SHALL remain intact. Administrative reset retains its existing guards. A total balance exceeding a requested payment SHALL NOT imply that reserved inputs are spendable.
+
+#### Scenario: Payment after verified resolution
+- **WHEN** a withdrawal or its cancellation is durably verified and the original account has enough fresh eligible sats
+- **THEN** B1 can pay without logout or manually clearing browser state
+- **AND** unrelated operation reservations remain protected
+
+#### Scenario: Positive balance entirely reserved
+- **WHEN** a pending withdrawal reserves all currently eligible inputs and B1 cannot fund 1,000 sats
+- **THEN** B1 explains the pending reservation and points to that operation's status
+- **AND** the app does not replace total balance with zero or submit a conflicting payment
+
+#### Scenario: Explicit logout clears local records without cancelling transactions
+- **WHEN** a player acknowledges their backup and requests logout while a withdrawal remains unresolved
+- **THEN** logout succeeds after the backup and pending-loss checkboxes and removes player operation journals and reservations; submitted transactions are not cancelled
+
+#### Scenario: Refresh unavailable
+- **WHEN** terminal resolution is durable but the fresh balance service is unavailable
+- **THEN** the verified outcome remains recorded and balances are reported unavailable rather than fabricated or reset to zero
+
+#### Scenario: Terminal persistence fails
+- **WHEN** terminal evidence cannot be saved durably
+- **THEN** input reservations remain protected and the app does not advertise them as released
+
+### Requirement: Preparation-aware reservation continuity
+All wallet mutation paths SHALL honor preparation input reservations and the dedicated withdrawal output reservation. Releasing completed preparation inputs SHALL require durable, verified output handoff. Available change SHALL refresh the shared balance, assets, Activity and B1 views for the owning account, without creating a payment or changing an unrelated account.
+
+#### Scenario: Payment races preparation completion
+- **WHEN** B1 and preparation completion run in separate cooperating contexts
+- **THEN** B1 can select verified change only after the durable handoff and cannot select either the unresolved source input or the dedicated withdrawal output
+
+#### Scenario: Handoff persistence fails
+- **WHEN** the verified preparation result cannot be durably saved
+- **THEN** the system retains a spending hold and does not advertise change as independently available until reconciliation safely completes the handoff

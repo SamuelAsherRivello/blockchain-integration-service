@@ -5,6 +5,8 @@ type NoticeInfo = {title:string;message:string;confirm?:()=>void};
 type Notice = { label: string; error?: string; info?:NoticeInfo; dismiss(): void };
 type Register = (id: string, notice?: Notice) => void;
 const PendingContext = createContext<Register | undefined>(undefined);
+// Temporary bolt pivot preview: set false to restore normal loading behavior.
+const PREVIEW_LOADING_FOREVER = false;
 
 /** Child layout effects publish before paint, including the initial page render. */
 export function usePendingNotice(busy: boolean, label: string, error: string | undefined, dismiss: () => void, info?:NoticeInfo) {
@@ -27,17 +29,27 @@ export function PendingOperations({children, overlay}: {children: ReactNode; ove
     if(!notice && !previous.has(id))return previous;
     const next=new Map(previous);if(notice)next.set(id,notice);else next.delete(id);return next;
   }),[]);
-  const entries=[...notices.values()];
+  const entries: Notice[]=PREVIEW_LOADING_FOREVER
+    ? [{label:'Loading ...',dismiss:()=>{}}]
+    : [...notices.values()];
   const waiting=entries.filter(entry=>!entry.error&&!entry.info);
   const failure=waiting.length ? undefined : entries.find(entry=>entry.error);
   const pending=waiting.find(entry=>entry.label!=='Loading...') ?? waiting[0];
   const label=useRef('Loading...');
   if(pending && (pending.label!=='Loading...' || !notices.size))label.current=pending.label;
   if(!pending)label.current='Loading...';
-  const current=failure ?? pending ?? entries.find(entry=>entry.info);
+  const active=failure ?? pending ?? entries.find(entry=>entry.info);
+  const [retained,setRetained]=useState<{notice:Notice;label:string}|undefined>();
+  useLayoutEffect(()=>{
+    if(active){setRetained({notice:active,label:label.current});return;}
+    const timeout=window.setTimeout(()=>setRetained(undefined),100);
+    return ()=>window.clearTimeout(timeout);
+  },[active]);
+  const current=active ?? retained?.notice;
+  const displayLabel=active ? label.current : retained?.label;
   const content=useRef<HTMLDivElement>(null), dialog=useRef<HTMLDivElement>(null);
   const previousFocus=useRef<HTMLElement|null>(null);
-  const open=!!current, failed=!!failure;
+  const open=!!current, failed=!!current?.error;
   useLayoutEffect(()=>{
     if(!open)return;
     previousFocus.current=document.activeElement as HTMLElement|null;
@@ -56,7 +68,7 @@ export function PendingOperations({children, overlay}: {children: ReactNode; ove
   return <PendingContext.Provider value={register}>
     <div ref={runtime} className="bis-runtime">
       <div ref={content} className="bis-runtime-content" inert={open} aria-hidden={open || undefined} aria-busy={!!pending}>{children}</div>
-      {current && <div className="bis-pending-backdrop" onKeyDown={event=>{
+      {current && <div className="bis-pending-backdrop" data-closing={!active || undefined} onKeyDown={event=>{
         if(event.key==='Escape'){event.preventDefault();event.stopPropagation();}
         if(event.key==='Tab'){
           const buttons=[...dialog.current!.querySelectorAll('button')];
@@ -66,10 +78,10 @@ export function PendingOperations({children, overlay}: {children: ReactNode; ove
         }
       }}>
         <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info?description:undefined}>
-          <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Operation unavailable':current.info?.title??label.current}</h2>
-          {failed ? <><p id={description}>{failure.error}</p><button className="bis-button" onClick={()=>failure.dismiss()}>OK</button></>
+          <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Operation unavailable':current.info?.title??displayLabel}</h2>
+          {failed ? <><p id={description}>{current.error}</p><button className="bis-button" onClick={()=>current.dismiss()}>OK</button></>
             : current.info ? <><p id={description}>{current.info.message}</p>{current.info.confirm ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.info.confirm}>Yes</button><button className="bis-button" onClick={current.dismiss}>Cancel</button></div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
-            : <span className="bis-lightning" aria-hidden="true">⚡</span>}
+            : <span className="bis-bolt bis-bolt-spin bis-lightning" aria-hidden="true">⚡</span>}
         </div>
       </div>}
       {overlay}

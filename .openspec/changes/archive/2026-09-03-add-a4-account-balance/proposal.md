@@ -1,3 +1,5 @@
+**Status: Complete ✓ — A4, confirmed by the user on 2026-09-09.** This confirmation supersedes earlier outstanding acceptance notes; historical implementation and verification records are retained.
+
 ## Why
 
 The active Account dialog identifies the account but cannot show its funds. Deliver a small reusable A4 balance feature without coupling release to transaction history, game achievements, or funding flows.

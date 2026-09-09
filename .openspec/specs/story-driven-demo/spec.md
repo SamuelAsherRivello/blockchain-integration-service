@@ -21,11 +21,11 @@ The demo SHALL offer 100%, 50%, and 25% content scale beside the 9:16 indicator,
 - **THEN** the dialogue remains open and centered, its content scales, and its enabled controls remain interactive
 
 ### Requirement: Implemented demonstrations only
-The Admin UI SHALL show only implemented demonstrations and nonempty categories. It SHALL begin without a selected story, including after refresh. Existing implemented Account demonstrations SHALL remain available, through Account Button and Account Dialog, with creation, restoration, balances, activity, logout, receiving, sending, and transfer accessible through the existing production flow. Dedicated shortcuts for these nested functions SHALL NOT appear in A. Account. Assets / C1 Mint Asset and C4 List Assets SHALL remain available alongside them. Pay-to-play SHALL expose Request Continue only once its real operation is implemented; other unimplemented stories and game-specific Achievements SHALL be omitted. The Admin heading SHALL be followed by User Stories and a Documentation link to bundled user-story Markdown that works in development and production builds. It SHALL NOT show Interactivity.
+The Admin UI SHALL show only implemented demonstrations and nonempty categories. It SHALL begin without a selected story, including after refresh. Existing implemented Account demonstrations SHALL remain available, through Account Button and Account Dialog, with creation, restoration, balances, activity, logout, receiving, sending, and transfer accessible through the existing production flow. Dedicated shortcuts for these nested functions SHALL NOT appear in A. Account. Assets / C1 Mint Asset and Asset listing SHALL remain available alongside them. Pay-to-play SHALL expose Request Continue only once its real operation is implemented; other unimplemented stories and game-specific Achievements SHALL be omitted. The Admin heading SHALL be followed by User Stories and a Documentation link to bundled user-story Markdown that works in development and production builds. It SHALL NOT show Interactivity.
 
 #### Scenario: Initial demo
 - **WHEN** the demo loads
-- **THEN** only A1 Account Button and A4 Account Dialog are available as buttons under Account alongside C1/C4 asset controls, with empty Runtime Preview
+- **THEN** only A1 Account Button and A4 Account Dialog are available as buttons under Account alongside C1 mint controls, with empty Runtime Preview
 - **AND** no filler cards, introduction, WIP badges, or empty categories appear
 - **AND** Request Continue appears under Pay-to-play only after its operation is implemented
 
@@ -136,7 +136,7 @@ Selecting Account Dialog SHALL open the production Account dialog for the actual
 
 #### Scenario: Report A4 complete
 - **WHEN** A4 delivery is documented
-- **THEN** existing story/step IDs remain stable, A4 scope is the lean balance dialog, and A5 transaction history is a separate story, while C4 achievements/assets and receiving details remain outside A4
+- **THEN** existing story/step IDs remain stable, A4 scope is the lean balance dialog, and A5 transaction history is a separate story, while asset inspection and receiving details remain outside A4
 - **AND** missing funded-wallet or other live checks remain explicitly pending instead of being inferred from fixtures or zero-balance checks
 
 ### Requirement: A5 production demonstration and evidence
@@ -222,7 +222,7 @@ The Admin mint form SHALL offer three quick-fill buttons labeled Achievement: Le
 - **AND** the initial form before preset selection still has a blank optional icon URL
 
 ### Requirement: Admin list and preview isolation
-C4 List Assets SHALL call the generic production listing API and show its actual result in Admin Console, including an explicit empty array. Neither C1 nor C4 SHALL navigate, mount, clear, or change Runtime Preview. Existing account-flow restrictions SHALL be preserved. A mint form SHALL be outside the runtime container and use accessible labels, focus containment/restoration, idle dismissal, and responsive scrolling.
+Asset listing SHALL call the generic production listing API and show its actual result in Admin Console, including an explicit empty array. Neither minting nor asset listing SHALL navigate, mount, clear, or change Runtime Preview. Existing account-flow restrictions SHALL be preserved. A mint form SHALL be outside the runtime container and use accessible labels, focus containment/restoration, idle dismissal, and responsive scrolling.
 
 #### Scenario: Mint then list
 - **WHEN** mint succeeds and the user then clicks List Assets for the same account
@@ -257,7 +257,7 @@ The existing Console region SHALL remain visible from initial load and show labe
 - **THEN** the console clears the prior output and displays only the newly supplied labeled content
 
 ### Requirement: Delivery evidence and documentation
-C1/C4 documentation SHALL describe generic mint/list APIs and Admin-only presets. Preserve story/step IDs with superseded annotations where necessary. Live mint/list, restoration, retry safety, exact amounts, independent-host parity, and browser behavior SHALL have supporting evidence before completion is claimed. Evidence SHALL distinguish user-supplied external-wallet success, existing BIS listing, isolated tests, and newly verified BIS minting. Same-identity BIS issuance of a new asset followed by a fresh list containing both old and new holdings SHALL be required for this delivery; an external mint or a different-wallet test alone SHALL NOT satisfy it. Historical funding or pending-transfer observations SHALL NOT be described as newly verified blockers. Unperformed checks SHALL remain pending. B/C2/C3/C5 and D1 issuer scope SHALL remain deferred; broad pending-transfer recovery/cancellation remains separate.
+C1 documentation SHALL describe generic mint/list APIs and Admin-only presets. Preserve story/step IDs with superseded annotations where necessary. Live mint/list, restoration, retry safety, exact amounts, independent-host parity, and browser behavior SHALL have supporting evidence before completion is claimed. Evidence SHALL distinguish user-supplied external-wallet success, existing BIS listing, isolated tests, and newly verified BIS minting. Same-identity BIS issuance of a new asset followed by a fresh list containing both old and new holdings SHALL be required for this delivery; an external mint or a different-wallet test alone SHALL NOT satisfy it. Historical funding or pending-transfer observations SHALL NOT be described as newly verified blockers. Unperformed checks SHALL remain pending. Unrelated payment and issuer scope SHALL remain separately tracked; broad pending-transfer recovery/cancellation remains separate.
 
 #### Scenario: Report delivery
 - **WHEN** this slice is reported complete
@@ -357,16 +357,16 @@ Admin SHALL provide a Request Continue button with a visible 1,000-sat demo pric
 - **WHEN** the request encounters validation, account availability, insufficient funds, or confirmed operation failure
 - **THEN** Console reports the corresponding error without implying continuation success
 
-### Requirement: C6 completion reward demonstration
-Admin SHALL expose C6 Reward Player With Trophy After Level Complete under C. Assets. Its Runtime Preview SHALL simulate a two-level completion sequence, exercise intermediate/final prompts and use the same generic public asset collection behavior as the game. Opening, Continue and Restart SHALL NOT mint. Only an explicit enabled Collect action SHALL call real wallet issuance; synthetic wallet outcomes SHALL be confined to isolated test fixtures.
+### Requirement: C2 completion reward demonstration
+Admin SHALL expose C2 Reward Player With Trophy After Level Complete under C. Assets. Its Runtime Preview SHALL simulate a two-level completion sequence, exercise intermediate/final prompts and use the same generic public asset collection behavior as the game. Opening, Continue and Restart SHALL NOT mint. Only an explicit enabled Collect action SHALL call real wallet issuance; synthetic wallet outcomes SHALL be confined to isolated test fixtures.
 
 #### Scenario: Preview progression
-- **WHEN** the user opens C6 then chooses Continue To Next Level
+- **WHEN** the user opens C2 then chooses Continue To Next Level
 - **THEN** Runtime Preview moves from Level Completed to Game Completed without a wallet mutation
 - **AND** Restart Game closes the simulation
 
 #### Scenario: Production wallet action
-- **WHEN** an eligible user explicitly clicks Collect in C6
+- **WHEN** an eligible user explicitly clicks Collect in C2
 - **THEN** the active wallet's public APIs perform collection and the prompt stays open through the truthful result
 
 ### Requirement: Admin image toast sample
@@ -403,7 +403,7 @@ The user-story document SHALL contain D1. Show Toast and a matching table-of-con
 
 ### Requirement: Numbered Admin tools
 
-Admin SHALL group the existing tools under E. Admin Tools, labeling the funding action E1. Fund Signet Sats and the explorer action E2. Open On Mempool.space. Both SHALL retain their existing active-account requirement and shared busy disabling. E1 SHALL retain the existing funding-address lookup, clipboard attempt, and Signet faucet opening flow. E2 SHALL retain the existing funding-address lookup and Signet Mempool.space address-page flow. Reorganizing these controls SHALL NOT submit a payment or claim successful funding.
+Admin SHALL group the existing tools under E. Admin Tools, labeling the funding action E1. Open Signet Faucet(s) and the explorer action E2. Open On Mempool.space. Both SHALL retain their existing active-account requirement and shared busy disabling. E1 SHALL open https://bitcoinsignetfaucet.com/, https://signetfaucet.com/, and https://signet.2nd.dev/ in separate tabs directly from the click, retain the funding-address lookup and optional clipboard attempt, and report blocked pop-ups in the Admin console. The documentation link SHALL retain its e1-fund-signet-sats anchor. E2 SHALL retain the existing funding-address lookup and Signet Mempool.space address-page flow. Reorganizing these controls SHALL NOT submit a payment or claim successful funding.
 
 #### Scenario: Existing tool behavior with new labels
 - **WHEN** the user activates E1 or E2 with an active account and neither tool busy
@@ -422,7 +422,7 @@ The user-story Markdown SHALL place D1. Show Toast under D. UI and E1/E2 under E
 - **THEN** it resolves to exactly one corresponding appendix heading and D1 refers to Show Toast
 
 ### Requirement: F2 pay player demonstration
-Admin SHALL display F3 `Send 100 Sats (Game->Player)` under F. Game Wallet after F2. Without an active logged-in Runtime Preview player account, F3 SHALL be visibly greyed out and disabled for pointer and keyboard activation. Availability SHALL react to account changes and also require an eligible F1 sender and no unresolved F3 payment. Activating F3 SHALL use the production payment API; receipt feedback SHALL appear in Runtime Preview through the shared toast UI.
+Admin SHALL display F3 `Send 1000 Sats (Game->Player)` under F. Game Wallet after F2. Without an active logged-in Runtime Preview player account, F3 SHALL be visibly greyed out and disabled for pointer and keyboard activation. Availability SHALL react to account changes and also require an eligible F1 sender and no unresolved F3 payment. Activating F3 SHALL use the production payment API; receipt feedback SHALL appear in Runtime Preview through the shared toast UI.
 
 #### Scenario: No preview player
 - **WHEN** Runtime Preview has no active player account
@@ -437,26 +437,26 @@ Admin SHALL display F3 `Send 100 Sats (Game->Player)` under F. Game Wallet after
 - **THEN** the preview shows the sender-specific receipt toast without opening a player Send dialog
 
 ### Requirement: F2 documentation and acceptance evidence
-The user-story documentation SHALL include F2's exact label, payment direction, disabled state and receipt message. Evidence SHALL distinguish isolated tests from live Signet verification and SHALL NOT claim live completion from mocked outcomes.
+The user-story documentation SHALL include F3's exact label, payment direction, disabled state and receipt message. Evidence SHALL distinguish isolated tests from live Signet verification and SHALL NOT claim live completion from mocked outcomes.
 
 #### Scenario: Delivery verification
-- **WHEN** F2 is reported complete
+- **WHEN** F3 is reported complete
 - **THEN** evidence covers real-browser no-player disabling, account transitions, pending duplicate prevention and runtime toast rendering, plus actual two-wallet payment and receipt correlation
 - **AND** unavailable live checks remain explicitly pending
 
 ### Requirement: Explain F2 unavailability
-F2 SHALL append its current disabling reason in parentheses. Awaiting Balance SHALL be used for a balance still loading or below the required amount, rather than masking an unresolved operation. Other reasons SHALL distinguish Awaiting Player, Awaiting Game Wallet, Select A Different Wallet, Sending, Checking Wallet, Awaiting Confirmation, Wallet Operation Unresolved and Wallet Unavailable as applicable.
+F3 SHALL append (Awaiting Balance) only for balance loading or shortage. Other blockers SHALL have an accessible explanation outside the payment button suffix. Awaiting Balance SHALL be used for a balance still loading or below the required amount, rather than masking an unresolved operation. Other reasons SHALL distinguish Awaiting Player, Awaiting Game Wallet, Select A Different Wallet, Sending, Checking Wallet, Awaiting Confirmation, Wallet Operation Unresolved and Wallet Unavailable as applicable.
 
 #### Scenario: Funds locked by unresolved operation
 - **WHEN** the wallet has a positive raw balance but an unresolved operation prevents spending
-- **THEN** F2 identifies the operation-related block and F1 shows 0 payment-usable sats
+- **THEN** F3 identifies the operation-related block and F3 shows 0 payment-usable sats
 
 #### Scenario: Balance missing or insufficient
 - **WHEN** an otherwise eligible wallet is loading its balance or has fewer than 1000 usable sats
-- **THEN** F2 appends (Awaiting Balance)
+- **THEN** F3 appends (Awaiting Balance)
 
 ### Requirement: Compact Admin Account section
-A. Account SHALL display its section heading, then `Stories: A1, A2, A3, A4, A5, A6`, then exactly two buttons in order: A1. Account Button and A4. Account Dialog. The story summary SHALL remain separate from the button list and list implemented A-series stories in numeric order without changing documented pending verification status. Other story sections SHALL add summaries below their headings: B lists B1, B2; C lists C1, C4, C6; D lists D1, D2; E lists E1, E2; F lists F1, F2, F3. Each SHALL use the Stories: prefix and comma-separated IDs. Existing controls, order, styling, and behavior SHALL otherwise remain unchanged. User Stories documentation and Console SHALL NOT receive story summaries.
+A. Account SHALL display its section heading, then `Stories: A1, A2, A3, A4, A5, A6`, then exactly two buttons in order: A1. Account Button and A4. Account Dialog. The story summary SHALL remain separate from the button list and list implemented A-series stories in numeric order without changing documented pending verification status. Other story sections SHALL add summaries below their headings: B lists B1, B2; C lists C1, C2; D lists D1, D2; E lists E1, E2; F lists F1, F2, F3. Each SHALL use the Stories: prefix and comma-separated IDs. Existing controls, order, styling, and behavior SHALL otherwise remain unchanged. User Stories documentation and Console SHALL NOT receive story summaries.
 
 #### Scenario: Account layout
 - **WHEN** Admin renders at wide or narrow panel widths
@@ -500,4 +500,3 @@ B1 SHALL append `(Player->Game)` to its existing quoted payment label without ch
 - **WHEN** Admin renders B1 and F3
 - **THEN** their labels show the respective payment directions
 - **AND** B1 retains its existing amount while a new F3 payment requests 100 sats
-

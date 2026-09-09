@@ -1,3 +1,7 @@
+## Current story status — 2026-09-09
+
+Complete, confirmed by the user. The current asset catalog contains C1. Mint Asset and C2. Reward Player With Trophy After Level Complete (formerly C6). Other C-level entries are removed from the current catalog. Historical task IDs and verification evidence below are retained.
+
 ## 1. Shared asset collection
 
 - [x] 1.1 Add generic public asset-collection controller and focused tests for ownership, guest, fresh preflight, successful toast, duplicate/pending requests, account changes and bounded errors; preserve existing asset API tests.

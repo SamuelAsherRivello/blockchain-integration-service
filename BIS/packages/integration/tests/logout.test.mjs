@@ -151,7 +151,7 @@ test('successful logout never publishes a create/restore dialog, including recon
   }
 });
 
-test('five pending operations require the additional acknowledgement and reopening resets it', async () => {
+test('pending operations require the second checkbox before logout', async () => {
   const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
   const data=new Map([['bis-signet-mints-v1:profile-a',JSON.stringify({operations:Array.from({length:5},(_,i)=>({request:{operationId:String(i)},status:'pending'}))})]]);
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return data.size;},key:i=>[...data.keys()][i]??null,getItem:key=>data.get(key)??null}});
@@ -161,23 +161,26 @@ test('five pending operations require the additional acknowledgement and reopeni
     assert.equal(c.getState().logoutPendingCount,5);
     assert.equal(c.getState().logoutPendingAcknowledged,false);
     await c.confirmLogout();assert.equal(f.clears(),0);
-    c.setLogoutPendingAcknowledged(true);c.cancelLogout();
+    c.setLogoutPendingAcknowledged(true);
+    c.setLogoutPendingAcknowledged(false);
+    await c.confirmLogout();assert.equal(f.clears(),0);
+    c.cancelLogout();await c.ready();
     c.openLogoutConfirmation();assert.equal(c.getState().logoutPendingAcknowledged,false);
     c.setLogoutBackupAcknowledged(true);c.setLogoutPendingAcknowledged(true);
     await c.confirmLogout();assert.equal(f.clears(),1);
+    assert.equal(c.getState().hasProfile,false);
+    assert.equal(data.size,1);
   } finally {c.dispose();if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
 });
 
-test('changed pending operations invalidate consent even when their count stays the same', async () => {
+test('changed pending operations do not block backup-acknowledged logout', async () => {
   const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
   let id='first';
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{length:1,key:()=> 'bis-signet-mints-v1:profile-a',getItem:key=>key==='bis-signet-mints-v1:profile-a'?JSON.stringify({operations:[{request:{operationId:id},status:'pending'}]}):null}});
   const f=fixture(),c=f.make();
   try {
     await confirm(c);c.setLogoutPendingAcknowledged(true);id='replacement';
-    await c.confirmLogout();assert.equal(f.clears(),0);
-    assert.equal(c.getState().logoutPendingAcknowledged,false);
-    assert.equal(c.getState().logoutPendingCount,1);
-    c.setLogoutPendingAcknowledged(true);await c.confirmLogout();assert.equal(f.clears(),1);
+    await c.confirmLogout();assert.equal(f.clears(),1);
+    assert.equal(c.getState().hasProfile,false);
   } finally {c.dispose();if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
 });

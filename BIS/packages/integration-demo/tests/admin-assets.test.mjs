@@ -10,7 +10,10 @@ async function loadAdmin() {
     const { code } = await transformWithOxc(source, 'AdminPanel.tsx', { jsx: { runtime: 'automatic' } });
     const storySource = await readFile(new URL('../src/admin/StoryAction.tsx', import.meta.url), 'utf8');
     const story = await transformWithOxc(storySource, 'StoryAction.tsx', { jsx: { runtime: 'automatic' } });
-    const storyModule = story.code.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')));
+    const cardSource = await readFile(new URL('../src/admin/StoryButton.tsx', import.meta.url), 'utf8');
+    const card = await transformWithOxc(cardSource, 'StoryButton.tsx', { jsx: { runtime: 'automatic' } });
+    const cardModule = card.code.replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')));
+    const storyModule = story.code.replace('"./StoryButton"', JSON.stringify('data:text/javascript,' + encodeURIComponent(cardModule))).replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')));
     const moduleText = code.replace('"./StoryAction"', JSON.stringify(`data:text/javascript,${encodeURIComponent(storyModule)}`)).replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime'))).replace('"react/jsx-dev-runtime"', JSON.stringify(import.meta.resolve('react/jsx-dev-runtime')));
     const sectionSource=await readFile(new URL('../src/admin/StorySection.tsx',import.meta.url),'utf8');
     const section=await transformWithOxc(sectionSource,'StorySection.tsx',{jsx:{runtime:'automatic'}});
@@ -27,7 +30,7 @@ test('B1 stays enabled with the Account dialog open and retains payment guards',
       const html = renderToStaticMarkup(createElement(AdminPanel, {
         accountOpen, continueAvailable, continueBusy, consoleOutput: '',
       }));
-      const button = html.match(/<button\b[^>]*><span>B1<\/span>/)?.[0];
+      const button = html.match(/<button\b[^>]*aria-label="B1\.[^"]*"[^>]*>/)?.[0];
       assert.ok(button, 'B1 is rendered');
       assert.equal(button.includes('disabled=""'), disabled, `accountOpen=${accountOpen}, available=${continueAvailable}, busy=${continueBusy}`);
     }
@@ -38,7 +41,7 @@ test('C1 uses game wallet readiness and shows Awaiting Balance when unfunded',as
  const AdminPanel=await loadAdmin();
  for(const mintAvailable of [false,true])for(const playerActive of [false,true]) {
   const html=renderToStaticMarkup(createElement(AdminPanel,{mintAvailable,mintReason:mintAvailable?undefined:'Awaiting Balance',playerActive,accountOpen:true,assetBusy:false,consoleOutput:''}));
-  const button=html.match(/<button\b[^>]*><span>C1<\/span>/)?.[0];assert.ok(button);
+  const button=html.match(/<button\b[^>]*aria-label="C1\.[^"]*"[^>]*>/)?.[0];assert.ok(button);
   assert.equal(button.includes('disabled=""'),!mintAvailable);
   if(!mintAvailable)assert.match(html,/Mint Asset &amp; Send \(Awaiting Balance\)/);
  }
@@ -54,7 +57,7 @@ test('Admin renders implemented asset stories and omits empty categories', async
     }));
     assert.match(html, />A\. Account</);
     assert.match(html, />C\. Assets</);
-    assert.match(html, /<span>C1<\/span><span[^>]*>Mint Asset &amp; Send/);
+    assert.match(html, /C1\. Mint Asset &amp; Send/);
     assert.doesNotMatch(html, /<span>C4<\/span>List Assets/);
     assert.doesNotMatch(html, /C6|Reward Player With Trophy After Level Complete/);
     assert.match(html, />B\. Pay-to-play</);
@@ -75,7 +78,7 @@ test('D1/D2 and E1/E2 retain independent availability and exact action routing',
     if (!element || typeof element !== 'object') return found;
     if (Array.isArray(element)) { element.forEach(child => actions(child, found)); return found; }
     if (typeof element.type === 'function') {
-      if (element.props.id) found.set(element.props.id, element.type(element.props));
+      if (element.props.id) found.set(element.props.id, element.type(element.props).props.children);
       else actions(element.type(element.props), found);
     } else actions(element.props?.children, found);
     return found;
@@ -87,11 +90,11 @@ test('D1/D2 and E1/E2 retain independent availability and exact action routing',
   }
   assert.deepEqual(calls, ['toast','toast-icon','fund','explorer']);
   const markup = renderToStaticMarkup(createElement(AdminPanel, props));
-  assert.match(markup, />D\. UI</); assert.match(markup, /<span>D1<\/span><span[^>]*>Show Toast/);
-  assert.match(markup, /<span>D2<\/span><span[^>]*>Show Toast With Icon/);
+  assert.match(markup, />D\. UI</); assert.match(markup, /D1\. Show Toast/);
+  assert.match(markup, /D2\. Show Toast With Icon/);
   assert.match(markup, />E\. Admin Tools</);
-  assert.match(markup, /<span>E1<\/span><span[^>]*>Fund Signet Sats/);
-  assert.match(markup, /<span>E2<\/span><span[^>]*>Open On Mempool.space/);
+  assert.match(markup, /E1\. Open Signet Faucet/);
+  assert.match(markup, /E2\. Open On Mempool.space/);
   for (const options of [{canFund: false}, {funding: true}]) {
     const disabled = actions(AdminPanel({...props,...options}));
     assert.equal(disabled.get('E1').props.disabled, true);

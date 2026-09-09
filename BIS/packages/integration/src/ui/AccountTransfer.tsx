@@ -145,7 +145,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
       {review ? <button className="bis-button bis-primary" disabled={!boardingSubmissionEnabled||!quote||expired||busy||blocked} onClick={()=>void confirm()}>Confirm Transfer</button>
         : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||balance.status!=='ready'} onClick={reviewTransfer}>Review Transfer</button>}
       {error && !pending && <button className="bis-button" disabled={busy} onClick={()=>void check()}>Check Status</button>}
-      <button className="bis-button" onClick={() => review ? (setReview(false),setQuote(undefined)) : onBack()}>Back</button>
+      <button className="bis-button bis-back" onClick={() => review ? (setReview(false),setQuote(undefined)) : onBack()}>Back</button>
     </div>
   </>;
 }

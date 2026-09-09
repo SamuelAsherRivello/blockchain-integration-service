@@ -5,6 +5,8 @@ Let an account receive test funds through a clearly separated Lightning invoice 
 
 ## Requirements
 
+Explicit player logout follows account-logout: backup acknowledgement and, when pending operations exist, separate pending-loss acknowledgement permit local player journal cleanup without cancelling submitted transactions. This exception does not relax Admin Reset guards or authorize spending reserved inputs.
+
 ### Requirement: Protect unfinished receiving operations from account clearing
 Log Out and Reset SHALL be blocked while any account invoice can still be paid or its receipt requires processing or reconciliation. The guard SHALL cover hidden invoices, creation in progress, restart hydration, and other live contexts, and SHALL be enforced by the core clearing APIs as well as the UI. Unknown operation state SHALL fail closed. Expiration on the local clock alone SHALL NOT release an operation that may require receipt processing. Blocking SHALL explain the reason without exposing secrets and SHALL NOT block ordinary navigation. Clearing SHALL become available only when all relevant operations are safely reconciled as no longer payable and requiring no further processing, subject to existing confirmation requirements.
 

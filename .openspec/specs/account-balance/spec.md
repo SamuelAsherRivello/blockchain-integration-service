@@ -4,6 +4,8 @@
 
 Provide reusable, freshly requested Signet balance information in the Account Details dialog without persisting wallet balances or presenting stale values after failure.
 
+**Story status:** A4 ✓ — complete, confirmed by the user on 2026-09-09.
+
 ## Requirements
 
 ### Requirement: Available and total balances

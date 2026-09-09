@@ -171,3 +171,20 @@ This supersedes older inline Loading..., unavailable-page and Retry/Back present
 ## Repository structure — 2026-09-07
 
 Confirmed: project documentation, packages, and scripts live under `BIS/documentation/`, `BIS/packages/`, and `BIS/scripts/`. npm workspace configuration and commands remain at the repository root. `.openspec/`, `.agents/`, and `.github/` remain at the root. GitHub Pages publishes `BIS/packages/integration-demo/dist/`.
+
+
+## Burn toasts and asset observation � 2026-09-08
+
+Confirmed by the user: keep the Are you sure? / OK / Cancel confirmation before burning. After OK, replace the burn progress dialog with Asset burn (Pending) and Asset burn (Confirmed) toasts, using existing verified burn success. Holdings refresh does not recreate the progress overlay. Existing error acknowledgment and uncertain-operation protection remain. This supersedes the burn-progress portion of the earlier pending-dialog decision.
+
+The user also requested automatic asset updates without polling. The open Assets flow now listens to SDK indexer receive-script output events, including subdust, and coalesces event-triggered fresh reads. It stops on leaving or changing account. Manual Refresh remains available if the stream ends; existing Activity/Balance observation is independent and no longer periodically refreshes Assets.
+
+
+## Completed asset story catalog — 2026-09-09
+
+The user confirmed Mint Asset and Reward Player With Trophy After Level Complete complete. The current catalog retains C1. Mint Asset and renumbers the former C6 trophy story to C2. Remove the other C-level story entries from the catalog; retain existing asset behavior and historical OpenSpec evidence.
+
+
+## Removed continuation proposals — 2026-09-09
+
+The user withdrew B3 optional payment review/guidance and B4 extended pending-payment/recovery UI. Remove these proposed stories from the current catalog; no implementation work is planned for them. B1 and B2 remain. Historical B1 archive records retain their original scope descriptions.

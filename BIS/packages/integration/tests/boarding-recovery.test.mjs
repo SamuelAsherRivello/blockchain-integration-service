@@ -42,7 +42,7 @@ test('storage cleanup rechecks pending consent and account identity inside its l
  assert.equal(readBoardingRecord('profile').status,'pending');
 });
 
-test('acknowledged logout clears identity and journals, retaining only restart metadata; administrative reset still blocks', async () => {
+test('logout and reset preserve unresolved identity and journals; verified terminal records permit cleanup', async () => {
  const pending={...record(),phase:'registered',intentId:'operator-intent'};
  writeBoardingRecord(pending);
  const before=[...values.entries()];
@@ -65,6 +65,14 @@ test('acknowledged logout clears identity and journals, retaining only restart m
   const storage=createAccountStorage();
   storage.load=async()=>({generation:stored.get('generation'),account:stored.has('identity')?{profileId:'profile'}:null});
   await assert.rejects(storage.reset(0),/unresolved/);
+  await assert.rejects(storage.reset(0,{purpose:'logout',profileId:'profile',operations:pendingLogoutOperations()}),/unresolved/);
+  assert.equal(stored.has('identity'),true);
+  assert.equal(stored.get('generation'),0);
+  assert.deepEqual([...values.entries()],before);
+  assert.equal((await storage.load()).account.profileId,'profile');
+  assert.deepEqual(readBoardingRecord('profile'),pending);
+  // Cleanup unit fixture: terminal evidence is tested by receipt reconciliation.
+  writeBoardingRecord({...pending,status:'succeeded',commitmentTxid:'e'.repeat(64)});
   await storage.reset(0,{purpose:'logout',profileId:'profile',operations:pendingLogoutOperations()});
   assert.equal(stored.has('identity'),false);
   assert.deepEqual([...stored.keys()].sort(),['generation','logout']);
