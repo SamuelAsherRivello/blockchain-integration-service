@@ -1,6 +1,7 @@
 import type { AccountSecret } from '../arkade/account.ts';
 import { assertNoPendingSend } from './sending.ts';
-import { assertNoPendingBoarding, withWalletMutation } from './boarding-record.ts';
+import { assertNoPendingBoarding, BoardingBlockedError } from './boarding-record.ts';
+import { readContractReservations } from './contract-reservations.ts';
 import { browserMutationLock, clearBrowserPreferences, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
 export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
 export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
@@ -121,7 +122,11 @@ export function createAccountStorage(): AccountStorage {
       }
       const loaded = await this.load();
       const profileId = loaded.account?.profileId;
-      await withWalletMutation(async () => {
+      // A game wallet can fund a player contract: serialize reset against all
+      // wallets on this origin before checking either participant's recovery.
+      await withBrowserMutation(async () => {
+      if(readContractReservations().some(record=>record.pending&&(record.playerId===profileId||record.gameId===profileId)))
+        throw new BoardingBlockedError('A contract is unresolved. Open Account → Contracts and check recovery before resetting this account.');
       assertNoPendingSend(profileId);
       // Administrative reset retains its existing unresolved-transfer guard.
       assertNoPendingBoarding(profileId);
@@ -137,7 +142,7 @@ export function createAccountStorage(): AccountStorage {
         };
       });
       channel?.postMessage('changed'); notify();
-      },profileId);
+      },true);
     },
     subscribe(listener) {
       listeners.add(listener);

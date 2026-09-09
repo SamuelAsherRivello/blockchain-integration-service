@@ -7,6 +7,7 @@
     "BIS/packages/*"
   ],
   "scripts": {
+    "wallet:service": "node BIS/packages/wallet-service/src/server.mjs",
     "test": "node BIS/scripts/test.mjs",
     "dev": "npm run dev --workspace @bis/integration-demo",
     "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-demo",

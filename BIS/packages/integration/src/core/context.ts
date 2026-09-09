@@ -1,4 +1,5 @@
 import {reconstructWalletReservations} from '../arkade/reservation-recovery.ts';
+import { queryAccountContracts, contractController, type BisContractFilter, type BisContractsResult, type BisContractActionResult } from './lto-service.ts';
 import {eligibleUnreservedCoins, walletReservations} from './wallet-reservations.ts';
 import { createPaymentNotifications } from './payment-notifications.ts';
 import { paymentSender, type BisPlayerRecipient } from './game-player-payment.ts';
@@ -50,11 +51,17 @@ export type BisState = Readonly<{
   accountTransfer: boolean;
   accountActivity: boolean;
   accountAssets: boolean;
+  accountContracts?: boolean;
   assets: BisAssets;
   activity: BisActivity;
 }>;
 export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }> | Readonly<{ type: 'restartRequested'; reason: 'logout'; logoutId: string }>;
 export interface BisContext {
+  checkContracts?(filter?:BisContractFilter):Promise<BisContractsResult>;
+  openAccountContracts?():void;
+  claimContract?(id:string):Promise<BisContractActionResult>;
+  rejectContract?(id:string):Promise<BisContractActionResult>;
+  refundContract?(id:string):Promise<BisContractActionResult>;
   getWalletOperations?():Promise<import('./activity-operations').WalletOperationsReport>;
   discardPreparedTransfer?(id:string):Promise<void>;
   getContinueAvailability?(): Promise<{canPay:boolean;reason?:string;availableSats?:number}>;
@@ -256,6 +263,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     if(disposed) return;
     const before=state;
     state=Object.freeze({...state,...patch});
+    if(state.accountContracts&&(state.view!=='account'||state.phase!=='active'||!state.hasProfile||before.profileId!==state.profileId||patch.accountAssets||patch.accountActivity||patch.accountDetails||patch.accountTransfer||patch.accountReceive||patch.accountSend||patch.accountRecovery))state=Object.freeze({...state,accountContracts:false});
     if (!['logout-confirmation','logging-out','logout-error'].includes(state.phase)) {
       logoutOperations=undefined;
       state=Object.freeze({...state,logoutPendingCount:0,logoutPendingAcknowledged:false});
@@ -736,6 +744,18 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       assertAlive();
       if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountDetails) update({accountTransfer:false,accountDetails:true,accountActivity:false,accountRecovery:false,accountReceive:false,accountSend:false});
     },
+    async checkContracts(filter) {
+      const profileId=state.profileId;
+      const result=await (contractController(context)?.checkContracts?.(filter)??queryAccountContracts(profileId,filter));
+      return !disposed&&state.profileId===profileId?result:{status:'unavailable',contracts:[]};
+    },
+    openAccountContracts() {
+      assertAlive();
+      if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountContracts:true,accountAssets:false,accountActivity:false,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
+    },
+    claimContract: id=>contractController(context)?.claim(id)??Promise.resolve({status:'unavailable'}),
+    rejectContract: id=>contractController(context)?.reject(id)??Promise.resolve({status:'unavailable'}),
+    refundContract: id=>contractController(context)?.refund(id)??Promise.resolve({status:'unavailable'}),
     openAccountActivity() {
       assertAlive();
       if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountActivity) update({accountActivity:true,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
@@ -824,6 +844,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     },
     closeAccount() {
       assertAlive();if(state.view!=='account'||state.phase==='resetting'||state.phase==='logging-out'||state.phase==='restore-saving') return;
+      if(state.accountContracts) {update({accountContracts:false,accountDetails:true});return;}
       if(state.accountTransfer) {context.openAccountDetails();return;}
       if(state.accountRecovery) {update({accountRecovery:false,...recoveryReturn});return;}
       if(state.accountReceive || state.accountSend) {update({accountReceive:false,accountSend:false});return;}

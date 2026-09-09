@@ -30,11 +30,17 @@
 .step-ui .transaction-count{font-size:13px;margin:0 0 5px}.step-ui .transaction-card{margin:6px 0}.step-ui .transaction-header{padding:8px 10px}.step-ui .transaction-body{padding:10px}.step-ui .transaction-footer{margin-top:8px}.step-ui .transaction-destination{padding:7px}.step-ui .transaction-badge{font-size:12px;padding:5px 9px}
 @media(max-width:540px){.step-ui{padding:12px}.step-ui-row{grid-template-columns:53px minmax(0,1fr);gap:7px}.step-ui .step{gap:6px}.step-ui .estimate{font-size:10px}.step-ui h2{font-size:17px}.step-ui dl{grid-template-columns:100px minmax(0,1fr)}.section-content button{margin-bottom:3px}}
 .step-ui .recovery-row{display:flex;align-items:center;gap:6px}.step-ui .recovery-row label{flex-shrink:0;margin-right:4px}.step-ui .recovery-row input{flex:1;width:0;margin:0;padding:7px 9px;font:12px monospace}.step-ui .recovery-row button{flex-shrink:0;margin:0;display:inline-flex;align-items:center;justify-content:center}.step-ui .recovery-row #recovery-label{margin:0 4px 0 0;font-size:12px}@media(max-width:540px){.step-ui .recovery-row{flex-wrap:wrap}.step-ui .recovery-row label{flex-basis:100%}}
-/* Only outputs containing transaction cards get a bounded, persistent scroll area. */
-.step-ui [data-section="output"] > .section-content:has(.transaction-card){max-height:100px;overflow-y:scroll;scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#647d90 #10171e;padding-right:8px}
-.step-ui [data-section="output"] > .section-content:has(.transaction-card)::-webkit-scrollbar{width:10px}
-.step-ui [data-section="output"] > .section-content:has(.transaction-card)::-webkit-scrollbar-track{background:#10171e;border-radius:5px}
-.step-ui [data-section="output"] > .section-content:has(.transaction-card)::-webkit-scrollbar-thumb{background:#647d90;border:2px solid #10171e;border-radius:5px}
+/* Reserve 1.5 card rows even before transactions arrive. */
+.transaction-scroll{--transaction-row-height:160px;--transaction-gap:6px;display:flex;flex-direction:column;gap:var(--transaction-gap);height:calc(var(--transaction-row-height)*1.5 + var(--transaction-gap));overflow-y:scroll;scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#647d90 #10171e;padding-right:8px;margin:6px 0}
+.settlement-scroll{--transaction-row-height:96px}
+.step-ui .transaction-scroll .transaction-card{height:var(--transaction-row-height);min-height:var(--transaction-row-height);flex-shrink:0;margin:0}
+.transaction-scroll>.transaction-badge{align-self:flex-start}
+.transaction-scroll::-webkit-scrollbar{width:10px}
+.transaction-scroll::-webkit-scrollbar-track{background:#10171e;border-radius:5px}
+.transaction-scroll::-webkit-scrollbar-thumb{background:#647d90;border:2px solid #10171e;border-radius:5px}
+@media(max-width:620px){.incoming-scroll{--transaction-row-height:256px}.settlement-scroll{--transaction-row-height:140px}}
+.total-duration{border:1px solid #354b43;border-radius:10px;background:#17271f;padding:16px 18px;margin:0 0 18px}
+.total-duration h2{font-size:15px;margin:0 0 10px}.total-duration>div{display:flex;gap:16px 32px;flex-wrap:wrap;font-size:12px;color:#a9beb1}.total-duration strong{display:block;font-size:19px;color:#d4f4df;margin-top:3px;font-variant-numeric:tabular-nums}.total-duration small{display:block;font-size:11px;color:#9cafaa;margin-top:10px}
 /* Native disclosure keeps each step independently keyboard-accessible and open initially. */
 .step-ui > .step-ui-header{display:block;list-style:none;cursor:pointer;margin:-14px -18px 0;padding:12px 18px 10px;border-radius:9px 9px 0 0;background:#161e26}
 .step-ui > .step-ui-header::-webkit-details-marker{display:none}
@@ -49,3 +55,14 @@
 @media(max-width:540px){.step-ui > .step-ui-header{margin:-12px -12px 0;padding:10px 12px}.step-ui:not([open]) > .step-ui-header{margin-bottom:-12px}}
 h1.spike-title{font-size:clamp(24px,4vw,32px);line-height:1.2;letter-spacing:-.5px;margin:0 0 24px}
 .step-ui button.danger{background:#b82e43;border-color:#e45b6f;color:#fff;font-weight:650}.step-ui button.danger:hover:not(:disabled){background:#ce374e}
+.step-ui .transfer-percentage{display:flex;gap:12px;align-items:center}.step-ui input[type="range"]{padding:0;accent-color:#a5e9c1;max-width:320px}.transfer-percentage output{min-width:40px;font-variant-numeric:tabular-nums}
+.step-ui > .step-ui-header{padding-top:14px;padding-bottom:14px}
+.step-ui .step{flex-wrap:nowrap;align-items:center;gap:14px;min-height:28px}
+.step-ui .step h2{margin:0;font-size:19px;line-height:1.25;letter-spacing:-.3px;color:#e6edf4}
+.step-ui .step-number,.step-ui .step .owner,.step-ui .step-completion{flex-shrink:0;white-space:nowrap}
+.step-ui .step .owner{background:none;padding:0}
+.step-ui .step .estimate{margin-left:auto;text-align:right;flex-shrink:0;max-width:160px;line-height:1.35}
+.step-ui:not(.step-complete) > .step-ui-header h2{color:#f5d36b}
+.step-ui.step-error > .step-ui-header h2{color:#ff7185}
+.seed-mode{display:inline-flex;align-items:center;gap:8px;margin-right:12px}.seed-mode select{background:#10151b;color:#e6edf4;border:1px solid #455968;border-radius:6px;padding:6px 24px 6px 8px;font:inherit}.seed-mode select:focus-visible{outline:2px solid #a5e9c1;outline-offset:2px}
+@media(max-width:620px){.step-ui .step{display:grid;grid-template-columns:14px auto minmax(0,1fr);gap:8px 10px}.step-ui .step h2{font-size:17px}.step-ui .step .owner{grid-column:2}.step-ui .step-completion{grid-column:3;grid-row:2}.step-ui .step .estimate{grid-column:2 / -1;max-width:none;justify-self:end}}

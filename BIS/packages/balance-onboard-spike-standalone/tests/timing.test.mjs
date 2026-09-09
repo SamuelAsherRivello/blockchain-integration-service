@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {emptyTimings,updateTiming,loadTimings,TIMING_KEY,duration} from '../src/timing.js';
+import {emptyTimings,updateTiming,loadTimings,TIMING_KEY,duration,totalTiming} from '../src/timing.js';
 test('completed durations and exact running averages are saved; unfinished runs excluded',()=>{
  let data=emptyTimings();
  data=updateTiming(data,'a',3,'start',1000);data=updateTiming(data,'a',3,'finish',11000);
@@ -21,4 +21,16 @@ test('unknown historical starts and backwards clocks never manufacture completio
  assert.equal(data.averages[6].count,0);
  data=updateTiming(data,'a',6,'start',10000);data=updateTiming(data,'a',6,'finish',9000);
  assert.equal(data.averages[6].count,0);assert.equal(duration(65000),'1m 5s');
+});
+
+test('total duration uses elapsed boundaries, averages complete runs, and chooses the latest completion',()=>{
+ const data=emptyTimings();
+ data.runs={latest:{1:{startedAt:10000},6:{finishedAt:50000}},older:{1:{startedAt:1000},6:{finishedAt:21000}},pending:{1:{startedAt:60000}},unknownStart:{6:{finishedAt:70000}},backwards:{1:{startedAt:90000},6:{finishedAt:80000}}};
+ assert.deepEqual(totalTiming(data),{minMs:30000,maxMs:30000,lastMs:40000,observed:true});
+});
+
+test('total estimate falls back to six step ranges when no completed run exists',()=>{
+ assert.deepEqual(totalTiming(emptyTimings()),{minMs:1285000,maxMs:7535000,lastMs:null,observed:false});
+ const data=emptyTimings();data.averages[3]={count:1,averageMs:1000};
+ const total=totalTiming(data);assert.equal(total.minMs,686000);assert.equal(total.maxMs,3936000);
 });

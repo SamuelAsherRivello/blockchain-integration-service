@@ -6,8 +6,8 @@ const userStoriesUrl = './documentation/user-stories/';
 const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1, C2' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
 
 const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A4', category: 'Account', label: 'Account Dialog' }] as const;
-export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
-  continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; continueAvailable?: boolean;
+export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, contracts, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
+  continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; contracts?:ReactNode; continueAvailable?: boolean;
   onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
   onContinue?():void; continueBusy?:boolean;
   selected: string | null; accountOpen: boolean; canReset: boolean; onSelect(id: string): void; onReset(): void;
@@ -45,6 +45,7 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
       <StoryAction id="E2" label="Open On Mempool.space" disabled={!canFund || funding} onClick={onExplorer} />
     </StorySection>
     {gameWallet}
+    {contracts}
     </section>
     <section aria-labelledby="console-title">
       <h2 id="console-title" className="admin-section-title">Console</h2>
@@ -55,4 +56,3 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
     </div>
   </aside>;
 }
-

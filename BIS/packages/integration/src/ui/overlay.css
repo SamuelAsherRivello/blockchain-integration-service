@@ -270,3 +270,23 @@
 .bis-toast[data-message-type="error"] { background: #fbe1df; color: #822e2b; border-color: #d89994; border-top-color: #a43c36; }
 .bis-toast[data-message-type="success"] { background: #e0f2df; color: #275a31; border-color: #91bd91; border-top-color: #397345; }
 .bis-toast-type-icon { flex: 0 0 24px; width: 24px; height: 24px; }
+.bis-account-collections { display: flex; gap: 6px; width: 100%; min-width: 0; }
+.bis-account-collections > .bis-button { flex: 1 1 0; width: 0; min-width: 0; padding-inline: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bis-card-collection { display: flex; flex-direction: column; min-height: 0; max-height: calc(100% - 24px); }
+.bis-collection { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; flex: 1 1 auto; }
+.bis-collection-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; max-height: 48vh; }
+.bis-collection-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.bis-collection-item { display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 10px; text-align: left; font: inherit; color: #294650; border: 1px solid #c8d7dc; border-radius: 8px; background: #f6fafb; cursor: pointer; }
+.bis-collection-item:hover, .bis-collection-item:focus-visible { background: #e0f4ed; border-color: #30977f; }
+.bis-collection-item code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.bis-collection-actions { flex: 0 0 auto; }
+.bis-collection-detail { overflow-wrap: anywhere; }
+.bis-contract-fields { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px 12px; }
+.bis-contract-fields dd { margin: 0; overflow-wrap: anywhere; }
+.bis-item-list { --bis-item-height: 72px; --bis-item-gap: 8px; }
+.bis-item-list .bis-collection { flex: 0 0 auto; overflow: visible; }
+.bis-item-list .bis-collection-list { height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); min-height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); max-height: none; flex: none; gap: var(--bis-item-gap); }
+.bis-item-list .bis-collection-list > li { flex: none; }
+.bis-item-list .bis-collection-item { height: var(--bis-item-height); overflow: hidden; padding: 8px; font-size: 9.6px; line-height: 1.5; }
+.bis-item-list .bis-collection-item:has(.bis-asset-icon) { display: grid; grid-template-columns: 19.2px minmax(0, 1fr); align-items: center; gap: 8px; }
+.bis-item-list-notice { padding: 14px 0; }

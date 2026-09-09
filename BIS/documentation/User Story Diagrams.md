@@ -25,6 +25,12 @@
   - [F1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) / Accept User Pay To Continue
   - [F2. Board Wallet](#f2-board-wallet) ✓
   - [F3. Send 1000 Sats (Game->Player)](#f3-send-1000-sats-game-player) ✓
+- [G. Contracts](#g-contracts)
+  - [G1. Contracts UI](#g1-contracts-ui)
+  - [G2. LTO Treasure Chest](#g2-lto-treasure-chest)
+- [H. Spikes](#h-spikes)
+  - [H1. Arkade onboarding spike](#h1-arkade-onboarding-spike)
+    - [Post-mortem and measured timing](#h1-post-mortem)
 - [X. Appendix](#x-appendix)
   - [X2. Lightning invoice receiving](#x2-lightning-invoice-receiving)
     - [X2a. Receive funds using addresses — complete](#x2a-receive-funds-using-addresses) ✓
@@ -35,6 +41,8 @@
     - [X5a. Inspect and Copy Transfer Recovery Details](#x5a-inspect-and-copy-transfer-recovery-details) ✓
     - [X5b. Cancel Pending Transfer](#x5b-cancel-pending-transfer)
   - [X6. USD relative sats pricing?](#x6-usd-relative-sats-pricing)
+  - [X7. Reliable onboarding and transfer recovery](#x7-reliable-onboarding-and-transfer-recovery)
+  - [X8. Add security to game wallet](#x8-add-security-to-game-wallet)
 
 ## Current implementation
 
@@ -64,6 +72,9 @@ Reviewed against the current checkout and recorded acceptance evidence on 2026-0
 | F1. Admin game wallet / Accept User Pay To Continue | F. Game Wallet | Implemented locally; consumer delivery and live payment verification pending. |
 | F2. Board Wallet ✓ | F. Game Wallet / Details / Board Wallet | Complete, confirmed by the user on 2026-09-09. |
 | F3. Send 1000 Sats (Game->Player) ✓ | F. Game Wallet / Send 1000 Sats | Complete, confirmed by the user on 2026-09-09. |
+| G1. Contracts UI | Planned: Account Details / Contracts | Planned; generic list and details for BIS-tracked unresolved contracts. No implementation or live contract verification yet. |
+| G2. LTO Treasure Chest | Planned: Limited-Time Offer / treasure challenge | Planned; one funded 1,000-sat offer per player, 90-second gameplay eligibility, claim and refund lifecycle. SDK/Signet contract feasibility remains unverified. |
+| H1. Arkade onboarding spike | [Standalone spike](http://127.0.0.1:5174/spike1/) | ✓ Original six-step experiment complete and its specification synced. Robustness proposal in progress; two additional transfers recovered to spendable targets but still awaited final Bitcoin confirmation at the post-mortem snapshot. |
 | X2a. Receive funds using addresses ✓ | Account / Account Dialog | Complete: address journey, dedicated demo, isolated error checks, and real-account demo/independent-host verification. X2b remains blocked. |
 | X2b. Receive funds using Lightning invoices | Not enabled | Blocked on a supported Arkade Signet receiving route and verified quote/recovery support. Live invoices, receipt processing, and related account-clearing guards are not implemented. |
 | X3a. Send funds | Account / Account Dialog | Arkade-to-Arkade entry, exact review and explicit submission implemented; live payment acceptance pending. X5 recovery is separate. |
@@ -521,6 +532,8 @@ As a developer, I click **E2. Open On Mempool.space** to view the active account
 
 Admin has an independent game wallet, imported through one recovery-phrase field. Importing another wallet retains earlier wallets; re-entering a phrase selects that wallet again. Reload restores the last selection. Player logout and reset leave game-wallet storage intact.
 
+**Confirmed next architecture — 2026-09-09:** Import the game wallet once in BIS Admin and persist it in a private server-side disk store. Both the local and deployed game use the same hosted wallet service and signing workflow automatically; the Admin browser need not remain open. Remove the game's separate Settings → Developer → Game Wallet import path when this replacement is delivered. The game reads public wallet configuration and requests supported operations; the server reads the saved signing material. Never include that material in public game files. This supersedes separate browser-origin provisioning and the earlier client-only constraint for the game signer. The hosted service is not implemented yet. Track the later security rethink separately in [X8](#x8-add-security-to-game-wallet).
+
 The **F1. Game Wallet** row shows **Login** initially and **Logout** after import. Wallet **Details** and usable balance appear beside F3. Details refreshes public addresses and balances into the Admin console. Logout deselects the wallet across reloads without deleting saved identities. Copy BTC Addr appears immediately to the left of Logout and copies the selected game wallet Bitcoin funding address for use in a faucet or funding wallet. Copy results and a manual-copy fallback appear in the Admin console.
 
 New Continue payments use the public `VITE_BIS_GAME_WALLET_ADDRESS` build configuration. Admin need not be open to receive payments. Refresh reads the actual recipient balance; mismatched imported/configured wallets show a notice without changing the recipient. Historical sink payments retain their recovery path.
@@ -540,6 +553,201 @@ F2 provides boarding Details and explicit quote/confirmation. Fresh matching net
 One click sends exactly 1000 sats from the selected F1 game wallet to the active Runtime Preview player. F3 is greyed out without an active player or eligible sender and while a payment is unresolved. Submission and recovery use the production wallet API; there is no player Send dialog.
 
 BIS observes incoming Bitcoin/Arkade sats and own transfers throughout the logged-in session, even with Account closed. Known F3 senders display `User <short ID> sent you <amount> sats`; otherwise the message is `Unknown user sent you <amount> sats`. Pending messages append ` (Pending)`. Incoming Arkade final messages append ` (Confirmed)` after verified spendable receipt or settlement; Bitcoin final messages require the first confirmation. Own transfers say `Transferred <amount> sats from Bitcoin to Arkade` or the reverse. Loaded history is silent; subsequent new receipts and status transitions notify. Asset-only receipts and change do not notify.
+
+## G. Contracts
+
+G1 and G2 are implemented and user-accepted as of 2026-09-09 after the asset-preserving funding fix. The canonical [proposal, design, specs and tasks](../../.openspec/changes/add-contracts-ui-and-lto-treasure-chest/proposal.md) cover BIS and Stealth & Steel. BIS owns reusable contract tracking and operations; the game owns gameplay and placement. The implementation now enables creation by default with per-operation runtime validation; the linked verification document separates automated acceptance from historical and unobserved live scenarios.
+
+### G1. Contracts UI
+
+Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.
+
+```text
+[G1.01] Account Details --> Contracts
+[G1.02] Load account-scoped unresolved contracts
+[G1.03] Empty --> "No active contracts"
+[G1.04] Entry --> Limited-Time Offer / 1,000 sats / status
+[G1.05] Select entry --> Contract Details --> Back to list
+[G1.06] Verified claim or refund --> remove from active list
+```
+
+- Details show contract type, reward, status, game wallet, player wallet, claim deadline, evidence freshness and related transaction IDs. Distinguish gameplay eligibility from actual financial resolution.
+- The list supports multiple contract types and entries. G2 separately limits each player to one unresolved treasure offer; zero or one is expected for this first demo.
+- Displayed states include: Funding, Ready, Active, Claim pending, Refund pending, and Needs attention. Expired offers remain visible until their funds are resolved; elapsed time alone is not proof of refund.
+- Claimed/refunded offers leave the active list only after verified resolution. Related financial activity remains in Transactions. Reload or returning to the menu must retain enough state to reconcile unresolved operations without duplicate submission.
+- Actions: role-eligible Claim/Reject in player Contract Details and Refund for the game wallet, using the same generic production operations as the game. The BIS demo may simulate host gameplay events; the game start menu contains no debugging controls or offer information.
+- No generic Burn action. "Burn" in the interview means end/refund the agreement, not destroy sats or delete an unresolved record. The cooperative early-cancellation path uses the shared refund controller. UI actions cannot bypass the actual contract paths.
+- The public query is `checkContracts()`: it reads saved contract state without signing; the service separately reconciles provider evidence. Cleanup is a separate idempotent operation. BIS understands generic LTOs; the game matches its exact saved contract/session reference and ignores unrelated LTOs and other contract types.
+
+### G2. LTO Treasure Chest
+
+Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/add-contracts-ui-and-lto-treasure-chest/verification.md). LTO means Limited-Time Offer: a funded reward bound to a specific player, with a player claim path and a game refund path. The gameplay demonstration is a timed treasure chest in Stealth & Steel.
+
+```text
+[G2.01] Enter start menu --> silently check contracts / eligible cleanup
+[G2.02] Click Start --> begin game and 90-second elapsed-time deadline
+[G2.03] Wallets ready + prior offer resolved --> fund offer in background
+[G2.04] Prerequisite missing / old offer unresolved --> skip this session
+[G2.05] BIS funding pending / confirmed --> non-blocking toasts
+[G2.06] Chest exists at authored spawner position regardless of backend
+[G2.07] Collision --> pause; game opens Treasure Chest; checkContracts
+[G2.08] Matching active offer --> Claim / Reject
+[G2.09] Action accepted --> pending toast; close prompt; resume game
+[G2.10] Verified result --> confirmed toast without interrupting gameplay
+[G2.11] Expired --> disabled Claim / Reject; Back; eligible refund cleanup
+[G2.12] Session end --> end/refund original offer; reconcile uncertainty
+```
+
+- The start menu has no treasure buttons, offer text or debugging information. The existing Start click initiates the attempt automatically. Readiness requires a connected usable player wallet (zero balance is allowed), a usable game signer and enough eligible game funds. No ready player at Start means no offer until a later session, even if the player connects during gameplay.
+- Only one unresolved treasure offer exists per player, including funding, claim-pending, and refund-pending states. End/refund an old offer before replacement. If it cannot be immediately resolved at Start, skip creating an offer for that session and continue gameplay; do not queue a replacement when cleanup later succeeds.
+- The game owns the chest artwork, specific Tiled spawner position, collision handling, countdown, pause, and dialogue. BIS owns funding, recipient binding, contract records, claim/refund operations, and reconciliation through its public API.
+- Collision opens the game-owned "Treasure Chest" prompt and queries generic BIS contracts. An active match shows "You found a treasure of 1000 sats" with Claim and Reject. Preparation shows "Treasure is being prepared" with disabled Claim/Reject and Back; the prompt updates as state changes. Missing player shows "Connect an account to receive treasure offers" and Back. The accepted no-offer wording is: "No treasure offer available", disabled Claim/Reject and Back.
+- The chest remains present and collidable before, during and after backend processing and expiry. A completed/expired session outcome remains locally inspectable even after the resolved contract leaves the BIS active list. Closing the prompt requires exit/re-entry before collision opens it again.
+- Claim checks deadline at click and before submission; collision does not reserve eligibility. At expiry, including while the prompt is open, show "You found a treasure but it's expired", disabled Claim/Reject and Back. No claim grace period is promised. Pauses, tab switches and funding delays do not extend the Start-time deadline. An already submitted uncertain claim is reconciled; success arriving after expiry is still success.
+- Claim spends the original locked reward to the specific player. Reject ends this session's offer and requests refund to the game; no new offer is created that session. When an action is accepted, BIS shows a pending toast, the game closes the prompt and resumes gameplay, and verified completion produces a toast without a modal or pause.
+- Funding and cleanup run in the background. A late-funded expired/ended offer is reconciled and returned rather than advertised as claimable. Automatic expiry cleanup and silent start-menu cleanup use the same supported refund workflow. The initial Signet probe verified zero-fee 1,000-sat funding, claim and refund paths. New creation is enabled with runtime validation. Extended live race and full-game observations remain separately documented; they are not a runtime switch.
+- Target client-side code using the existing Arkade operator, with no custom backend, project-operated arkd, delegate server, or service worker. Refund execution is not automatic while the browser is closed; resume reconciliation on reopening. Client-controlled gameplay checks are accepted for this Signet learning demo and are not a claim of cheat resistance.
+- Verify real Signet funding, claim, prompt cooperative cancellation, expiry/refund and restart recovery separately from simulated gameplay events. The game bridge now initializes a game-wallet controller; provision it through Settings → Developer → Game Wallet. A public receiving address alone cannot sign. Keep signer setup outside the start menu and never hardcode secrets. Detailed acceptance and cross-project tasks are in the canonical change.
+
+The BIS G2 Admin demonstration has two always-clickable subbuttons, **Start LTO** and **Claim LTO**, with a 90-second time-left counter. Start simulates a new session; Claim simulates its treasure action. Missing, pending, expired and confirmed outcomes go to the existing console. These controls use the public API and cannot bypass readiness, expiry, exclusivity or explicit host disable. The actual game owns collision and its Treasure Chest dialogue.
+
+G1 and Assets/Transactions share **Item List** and **Item List Detail**. All lists reserve 276px, including empty lists. Account Details uses equal-width Assets, Contracts and Transaction buttons in one row.
+
+## H. Spikes
+
+### H1. Arkade onboarding spike
+
+**User story:** As a BIS developer, I want an isolated, observable Signet onboarding experiment so I can verify funding, settlement, recovery and timing before bringing the behavior into the player-facing onboarding flow.
+
+**Status:** The original six-step spike is implemented, has recorded live completions, and is synced into the [standalone boarding specification](../../.openspec/specs/standalone-boarding-spike/spec.md). The [robustness change](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/proposal.md) was synced into the [resilience specification](../../.openspec/specs/standalone-spike-resilience/spec.md) and archived at the user's request on 2026-09-09 after four accepted runs and three additional runs reached Step 6. Its [verification report](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/verification.md) records 89 passing tests, exact live outputs and timings. The [15 unfinished tasks](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/tasks.md) remain unchecked, including full fault/lifecycle coverage, detailed timing instrumentation and controlled benchmarks. This experiment provides evidence for [X7](#x7-reliable-onboarding-and-transfer-recovery); it does not establish BIS production acceptance.
+
+**Demo:** [Open Spike #1](http://127.0.0.1:5174/spike1/) with the local integration demo running, or use [the standalone server](http://127.0.0.1:5186/spike1/). Each active window has its own account, operation, timing history and populated public `btcAddress` URL. Ports 5174 and 5186 have separate browser storage. See the [spike README](../packages/balance-onboard-spike-standalone/README.md) for startup commands and prior acceptance evidence.
+
+```text
+[H1.01] CPU: Create account (Auto or Manual seed phrase; confirmed Restart)
+[H1.02] USER: Open faucet and fund the displayed Bitcoin address
+[H1.03] CPU: Observe deposit and wait for confirmed eligible Bitcoin
+[H1.04] CPU: Freeze the selected percentage and original inputs; prepare onboarding
+[H1.05] CPU: Board original Bitcoin, then return the non-target Bitcoin remainder
+[H1.06] CPU: Verify exact spendable Arkade target and confirmed Bitcoin commitments
+             --> Step 6 complete
+
+[H1.07] Error / reload --> retain account and original inputs; reconcile existing legs
+             --> safe SDK recovery after cleanup and retry delay
+             --> validation or storage blocker: show the affected step and remedy
+```
+
+At the default 50%, the spike boards the entire captured input total and returns the remainder in a second settlement. Full boarding may use one leg. Later deposits do not alter a started transfer. Funding is explicit; eligible onboarding and recovery continue automatically. Restart always remains available with confirmation and archives the previous encrypted account/operation; it does not cancel a submitted transfer. No recovery secrets belong in this document.
+
+#### H1 post-mortem
+
+**Date and evidence cutoff:** 2026-09-09, approximately 15:15 Asia/Tbilisi (11:15 UTC). Outcomes and per-step durations below were read from the running windows. The previous independent explorer check also reported both new return commitments as unconfirmed. This is a dated snapshot; the windows continue polling afterward.
+
+**Outcome:** Two reported failing transfers recovered without restarting their accounts or requesting additional funding. Both reached the exact spendable Arkade target. Neither had completed the spike's final Bitcoin-confirmation requirement at this snapshot. The original spike had already completed earlier funded runs; the broader robustness proposal remains open.
+
+| Run | Captured Bitcoin | Spendable Arkade target | Bitcoin returned | Result at cutoff |
+| --- | --- | --- | --- | --- |
+| Earlier standalone run, window `a63b5130` | 100,000 sats | 50,000 sats | 50,000 sats | Step 6 complete; both commitments confirmed |
+| Recovery A, window `8adfbf50` | 55,555 sats | 27,777 sats | 27,778 sats | Return settlement finalized; awaiting Bitcoin confirmation |
+| Recovery B, window `5a13e994` | 6,666 sats | 3,333 sats | 3,333 sats | Failed batch recovered; return settlement finalized; awaiting Bitcoin confirmation |
+
+All three used the observed zero-fee Signet route and SDK 0.4.71. A and B demonstrate floor rounding for the Arkade target and preservation of the remainder. Their shared boarding commitment reflects a shared settlement batch, so they are not independent samples of operator timing.
+
+**How long it took:** The earlier completed window displayed **25m 30s** as its last observed end-to-end duration and **23m 21s** as its completed-run average. Total duration measures account Restart through Step 6, including user/faucet and confirmation waits. The UI did not expose that total-average sample count, so this is a window-local observation, not a pooled benchmark. The user's earlier report of about four successful runs in the twenty-something-minute range is recorded separately as user-reported history.
+
+The two new recovery runs displayed these per-step measurements at the cutoff:
+
+| Step | Recovery A | Recovery B | Interpretation |
+| --- | --- | --- | --- |
+| 1. Create account | 0.5s | 0.5s | Account creation to address ready |
+| 2. Fund account | 34s | 22s | Faucet opened to deposit detection; includes user/faucet time |
+| 3. Wait for incoming Bitcoin | 14m 5s | 14m 28s | Deposit detection to confirmed eligible funding |
+| 4. Prepare automatic onboarding | 0.0s | 0.1s | Display-rounded preparation time; 0.0s is not proof of zero work |
+| 5. Track the two settlements | 7m 55s | 11m 27s | Initial submission to final return commitment observed; includes recovery and handoffs |
+| 6. Confirm final result | **21m 13s and still running** | **17m 42s and still running** | Final target already spendable; Bitcoin confirmation remained pending |
+| Completed six-step total | **Not yet available** | **Not yet available** | Both displayed “No completed run yet”; no completed total is inferred |
+
+Per-step values must not be summed into an asserted end-to-end result: uninstrumented user pauses/gaps can exist between stages, the values are rounded, and Step 6 is unfinished. The recent runs were also interrupted by development reloads and the lock regression, so they are recovery evidence rather than clean performance samples. The exact first-spendable timestamp was not recorded; a separate time-to-spendability measurement remains work in the robustness proposal.
+
+**What failed and what changed:**
+
+1. **Nested operation-lock deadlock introduced during the robustness refactor.** Registration/recovery held the operation lock and called `save()`, which acquired the same lock again. Queued work could not progress. Checkpoint writes now own their short critical section, network observations run outside it, and a real queued-lock harness catches this regression.
+2. **Interrupted signing and an explicit failed batch.** The smaller transfer received a batch-failed event; generic redaction had hidden the useful category and stopped continuation. The recovery path preserves a safe failure category, reconciles the original transfer, and uses SDK recovery after the prior signer/cleanup releases its lease. Temporary errors retry with persisted backoff; validation errors pause. An uncertain outcome is never treated as a fresh transfer.
+3. **Stale and ambiguous asynchronous work.** Captured inputs are now saved before preparation; failed writes cannot publish a submitted state. Account/attempt checks reject stale acknowledgements and prevent an old provider from registering after Restart. Transport deadlines include response bodies, caller aborts and rate-limit cooldowns. Timed-out writes remain quarantined until their transaction ends; late wallet cleanup must finish before a replacement connection starts.
+4. **Progress looked broken after recovery.** Old diagnostics remained visible beside current status, and Step 6 said it was verifying funds even when the final target was already spendable. Each step now has recovery status/remedy text; historical errors are labeled as history. Step 6 explicitly distinguishes verified spendability from the remaining Bitcoin-confirmation wait.
+5. **The estimate understates long confirmation waits.** At cutoff, A still showed an estimated total of 22m 40s–22m 50s and B 26m 22s–26m 32s. These are estimates, not observed completion times or remaining-time promises. With no completed run in that window, the estimator combines completed step averages with fallback ranges; Step 6 still has a 5–15-second fallback despite requiring Bitcoin confirmation. Its unfinished duration is excluded from the average, so the estimate does not grow with this long wait. Correcting that fallback and adding explicit external-wait/milestone statistics remain follow-up work.
+
+**Findings for BIS:** The observed operator rejected a single intent mixing Bitcoin boarding inputs and Bitcoin outputs (`INVALID_INTENT_PROOF (23)`); full boarding followed by a separate Bitcoin return worked in the tested zero-fee case. An SDK upgrade alone did not resolve that transaction-shape constraint. Registration, batch finalization, spendable receipts and Bitcoin confirmation are separate milestones. The spike deliberately retains its two-confirmation Step 6 predicate. X7's confirmed direction is to finish player onboarding once the exact final Arkade target is spendable and released from holds, while Bitcoin confirmation continues independently. This can remove a visible confirmation wait from the player journey; its precise time saving has not yet been measured.
+
+**Verification and remaining work:** 84 isolated standalone tests passed, both standalone/demo production builds passed, and both spike changes passed strict OpenSpec validation. Regression tests were first observed failing and then passing for stale-provider submission, premature storage quarantine release, misleading Step 6 status, and late wallet disposal. Existing tests cover exact input/receipt matching, two-leg recovery, lost acknowledgements, retry floors and simultaneous-window isolation. These checks support the implemented fixes; they do not establish 100% live success. Four new comparable funded runs, the complete failure/hang matrix, and measured before/after client-latency results are still outstanding. No measured speedup is claimed for this pass.
+
+**Public transaction evidence:**
+
+- Earlier completed run: [boarding](https://mempool.signet.arkade.sh/tx/9d5e6a3ab2f56fd31d15dd32d3d8b26ac83e890aedbc788befdcaae4696a36c1) and [Bitcoin return](https://mempool.signet.arkade.sh/tx/383c1c708231d8b8a24e746b76d08a52932653ab1ed38ffa6566f9ec56c64ef6).
+- Recovery A and B: [shared boarding commitment](https://mempool.signet.arkade.sh/tx/c2757ae329f185ec5c9f3223094daa93687b41de685e9ec189a0b27f8bb17e5a).
+- Recovery A: [Bitcoin return, unconfirmed at cutoff](https://mempool.signet.arkade.sh/tx/b6d6f1c643dfcf2db5fc4a01a4217367f869bc9a5f90ba7c4cd43f3d7d1f2218).
+- Recovery B: [Bitcoin return, unconfirmed at cutoff](https://mempool.signet.arkade.sh/tx/7d455e56c06fcf086a619b38c27d4b4e535c0f470cdc08a34c918435095c3b06).
+
+#### H1 four-run acceptance follow-up
+
+On 2026-09-09, the user started four more 50% runs and defined the acceptance gate: **if all four reach verified Step 6, consider the spike a success; otherwise study and fix the failures.** This supersedes deliberately adding reload/offline interruptions to these particular acceptance runs. Other unfinished robustness tasks remain separately tracked.
+
+Baseline at approximately 15:25 Asia/Tbilisi: all four deposits were observed, with funding confirmation pending. No transfer had been submitted and none was counted complete. Expected outputs below assume the observed deposit remains the captured total and the supported zero-fee route remains valid; final acceptance uses the actual frozen inputs and verified outputs.
+
+| Window | Observed deposit | Expected Arkade target | Expected Bitcoin return | Acceptance result |
+| --- | --- | --- | --- | --- |
+| `a63b5130` (new account ending `vqpupsqa`) | 49,999 sats | 24,999 sats | 25,000 sats | Step 6 verified; total 33m 21s |
+| `12694712` (address ending `nsltc8v2`) | 49,992 sats | 24,996 sats | 24,996 sats | Step 6 verified; total 32m 58s |
+| `d210b261` (address ending `nsd2fxkz`) | 49,993 sats | 24,996 sats | 24,997 sats | Step 6 verified; total 33m 1s |
+| `42681a67` (address ending `kqzvlgdf`) | 49,222 sats | 24,611 sats | 24,611 sats | Step 6 verified; total 33m 3s |
+
+Monitoring found a guarded startup rendering error in the last three windows: absent account/receipt fields compared equal and attempted to format an undefined target as spendable. A regression test reproduced the error; requiring an actual account, commitment and positive target fixed it. All 85 standalone tests and the standalone production build passed. The original accounts and deposits were retained; the windows continued their funding checks. This is recorded as an observed-and-fixed display defect, not hidden from the acceptance history.
+
+The `a63b5130` window's baseline “Last observed: 25m 30s” belongs to its previous account. It is not a completion time for this new run. Record each new run's own Step 6 result and timings before closing the acceptance gate.
+
+**15:34 follow-up:** Funding confirmed and all four began automatic boarding. Their attempts encountered shared failed batches; at about 15:31 each displayed four automatic recovery attempts, with two also reporting temporary provider unavailability during registration. A read-only observer subscribed to the four public funding outpoints independently received an operator `batchFailed` event at 11:33:41 UTC with an allowlisted internal-error category. This confirms an operator-reported batch failure, but does not establish its underlying cause or exclude a client contribution. The accounts and targets remain intact, retries are active, and the cohort is still **0/4 completed**, not a clean four-run pass. A five-minute follow-up monitor records subsequent outcomes and pauses once all four have verified Step 6.
+
+**15:52 follow-up — Step 5 defect reproduced and fixed:** All four accumulated seven recovery failures before the fix. Inspection of SDK 0.4.71 found that an unselected `batch_started` is skipped, but a following `batch_failed` is consumed unconditionally. The same input topics can carry an earlier intent's failed batch while its replacement waits for the next batch. A regression reproduced that premature interruption. The spike now correlates batch failures with the registered intent hash and selected batch, while retaining real selected-batch failures and cleanup-before-retry. Safe acknowledgement diagnostics also distinguish starting participation from operator acknowledgement. All 87 tests and both builds pass.
+
+The operator's observed reason corresponds to “not enough intent confirmations received” in its [batch service source](https://github.com/arkade-os/arkd/blob/master/internal/core/application/service.go): participant acknowledgements, not Bitcoin block depth. After the fix, all four received participation acknowledgements at 11:51:57 UTC, completed boarding in commitment `d764e354091ea7daf87882707671cd653c378be15602ab20f004f83737867b59` at approximately 11:52:23 UTC, and automatically entered the return leg. Return participation was acknowledged at 11:52:33 UTC. These are live recovery milestones with the original funded accounts; final Step 6 results and total timings remain pending.
+
+**15:54 follow-up — both settlements finalized:** The [Bitcoin return batch](https://mempool.signet.arkade.sh/tx/920099ff55b286aca77896c555031d43872247267e371d90887fc519ee220b39) finalized at 11:52:59 UTC. All four UIs verified their exact target as spendable. An independent public explorer check at 11:54:24 UTC verified that the [boarding transaction](https://mempool.signet.arkade.sh/tx/d764e354091ea7daf87882707671cd653c378be15602ab20f004f83737867b59) spends all four original deposits and the return transaction pays the exact amounts in the table. Both commitments were still unconfirmed. The observed interval from boarding participation acknowledgement to return finalization was about 62 seconds, after the earlier retry delay; it is not the complete six-step duration. No account restart or additional funding was needed. Step 6 acceptance remains pending Bitcoin confirmation.
+
+**Final outcome, verified at 15:56 Asia/Tbilisi: 4/4 succeeded.** Each existing window reports Step 6 complete with its exact Arkade target. Independent public explorer evidence confirms both shared commitments in Signet block **321340**, every original deposit spent by the boarding commitment, and every exact Bitcoin return. The four-run acceptance criterion is met and its follow-up monitor is paused. This is successful recovery of an initially failing cohort, not four error-free runs or completion of every remaining robustness-proposal task.
+
+| Timing boundary | a63b5130 | 12694712 | d210b261 | 42681a67 |
+| --- | --- | --- | --- | --- |
+| Step 1: create account | 0.5s | 9.6s | 22s | 0.6s |
+| Step 2: faucet to deposit detection | 21s | 13s | 39s | 30s |
+| Step 3: deposit confirmation | 3m 47s | 3m 49s | 3m 13s | 3m 13s |
+| Step 4: preparation | 0.0s displayed | 0.0s displayed | 0.0s displayed | 0.0s displayed |
+| Step 5: original submission through final return commitment | 26m 58s | 26m 58s | 26m 58s | 26m 58s |
+| Step 6: final commitment through verified confirmation | 1m 47s | 1m 47s | 1m 47s | 1m 47s |
+| Total: account restart through Step 6 | 33m 21s | 32m 58s | 33m 1s | 33m 3s |
+
+Times are the UI's rounded current-run measurements. The total averages approximately **33m 6s** across four runs and includes user gaps between measured steps; do not sum rounded step times as the total. Step 5's **26m 58s** includes repeated failed attempts, provider errors, increasing retry delays capped at five minutes, and the live investigation/fix. Those earlier intervals were not instrumented sufficiently to assign exact seconds to every cause. The fixed path then completed both settlements on the next attempt: approximately **62 seconds from boarding participation acknowledgement to final return commitment**, followed by **1m 47s** for Step 6. Retaining the registered intent while unrelated batches fail removes the reproduced source of wasted recovery cycles; shortening all retry delays would still repeat the same defect and could worsen rate limiting. The existing cooldown remains for genuine transient failures.
+
+Regression evidence: the earlier-batch failure test failed before the fix and passed afterward; all **87 tests** and both production builds passed. The test also verifies that a failure of the selected batch still reaches recovery. The public transaction evidence and redacted cohort timeline are in local `output/reports/robust-fixes-for-spike/`. No seed phrases or signing material are included. Further timing claims require fresh comparable runs on the fixed version; this cohort's full duration must retain the time spent failing before the fix.
+
+#### H1 three-run robustness follow-up
+
+On 2026-09-09 the user started three more 50% runs and requested monitoring through Step 6 plus further robustness fixes. These are separate from the completed four-run cohort above.
+
+| Window | Original deposit | Arkade target verified spendable | Exact Bitcoin return | Step 5 | Final result at 16:09 Asia/Tbilisi |
+| --- | ---: | ---: | ---: | --- | --- |
+| `e0a4ec53` | 45,242 sats | 22,621 sats | 22,621 sats | 2m 25s | Step 6 verified; total 12m 30s |
+| `4823a023` | 33,333 sats | 16,666 sats | 16,667 sats | 2m 25s | Step 6 verified; total 12m 32s |
+| `ab0b1031` | 11,111 sats | 5,555 sats | 5,556 sats | 2m 25s | Step 6 verified; total 12m 28s |
+
+A new regression reproduced a related watchdog gap: unrelated batch traffic continually renewed the five-minute deadline even though the current intent made no progress. The wrapper now renews the deadline only when its intent is selected or its selected batch produces activity. The timeout still aborts the actual event source and waits for SDK cleanup before recovery. The regression failed before the fix and passed afterward; all **88 tests** and both production builds passed. This gap was reproduced in tests, not observed as a five-minute live stall in these three runs.
+
+**Development interruption disclosed:** The last pre-edit browser check showed all three waiting for funding confirmation. Funding then confirmed, and the operator acknowledged participation at 12:02:30 UTC. The source edit at 12:02:42 UTC caused Vite to reload during signing. This was an agent-caused interruption. No account or input was replaced, and no additional funding or recovery click was needed: all three automatically recovered. Future live verification must treat a pre-edit idle check as a snapshot that can race an automatic transition and keep the served runtime stable during a funded cohort.
+
+Recovered boarding was acknowledged at 12:03:48 UTC and the return at 12:04:24 UTC; both settlements finalized by approximately 12:04:50 UTC. All three displayed **2m 25s for Step 5**, including the reload recovery. At 12:05:55 UTC, an independent public explorer check verified the exact original input spends and Bitcoin returns in the [boarding](https://mempool.signet.arkade.sh/tx/798edcc32a55d67b53fb732c8b039d879bebdd12c1571fa8f9abb48266877c2d) and [return](https://mempool.signet.arkade.sh/tx/385eea1136054cfbcbc6bef1bade0fb5f75601880e69ece678190cc9cded548b) commitments. Both were unconfirmed; Step 6 and total duration remained pending. Local public evidence is retained in `output/reports/robust-fixes-for-spike/three-run-acceptance.json` and `three-run-chain-evidence.json`.
+
+**Final result: 3/3 reached Step 6.** The browser verified the exact spendable targets; independent public explorer verification at 12:09:53 UTC confirmed both commitments in Signet block **321342**, all original input spends and the exact returns above. Final confirmation/receipt verification (Step 6) took **3m 42s** each. Total elapsed time averaged **12m 30s** across these three runs. Monitoring is paused after completion.
+
+The earlier cohort's Step 5 measured 26m 58s including seven recovery failures and investigation; these three measured 2m 25s including one agent-caused development interruption. The **24m 33s lower Step 5 duration** is an observed cohort difference, not a controlled performance benchmark: both groups shared batches within their group, experienced different operator conditions, and the earlier group included live debugging. No clean uninterrupted three-run claim is made. A complementary test confirms that matching batch progress still renews the watchdog after pre-registration stream priming. Final verification: **89 tests passed**, both production builds passed, and all three original funded accounts completed without resets or extra funding.
 
 ## X. Appendix
 
@@ -851,3 +1059,66 @@ X5 is split into two independently deliverable stories and proposals. X5a provid
 
 
 F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Other eligibility blockers retain their safeguards and appear separately from the button suffix. F2 uses live transaction evidence for boarding status.
+
+
+### X7. Reliable onboarding and transfer recovery
+
+**User story:** As a player, I want BIS to start onboarding automatically once my account is funded, explain its progress and recover safely, so my intended Arkade funds become usable without manual transfer steps or unnecessary waits.
+
+**Status:** Proposed, not implemented or verified in BIS. See [automatic onboarding proposal](../../.openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../.openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../.openspec/changes/add-automatic-bis-onboarding/tasks.md). This planning replaces the earlier X7 manual-review recommendation with the user's confirmed automatic 50% onboarding decisions. X4 manual transfers and X5 cancellation/recovery retain their separate contracts.
+
+**Evidence and current BIS gaps:**
+
+- The spike received `INVALID_INTENT_PROOF (23)` because the operator rejected an intent combining Bitcoin boarding inputs and Bitcoin outputs. Boarding 12,000 sats first, then returning 6,000 sats to Bitcoin in a second settlement produced 6,000 spendable Arkade sats; both commitments confirmed. This proves that specific zero-fee Signet path, not arbitrary amounts, fee schedules, networks, or restart scenarios.
+- Current BIS `arkade/boarding.ts` still calls `Ramps.onboard` with a requested partial amount, which can construct the rejected transaction shape. A valid SDK quote is not evidence of operator acceptance.
+- BIS already has profile-scoped records, quote fingerprints, input reservations, operation locks, signing workers, selected-batch correlation, and receipt reconciliation. Preserve and extend these; do not copy the spike's simpler state management wholesale.
+- BIS's registration catch replaces the original error with a generic submission message. Existing safe failure classifications need operator rejection categories and registration-boundary evidence without retaining signed proofs, secrets, raw metadata, or arbitrary error text.
+- The spike exposed previous-account transaction cards after Reset. BIS already keys the transfer UI by profile; add regression coverage across all balances, transactions, recovery views, and late callbacks rather than assuming it has the identical defect.
+- BIS and the spike currently declare SDK 0.4.71 and BIP39 2.4.0. The spike also exposed stale Vite dependency bundles: validate the actual loaded SDK version. An upgrade alone did not establish support for mixed boarding/change intents.
+
+**Confirmed direction:**
+
+- Start assessment when the player logs in or the account becomes active, before visiting Balance. Actual transfer waits for eligible confirmed funding.
+- Use 50% for now, frozen to integer sats from selected eligible inputs. Board the selected total, then return the non-target remainder through a separately recorded settlement using only linked first-leg receipts.
+- Automatically continue a provably unsubmitted next leg; reconcile uncertain submissions without replay. Prefer truthful messages such as “Status checks restarted. No action needed.” Real recovery blockers stay explicit.
+- In Accounts Details → Balance, immediately above Get Recovery Phrase, show Onboarding: Start?, Onboarding: Pending, or Onboarding: Complete. Clicking opens details; it does not trigger the transfer.
+- Complete as soon as the final target Arkade funds are verified spendable and released from onboarding holds. Bitcoin block confirmation continues independently and does not delay usable funds. The temporary full-total first-leg receipt is not completion.
+
+**Proposed flow:**
+
+```text
+[X7.01] Active account --> reconcile existing onboarding; assess fresh funding
+[X7.02] Start? --> USER funds current boarding address through faucet
+[X7.03] Pending --> CPU shows each incoming transaction and waits for eligibility
+[X7.04] CPU freezes 50% target and exact inputs --> submits boarding leg
+[X7.05] CPU verifies linked receipts --> automatically submits Bitcoin-return leg
+[X7.06] CPU verifies final target spendability and releases its holds --> Complete
+[X7.07] Bitcoin confirmation continues independently; normal spending is available
+[X7.08] Interruption / reopen --> reconcile exact legs; safely continue unsubmitted work
+```
+
+**Acceptance criteria:**
+
+- The normal funded login flow needs no manual onboard click, transfer review or fauceted acknowledgement. The game and onboarding details remain navigable during background waits.
+- The details page uses five compact stages with CPU/USER ownership, current funding address and Copy/faucet actions, immediate operation progress, individual transaction confirmation and concise recovery information.
+- Prevent unsupported mixed Bitcoin-input/Bitcoin-output intents. Validate both legs' exact amounts, dust, expiry, zero fees and operator limits; unsupported terms pause rather than silently change the 50% allocation.
+- One account-scoped parent owns two durable legs and input/receipt reservations. Later deposits, unrelated Arkade funds and assets cannot change or fund the started operation.
+- Preserve safe original error categories across provider/signing/event/persistence callbacks. Successful observation cannot erase failure provenance or imply a signer restarted. Missing responses, timeouts and unspent inputs alone cannot authorize replay.
+- Account changes immediately remove old data; delayed reads, signing events and clipboard results cannot affect a replacement account. Multiple tabs cannot submit the same leg twice.
+- Final target release and shared payment availability occur without waiting for Bitcoin confirmation. Unrelated reservations remain protected, and subsequent spending does not undo historical onboarding completion.
+- Timing is guidance only. Any measured averages exclude partial, late-start, interrupted or unmeasured samples; elapsed time never proves financial completion.
+- Delivery requires fresh BIS Signet evidence for both legs, exact final receipts and a normal successful spend. Spike success, registration, builds and unit tests alone do not close X7.
+
+**Planning defaults:** One-time setup per account rather than repeated rebalancing. A previously funded account with freshly verified unreserved spendable Arkade funds and no unresolved onboarding operation is already ready, without invented transfer history. This version supports the observed zero-fee route; configurable percentages and arbitrary-fee routing are outside this proposal.
+
+**Related work:** Coordinate with `add-bitcoin-boarding-settlement`, `fix-arkade-withdrawal-settlement-and-recovery`, `preserve-b1-funds-during-withdrawals`, and `fix-asset-bearing-arkade-withdrawals`. Existing manual-operation acceptance and X5b cancellation feasibility remain separate. The spike's destructive reset and recovery-secret controls are not proposed as BIS production UI.
+
+### X8. Add security to game wallet
+
+**Status:** Deferred. Rethink game-wallet security after the shared Admin-managed wallet workflow is implemented. This is a separate follow-up, not a claim that the current wallet setup or a future hosted service is production-ready.
+
+**User story:** As the game owner, I want to review how the shared game wallet is stored and used so that public gameplay cannot spend its funds outside the intended game rules.
+
+The confirmed direction is one Admin import, private server-side persistence, and the same hosted signing workflow for local and deployed games. Players do not import or receive the game wallet's recovery phrase.
+
+Revisit Admin authentication, game/player authorization, validated signing requests, reward and spending limits, abuse prevention, key storage and rotation, backups, recovery, and deployment boundaries. Preserve contract idempotency and recovery across browsers and service restarts. Basic secret separation and truthful transaction outcomes remain requirements while this broader review is deferred.

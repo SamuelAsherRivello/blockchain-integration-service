@@ -188,3 +188,11 @@ The user confirmed Mint Asset and Reward Player With Trophy After Level Complete
 ## Removed continuation proposals — 2026-09-09
 
 The user withdrew B3 optional payment review/guidance and B4 extended pending-payment/recovery UI. Remove these proposed stories from the current catalog; no implementation work is planned for them. B1 and B2 remain. Historical B1 archive records retain their original scope descriptions.
+
+## Shared Admin-managed game wallet — 2026-09-09
+
+The user selected the deployed-game architecture and requested the same workflow for local play. Import the game wallet once in BIS Admin, persist it in a private server-side disk store, and have both local and deployed games use the same hosted wallet service automatically. The Admin page does not need to stay open. The service reads the signing material; games read public configuration and request supported wallet operations. Remove the game's separate Developer Game Wallet import UI when the replacement is implemented.
+
+This decision supersedes the earlier no-custom-backend constraint for the game signer and per-origin signer provisioning. It does not authorize putting recovery phrases or private keys in public game bundles, downloadable configuration, logs, or source control. Existing G1/G2 acceptance covers the prior implementation; the hosted wallet service has not been implemented or deployed by recording this decision.
+
+Add X8. Add security to game wallet as a deferred story to rethink the shared wallet's security, including authorization, spending limits, secret management and recovery. This follow-up does not replace the shared wallet implementation or mark its security review complete.

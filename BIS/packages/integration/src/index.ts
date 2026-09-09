@@ -1,5 +1,8 @@
 export { createBisContext, createBisAdminContext } from './core/context';
 export { createBisGameWallet } from './core/game-wallet';
+export { createBisLto } from './core/lto-service';
+export type { BisLtoRequest, BisContractFilter, BisContractsResult, BisContractActionResult } from './core/lto-service';
+export type { BisContract } from './core/contracts';
 export type { BisGameWalletState } from './core/game-wallet';
 export { validateMint } from './core/assets';
 export { createBisAssetCollection } from './core/asset-collection';

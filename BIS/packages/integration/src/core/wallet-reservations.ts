@@ -3,6 +3,7 @@ import {readSendRecords} from './sending.ts';
 import {readContinuations} from './continuation.ts';
 import {readAssetRecords} from './assets.ts';
 import {readBurnRecord} from './burning.ts';
+import {readContractReservations} from './contract-reservations.ts';
 
 export type ReservedOperation = {id:string; transactionId?:string; inputs?:readonly {txid:string;vout:number}[]};
 export class ReservationError extends Error {}
@@ -31,6 +32,7 @@ export function migrateWalletReservations(profileId:string) {
 export function walletReservations(profileId:string):ReservedOperation[] {
   const saved=readJournal(profileId);
   const operations:ReservedOperation[]=[];
+  for(const r of readContractReservations())if(r.pending&&(r.gameId===profileId||r.playerId===profileId))operations.push({id:`contract:${r.id}`,inputs:r.inputs,transactionId:r.transactionId});
   for(const r of readBoardingRecords(profileId))if(r.status==='pending')operations.push({id:`transfer:${r.id}`,inputs:r.inputs});
   for(const r of readSendRecords(profileId))if(r.status==='pending')operations.push({id:`send:${r.id}`,inputs:r.inputs});
   for(const r of readContinuations(profileId))if(r.status==='pending')operations.push({id:`continue:${r.request.operationId}`,inputs:r.send?.inputs});

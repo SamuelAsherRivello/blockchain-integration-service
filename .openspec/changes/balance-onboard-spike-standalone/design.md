@@ -1,5 +1,7 @@
 ## Context
 
+**Current implemented decisions, synced 2026-09-09:** Later user instructions supersede the historical manual controls below. The spike uses JavaScript, SDK 0.4.71, confirmed always-enabled Restart with Auto/Manual phrase selection, window-isolated account/operation/timing storage, automatic eligible-funding onboarding at the selected percentage (default 50%), and persistent automatic SDK recovery after reconciliation and cleanup. The current delta and canonical `standalone-boarding-spike` spec are authoritative for these behaviors. Historical rationale and debugging notes below are retained as dated context.
+
 See proposal.md. Arkade OS SDK 0.4.67 exposes a partial Ramps.onboard helper, but the Signet operator rejects boarding inputs combined with onchain outputs (INVALID_INTENT_PROOF, code 23). Use two settlements: board the captured Bitcoin total with no onchain output, then return the Bitcoin remainder from the resulting Arkade receipt. Production code is reference evidence only and is not imported.
 
 ## Goals / Non-Goals

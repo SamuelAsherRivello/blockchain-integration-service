@@ -1,14 +1,15 @@
-import {loadTimings,duration} from './timing.js';
+import {loadTimings,duration,totalTiming} from './timing.js';
 const descriptions=[
  'Create/Recreate click → boarding address ready. Restoring an existing account is not a new sample.',
  'Faucet opened → deposit first detected. Includes user time and faucet queue time; the app cannot observe the faucet form.',
  'Deposit first detected → funding confirmed and eligible. Measures observation time, not an inferred broadcast time.',
- 'Confirmed funding ready → your Onboard 50% click. Includes time away from the app.',
+ 'Confirmed funding ready → automatic onboarding prepared.',
  'Onboarding submitted → commitment observed. Uncertain transfers keep timing until a commitment is verified.',
  'Commitment observed → usable Arkade funds verified.'
 ];
-let panels=[],originalEstimates=[];
-export function setupTimingViews(){
+let panels=[],originalEstimates=[],timingStorage;
+export function setupTimingViews(storage){
+timingStorage=storage;
 panels=[...document.querySelectorAll('.panel')];
 originalEstimates=panels.map(panel=>panel.querySelector('.estimate').textContent);
 panels.forEach((panel,index)=>{
@@ -19,9 +20,14 @@ panels.forEach((panel,index)=>{
 }
 export function renderTimings(run,now=Date.now()){
  let data;
- try{data=loadTimings(localStorage);}catch{
+ try{data=loadTimings(timingStorage);}catch{
+  document.getElementById('total-estimated').textContent='Unavailable';document.getElementById('total-observed').textContent='History unavailable';
   panels.forEach(panel=>{panel.querySelector('.timing-average').textContent='Timing history unavailable in local storage.';panel.querySelector('.timing-calculation').textContent='';panel.querySelector('.timing-current').textContent='';});return;
  }
+ const total=totalTiming(data);
+ document.getElementById('total-estimated').textContent=`~${duration(total.minMs)}${total.maxMs!==total.minMs?' – '+duration(total.maxMs):''}`;
+ document.getElementById('total-estimated').title=total.observed?'Average elapsed time of completed runs.':'Combined step estimates; observed step averages are used where available.';
+ document.getElementById('total-observed').textContent=total.lastMs===null?'No completed run yet':duration(total.lastMs);
  panels.forEach((panel,index)=>{
   const step=index+1,stats=data.averages?.[step],sample=data.runs[run]?.[step];
   panel.querySelector('.estimate').textContent=stats?.count?`~${duration(stats.averageMs)} observed average`:originalEstimates[index];

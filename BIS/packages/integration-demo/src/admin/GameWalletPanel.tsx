@@ -62,7 +62,7 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
   useEffect(() => { setQuote(undefined); }, [state.profileId]);
   useEffect(() => { if (state.message) onDetails({operation:'Game Wallet', message:state.message}); }, [state.message]);
   useEffect(() => {
-    const wallet = walletFactory({playerProfileId});
+    const wallet = walletFactory({playerProfileId,serviceUrl:import.meta.env.VITE_BIS_WALLET_SERVICE_URL || (import.meta.env.DEV?'http://127.0.0.1:8787':'/__bis/wallet'),migrateSavedWallet:true});
     const update = () => {
       const current = wallet.getState();
       setState(current);

@@ -1,4 +1,5 @@
 import { gamePlayerPayments, assertPlayerPaymentAvailable, type BisPlayerRecipient } from './game-player-payment.ts';
+import {createHostedGameWallet} from './hosted-wallet.ts';
 import { readSendRecord } from './sending.ts';
 import { readLiveBoardingWait, readLiveBoardingState } from '../arkade/boarding.ts';
 import { watchGameWalletEvents } from '../arkade/game-wallet-events.ts';
@@ -16,7 +17,11 @@ export type BisGameWalletState = Readonly<{
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
   profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string;
 }>;
-export function createBisGameWallet(options: { playerProfileId(): string | undefined }, dependencies = {
+export function createBisGameWallet(...args:Parameters<typeof createLocalGameWallet>):ReturnType<typeof createLocalGameWallet> {
+  const options=args[0];
+  return options.serviceUrl?createHostedGameWallet({...options,serviceUrl:options.serviceUrl}):createLocalGameWallet(...args);
+}
+export function createLocalGameWallet(options: { playerProfileId(): string | undefined; serviceUrl?:string; migrateSavedWallet?:boolean }, dependencies = {
   storage: createGameWalletStorage(), restore: restoreAccount, addresses: loadAddresses, balance: loadBalance, watch: watchGameWalletEvents as typeof watchGameWalletEvents | undefined,
 }, boarding = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting = {availability:loadMintAvailability,mint:mintWalletAsset}) {
   const storage: GameWalletStorage = dependencies.storage;

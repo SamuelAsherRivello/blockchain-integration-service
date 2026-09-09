@@ -1,5 +1,13 @@
 export const TIMING_KEY='standalone-arkade-step-timings-v1';
 export const emptyTimings=()=>({version:1,runs:{},averages:{}});
+export function totalTiming(data){
+ const completed=Object.values(data.runs).map(steps=>({start:steps[1]?.startedAt,end:steps[6]?.finishedAt})).filter(s=>Number.isSafeInteger(s.start)&&Number.isSafeInteger(s.end)&&s.start>=0&&s.end>=s.start).sort((a,b)=>b.end-a.end);
+ const lastMs=completed.length?completed[0].end-completed[0].start:null;
+ if(completed.length){const average=completed.reduce((total,s)=>total+s.end-s.start,0)/completed.length;return {minMs:average,maxMs:average,lastMs,observed:true};}
+ const defaults=[[10000,10000],[60000,300000],[600000,3600000],[10000,10000],[600000,3600000],[5000,15000]];
+ const ranges=defaults.map((range,index)=>{const stats=data.averages?.[index+1];return stats?.count&&Number.isFinite(stats.averageMs)&&stats.averageMs>=0?[stats.averageMs,stats.averageMs]:range;});
+ return {minMs:ranges.reduce((sum,r)=>sum+r[0],0),maxMs:ranges.reduce((sum,r)=>sum+r[1],0),lastMs,observed:false};
+}
 export function updateTiming(data,run,step,action,at){
  if(!run||!Number.isInteger(step)||step<1||step>6||!Number.isSafeInteger(at)||at<0)return data;
  const result=structuredClone(data), steps=result.runs[run]??={};
@@ -27,11 +35,11 @@ export function loadTimings(storage){
  if(value.version!==1||!value.runs||typeof value.runs!=='object'||Array.isArray(value.runs))throw Error('Timing history is unavailable.');
  return value;
 }
-export async function recordTiming(run,step,action,at=Date.now()){
+export async function recordTiming(run,step,action,at=Date.now(),storage=localStorage,locks=navigator.locks){
  try{
-  await navigator.locks.request('standalone-step-timings',()=>{
-   const before=loadTimings(localStorage),after=updateTiming(before,run,step,action,at);
-   if(JSON.stringify(before)!==JSON.stringify(after))localStorage.setItem(TIMING_KEY,JSON.stringify(after));
+  await locks.request('standalone-step-timings',()=>{
+   const before=loadTimings(storage),after=updateTiming(before,run,step,action,at);
+   if(JSON.stringify(before)!==JSON.stringify(after))storage.setItem(TIMING_KEY,JSON.stringify(after));
   });
   return true;
  }catch{return false;} // Timing diagnostics must never interrupt a wallet operation.

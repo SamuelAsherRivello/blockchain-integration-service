@@ -3,11 +3,12 @@ import { transferStatus, transferProgressLines } from './boarding-status.ts';
 import type { BisTransferStatus } from './context.ts';
 import type { SendRecord } from './sending.ts';
 import { assetBaseUnits, type AssetRecord } from './assets.ts';
+import type { BisContract } from './contracts.ts';
 
 export type BisTransaction = Readonly<{
   id: string;
   amountSats: number;
-  direction: 'Incoming' | 'Outgoing' | 'Bitcoin → Arkade' | 'Arkade → Bitcoin' | 'Mint';
+  direction: 'Incoming' | 'Outgoing' | 'Bitcoin → Arkade' | 'Arkade → Bitcoin' | 'Mint' | 'Game → Contract' | 'Contract → Player' | 'Contract → Game';
   status: 'Pending' | 'Confirmed' | 'Settled offchain' | 'Pending offchain' | 'Status unavailable' | 'Pending — preparing' | 'Pending — outcome unknown' | 'Pending — registered, awaiting verification' | 'Transfer verified' | 'Not submitted' | 'Mint recorded';
   identifier: string;
   /** SDK transaction timestamp in Unix milliseconds; missing for undated pending receipts. */
@@ -42,7 +43,7 @@ export function transactionRowPresentation(t: BisTransaction) {
   const mint = t.kind === 'Asset mint' || t.direction === 'Mint';
   const transferDirection = t.transfer?.direction ??
     (t.direction === 'Bitcoin → Arkade' ? 'to-arkade' : t.direction === 'Arkade → Bitcoin' ? 'to-bitcoin' : undefined);
-  const operation = t.kind === 'Continue payment' || t.kind === 'Burn Asset' || t.kind === 'Transfer' ? t.kind : mint ? 'Mint Asset' : transferDirection ? `Transfer ${transferDirection === 'to-arkade' ? 'to Arkade' : 'to Bitcoin'}` :
+  const operation = t.kind?.startsWith('Contract ') || t.kind === 'Continue payment' || t.kind === 'Burn Asset' || t.kind === 'Transfer' ? t.kind : mint ? 'Mint Asset' : transferDirection ? `Transfer ${transferDirection === 'to-arkade' ? 'to Arkade' : 'to Bitcoin'}` :
     t.kind === 'Asset transfer' ? (t.direction === 'Outgoing' ? 'Send Asset' : 'Receive Asset') :
     t.direction === 'Outgoing' ? 'Send Balance' : 'Receive Balance';
   const refs = t.identifier.split(/\s+/);
@@ -87,6 +88,26 @@ export function formatTransactions(transactions: readonly BisTransaction[]): str
     }).join(', ');
     return `${t.satsUnknown?'Sats not yet reported':`${t.amountSats} sats`} | ${t.direction}${t.kind?` | ${t.kind}`:''} | ${t.status}${assets?` | ${assets}`:''} | ${t.identifier}`;
   }).join('\n');
+}
+
+/** Contract evidence is correlated by exact transaction ID, never by balance or amount. */
+export function withContractActivity(rows:readonly BisTransaction[],contracts:readonly BisContract[]):readonly BisTransaction[] {
+  let result=[...rows];
+  for(const contract of contracts){
+    const operations=[...(contract.fundingTransactionId?[{kind:'fund',id:contract.fundingTransactionId,confirmed:true}]:[]),
+      ...(!contract.fundingTransactionId||contract.operationKind!=='fund'?[{kind:contract.operationKind??'fund',id:contract.transactionId,confirmed:contract.evidence==='verified receipt'}]:[])];
+    for(const operation of operations){
+      const kind=`Contract ${operation.kind==='fund'?'funding':operation.kind==='claim'?'claim':'refund'}`;
+      const direction:BisTransaction['direction']=operation.kind==='fund'?'Game → Contract':operation.kind==='claim'?'Contract → Player':'Contract → Game';
+      const status:BisTransaction['status']=operation.confirmed?'Settled offchain':contract.financial==='failed'||contract.financial==='funded'&&operation.kind!=='fund'?'Not submitted':'Pending — outcome unknown';
+      const identifier=`contract:${contract.id}${operation.id?` ark:${operation.id}`:''}${contract.operationId&&operation.kind===contract.operationKind?` operation:${contract.operationId}`:''}`;
+      const matches=(row:BisTransaction)=>!!operation.id&&row.identifier.split(' ').includes(`ark:${operation.id}`);
+      const entry={id:`contract:${contract.id}:${operation.kind}`,amountSats:contract.amountSats,kind,direction,status,identifier};
+      if(result.some(matches))result=result.map(row=>matches(row)?{...row,kind,direction,identifier:[...new Set(`${row.identifier} ${identifier}`.split(' '))].join(' ')}:row);
+      else result.push(entry);
+    }
+  }
+  return result;
 }
 
 export function withMintActivity(rows:readonly BisTransaction[], records:readonly AssetRecord[]):readonly BisTransaction[] {

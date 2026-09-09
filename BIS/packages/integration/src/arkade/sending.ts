@@ -22,7 +22,7 @@ function config(signal:AbortSignal) {
  return {options:{arkProvider,indexerProvider,settlementConfig:false as const,storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}},assertFresh(){signal.throwIfAborted();if(failed)throw new SendError('Live send data is unavailable.');}};
 }
 // Canonical public asset manifest; never coerce quantities through Number.
-function assetTotals(coins: {assets?: {assetId:string;amount:bigint}[]}[]) {
+export function assetTotals(coins: readonly {assets?: readonly {assetId:string;amount:bigint}[]}[]) {
  const totals=new Map<string,bigint>();
  for(const coin of coins)for(const asset of coin.assets??[]) {
   if(!/^[a-f0-9]{68}$/.test(asset.assetId)||typeof asset.amount!=='bigint'||asset.amount<=0n)throw new SendError('Live asset data is unavailable.');

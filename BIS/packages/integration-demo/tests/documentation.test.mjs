@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 test('every documentation TOC link resolves to one rendered heading', async () => {
   const server = await createServer({
     root: 'BIS/packages/integration-demo',
+    cacheDir: resolve(`output/tests/documentation-render/${process.pid}`),
     server: { middlewareMode: true },
     plugins: [{
       name: 'render-documentation-without-browser-mount',
@@ -32,7 +33,7 @@ test('every documentation TOC link resolves to one rendered heading', async () =
 });
 
 test('documentation has a clean standalone route and no filesystem URL', async () => {
-  const server = await createServer({ root: 'BIS/packages/integration-demo', optimizeDeps: { noDiscovery: true, include: [] }, server: { host: '127.0.0.1', port: 0 } });
+  const server = await createServer({ root: 'BIS/packages/integration-demo', cacheDir: resolve(`output/tests/documentation-routes/${process.pid}`), optimizeDeps: { noDiscovery: true, include: [] }, server: { host: '127.0.0.1', port: 0 } });
   try {
     await server.listen();
     const base = server.resolvedUrls.local[0];

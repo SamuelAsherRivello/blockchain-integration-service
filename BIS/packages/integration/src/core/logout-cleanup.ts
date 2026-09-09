@@ -1,4 +1,5 @@
 import {assertNoPendingContinue,continuationPrefix} from './continuation.ts';
+import {readContractReservations} from './contract-reservations.ts';
 export const browserMutationLock = 'bis-signet-browser-mutation';
 export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
 type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
@@ -26,6 +27,7 @@ function gameBoarding(key: string, storage: WebStorage) {
 }
 export function pendingLogoutOperations(storage: WebStorage | undefined = globalThis.localStorage): LogoutOperations {
   const pending = new Set<string>();
+  for (const contract of readContractReservations(storage)) if (contract.pending) pending.add(`contract:${contract.playerId}:${contract.id}`);
   if (storage) for (const key of keys(storage)) {
     if (gameBoarding(key, storage)) continue;
     if(key.startsWith(continuationPrefix))assertNoPendingContinue(decodeURIComponent(key.slice(continuationPrefix.length)),storage);

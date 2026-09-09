@@ -10,7 +10,7 @@ test('funding snapshot ignores later deposits, waits for confirmation and reject
  assert.throws(()=>capturedFunding(inputs,[]));assert.throws(()=>capturedFunding(inputs,[{...coin,value:20000}]));
 });
 test('half rounds down and rejects invalid funding',()=>{assert.deepEqual(half([{value:10001}]),{total:10001,target:5000});assert.throws(()=>half([{value:-1}]));});
-test('only a fresh user click with confirmed funding can submit; legacy waiting is not authorization',()=>{for(const phase of ['waiting','submitting','registered','uncertain','success'])assert.equal(canSubmit({phase},true),false);assert.equal(canSubmit({phase:'idle'},false),false);assert.equal(canSubmit({phase:'idle'},true),true);});
+test('only idle operations with confirmed funding are eligible for a new submission',()=>{for(const phase of ['waiting','submitting','registered','uncertain','success'])assert.equal(canSubmit({phase},true),false);assert.equal(canSubmit({phase:'idle'},false),false);assert.equal(canSubmit({phase:'idle'},true),true);});
 test('onboarding unlocks only after all incoming outputs are confirmed and unexpired',()=>{
  assert.equal(fundingEligible([],()=>false),false);
  assert.equal(fundingEligible([{status:{confirmed:false}}],()=>false),false);
@@ -40,4 +40,9 @@ test('two-settlement success requires both Bitcoin commitments and final exact A
  assert.equal(verifiedReceipt(state,[board,{...back,vout:[{scriptpubkey_address:'own',value:5999}]}],receipt,'own'),undefined);
  assert.equal(verifiedReceipt(state,[{...board,status:{confirmed:false}},back],receipt,'own'),undefined);
  assert.equal(verifiedReceipt(state,[board,back],[{value:12000,commitmentTxIds:['board']}],'own'),undefined);
+});
+test('selected transfer percentage rounds down and supports full boarding',()=>{
+ assert.deepEqual(half([{value:10001}],25),{total:10001,target:2500});
+ assert.deepEqual(half([{value:10001}],100),{total:10001,target:10001});
+ assert.throws(()=>half([{value:10001}],0));
 });

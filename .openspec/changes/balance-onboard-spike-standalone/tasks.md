@@ -11,7 +11,7 @@
 
 ## 3. Revised owned steps
 
-- [x] 3.1 Present six CPU/USER steps with approximate timing, explicit Create/Recreate and confirmation-gated Onboard 50%; verify browser creation/recreation/persistence, preserved original address, disabled unfunded onboarding, unit eligibility checks and build.
+- [x] 3.1 Present six CPU/USER steps with approximate timing, confirmed Restart with Auto/Manual selection and automatic confirmation-gated selected-percentage onboarding; verify browser creation/recreation/persistence, preserved original address, disabled unfunded onboarding, unit eligibility checks and build.
 - [x] 3.2 Persist per-step timing history and calculated averages in local storage; verify completed-only arithmetic, missing-start and duplicate handling, reload persistence and visible browser sample calculations.
 - [x] 3.3 Move recovery details to Step 1 and address to Step 2; use mnemonic identities for new accounts while preserving legacy keys, verify matching restored public identities and build, and keep recovery details hidden during browser checks.
 
@@ -19,3 +19,5 @@ Live acceptance verified 2026-09-09 in Chrome at http://127.0.0.1:5186/ on SDK 0
 
 - Boarding commitment: `82b2d197adc05ac22ec8ec5ef570dca7e4b38d8c47834da6520d0df8a87755f4`
 - Bitcoin-return commitment: `a42d83a45135371c45c1264fa079d1c610b583a7dd1f06b5cf93bd5e2ba533e2`
+
+Sync verification 2026-09-09: all eight original tasks are complete. Reconciled later user-approved automatic onboarding, always-enabled confirmed Restart, window-isolated persistence, populated address URLs, total duration, and 1.5-item transaction layout before syncing standalone-boarding-spike to main specs. All 58 standalone tests and the standalone build pass. Three live acceptance examples are recorded in the README; the user also reports four recent successful runs. Further comprehensive resilience is tracked separately in robust-fixes-for-spike.

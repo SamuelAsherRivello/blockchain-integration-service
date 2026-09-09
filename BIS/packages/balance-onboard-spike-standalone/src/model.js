@@ -5,13 +5,14 @@ export function fundingEligible(coins, expired) {
 export function capturedFunding(inputs, coins) {
   const selected=inputs.map(i=>coins.find(c=>c.txid===i.txid&&c.vout===i.vout&&c.value===i.value));
   if(selected.some(c=>!c))throw Error('Captured funding inputs are unavailable. Nothing submitted.');
-  return {selected,confirmed:selected.filter(c=>c.status.confirmed).length};
+  return {selected,confirmed:selected.filter(c=>c.status?.confirmed).length};
 }
-export function half(coins) {
+export function half(coins,percent=50) {
+  if(!Number.isInteger(percent)||percent<1||percent>100)throw Error("Transfer percentage must be from 1 to 100.");
   if (!coins.length || coins.some(c => !Number.isSafeInteger(c.value) || c.value <= 0)) throw Error('Invalid funding amounts.');
   const total = coins.reduce((n,c) => n+c.value,0);
   if (!Number.isSafeInteger(total)) throw Error('Funding amount is too large.');
-  return {total, target: Math.floor(total/2)};
+  return {total, target: Number(BigInt(total)*BigInt(percent)/100n)};
 }
 export function verifiedReceipt(state, transactions, receipts, address) {
   if (!state.inputs?.length || !state.target || !Number.isSafeInteger(state.change)) return;
