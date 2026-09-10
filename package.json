@@ -1,7 +1,7 @@
 {
   "name": "blockchain-integration-service",
   "private": true,
-  "version": "0.14.2",
+  "version": "0.14.3",
   "type": "module",
   "workspaces": [
     "BIS/packages/*"
@@ -16,6 +16,7 @@
   "devDependencies": {
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
+    "playwright": "^1.63.0",
     "typescript": "7.0.2",
     "vite": "8.2.2"
   }
