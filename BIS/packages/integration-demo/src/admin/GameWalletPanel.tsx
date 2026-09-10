@@ -3,9 +3,10 @@ import { StorySection } from './StorySection';
 import { useEffect, useState } from 'react';
 import { createBisGameWallet, type BisGameWalletState } from '@bis/integration';
 
-export function GameWalletPanel({controller, onDetails, onRecipientChange}: {
+export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpenDeveloper}: {
   controller?: ReturnType<typeof createBisGameWallet>;
   onRecipientChange?(recipient: string | undefined): void;
+  onOpenDeveloper(): void;
   onDetails(details: unknown): void;
 }) {
   const [state, setState] = useState<BisGameWalletState>({status:'loading',selectionVersion:0});
@@ -101,6 +102,9 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange}: {
     <StoryButton label="F1. Game Wallet (Admin-facing)">
         {state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
           : <button disabled={busy} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
+    </StoryButton>
+    <StoryButton label="F2. Game Wallet (User-facing)">
+      <button disabled={!controller} onClick={onOpenDeveloper}>Open</button>
     </StoryButton>
     <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
         <button disabled={busy || !state.profileId} onClick={() => void boardingAction('check')}>Details</button>
