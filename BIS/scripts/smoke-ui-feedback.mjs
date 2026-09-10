@@ -24,7 +24,7 @@ try {
   await page.getByRole('button',{name:'Accounts Details',exact:true}).click();
   await page.getByRole('button',{name:'Copy Account ID',exact:true}).click();
   await page.waitForFunction(()=>window.feedbackCopied==='fixture-public-account-0123456789');
-  await page.getByRole('button',{name:'Balance',exact:true}).click();
+  await page.getByRole('button',{name:'Transactions',exact:true}).click();
   await page.waitForTimeout(100);
   assert.equal(await page.getByRole('button',{name:'Copy Account ID',exact:true}).count(),0);
   console.log(`PASS ${size.width}x${size.height}: four screens fit at native 100%, warning, Account ID placement/full copy`);

@@ -1,5 +1,5 @@
 export type EquipmentFamily = 'Shoes' | 'Dagger' | 'Shield';
-export type CatalogItem = Readonly<{ id:string; name:string; family:EquipmentFamily; tier:1|2|3; effect:string; artwork:string; assetId?:string; quantity?:string }>;
+export type CatalogItem = Readonly<{ id:string; name:string; ticker?:string; family:EquipmentFamily; tier:1|2|3; effect:string; artwork:string; assetId?:string; quantity?:string }>;
 export type MarketplaceCatalog = Readonly<{ version:1; gameId:string; gameWalletAddress?:string; items:readonly CatalogItem[] }>;
 export const templateItems: readonly CatalogItem[] = [
   ['shoes', 'Shoes', 'increase movement speed'], ['dagger', 'Dagger', 'increase player damage'], ['shield', 'Shield', 'reduce damage taken'],

@@ -69,6 +69,12 @@
 .bis-copy-field-heading { display: flex; align-items: center; gap: 3.2px; width: 100%; font-size: 9.6px; }
 .bis-copy-field-heading label { min-width: 0; }
 .bis-copy-field-heading h3 { margin: 0; font: inherit; }
+.bis-balance-tooltip { position: relative; display: inline-flex; min-width: 0; outline: none; }
+.bis-balance-tooltip > label { cursor: help; }
+.bis-balance-tooltip-panel { position: absolute; z-index: 12; top: calc(100% + 4px); left: 0; display: none; width: max-content; max-width: 208px; padding: 6px 8px; border: 0.8px solid #54727d; border-radius: 5px; background: #18313d; color: #f8fbfc; box-shadow: 0 5px 14px #0004; font-size: 8px; line-height: 1.45; white-space: nowrap; pointer-events: none; }
+.bis-balance-tooltip-panel strong, .bis-balance-tooltip-panel span { display: block; }
+.bis-balance-tooltip-panel strong { margin-bottom: 2px; color: #fff0b8; font-weight: 700; }
+.bis-balance-tooltip:hover .bis-balance-tooltip-panel, .bis-balance-tooltip:focus-visible .bis-balance-tooltip-panel { display: block; }
 .bis-recovery-heading { display: flex; align-items: center; margin-bottom: 4.8px; text-align: left; }
 .bis-seed-heading-spread .bis-visibility-toggle { margin-left: auto; }
 .bis-copy-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20.8px; width: 20.8px; height: 20.8px; padding: 3.2px; border: 0; border-radius: 4px; background: transparent; color: #526b74; cursor: pointer; }

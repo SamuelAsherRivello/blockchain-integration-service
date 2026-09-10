@@ -104,7 +104,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
           : <button disabled={busy} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
     </StoryButton>
     <StoryButton label="F2. Game Wallet (User-facing)">
-      <button disabled={!controller} onClick={onOpenDeveloper}>Open</button>
+      <button aria-label="F2. Game Wallet (User-facing)" disabled={!controller} onClick={onOpenDeveloper}>↗</button>
     </StoryButton>
     <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
         <button disabled={busy || !state.profileId} onClick={() => void boardingAction('check')}>Details</button>

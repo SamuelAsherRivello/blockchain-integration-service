@@ -10,8 +10,8 @@
 
 ## 3. Marketplace issuance
 
-- [ ] 3.1 Add H. Marketplace to the integration-demo Admin UI, gated on the active F. Game Wallet, and mint/reconcile the complete nine-item Stealth & Steel batch through the existing Signet asset boundary; verify a repeated or interrupted batch does not create a duplicate intended item.
-- [ ] 3.2 Publish only verified public catalog records into the Marketplace static input and verify the built Marketplace renders the issued asset identities and registered public address without recovery or signing data.
+- [x] 3.1 Add H. Marketplace to the integration-demo Admin UI, gated on the active F. Game Wallet, and mint/reconcile the complete nine-item Stealth & Steel batch through the existing Signet asset boundary; verify a repeated or interrupted batch does not create a duplicate intended item.
+- [x] 3.2 Publish only verified public catalog records into the Marketplace static input and verify the built Marketplace renders the issued asset identities and registered public address without recovery or signing data.
 
 ## 4. Verification
 

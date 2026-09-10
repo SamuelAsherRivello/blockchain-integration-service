@@ -19,7 +19,7 @@ document.getElementById('run')!.onclick=async()=>{
   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{if(copyFail)throw Error('denied');copied=text;}}});
   let data=rows;
   const account={phrase:'isolated-placeholder',profileId:'1234567890abcdef'};
-  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,async(_,signal,publish)=>{
+  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}),undefined,undefined,async(_,signal,publish)=>{
     await tick();if(signal.aborted)return;publish(data);await new Promise<void>((resolve,reject)=>{rejectRead=reject;signal.addEventListener('abort',()=>resolve(),{once:true});});
   });
   const ui=createBisUi(c);ui.mount(host);
@@ -28,8 +28,8 @@ document.getElementById('run')!.onclick=async()=>{
   try{
     await c.ready();c.openAccountDialog();await tick();
     [...host.querySelectorAll('button')].find(b=>b.textContent==='Accounts Details')!.click();await tick();
-    const buttons=[...host.querySelectorAll('button')];const details=buttons.findIndex(b=>b.textContent==='Balance');
-    check(buttons[details+1]?.textContent?.includes('Transactions'),'menu order');buttons[details+1].click();
+    const transactions=[...host.querySelectorAll('button')].find(button=>button.textContent==='Transactions');
+    check(!!transactions,'Transactions is available from Account Details');transactions!.click();
     await wait(()=>host.querySelectorAll('.bis-transaction-row').length===24);
     check(!host.querySelector('textarea'),'list instead of text area');
     check(host.querySelector('h2')?.textContent==='Transactions','Transactions heading');

@@ -1,0 +1,43 @@
+/* Keep the inventory cards square even when a short desktop viewport makes
+   their textual minimum height larger than their width. */
+.asset-card{min-height:0;overflow:hidden}
+.catalog-scroll{padding:5px 16px 5px 5px}
+
+/* The asset detail is deliberately a compact, square catalog card rather than a full-page workflow. */
+.detail{
+  width:min(560px,calc(100vw - 40px),calc(100vh - 40px));
+  aspect-ratio:1;
+  max-height:none;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  overflow:auto;
+}
+.detail-identity{display:flex;align-items:center;gap:17px;padding-right:34px}
+.large{width:86px;height:86px;flex:0 0 auto}
+.detail h2{font-size:31px;margin:5px 0}
+.detail-effect{margin:0}
+.asset-data{border-top:.8px solid #c8d7dc;padding-top:13px}
+.data-label{margin:0 0 10px!important;color:#487d66!important;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+/* Override the legacy modal list divider: each section already supplies its own. */
+.asset-data dl{margin:0;border-top:0;padding-top:0}
+.asset-data dt{color:#647987;font-size:12px}
+.asset-data dd{margin:0;overflow-wrap:anywhere;color:#294650;font-weight:650}
+.generic-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.generic-fields div{min-width:0}
+.generic-fields .wide{grid-column:1/-1;display:grid;grid-template-columns:65px minmax(0,1fr);gap:8px}
+.generic-fields code{font-size:11px;line-height:1.25}
+.gameplay-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.gameplay-fields div{display:flex;justify-content:space-between;gap:8px;padding:8px 9px;border-radius:9px;background:#eef4f6}
+.gameplay-fields dd{color:#487d66}
+.detail-footer{margin-top:auto}
+.detail-status{display:block;margin-bottom:10px;color:#487d66;font-size:13px;font-weight:700}
+.truth{display:none}
+
+@media(max-width:1200px){
+  .asset-card{padding:14px;gap:5px}
+  .art{width:68px;height:68px}
+  .family,.availability{font-size:11px}
+  .asset-card strong{font-size:17px}
+  .asset-card small{font-size:9px}
+}

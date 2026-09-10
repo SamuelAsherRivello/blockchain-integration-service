@@ -23,6 +23,23 @@ async function loadAdmin() {
     return AdminPanel;
 }
 
+test('requested admin navigation controls use an arrow-only affordance', async () => {
+  const AdminPanel = await loadAdmin();
+  const html = renderToStaticMarkup(createElement(AdminPanel, {
+    selected: null, accountOpen: false, canReset: false, onSelect() {}, onReset() {},
+    canFund: true, funding: false, onFund() {}, onExplorer() {},
+    onMint() {}, mintAvailable: true, assetBusy: false, consoleOutput: '',
+    continueAvailable: true, canShowToast: true, onShowToast() {}, onShowToastWithIcon() {},
+    playerActive: true, onOpenOnboarding() {},
+  }));
+  for (const id of ['A1', 'A4', 'B1', 'C1', 'D1', 'D2', 'E1', 'E2', 'E3']) {
+    assert.match(html, new RegExp(`<button\\b[^>]*aria-label="${id}\\.[^"]*"[^>]*>↗</button>`), `${id} is arrow-only`);
+  }
+
+  const gameWalletSource = await readFile(new URL('../src/admin/GameWalletPanel.tsx', import.meta.url), 'utf8');
+  assert.match(gameWalletSource, /<button aria-label="F2\. Game Wallet \(User-facing\)" disabled=\{!controller\} onClick=\{onOpenDeveloper\}>↗<\/button>/, 'F2 is arrow-only');
+});
+
 test('B1 stays enabled with the Account dialog open and retains payment guards', async () => {
   const AdminPanel = await loadAdmin();
   for (const accountOpen of [false, true]) {

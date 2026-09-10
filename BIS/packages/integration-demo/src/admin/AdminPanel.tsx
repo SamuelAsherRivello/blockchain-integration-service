@@ -37,7 +37,7 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
           <StoryAction id="C1" label={mintAvailable ? "Mint Asset & Send" : `Mint Asset & Send (${mintReason ?? 'Awaiting Balance'})`} disabled={!mintAvailable || assetBusy} onClick={onMint} />
         </>}
         {stories.filter(story => story.category === category.name).map(story =>
-          <StoryAction key={story.id} id={story.id} label={story.label} selected={selected === story.id} disabled={accountOpen} onClick={() => onSelect(story.id)} arrow />)}
+          <StoryAction key={story.id} id={story.id} label={story.label} selected={selected === story.id} disabled={accountOpen} onClick={() => onSelect(story.id)} />)}
       </StorySection>)}
     </nav>
     <StorySection title="E. Admin Tools">

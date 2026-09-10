@@ -18,8 +18,8 @@ document.getElementById('run')!.onclick=async()=>{
   try {
     await c.ready();c.openAccountDialog();await waitFor(()=>!!button('Accounts Details'));await click('Accounts Details');
     const labels=[...host.querySelectorAll('.bis-actions button')].map(b=>b.textContent?.replace('⚡','').trim());
-    check(labels.join('|')==='Balance|Transactions|Assets|Back','Menu order');
-    await click('Balance');await click('Get Recovery Phrase');await waitFor(()=>host.querySelectorAll('.bis-recovery li').length===12);
+    check(labels.join('|')==='Assets|Contracts|Transactions|Get Recovery Phrase|Back','Account Details actions');
+    await click('Get Recovery Phrase');await waitFor(()=>host.querySelectorAll('.bis-recovery li').length===12);
     check(host.querySelector('h2')?.textContent==='Get Recovery Phrase','Get title');
     for(const width of [280,360]) {
       host.style.width=`${width}px`;await tick();
@@ -37,12 +37,12 @@ document.getElementById('run')!.onclick=async()=>{
     eye.click();await tick();check(eye.getAttribute('aria-pressed')==='true'&&!!host.querySelector('[aria-label="Hide seed words"]'),'Eye reveals words');
     const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'Narrow layout');
     await click('Back');await click('Get Recovery Phrase');await waitFor(()=>!!host.querySelector('[aria-label="Show seed words"]'));check([...host.querySelectorAll('.bis-recovery-word')].every(word=>word.textContent?.startsWith('*')),'Masked again');
-    await click('Back');await click('Back');await click('Back');await click('Log Out');
+    await click('Back');await click('Back');await click('Log Out');
     check(!button('View Recovery Phrase'),'No recovery button in logout');
     check(host.querySelector('h2')?.textContent==='Account Log Out','Logout dialog');
     check((host.querySelector('input[type=checkbox]') as HTMLInputElement).checked===false,'Fresh backup acknowledgement');
     check(!host.querySelector('.bis-recovery'),'Secret removed');
-    await click('Back');await click('Accounts Details');await click('Balance');await click('Get Recovery Phrase');await waitFor(()=>!!host.querySelector('[aria-label="Show seed words"]'));
+    await click('Back');await click('Accounts Details');await click('Get Recovery Phrase');await waitFor(()=>!!host.querySelector('[aria-label="Show seed words"]'));
     host.querySelector<HTMLButtonElement>('[aria-label="Show seed words"]')!.click();await tick();
     ui.unmount();ui.mount(host);await waitFor(()=>!!host.querySelector('[aria-label="Show seed words"]'));
     check([...host.querySelectorAll('.bis-recovery-word')].every(word=>word.textContent?.startsWith('*')),'Unmount remasks words');

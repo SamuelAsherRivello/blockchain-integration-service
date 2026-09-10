@@ -22,7 +22,7 @@ document.getElementById('run')!.onclick = async () => {
   try {
     await context.ready(); context.openAccountDialog(); context.openAccountDetails(); await tick();
     const fields = Array.from(host.querySelectorAll('input'));
-    check(fields.length === 3, 'Only the three balance fields must exist before values load');
+    check(fields.length === 4, 'Account ID and the three balance fields must exist before values load');
     check(host.querySelector('.bis-network-text')?.textContent === 'Network: Signet', 'Network label appears at the top of Account Details');
     check(host.querySelector('.bis-version-label')?.textContent === `BIS: v${version}`, 'Header identifies the integration package version');
     check(!Array.from(host.querySelectorAll('label')).some(label => label.textContent?.includes('Network')), 'Network is not repeated in the details fields');
@@ -36,9 +36,9 @@ document.getElementById('run')!.onclick = async () => {
     };
     check(!host.querySelector('[aria-label="Arkade address"]'), 'Addresses belong to Receive');
     balance({ availableSats: 1000, totalSats: 1500, bitcoinSats: 500, arkadeSats: 1000 }); await tick(); stable();
-    check(fields[0].value === '1,500 sats', 'Values populated');
+    check(fields[0].value === account.profileId && fields[1].value === '1,500 sats', 'Account ID and balances populated');
     const refreshing = context.refreshBalance(); await tick(); stable();
-    check(fields[0].value === '', 'Refresh clears stale values');
+    check(fields.slice(1).every(field => field.value === ''), 'Refresh clears stale balance values');
     balance({ availableSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 });  await refreshing; await tick(); stable();
     const retry = context.refreshBalance(); await tick(); stable();
     balance({ availableSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 }); await retry; await tick(); stable();

@@ -35,12 +35,12 @@ document.getElementById('run')!.onclick=async()=>{
     check(JSON.stringify(menuButtons) === JSON.stringify(['Accounts Details', '⚡ Send', '⚡ Receive', '⚡ Swap', 'Log Out', 'Back']), 'Account button order');
     const transfer = [...host.querySelectorAll('.bis-transfer-actions button')].map(b => b.getBoundingClientRect());
     check(transfer.length === 3 && transfer[0].top === transfer[1].top && transfer[0].right < transfer[1].left, 'Send and Receive side by side');
-    click('Accounts Details');await tick();click('Balance');await tick();await tick();
-    check(addressInputs().length === 0 && host.querySelectorAll('input').length === 3, 'Details has balances and network only');
-    check(JSON.stringify([...host.querySelectorAll('.bis-actions button')].map(b => b.textContent?.trim())) === JSON.stringify(['Get Recovery Phrase','Back']), 'Recovery at bottom of Details');
+    click('Accounts Details');await tick();await tick();
+    check(addressInputs().length === 0 && host.querySelectorAll('input').length === 4, 'Details has the Account ID and all balances');
+    check(JSON.stringify([...host.querySelectorAll('.bis-actions button')].map(b => b.textContent?.trim())) === JSON.stringify(['Assets','Contracts','Transactions','Get Recovery Phrase','Back']), 'Collections and recovery are available from Details');
     click('Get Recovery Phrase');await tick();check(host.querySelector('h2')?.textContent === 'Get Recovery Phrase', 'Recovery dialog');
-    click('Back');await tick();check(host.querySelector('h2')?.textContent === 'Balance', 'Recovery Back returns to Details');
-    click('Back');await tick();click('Back');await tick();click('⚡ Receive');await tick();await tick();
+    click('Back');await tick();check(host.querySelector('h2')?.textContent === 'Accounts Details', 'Recovery Back returns to Details');
+    click('Back');await tick();click('⚡ Receive');await tick();await tick();
     check(!host.textContent?.includes('Lightning invoice'),'No deferred invoice UI');
     result.textContent='PASS: exact address values, copy, clipboard failure, narrow layout, refresh failure/retry, Back, Details recovery navigation, side-by-side actions, no invoice UI.';
   } catch(error) {result.textContent=`FAIL: ${error instanceof Error?error.message:'address checks'}`;}

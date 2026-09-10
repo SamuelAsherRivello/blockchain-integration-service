@@ -39,10 +39,10 @@ document.getElementById('run')!.onclick = async () => {
     button('Back').click();emptyBitcoin=false;await c.refreshBalance();await tick();
     check(value('Total balance')==='1,500 sats' && value('Bitcoin balance')==='500 sats' && value('Arkade balance')==='1,000 sats', 'Correct full balance split');
     check(!host.textContent?.includes('Available balance'), 'Old label removed');
-    const labels=[...host.querySelectorAll('input[readonly]')];
+    const labels=[...host.querySelectorAll('input[aria-label="Total balance"], input[aria-label="Bitcoin balance"], input[aria-label="Arkade balance"]')];
     check(labels[0].getAttribute('aria-label')==='Total balance', 'Total first');
     check(labels[1].getBoundingClientRect().top===labels[2].getBoundingClientRect().top, 'Split balances on same row');
-    check(!!button('Get Recovery Phrase'),'Recovery action on Balance');
+    check(!!button('Get Recovery Phrase'),'Recovery action on Account Details');
     c.openAccountTransfer();await tick();
     check(host.querySelector('h2')?.textContent==='Account Transfer','Transfer title');
     check(button('Review Transfer').disabled && !button('Max').disabled,'Initial zero and forward Max enabled');
@@ -66,7 +66,7 @@ document.getElementById('run')!.onclick = async () => {
     check(host.textContent?.includes('Review: Arkade → Bitcoin') && host.textContent.includes('501 sats'),'Reverse review');
     check(!button('Confirm Transfer').disabled && host.textContent?.includes('After transfer (estimate)'),'Reviewed reverse quote enables explicit confirmation');
     button('Back').click();await tick();check(!!button('←'),'Back retains direction');
-    button('Back').click();await tick();check(host.querySelector('h2')?.textContent==='Balance','Back to Details');
+    button('Back').click();await tick();check(host.querySelector('h2')?.textContent==='Accounts Details','Back to Details');
     c.openAccountTransfer();await tick();check(button('Review Transfer').disabled,'Reopen resets amount');
     button('Back').click();await tick();fail=true;await c.refreshBalance();await tick();
     check(value('Total balance')==='' && value('Arkade balance')==='' && !!host.querySelector('.bis-pending-dialog'),'Failed refresh stays covered');
