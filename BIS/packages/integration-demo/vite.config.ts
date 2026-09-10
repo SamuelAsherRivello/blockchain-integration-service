@@ -13,4 +13,7 @@ function marketplaceCatalogPublisher(): Plugin {
     catch { response.statusCode=400; response.end('Verified nine-item catalog required.'); }
   }); }};
 }
-export default defineConfig({plugins:[marketplaceCatalogPublisher()]});
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/blockchain-integration-service/admin/' : '/',
+  plugins: [marketplaceCatalogPublisher()],
+}));

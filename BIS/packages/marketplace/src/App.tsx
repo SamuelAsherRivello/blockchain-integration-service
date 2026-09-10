@@ -33,7 +33,7 @@ export function App(){
   const trading=getBisMarketplaceTradingAvailability();
 
   useEffect(()=>{if(walletHost.current){walletUi.mount(walletHost.current);walletUi.showAccountButton();}return()=>{walletUi.unmount();equipment.dispose();gameWallet.dispose();player.dispose();};},[walletUi,equipment,gameWallet,player]);
-  useEffect(()=>{void fetch('/catalog.json',{cache:'no-store'}).then(async response=>{if(!response.ok)throw Error();const next=await response.json() as MarketplaceCatalog;if(next.version!==1||!Array.isArray(next.items))throw Error();setCatalog(next);setReadable(true);}).catch(()=>setReadable(false));},[]);
+  useEffect(()=>{void fetch(`${import.meta.env.BASE_URL}catalog.json`,{cache:'no-store'}).then(async response=>{if(!response.ok)throw Error();const next=await response.json() as MarketplaceCatalog;if(next.version!==1||!Array.isArray(next.items))throw Error();setCatalog(next);setReadable(true);}).catch(()=>setReadable(false));},[]);
   useEffect(()=>{if(playerState.profileId)void equipment.refresh();},[playerState.profileId,equipment]);
   const sessionGameAddress=gameState.addresses?.arkadeAddress;
   const inventoryAddress=sessionGameAddress??catalog.gameWalletAddress;
