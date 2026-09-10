@@ -76,3 +76,15 @@ F2 Board Wallet SHALL be disabled with (Awaiting Confirmation) only when fresh i
 - **WHEN** fresh network evidence confirms the selected wallet boarding transaction
 - **THEN** F2 replaces Board Wallet with non-actionable Boarded, including after reload or later deposits
 - **AND** no local persisted flag alone establishes completion; unavailable checks show unavailable status without offering another submission
+
+### Requirement: Marketplace batch tools use the active game wallet
+H1 and H2 SHALL operate only through the currently active, separately retained Admin Game Wallet signer. Before every mint or burn submission, Admin SHALL revalidate that the selected identity remains active and that the relevant asset ownership and operation intent belong to it. Player profiles SHALL NOT sign, fund, receive, or reconcile H1 or H2 operations.
+
+#### Scenario: Active game wallet changes during H1 or H2
+- **WHEN** the selected Game Wallet changes before an item submission
+- **THEN** work prepared for the previous wallet cannot submit or be attributed to the replacement
+- **AND** already submitted work remains associated with its original public wallet identity for reconciliation
+
+#### Scenario: No active game wallet
+- **WHEN** H1 or H2 is requested without an active Game Wallet
+- **THEN** Admin reports the game-wallet requirement without submitting a mint or burn
