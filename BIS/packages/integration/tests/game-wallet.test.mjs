@@ -67,7 +67,18 @@ test('import retains wallets, reselects without duplicates and restores last sel
   assert.equal(f.saved.size,2);assert.equal(c.getState().profileId,'a');assert.equal('phrase' in c.getState(),false);
   assert.equal(await c.importWallet('invalid'),false);assert.equal(c.getState().profileId,'a');
   assert.equal(await c.importWallet('player'),false);assert.equal(f.saved.size,2);
+  assert.equal(c.getState().message,'This recovery phrase belongs to the player wallet. Restore or create a separate game wallet.');
   c.dispose();const reloaded=f.create();await tick();assert.equal(reloaded.getState().profileId,'a');reloaded.dispose();
+});
+test('F2 create requires explicit selection and publishes a new non-secret selection version',async()=>{
+  const f=fixture();f.dependencies.create=async()=>({phrase:'created game wallet',profileId:'created-game'});
+  const c=f.create();await tick();const before=c.getState().selectionVersion;
+  const candidate=await c.createWallet();
+  assert.equal(candidate.profileId,'created-game');assert.equal(c.getState().profileId,undefined);
+  assert.equal(await c.selectWallet(candidate),true);assert.equal(c.getState().profileId,'created-game');
+  assert.ok(c.getState().selectionVersion>before);assert.equal('phrase' in c.getState(),false);
+  const selectedVersion=c.getState().selectionVersion;await c.logout();
+  assert.ok(c.getState().selectionVersion>selectedVersion);assert.equal(c.getState().status,'empty');c.dispose();
 });
 test('late balance read cannot populate a different selected wallet',async()=>{
   const f=fixture();let resolve;

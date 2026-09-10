@@ -1,11 +1,10 @@
 import { gamePlayerPayments, assertPlayerPaymentAvailable, type BisPlayerRecipient } from './game-player-payment.ts';
-import {createHostedGameWallet} from './hosted-wallet.ts';
 import { readSendRecord } from './sending.ts';
 import { readLiveBoardingWait, readLiveBoardingState } from '../arkade/boarding.ts';
 import { watchGameWalletEvents } from '../arkade/game-wallet-events.ts';
 import { gameWalletBoarding } from './game-wallet-boarding.ts';
 import type { BoardingQuote } from './boarding-quote.ts';
-import { restoreAccount, type AccountSecret } from '../arkade/account.ts';
+import { createAccount, restoreAccount, type AccountSecret } from '../arkade/account.ts';
 import { loadAddresses, type AccountAddresses } from '../arkade/addresses.ts';
 import { loadBalance, type BalanceAmounts } from '../arkade/balance.ts';
 import { createGameWalletStorage, type GameWalletStorage } from './game-wallet-storage.ts';
@@ -15,23 +14,37 @@ import {validateMint,assetError,AssetError,readAssetRecords,type BisMintAssetReq
 
 export type BisGameWalletState = Readonly<{
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
-  profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string;
+  profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string; selectionVersion?: number;
 }>;
 export function createBisGameWallet(...args:Parameters<typeof createLocalGameWallet>):ReturnType<typeof createLocalGameWallet> {
-  const options=args[0];
-  return options.serviceUrl?createHostedGameWallet({...options,serviceUrl:options.serviceUrl}):createLocalGameWallet(...args);
+  return createLocalGameWallet(...args);
 }
-export function createLocalGameWallet(options: { playerProfileId(): string | undefined; serviceUrl?:string; migrateSavedWallet?:boolean }, dependencies = {
-  storage: createGameWalletStorage(), restore: restoreAccount, addresses: loadAddresses, balance: loadBalance, watch: watchGameWalletEvents as typeof watchGameWalletEvents | undefined,
+type GameWalletDependencies = {
+  storage: GameWalletStorage;
+  restore: typeof restoreAccount;
+  create?: typeof createAccount;
+  addresses: typeof loadAddresses;
+  balance: typeof loadBalance;
+  watch: typeof watchGameWalletEvents | undefined;
+};
+export function createLocalGameWallet(options: { playerProfileId(): string | undefined }, dependencies: GameWalletDependencies = {
+  storage: createGameWalletStorage(), restore: restoreAccount, create: createAccount, addresses: loadAddresses, balance: loadBalance, watch: watchGameWalletEvents,
 }, boarding = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting = {availability:loadMintAvailability,mint:mintWalletAsset}) {
   const storage: GameWalletStorage = dependencies.storage;
-  let state: BisGameWalletState = Object.freeze({status:'loading'});
+  let selectionVersion = 0, selectedProfileId: string | undefined;
+  let state: BisGameWalletState = Object.freeze({status:'loading',selectionVersion});
   let operation = new AbortController(), disposed = false, importing = false, refreshQueued = false;
   const listeners = new Set<() => void>();
-  const publish = (next: BisGameWalletState) => { if (!disposed) { state = Object.freeze(next); listeners.forEach(l => l()); } };
+  const publish = (next: Omit<BisGameWalletState,'selectionVersion'> | BisGameWalletState) => { if (!disposed) { state = Object.freeze({...next,selectionVersion}); listeners.forEach(l => l()); } };
+  const selectProfile = (profileId: string | undefined) => {
+    if (profileId === selectedProfileId) return;
+    selectedProfileId = profileId;
+    selectionVersion++;
+  };
   const begin = () => { operation.abort(); operation = new AbortController(); return operation.signal; };
   async function inspect(account: AccountSecret | null, signal: AbortSignal) {
     if (signal.aborted || disposed) return;
+    selectProfile(account?.profileId);
     if (!account) { publish({status:'empty'}); return; }
     publish({status:'loading', profileId:account.profileId});
     const [addresses, balance] = await Promise.allSettled([dependencies.addresses(account, signal), dependencies.balance(account, signal)]);
@@ -59,7 +72,7 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     if (importing) { refreshQueued = true; return; }
     const signal = begin(); publish({status:'loading', profileId:state.profileId});
     try { await inspect(await storage.load(), signal); }
-    catch { if (!signal.aborted) publish({status:'unavailable', message:'Game wallet storage unavailable. Use Details to retry.'}); }
+      catch { if (!signal.aborted) publish({status:'unavailable', message:'Game wallet storage unavailable. Use Details to retry.'}); }
   }
   const unsubscribe = storage.subscribe(() => { void refresh(); });
   void refresh();
@@ -163,7 +176,7 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     async logout() {
       if (disposed || importing) return;
       const signal = begin();
-      try { await storage.logout(); if (!signal.aborted) publish({status:'empty'}); }
+      try { await storage.logout(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } }
       catch { if (!signal.aborted) publish({...state, message:'Logout failed. Please retry.'}); }
     },
     async importWallet(phrase: string) {
@@ -172,7 +185,10 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       try {
         const account = await dependencies.restore(phrase, signal);
         signal.throwIfAborted();
-        if (account.profileId === options.playerProfileId()) throw Error();
+        if (account.profileId === options.playerProfileId()) {
+          publish({...previous, message:'This recovery phrase belongs to the player wallet. Restore or create a separate game wallet.'});
+          return false;
+        }
         await storage.select(account);
         await inspect(account, signal);
         return true;
@@ -180,6 +196,39 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
         if (!signal.aborted) publish({...previous, message:'Import failed. Check the recovery phrase, connection, and use a wallet different from the player.'});
         return false;
       } finally { importing = false; if (refreshQueued) { refreshQueued = false; void refresh(); } }
+    },
+    async createWallet() {
+      if (disposed || importing) return;
+      importing = true;
+      const signal = begin();
+      try {
+        const account = await (dependencies.create ?? createAccount)(signal);
+        signal.throwIfAborted();
+        if (account.profileId === options.playerProfileId()) throw Error();
+        return account;
+      } catch {
+        if (!signal.aborted) publish({...state, message:'Game wallet creation failed. Check the connection and try again.'});
+      } finally {
+        importing = false;
+        if (refreshQueued) { refreshQueued = false; void refresh(); }
+      }
+    },
+    async selectWallet(account: AccountSecret) {
+      if (disposed || importing || account.profileId === options.playerProfileId()) return false;
+      importing = true;
+      const previous = state, signal = begin(); publish({...previous, status:'loading', message:undefined});
+      try {
+        await storage.select(account);
+        signal.throwIfAborted();
+        await inspect(account, signal);
+        return true;
+      } catch {
+        if (!signal.aborted) publish({...previous, message:'Game wallet setup failed. Check the connection and try again.'});
+        return false;
+      } finally {
+        importing = false;
+        if (refreshQueued) { refreshQueued = false; void refresh(); }
+      }
     },
     dispose() { disposed = true; operation.abort(); unsubscribe(); storage.dispose(); listeners.clear(); },
   };

@@ -165,24 +165,13 @@ Before every additional balance-transfer review in either direction, the UI asks
 
 API consumers can call getPendingAccountTransfers() for the public pending statuses and pass the explicitly acknowledged operation IDs as the optional second argument to confirmAccountTransfer(quote, acknowledgedPendingIds). Confirmation without acknowledgement rejects when another transfer is pending. Each operation retains independent status and input reservations; Transactions includes all records. This does not guarantee a settlement time or permit reuse of pending inputs.
 
-### Configured Continue recipient (F1)
+### Local game wallet (F1, F2, F3)
 
-Pass `{ continueRecipient: publicArkadeAddress }` to `createBisContext`. New Continue requests require this Signet address; no sink fallback is generated. Existing pending sink records remain recoverable. New results use `game-wallet-payment`, retaining `sink-payment` for historical records. Recipient configuration is public; never pass signing credentials through host configuration.
+Create one `createBisGameWallet({ playerProfileId })` controller for a browser origin and pass it to every BIS surface that needs it. Compose it into `createBisUi(context, { gameWallet })`, the Admin F1/F3 controls, and `createBisLto({ context, gameWallet })`. F1 (Admin-facing) and F2 (user-facing) select the same encrypted, browser-local game wallet; F2 is the standalone-game setup path under Account Details → Balance → Game Wallet Login. F3 is Admin-only and provides board controls for that selected wallet.
 
-The Admin-only `createBisGameWallet({ playerProfileId })` controller supports import, inspection, Refresh, subscription and disposal, with separate encrypted persistence. It exposes no signing or minting operation. Player self-minting remains unchanged.
+The controller exposes private Create, Restore, Select, Logout, inspection, subscription, boarding, and direct Arkade signing operations. Its public state contains only the selected profile, non-secret selection version, public addresses, balance, status, and sanitized message. Do not put recovery material or a service URL in host configuration.
 
-## F3 payments and notifications
-
-F3 **Pay 1000 Sats To Player** sends immediately from the imported F1 wallet to the active preview player. It disables without an eligible player/sender or while unresolved. `createBisGameWallet` exposes `canPayPlayer`, `payPlayer`, `hasPendingPlayerPayment`, and `checkPlayerPayment`; `BisContext.getPaymentRecipient()` resolves the active player's public recipient without opening Account.
-
-Shared session notifications announce incoming sats and own transfers, with `(Pending)` followed by a final receipt, known sender ID or `Unknown User`, and a silent initial history baseline. Payment credentials remain inside integration. Browser test doubles are isolated under `tests/f2-payment.html`; live two-wallet Signet acceptance remains pending.
-
-F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Other eligibility blockers retain their safeguards and appear separately from the button suffix. F2 uses live transaction evidence for boarding status.
-
-
-### F3 receipt feedback
-
-With the player's Balance page open, a new F3 Arkade receipt shows one loading dialog while fresh balances are prepared. Duplicate observations and later status updates refresh silently. The pending toast is followed by a toast ending in (Confirmed) when fresh owned spendable outputs verify the specific transaction and amount, or settlement is verified. Confirmed means Arkade receipt; it does not claim Bitcoin confirmation or batch settlement. F3 still sends 1000 sats. Historical login data stays silent, and a receipt never opens a closed Balance page.
+G2 uses the selected local wallet and `createBisLto` to emit pending and confirmed funding, claim, and refund toasts through the mounted BIS context. Without a selected game wallet, ordinary gameplay remains available and the LTO request reports no offer. A selection change invalidates the old G2 presentation epoch; a later fresh run starts without the former wallet's visible history.
 
 ## Toast message types
 

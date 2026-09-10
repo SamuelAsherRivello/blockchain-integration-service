@@ -189,15 +189,13 @@ The user confirmed Mint Asset and Reward Player With Trophy After Level Complete
 
 The user withdrew B3 optional payment review/guidance and B4 extended pending-payment/recovery UI. Remove these proposed stories from the current catalog; no implementation work is planned for them. B1 and B2 remain. Historical B1 archive records retain their original scope descriptions.
 
-## Shared Admin-managed game wallet — 2026-09-09
+## Serverless game wallet — 2026-09-10
 
-The user selected the deployed-game architecture and requested the same workflow for local play. Import the game wallet once in BIS Admin, persist it in a private server-side disk store, and have both local and deployed games use the same hosted wallet service automatically. The Admin page does not need to stay open. The service reads the signing material; games read public configuration and request supported wallet operations. Remove the game's separate Developer Game Wallet import UI when the replacement is implemented.
+F1 (Admin-facing) and F2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS's encrypted local controller. F2 is available in every BIS Account UI, including a consuming game with no Admin: it creates or restores the separate game wallet, then offers only logout. F3 remains the Admin-only Board Game Wallet surface. Each deployed origin must be configured through its own F2 surface; no BIS application wallet service, deployment configuration, or public signer endpoint is involved.
 
-This decision supersedes the earlier no-custom-backend constraint for the game signer and per-origin signer provisioning. It does not authorize putting recovery phrases or private keys in public game bundles, downloadable configuration, logs, or source control. The hosted follow-up is implemented and verified locally on 2026-09-09: Admin persistence, service restart, shared contract recovery, browser player signing and automatic game connection. The separate game import UI is removed. Deployment configuration is documented, but an HTTPS signer hosting target has not been selected or deployed. See [shared wallet setup](../packages/wallet-service/README.md) and the active G1/G2 verification record for exact evidence limits.
-
-Add X8. Add security to game wallet as a deferred story to rethink the shared wallet's security, including authorization, spending limits, secret management and recovery. This follow-up does not replace the shared wallet implementation or mark its security review complete.
+G2 reads that locally selected wallet and submits real Arkade operations directly. A missing game wallet leaves ordinary play available and simply produces no offer. Changing a game wallet establishes a fresh G2 presentation session instead of showing old wallet history. The obsolete hosted wallet-service implementation is removed with this migration.
 
 
-### G1/G2 shared-wallet acceptance and archive — 2026-09-09
+### G1/G2 historical acceptance and archive — 2026-09-09
 
-The user confirmed the completed local treasure flow works and requested sync/archive. The hosted-wallet requirements are synced to the main specifications. See the [archived acceptance record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Preserve the recorded unobserved checks, deployment limitation and X8 follow-up; user acceptance is not additional live transaction evidence.
+The user confirmed the then-current treasure flow and requested sync/archive. See the [archived acceptance record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). It records the superseded hosted-wallet architecture and does not describe the current serverless F1/F2/F3 flow.

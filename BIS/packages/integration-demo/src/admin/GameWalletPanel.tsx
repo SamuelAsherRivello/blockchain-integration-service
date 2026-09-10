@@ -1,43 +1,20 @@
 import { StoryButton } from './StoryButton';
 import { StorySection } from './StorySection';
-import { useEffect, useRef, useState } from 'react';
-import { createBisGameWallet, type BisGameWalletState, type BisContext } from '@bis/integration';
+import { useEffect, useState } from 'react';
+import { createBisGameWallet, type BisGameWalletState } from '@bis/integration';
 
-export function GameWalletPanel({onController, playerProfileId, recipient, onDetails, onRecipientChange, walletFactory = createBisGameWallet, playerContext, playerActive = false}: {
-  onController?(controller: ReturnType<typeof createBisGameWallet> | undefined): void; playerContext?: BisContext; playerActive?: boolean;
+export function GameWalletPanel({controller, onDetails, onRecipientChange}: {
+  controller?: ReturnType<typeof createBisGameWallet>;
   onRecipientChange?(recipient: string | undefined): void;
-  walletFactory?: typeof createBisGameWallet; playerProfileId(): string | undefined; recipient?: string; onDetails(details: unknown): void;
+  onDetails(details: unknown): void;
 }) {
-  const [controller, setController] = useState<ReturnType<typeof createBisGameWallet>>();
-  const [state, setState] = useState<BisGameWalletState>({status:'loading'});
-  const consoleRef = useRef(onDetails);
-  consoleRef.current = onDetails;
-  const savedRecipient = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    const address = state.addresses?.arkadeAddress;
-    if (!address || savedRecipient.current === address) return;
-    if (!import.meta.env.DEV) {
-      consoleRef.current({operation:'Game Wallet Configuration', message:'Use the local admin to save this public address into the projects, then rebuild and deploy Stealth.'});
-      return;
-    }
-    let active = true;
-    void fetch('/__bis/game-wallet-recipient', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({address}),
-    }).then(async response => {
-      if (!response.ok || (await response.json()).saved !== true) throw Error();
-      if (!active) return;
-      savedRecipient.current = address;
-      consoleRef.current({operation:'Game Wallet Configuration', address, message:'Public receiving address saved to BIS and Stealth. Future Stealth builds include it.'});
-    }).catch(() => {
-      if (active) consoleRef.current({operation:'Game Wallet Configuration', message:'Could not save the public address to both projects. Check that both local project folders are available, then use F3 Details to retry.'});
-    });
-    return () => { active = false; };
-  }, [state.addresses?.arkadeAddress]);
+  const [state, setState] = useState<BisGameWalletState>({status:'loading',selectionVersion:0});
   const [entry, setEntry] = useState(false), [phrase, setPhrase] = useState('');
   const [importing, setImporting] = useState(false), [importMessage, setImportMessage] = useState('');
-  const [paymentBusy, setPaymentBusy] = useState(false);
-  const setPaymentMessage = (message: string) => onDetails({operation:'Pay Player', message});
-  const [paymentRevision, setPaymentRevision] = useState(0);
+  useEffect(() => {
+    const address = state.addresses?.arkadeAddress;
+    onRecipientChange?.(state.profileId ? address : undefined);
+  }, [onRecipientChange, state.addresses?.arkadeAddress, state.profileId]);
   const [boardingBusy, setBoardingBusy] = useState(false);
   const [boardingState, setBoardingState] = useState<'ready' | 'waiting' | 'boarded' | 'unknown'>('unknown');
   useEffect(() => {
@@ -63,58 +40,12 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
   useEffect(() => { setQuote(undefined); }, [state.profileId]);
   useEffect(() => { if (state.message) onDetails({operation:'Game Wallet', message:state.message}); }, [state.message]);
   useEffect(() => {
-    const wallet = walletFactory({playerProfileId,serviceUrl:import.meta.env.VITE_BIS_WALLET_SERVICE_URL || (import.meta.env.DEV?'http://127.0.0.1:8787':'/__bis/wallet'),migrateSavedWallet:true});
-    const update = () => {
-      const current = wallet.getState();
-      setState(current);
-      onRecipientChange?.(current.profileId ? current.addresses?.arkadeAddress : undefined);
-    };
-    setController(wallet); onController?.(wallet); update();
-    const unsubscribe = wallet.subscribe(update);
-    return () => { onController?.(undefined); unsubscribe(); wallet.dispose(); };
-  }, [playerProfileId, walletFactory, onRecipientChange, onController]);
-  const busy = !controller || state.status === 'loading' || importing || boardingBusy || paymentBusy;
-  const paymentBalance = controller?.getPlayerPaymentBalance?.();
-  const paymentBlockReason = !playerActive ? 'Awaiting Player'
-    : paymentBusy ? 'Sending' : boardingBusy ? 'Checking Wallet'
-    : controller?.getPlayerPaymentBlockReason?.() ?? (!controller ? 'Awaiting Game Wallet' : undefined);
-  useEffect(() => {
-    if (!controller || !state.profileId) return;
-    let stopped = false;
-    const check = async () => {
-      try {
-        if (!controller.hasPendingPlayerPayment()) return;
-        const result = await controller.checkPlayerPayment();
-        if (!stopped) {
-          setPaymentRevision(n => n + 1);
-          setPaymentMessage(result.status === 'pending' ? 'Payment pending verification.' : 'Payment sent.');
-          if (result.status === 'succeeded') await controller.refresh();
-        }
-      } catch { /* Pending remains locked until reconciliation succeeds. */ }
-    };
-    void check();
-    const timer = setInterval(() => void check(), 10000);
-    const changed = () => setPaymentRevision(n => n + 1);
-    window.addEventListener('storage', changed);
-    return () => { stopped = true; clearInterval(timer); window.removeEventListener('storage', changed); };
-  }, [controller, state.profileId]);
-  async function payPlayer() {
-    const context = playerContext;
-    if (!controller || paymentBusy || !playerActive || !context?.getPaymentRecipient) return;
-    setPaymentBusy(true); setPaymentMessage('Sending 1000 sats…');
-    const profile = context.getState().profileId;
-    let sameSession = true;
-    const unsubscribe = context.subscribe(() => { if (!context.getState().hasProfile || context.getState().profileId !== profile) sameSession = false; });
-    try {
-      const recipient = await context.getPaymentRecipient();
-      const result = await controller.payPlayer(recipient, () => sameSession && context.getState().phase === 'active');
-      onDetails(result);
-      setPaymentMessage(result.status === 'pending' ? 'Payment pending verification.' : 'Payment sent.');
-      await controller.refresh();
-    } catch {
-      setPaymentMessage('Payment unavailable. Check the game wallet funds and account state. An unresolved payment must be verified before sending again.');
-    } finally { unsubscribe(); setPaymentBusy(false); setPaymentRevision(n => n + 1); }
-  }
+    if (!controller) { setState({status:'loading',selectionVersion:0}); return; }
+    const update = () => setState(controller.getState());
+    update();
+    return controller.subscribe(update);
+  }, [controller]);
+  const busy = !controller || state.status === 'loading' || importing || boardingBusy;
   async function boardingAction(action: 'review' | 'confirm' | 'check') {
     if (!controller || boardingBusy) return;
     if (action !== 'check' && boardingState !== 'ready') return;
@@ -122,7 +53,7 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
     try {
       if (action === 'check') {
         const status = await controller.checkBoarding();
-        onDetails({operation:'F2 Boarding Status', ...status});
+        onDetails({operation:'F3 Boarding Status', ...status});
         await controller.refresh();
         return;
       }
@@ -147,16 +78,6 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
       setBoardingMessage('Boarding unavailable. Funds must be eligible for boarding and providers reachable. If already submitted, use Details; do not submit again while pending.');
     } finally { setBoardingBusy(false); }
   }
-  async function copyBitcoinAddress() {
-    const address = controller?.getState().addresses?.bitcoinAddress;
-    if (!address) return;
-    try {
-      await navigator.clipboard.writeText(address);
-      onDetails({operation:'Copy BTC Addr', message:'Bitcoin funding address copied.', bitcoinReceivingAddress:address});
-    } catch {
-      onDetails({operation:'Copy BTC Addr', message:'Clipboard unavailable. Copy the Bitcoin funding address below manually.', bitcoinReceivingAddress:address});
-    }
-  }
   async function details() {
     if (!controller) return;
     onDetails({operation:'F3 Wallet Status', status:'loading'});
@@ -177,21 +98,14 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
   return <StorySection title="F. Game Wallet" className="game-wallet-panel">
 
     <p className="story-summary">Stories: F1, F2, F3</p>
-    <StoryButton label="F1. Game Wallet">
-        {state.profileId ? <><button disabled={busy || !state.addresses?.bitcoinAddress} onClick={() => void copyBitcoinAddress()}>Copy BTC Addr</button><button disabled={busy} onClick={() => {setPhrase('');setEntry(false);void controller?.logout();}}>Logout</button></>
-          : <button disabled={busy} onClick={() => {setEntry(!entry);setPhrase('');setImportMessage('');}}>Login</button>}
+    <StoryButton label="F1. Game Wallet (Admin-facing)">
+        {state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
+          : <button disabled={busy} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
     </StoryButton>
-    <StoryButton label="F2. Board Wallet" sublabel={boardingState === 'boarded' ? <span role="status">Boarded</span> : undefined}>
+    <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
         <button disabled={busy || !state.profileId} onClick={() => void boardingAction('check')}>Details</button>
         {boardingState !== 'boarded' &&
           <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
-    </StoryButton>
-    <StoryButton label="F3. Send 1000 Sats (Game->Player)" sublabel={<>
-      <span className="game-wallet-balance" role="status">Balance: {paymentBalance !== undefined ? `${paymentBalance} sats` : state.status === 'loading' ? 'Loading…' : 'Unavailable'}</span>
-      <span id="game-payment-status" role="status">{paymentBlockReason}</span>
-    </>}>
-      <button data-payment-revision={paymentRevision} aria-describedby="game-payment-status" disabled={busy || !playerActive || !controller?.canPayPlayer?.()} onClick={() => void payPlayer()}>Send 1000 Sats</button>
-      <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
     </StoryButton>
     {entry && !state.profileId && <form onSubmit={async event => {
       event.preventDefault();
@@ -199,9 +113,9 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
       const input=phrase;setImporting(true);setImportMessage('');
       try {
         if(await controller.importWallet(input)){setPhrase('');setEntry(false);}
-        else setImportMessage(controller.getState().message ?? 'Game wallet login failed. Check the recovery phrase and private wallet service.');
+        else setImportMessage(controller.getState().message ?? 'Game wallet login failed. Check the recovery phrase and connection.');
       } catch {
-        setImportMessage('Game wallet login failed. Check the recovery phrase and private wallet service.');
+        setImportMessage('Game wallet login failed. Check the recovery phrase and connection.');
       } finally {setImporting(false);}
     }}>
       <label htmlFor="game-wallet-phrase">Recovery phrase</label>

@@ -7,10 +7,9 @@
     "BIS/packages/*"
   ],
   "scripts": {
-    "wallet:service": "node --experimental-eventsource BIS/packages/wallet-service/src/server.mjs",
     "test": "node BIS/scripts/test.mjs",
     "dev": "npm run dev --workspace @bis/integration-demo",
-    "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-demo",
+    "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-demo && npm run build --workspace @bis/marketplace",
     "typecheck": "tsc --noEmit",
     "preview": "npm run preview --workspace @bis/integration-demo"
   },

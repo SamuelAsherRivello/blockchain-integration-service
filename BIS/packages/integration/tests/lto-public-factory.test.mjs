@@ -33,8 +33,6 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
   const prefix="const d=globalThis[Symbol.for('bis.lto.public-factory.test')];";
   const stubs={
     '/arkade/account.ts':'export const SIGNET_OPERATOR="https://signet.arkade.sh";',
-    // This test selects the local controller. Hosted signing has its own real-SDK coverage.
-    '/core/hosted-lto.ts':'export const createHostedLto=()=>{throw Error("Unexpected hosted transport");};',
     '/core/contract-storage.ts':prefix+'export const createContractStorage=()=>d.storage;',
     '/core/account-storage.ts':prefix+'export const createAccountStorage=()=>d.playerStorage;',
     '/core/game-wallet-storage.ts':prefix+'export const createGameWalletStorage=()=>d.gameStorage;',

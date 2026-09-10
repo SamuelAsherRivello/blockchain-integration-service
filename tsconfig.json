@@ -12,5 +12,5 @@
     "allowImportingTsExtensions": true,
     "types": ["vite/client"]
   },
-  "include": ["BIS/packages/integration-demo/src", "BIS/packages/integration/src"]
+  "include": ["BIS/packages/integration-demo/src", "BIS/packages/integration/src", "BIS/packages/marketplace/src"]
 }

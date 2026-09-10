@@ -5,10 +5,6 @@ import {hex,base64} from '@scure/base';
 import {MnemonicIdentity,SingleKey,CSVMultisigTapscript,RestArkProvider,RestIndexerProvider,VtxoScript,Extension} from '@arkade-os/sdk';
 import {prepareLtoRecovery,submitLtoSpend,reconcileLtoSpend,resumeLtoFinalization} from '../src/arkade/lto-contract.ts';
 import {startLto,emptyContractLedger,beginContractOperation} from '../src/core/contracts.ts';
-import {signHostedClaim} from '../src/arkade/hosted-claim.ts';
-import {openVault} from '../../wallet-service/src/vault.mjs';
-import {createWalletRuntime} from '../../wallet-service/src/runtime.mjs';
-import {resolve} from 'node:path';
 
 // This operator exists only inside a test process: no HTTP requests, saved user
 // identities, faucet, real funds, or production capability override are involved.
@@ -77,75 +73,6 @@ async function simulator(t,{assetCarrier=false}={}) {
   const preserved=()=>untouched.forEach(coin=>assert.deepEqual(coins.get(key(coin)),coin));
   return {state,record,recovery,spend,next,balance,preserved,carrierAssets,coins,commit,player,game,playerPublicKey:hex.encode(await identities[2].compressedPublicKey())};
 }
-
-test('hosted service funds and completes the full browser signing exchange through the real SDK',async t=>{
- const s=await simulator(t,{assetCarrier:true}),vault=openVault(resolve('output/tests/hosted-wallet',crypto.randomUUID()));
- const runtime=createWalletRuntime(vault,{walletDependencies:{restore:async()=>s.game,addresses:async()=>({arkadeAddress:'public-game'}),balance:async()=>({availableSats:s.balance('gameScript')})}});
- s.state.readJournal=async id=>{const doc=await runtime.storage.load(),record=doc.ledger.contracts.find(r=>doc.recovery[r.id]?.spend?.transactionId===id);return record?{record,recovery:doc.recovery[record.id]}:undefined;};
- try {
-  assert.equal(await runtime.admin('importWallet',['synthetic-input']),true);
-  for(let i=0;i<100&&runtime.wallet.getState().status!=='ready';i++)await new Promise(r=>setTimeout(r,5));
-  const player={profileId:'player',publicKey:s.playerPublicKey},now=Date.now();
-  const funded=await runtime.call(player,'start',{request:{sessionId:'hosted',hostReference:'treasure:hosted',purpose:'treasureLTO',exclusivityKey:'treasure',amountSats:1000,startedAt:now,expiresAt:now+90000}});
-  assert.equal(funded.result.contract.financial,'funded');assert.equal(s.balance('playerScript'),0);
-  await navigator.locks.request('bis-signet-contracts-v1',()=>{});await new Promise(r=>setTimeout(r,20));
-  assert.equal((await runtime.call(player,'claim',{id:funded.result.contract.id})).result.status,'pending');
-  let signatures=0,completed=false;
-  for(let i=0;i<100;i++) {
-   const sync=await runtime.call(player,'sync',{filter:{includeResolved:true}});
-   if(sync.result.contracts.contracts[0].financial==='claimed'){completed=true;break;}
-   for(const challenge of sync.result.signatures) {
-    const transaction=await signHostedClaim(challenge,s.player,'game');signatures++;
-    await runtime.call(player,'signature',{id:challenge.id,transaction});
-   }
-   await new Promise(r=>setTimeout(r,10));
-  }
-  assert.ok(completed);assert.equal(signatures,2);assert.equal(s.balance('playerScript'),1000);assert.equal(s.balance('gameScript'),52000);
-  const events=(await runtime.call(player,'query',{after:0})).events.map(e=>e.message);
-  assert.ok(events.includes('Offer funding pending'));assert.ok(events.includes('Contract claim confirmed: 1,000 sats'));
- }finally{await runtime.close();vault.close();}
-});
-
-test('hosted claim resumes its persisted checkpoint after service restart without duplicate submission',async t=>{
- const s=await simulator(t,{assetCarrier:true}),directory=resolve('output/tests/hosted-wallet',crypto.randomUUID());
- let vault=openVault(directory),runtime;
- const startRuntime=()=>createWalletRuntime(vault,{walletDependencies:{restore:async()=>s.game,addresses:async()=>({arkadeAddress:'public-game'}),balance:async()=>({availableSats:s.balance('gameScript')})}});
- runtime=startRuntime();
- s.state.readJournal=async id=>{const doc=await runtime.storage.load(),record=doc.ledger.contracts.find(r=>doc.recovery[r.id]?.spend?.transactionId===id);return record?{record,recovery:doc.recovery[record.id]}:undefined;};
- try {
-  await runtime.admin('importWallet',['synthetic-input']);
-  for(let i=0;i<100&&runtime.wallet.getState().status!=='ready';i++)await new Promise(r=>setTimeout(r,5));
-  const player={profileId:'player',publicKey:s.playerPublicKey},now=Date.now();
-  const funded=await runtime.call(player,'start',{request:{sessionId:'restart-signing',hostReference:'treasure:restart-signing',purpose:'treasureLTO',amountSats:1000,startedAt:now,expiresAt:now+90000}});
-  await navigator.locks.request('bis-signet-contracts-v1',()=>{});await new Promise(r=>setTimeout(r,20));
-  assert.equal((await runtime.call(player,'claim',{id:funded.result.contract.id})).result.status,'pending');
-  let checkpoint;
-  for(let i=0;i<100&&!checkpoint;i++) {
-   const sync=await runtime.call(player,'sync',{filter:{includeResolved:true}});
-   for(const challenge of sync.result.signatures) {
-    if(challenge.stage==='checkpoint'){checkpoint=challenge;break;}
-    await runtime.call(player,'signature',{id:challenge.id,transaction:await signHostedClaim(challenge,s.player,'game')});
-   }
-   await new Promise(r=>setTimeout(r,10));
-  }
-  assert.ok(checkpoint);assert.equal(s.state.submits,2);assert.equal(s.state.finalizes,1);
-  await runtime.close();vault.close();vault=openVault(directory);runtime=startRuntime();
-  for(let i=0;i<100&&runtime.wallet.getState().status!=='ready';i++)await new Promise(r=>setTimeout(r,5));
-  await navigator.locks.request('bis-signet-contracts-v1',()=>{});await new Promise(r=>setTimeout(r,20));
-  const sync=await runtime.call(player,'sync',{filter:{includeResolved:true}});
-  assert.ok(sync.result.signatures.some(c=>c.id===checkpoint.id));
-  await runtime.call(player,'signature',{id:checkpoint.id,transaction:await signHostedClaim(checkpoint,s.player,'game')});
-  const doc=await runtime.storage.load();assert.equal(doc.ledger.contracts[0].financial,'claimed');
-  assert.equal(s.state.submits,2);assert.equal(s.state.finalizes,2);assert.equal(s.balance('playerScript'),1000);assert.equal(s.balance('gameScript'),52000);
- }finally{await runtime.close();vault.close();}
-});
-
-test('hosted claim uses browser-only player signatures over the verified SDK claim graph',async t=>{
- const s=await simulator(t,{assetCarrier:true}),funded=await s.spend(s.record,s.recovery),claim=s.next(funded,'claim');let signatures=0,signingError;
- const remote={xOnlyPublicKey:async()=>hex.decode(claim.recovery.playerKey),sign:async tx=>{signatures++;try{return Transaction.fromPSBT(base64.decode(await signHostedClaim({id:'challenge',contractId:claim.record.id,transaction:base64.encode(tx.toPSBT()),record:claim.record,recovery:claim.recovery},s.player,'game')));}catch(error){signingError=error;throw error;}}};
- const result=await submitLtoSpend(claim.record,claim.recovery,{profileId:'player',phrase:''},s.commit,()=>true,remote);
- assert.ifError(signingError);assert.equal(result.record.financial,'claimed');assert.equal(signatures,2);assert.equal(s.balance('playerScript'),1000);
-});
 
 test('53000-sat game asset carrier funds a clean 1000-sat contract and retains all six assets',async t=>{
   const s=await simulator(t,{assetCarrier:true}),funded=await s.spend(s.record,s.recovery);

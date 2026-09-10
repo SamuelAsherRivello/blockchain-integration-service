@@ -10,6 +10,7 @@ const result = spawnSync(process.execPath, [
   ...process.argv.slice(2),
   'BIS/packages/integration/tests/*.test.mjs',
   'BIS/packages/integration-demo/tests/*.test.mjs',
+  'BIS/packages/marketplace/tests/*.test.mjs',
 ], { cwd: root, stdio: 'inherit' });
 
 if (result.error) throw result.error;

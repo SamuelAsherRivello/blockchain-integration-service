@@ -8,8 +8,6 @@ import { beginContractOperation, contractResolved, endContract, finishContractOp
 import { publishContractReservations, reserveContract } from './contract-reservations.ts';
 import { prepareLtoRecovery, reconcileLtoSpend, resumeLtoFinalization, submitLtoSpend } from '../arkade/lto-contract.ts';
 import { SIGNET_OPERATOR } from '../arkade/account.ts';
-import {hostedWalletTransport} from './hosted-wallet.ts';
-import {createHostedLto} from './hosted-lto.ts';
 
 export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string; exclusivityKey?: string; gameId?: string; hostReference?: string; includeResolved?: boolean }>;
 export type BisContractsResult = Readonly<{ status: 'ready' | 'unavailable'; contracts: readonly BisContract[] }>;
@@ -52,7 +50,6 @@ export function inspectContractDocument(document:ContractDocument,profileId:stri
 
 /** The host receives no identities or scripts. Signers are loaded privately from this origin. */
 export function createBisLto(options: { context: BisContext; gameWallet: ReturnType<typeof createBisGameWallet>; creationEnabled?: boolean }):ReturnType<typeof createLtoService> {
-  if(hostedWalletTransport(options.gameWallet)){const service=createHostedLto(options);controllers.set(options.context,service);return service;}
   // Runtime readiness and provider validation govern each attempt. Hosts may
   // explicitly disable new offers while keeping existing-contract recovery.
   return createLtoService(options,{storage:createContractStorage(),playerStorage:createAccountStorage(),gameStorage:createGameWalletStorage(),prepare:prepareLtoRecovery,submit:submitLtoSpend,reconcile:reconcileLtoSpend,resume:resumeLtoFinalization,poll:true});

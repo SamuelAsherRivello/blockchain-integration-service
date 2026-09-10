@@ -23,8 +23,8 @@
   - [E2. Open On Mempool.space](#e2-open-on-mempoolspace) ✓
 - [F. Game Wallet](#f-game-wallet)
   - [F1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) / Accept User Pay To Continue
-  - [F2. Board Wallet](#f2-board-wallet) ✓
-  - [F3. Send 1000 Sats (Game->Player)](#f3-send-1000-sats-game-player) ✓
+  - [F2. Game Wallet (User-facing)](#f2-game-wallet-user-facing)
+  - [F3. Board Game Wallet](#f3-board-game-wallet)
 - [G. Contracts](#g-contracts)
   - [G1. Contracts UI](#g1-contracts-ui)
   - [G2. LTO Treasure Chest](#g2-lto-treasure-chest)
@@ -69,9 +69,9 @@ Reviewed against the current checkout and recorded acceptance evidence on 2026-0
 | X4. Account Transfer | Account / Account Dialog | ✓ Both directions, Max, quotes, explicit confirmation, and unresolved-operation guards implemented. A registered transfer remains unresolved; remaining recovery coverage and live completion verification are pending. |
 | X5a. Inspect and Copy Transfer Recovery Details ✓ | Transactions → Transaction Detail → Recovery details | ✓ Implemented and verified: one-click pending entry, Check Status, copy/manual fallback. Cancellation remains separate and blocked. |
 | X5b. Cancel Pending Transfer | Not implemented | Blocked on verified operator cancellation scope and terminal-outcome guarantees; no cancellation UI or live cancellation delivered. |
-| F1. Admin game wallet / Accept User Pay To Continue | F. Game Wallet | Implemented locally; consumer delivery and live payment verification pending. |
-| F2. Board Wallet ✓ | F. Game Wallet / Details / Board Wallet | Complete, confirmed by the user on 2026-09-09. |
-| F3. Send 1000 Sats (Game->Player) ✓ | F. Game Wallet / Send 1000 Sats | Complete, confirmed by the user on 2026-09-09. |
+| F1. Game Wallet (Admin-facing) | F. Game Wallet | Admin setup for the shared local game-wallet selection. |
+| F2. Game Wallet (User-facing) | Account Details / Balance / Game Wallet Login | Serverless setup for every BIS account host. |
+| F3. Board Game Wallet | F. Game Wallet / Board Game Wallet | Admin-only balance and boarding controls for the F1/F2 selection. |
 | G1. Contracts UI ✓ | Account Details / Contracts | Complete and user-accepted 2026-09-09; shared list/details and eligible actions. Specs synced; change archived. |
 | G2. LTO Treasure Chest ✓ | BIS G2 demo / Stealth & Steel Level01 | Complete locally and user-accepted 2026-09-09; 1,000-sat, 90-second chest with shared persistent game wallet. Specs synced; archived with verification limits retained. HTTPS service deployment remains outstanding. |
 | H1. Arkade onboarding spike | [Standalone spike](http://127.0.0.1:5174/spike1/) | ✓ Original six-step experiment complete and its specification synced. Robustness proposal in progress; two additional transfers recovered to spendable targets but still awaited final Bitcoin confirmation at the post-mortem snapshot. |
@@ -532,31 +532,25 @@ As a developer, I click **E2. Open On Mempool.space** to view the active account
 
 Admin has an independent game wallet, imported through one recovery-phrase field. Importing another wallet retains earlier wallets; re-entering a phrase selects that wallet again. Reload restores the last selection. Player logout and reset leave game-wallet storage intact.
 
-**Shared wallet implementation — 2026-09-09:** Import the game wallet once in BIS Admin and persist it in a private server-side disk store. Local and deployed games use the same configurable service API and signing workflow; the Admin browser need not remain open. The game's separate Settings → Developer → Game Wallet import path is removed. The game reads public wallet configuration and requests supported operations; the server reads the saved signing material. Never include that material in public game files. This supersedes separate browser-origin provisioning and the earlier client-only constraint for the game signer. The implementation and local runtime are verified; deploying the HTTPS signer endpoint remains outstanding. See [service setup and play instructions](../packages/wallet-service/README.md). Track the later security rethink separately in [X8](#x8-add-security-to-game-wallet).
+**Serverless game wallet implementation — 2026-09-10:** F1 (Admin-facing) and F2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS local storage. F2 is available from Account Details → Balance below Get Recovery Phrase and is the setup path for any consuming game with no Admin. It creates/restores or logs out the game wallet only; F3 remains the Admin-only board controls. G2 uses the selected local wallet for direct Arkade operations, so no BIS wallet-service endpoint is configured or deployed.
 
-The **F1. Game Wallet** row shows **Login** initially and **Logout** after import. Wallet **Details** and usable balance appear beside F3. Details refreshes public addresses and balances into the Admin console. Logout deselects the wallet across reloads without deleting saved identities. Copy BTC Addr appears immediately to the left of Logout and copies the selected game wallet Bitcoin funding address for use in a faucet or funding wallet. Copy results and a manual-copy fallback appear in the Admin console.
-
-New Continue payments use the public `VITE_BIS_GAME_WALLET_ADDRESS` build configuration. Admin need not be open to receive payments. Refresh reads the actual recipient balance; mismatched imported/configured wallets show a notice without changing the recipient. Historical sink payments retain their recovery path.
+The **F1. Game Wallet (Admin-facing)** row shows **Login** initially and **Logout** after import. F1 and F2 read and write the same selected record. Logout deselects the wallet across reloads without deleting saved identities.
 
 Game-wallet trophy issuance remains a separate deferred proposal; existing player self-minting is unchanged. See [F1 planning](../../.openspec/changes/add-admin-game-wallet-and-continue-payments/proposal.md).
 
-### F2. Board Wallet ✓
+### F2. Game Wallet (User-facing)
 
-**Status:** Complete, confirmed by the user on 2026-09-09.
+**Status:** Serverless user-facing setup flow.
 
-F2 provides boarding Details and explicit quote/confirmation. Fresh matching network evidence replaces the action with **Boarded** after completion. Pending evidence disables it with **(Awaiting Confirmation)**. Unavailable evidence disables submission until it can be checked. No persisted boarded flag is used and completed boarding is not offered again.
+F2 provides the Game Wallet Login page in Account Details → Balance. It can create or restore the separate game wallet, then offers Logout Game Wallet before a replacement can be created or restored. It does not display the wallet's balance, addresses, or board controls.
 
-### F3. Send 1000 Sats (Game->Player) ✓
+### F3. Board Game Wallet
 
-**Status:** Complete, confirmed by the user on 2026-09-09.
-
-One click sends exactly 1000 sats from the selected F1 game wallet to the active Runtime Preview player. F3 is greyed out without an active player or eligible sender and while a payment is unresolved. Submission and recovery use the production wallet API; there is no player Send dialog.
-
-BIS observes incoming Bitcoin/Arkade sats and own transfers throughout the logged-in session, even with Account closed. Known F3 senders display `User <short ID> sent you <amount> sats`; otherwise the message is `Unknown user sent you <amount> sats`. Pending messages append ` (Pending)`. Incoming Arkade final messages append ` (Confirmed)` after verified spendable receipt or settlement; Bitcoin final messages require the first confirmation. Own transfers say `Transferred <amount> sats from Bitcoin to Arkade` or the reverse. Loaded history is silent; subsequent new receipts and status transitions notify. Asset-only receipts and change do not notify.
+F3 remains Admin-only. It reads the wallet selected by F1 or F2, shows its balance beside the board controls, and provides the existing Details, quote, confirmation, and boarding-state workflow. It is not a player-payment route and is never displayed in a standalone consuming game.
 
 ## G. Contracts
 
-G1 and G2, including the shared persistent game-wallet follow-up, are implemented locally and user-accepted as of 2026-09-09. The user confirmed “works great” and requested spec sync and archive. Main specs are synced and the change is archived; the three unobserved broader checks remain recorded without being marked passed. HTTPS signer deployment and X8 remain separate. The canonical [proposal, design, specs and tasks](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/proposal.md) cover BIS and Stealth & Steel. BIS owns reusable contract tracking and operations; the game owns gameplay and placement. The implementation now enables creation by default with per-operation runtime validation; the linked verification document separates automated acceptance from historical and unobserved live scenarios.
+G1 and G2 retain their completed generic contract behavior, with the current serverless F1/F2/F3 game-wallet migration planned in the active OpenSpec change. Historical acceptance records describe the previous hosted topology and are retained only as evidence for that superseded slice. BIS owns reusable contract tracking and operations; the game owns gameplay and placement.
 
 ### G1. Contracts UI
 
@@ -607,7 +601,7 @@ Status: complete for the delivered feature; user confirmed it works on 2026-09-0
 - Claim spends the original locked reward to the specific player. Reject ends this session's offer and requests refund to the game; no new offer is created that session. When an action is accepted, BIS shows a pending toast, the game closes the prompt and resumes gameplay, and verified completion produces a toast without a modal or pause.
 - Funding and cleanup run in the background. A late-funded expired/ended offer is reconciled and returned rather than advertised as claimable. Automatic expiry cleanup and silent start-menu cleanup use the same supported refund workflow. The initial Signet probe verified zero-fee 1,000-sat funding, claim and refund paths. New creation is enabled with runtime validation. Extended live race and full-game observations remain separately documented; they are not a runtime switch.
 - Target client-side code using the existing Arkade operator, with no custom backend, project-operated arkd, delegate server, or service worker. Refund execution is not automatic while the browser is closed; resume reconciliation on reopening. Client-controlled gameplay checks are accepted for this Signet learning demo and are not a claim of cheat resistance.
-- Verify real Signet funding, claim, prompt cooperative cancellation, expiry/refund and restart recovery separately from simulated gameplay events. The game bridge now initializes a game-wallet controller; provision it through Settings → Developer → Game Wallet. A public receiving address alone cannot sign. Keep signer setup outside the start menu and never hardcode secrets. Detailed acceptance and cross-project tasks are in the canonical change.
+- Verify real Signet funding, claim, prompt cooperative cancellation, expiry/refund and restart recovery separately from simulated gameplay events. The game bridge initializes a local game-wallet controller; provision it through Account Details → Balance → Game Wallet Login. A public receiving address alone cannot sign. Keep signer setup outside the start menu and never hardcode secrets. Detailed acceptance and cross-project tasks are in the canonical change.
 
 The BIS G2 Admin demonstration has two always-clickable subbuttons, **Start LTO** and **Claim LTO**, with a 90-second time-left counter. Start simulates a new session; Claim simulates its treasure action. Missing, pending, expired and confirmed outcomes go to the existing console. These controls use the public API and cannot bypass readiness, expiry, exclusivity or explicit host disable. The actual game owns collision and its Treasure Chest dialogue.
 
