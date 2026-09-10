@@ -1,6 +1,6 @@
 import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, type AssetDetails } from '@arkade-os/sdk';
 import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
-import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
+import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
 import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult, type BurnInput } from '../core/burning.ts';
 import { eligibleUnreservedCoins, walletReservations } from '../core/wallet-reservations.ts';
 
@@ -39,7 +39,8 @@ export async function readFreshAssets(wallet: AssetWallet): Promise<OwnedAsset[]
       ...(typeof m?.icon === 'string' ? { iconUrl: m.icon } : {}),
       ...(Number.isInteger(m?.decimals) && Number(m?.decimals) >= 0 ? { decimals: m!.decimals } : {}),
       ...(metadata ? {metadata} : {}) };
-    owned.push({ asset, ...(m?.bisKind === 'asset' && m.bisSchemaVersion === '1' && typeof m.bisOperationId === 'string' ? { operationId: m.bisOperationId } : {}) });
+    const kind=decodeListedMetadataValue(m?.bisKind),schema=decodeListedMetadataValue(m?.bisSchemaVersion),operationId=decodeListedMetadataValue(m?.bisOperationId);
+    owned.push({ asset, ...(kind === 'asset' && schema === '1' && typeof operationId === 'string' ? { operationId } : {}) });
   }
   return owned.sort((a, b) => a.asset.assetId.localeCompare(b.asset.assetId));
 }

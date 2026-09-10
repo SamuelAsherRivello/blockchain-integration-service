@@ -32,9 +32,9 @@ function gameBoarding(key: string, storage: WebStorage) {
   const owner = key.slice(prefix.length).split(':operation:')[0];
   return storage.getItem('bis-game-wallet-boarding-owner:' + owner) === '1';
 }
-export function pendingLogoutOperations(storage: WebStorage | undefined = globalThis.localStorage): LogoutOperations {
+export function pendingLogoutOperations(storage: WebStorage | undefined = globalThis.localStorage, profileId?:string): LogoutOperations {
   const pending = new Set<string>();
-  for (const contract of readContractReservations(storage)) if (contract.pending) pending.add(`contract:${contract.playerId}:${contract.id}`);
+  for (const contract of readContractReservations(storage)) if (contract.pending&&(!profileId||contract.playerId===profileId||contract.gameId===profileId)) pending.add(`contract:${contract.playerId}:${contract.id}`);
   if (storage) for (const key of keys(storage)) {
     if (gameBoarding(key, storage)) continue;
     if(key.startsWith(continuationPrefix))assertNoPendingContinue(decodeURIComponent(key.slice(continuationPrefix.length)),storage);
@@ -44,10 +44,12 @@ export function pendingLogoutOperations(storage: WebStorage | undefined = global
     const raw = storage.getItem(key);
     if (raw === null) continue;
     const record = JSON.parse(raw);
+    if(profileId&&prefix!=='bis-signet-mints-v1'&&record?.profileId!==profileId)continue;
     if(prefix==='bis-signet-onboarding-v1'){
       if(onboardingKey(record)!==key||!readOnboardingRecord(record,storage))throw Error('Pending operations could not be counted.');
       if(record.status==='pending')pending.add(`${prefix}:${record.profileId}:${record.id}`);
     } else if (prefix === 'bis-signet-mints-v1') {
+      if(profileId&&!key.startsWith(`bis-signet-mints-v1:${encodeURIComponent(profileId)}`))continue;
       if (!Array.isArray(record?.operations)) throw Error('Pending operations could not be counted.');
       for (const op of record.operations) {
         if (!['pending','succeeded'].includes(op?.status) || typeof op.request?.operationId !== 'string') throw Error('Pending operations could not be counted.');
@@ -67,6 +69,25 @@ export function clearBrowserPreferences(storage: WebStorage | undefined) {
     if (gameBoarding(key, storage)) continue;
     storage.removeItem(key);
     if (storage.getItem(key) !== null) throw Error('Browser cleanup could not be verified.');
+  }
+}
+export function clearBrowserProfilePreferences(profileId:string, storage:WebStorage|undefined) {
+  if(!storage)return;
+  const encoded=encodeURIComponent(profileId);
+  const profilePrefixes=[
+    `bis-signet-boarding-operation-v1:${encoded}`,
+    `bis-signet-send-operation-v1:${encoded}`,
+    `bis-signet-mints-v1:${encoded}`,
+    `bis-signet-burn-operation-v1:${encoded}`,
+    `bis-signet-onboarding-v1:${encoded}`,
+    `bis-signet-wallet-operations-v2:${encoded}`,
+    `bis-signet-continuations-v1:${encoded}`,
+    `bis-signet-equipment-v1:${encoded}`,
+  ];
+  for(const key of keys(storage).filter(key=>profilePrefixes.some(prefix=>key===prefix||key.startsWith(`${prefix}:`)))) {
+    if(gameBoarding(key,storage))continue;
+    storage.removeItem(key);
+    if(storage.getItem(key)!==null)throw Error('Profile cleanup could not be verified.');
   }
 }
 export function assertLogoutResolvable(storage: WebStorage | undefined = globalThis.localStorage) {

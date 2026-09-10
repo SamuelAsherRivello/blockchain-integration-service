@@ -3,11 +3,13 @@ import { assertNoPendingSend } from './sending.ts';
 import {readAccountOnboarding} from './onboarding-record.ts';
 import { assertNoPendingBoarding, BoardingBlockedError } from './boarding-record.ts';
 import { readContractReservations } from './contract-reservations.ts';
-import { browserMutationLock, clearBrowserPreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
+import { browserMutationLock, clearBrowserPreferences, clearBrowserProfilePreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
 export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
 export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
 export interface AccountStorage {
   load(): Promise<StoredAccount>;
+  listProfiles(): Promise<Readonly<{profiles:readonly string[];activeProfileId?:string;generation:number}>>;
+  selectProfile(profileId:string, expectedGeneration?:number, signal?:AbortSignal):Promise<void>;
   save(account: AccountSecret, generation: number, signal: AbortSignal): Promise<void>;
   reset(expectedGeneration?: number, options?: { purpose: 'logout'; profileId: string; operations: LogoutOperations }): Promise<void>;
   subscribe(listener: () => void): () => void;
@@ -19,8 +21,8 @@ const aad = new TextEncoder().encode('bis:signet:account:v1');
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (!globalThis.indexedDB || !globalThis.crypto?.subtle) { reject(new Error('Private storage unavailable.')); return; }
-    const request = indexedDB.open(DB, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+    const request = indexedDB.open(DB, 2);
+    request.onupgradeneeded = () => {if(!request.result.objectStoreNames.contains(STORE))request.result.createObjectStore(STORE);};
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(new Error('Private storage unavailable.'));
     request.onblocked = () => reject(new Error('Private storage blocked.'));
@@ -47,20 +49,64 @@ export function createAccountStorage(): AccountStorage {
   let channel: BroadcastChannel | undefined;
   const notify = () => { for (const listener of listeners) listener(); };
   let pendingSessionLogout: LogoutReceipt | undefined;
-  const read = async (): Promise<StoredAccount> => {
-      const record = await transaction<{generation:number; envelope?:Envelope; logout?:LogoutReceipt}>('readonly',(store,set,tx) => {
-        const g=store.get('generation'); const a=store.get('identity'); const l=store.get('logout');
-        l.onsuccess=()=> {try {set({generation:generation(g.result),envelope:a.result,logout:l.result});} catch {tx.abort();}};
-      });
-      if (!record.envelope) return {generation:record.generation,account:null,logout:record.logout};
-      const e=record.envelope;
+  type RawCollection={generation:number;legacy?:Envelope;profiles:string[];activeProfileId?:string;envelope?:Envelope;logout?:LogoutReceipt};
+  const readRaw=()=>transaction<RawCollection>('readonly',(store,set,tx)=>{
+    const g=store.get('generation'),legacy=store.get('identity'),profiles=store.get('profiles'),logout=store.get('logout'),active=store.get('activeProfile');
+    active.onsuccess=()=>{try{
+      const list=profiles.result===undefined?[]:profiles.result;
+      if(!Array.isArray(list)||list.some(id=>typeof id!=='string'||!id)||new Set(list).size!==list.length)throw Error();
+      const activeProfileId=active.result;
+      if(activeProfileId!==undefined&&(typeof activeProfileId!=='string'||!list.includes(activeProfileId)))throw Error();
+      if(!activeProfileId){set({generation:generation(g.result),legacy:legacy.result,profiles:list,logout:logout.result});return;}
+      const envelope=store.get(`profile:${activeProfileId}`);
+      envelope.onsuccess=()=>set({generation:generation(g.result),legacy:legacy.result,profiles:list,activeProfileId,envelope:envelope.result,logout:logout.result});
+    }catch{tx.abort();}};
+  });
+  const decrypt=async(e:Envelope):Promise<AccountSecret>=>{
       if(e.version!==1 || e.network!=='signet' || !(e.key instanceof CryptoKey) || e.key.extractable) throw new Error('Saved account cannot be read.');
       const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:e.iv,additionalData:aad},e.key,e.encrypted);
       const account=JSON.parse(new TextDecoder().decode(plain));
       if(typeof account.phrase!=='string'||typeof account.profileId!=='string') throw new Error('Invalid saved account.');
-      return {generation:record.generation,account};
+      return account;
+  };
+  const migrateLegacy=async(raw:RawCollection)=>{
+    if(!raw.legacy)return raw;
+    const account=await decrypt(raw.legacy);
+    await transaction<void>('readwrite',(store,set,tx)=>{
+      const legacy=store.get('identity'),profiles=store.get('profiles'),existing=store.get(`profile:${account.profileId}`);
+      existing.onsuccess=()=>{try{
+        if(!legacy.result) {set(undefined);return;}
+        const list=profiles.result===undefined?[]:profiles.result;
+        if(!Array.isArray(list)||list.some(id=>typeof id!=='string'||!id))throw Error();
+        if(!existing.result)store.put(legacy.result,`profile:${account.profileId}`);
+        if(!list.includes(account.profileId))store.put([...list,account.profileId],'profiles');
+        store.put(account.profileId,'activeProfile');store.delete('identity');set(undefined);
+      }catch{tx.abort();}};
+    });
+    return readRaw();
+  };
+  const collection=async()=>migrateLegacy(await readRaw());
+  const read = async (): Promise<StoredAccount> => {
+      const record=await collection();
+      if (!record.activeProfileId) return {generation:record.generation,account:null,logout:record.logout};
+      if(!record.envelope)throw Error('Saved account cannot be read.');
+      const account=await decrypt(record.envelope);
+      if(account.profileId!==record.activeProfileId)throw Error('Invalid saved account.');
+      return {generation:record.generation,account,logout:record.logout};
   };
   return {
+    async listProfiles(){const raw=await collection();return Object.freeze({profiles:Object.freeze([...raw.profiles]),...(raw.activeProfileId?{activeProfileId:raw.activeProfileId}:{}),generation:raw.generation});},
+    async selectProfile(profileId,expectedGeneration,signal){
+      if(!profileId)throw Error('Select a saved profile.');signal?.throwIfAborted();
+      await withBrowserMutation(()=>transaction<void>('readwrite',(store,set,tx)=>{
+        const g=store.get('generation'),profiles=store.get('profiles'),envelope=store.get(`profile:${profileId}`);
+        envelope.onsuccess=()=>{try{
+          const current=generation(g.result),list=profiles.result;
+          if(signal?.aborted||(expectedGeneration!==undefined&&current!==expectedGeneration)||!Array.isArray(list)||!list.includes(profileId)||!envelope.result){tx.abort();return;}
+          store.put(profileId,'activeProfile');store.put(current+1,'generation');store.delete('logout');set(undefined);
+        }catch{tx.abort();}};
+      }));revision++;channel?.postMessage('changed');notify();
+    },
     async load() {
       if (!pendingSessionLogout) return read();
       if (!globalThis.navigator?.locks) throw Error('This browser cannot safely coordinate wallet operations.');
@@ -89,11 +135,15 @@ export function createAccountStorage(): AccountStorage {
         signal.addEventListener('abort',abort,{once:true});
         tx.addEventListener('complete',()=>signal.removeEventListener('abort',abort));
         tx.addEventListener('abort',()=>signal.removeEventListener('abort',abort));
-        const g=store.get('generation'); const existing=store.get('identity');
+        const g=store.get('generation'); const profiles=store.get('profiles');const existing=store.get(`profile:${account.profileId}`);
         existing.onsuccess=()=> {
           try {
-            if(signal.aborted || revision !== currentRevision || generation(g.result)!==expected || existing.result) {tx.abort();return;}
-            store.delete('logout'); store.put({version:1,network:'signet',key,iv,encrypted} satisfies Envelope,'identity'); set(undefined);
+            const list=profiles.result===undefined?[]:profiles.result;
+            if(signal.aborted || revision !== currentRevision || generation(g.result)!==expected || !Array.isArray(list)) {tx.abort();return;}
+            store.delete('logout');
+            if(!existing.result)store.put({version:1,network:'signet',key,iv,encrypted} satisfies Envelope,`profile:${account.profileId}`);
+            if(!list.includes(account.profileId))store.put([...list,account.profileId],'profiles');
+            store.put(account.profileId,'activeProfile');set(undefined);
           }catch {tx.abort();}
         };
       }));
@@ -104,19 +154,24 @@ export function createAccountStorage(): AccountStorage {
         await withBrowserMutation(async () => {
           const loaded = await this.load();
           if (loaded.account?.profileId !== options.profileId || (expectedGeneration !== undefined && loaded.generation !== expectedGeneration)) throw Error('The account changed.');
-          const currentOperations = pendingLogoutOperations();
+          const currentOperations = pendingLogoutOperations(globalThis.localStorage,options.profileId);
           if (currentOperations.count !== options.operations.count || currentOperations.fingerprint !== options.operations.fingerprint) throw new BoardingBlockedError('Pending operations changed. Confirm logout again.');
           if (currentOperations.count > 0) throw new BoardingBlockedError('Wallet operations are unresolved. Open Account and check recovery status before logging out.');
           // No SDK IndexedDB repositories are used by this app: all SDK wallets
           // explicitly use in-memory repositories. Never clear an unrelated SDK DB.
-          clearBrowserPreferences(globalThis.localStorage);
-          clearBrowserPreferences(globalThis.sessionStorage);
+          clearBrowserProfilePreferences(options.profileId,globalThis.localStorage);
+          clearBrowserProfilePreferences(options.profileId,globalThis.sessionStorage);
           const receipt: LogoutReceipt = {id:crypto.randomUUID(),profileId:options.profileId,generation:loaded.generation+1};
           await transaction<void>('readwrite', (store, set, tx) => {
             const request = store.get('generation');
             request.onsuccess = () => {
               if (generation(request.result) !== loaded.generation) { tx.abort(); return; }
-              store.clear(); store.put(receipt.generation,'generation'); store.put(receipt,'logout'); set(undefined);
+              const profiles=store.get('profiles');
+              profiles.onsuccess=()=>{
+                const list=profiles.result;
+                if(!Array.isArray(list)||!list.includes(options.profileId)){tx.abort();return;}
+                store.delete(`profile:${options.profileId}`);store.put(list.filter(id=>id!==options.profileId),'profiles');store.delete('activeProfile');store.delete('identity');store.put(receipt.generation,'generation');store.put(receipt,'logout');set(undefined);
+              };
             };
           });
           revision++;
@@ -137,12 +192,12 @@ export function createAccountStorage(): AccountStorage {
       if(profileId&&readAccountOnboarding(profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('Onboarding is unresolved. Open Account → Balance → Onboarding before resetting this account.');
       await transaction<void>('readwrite',(store,set,tx)=> {
         const request=store.get('generation');
-        const identity=store.get('identity');
-        identity.onsuccess=()=> {
+        const active=store.get('activeProfile');
+        active.onsuccess=()=> {
           try {
             const current = generation(request.result);
-            if (current !== loaded.generation || !!identity.result !== !!loaded.account || (expectedGeneration !== undefined && expectedGeneration !== current)) { tx.abort(); return; }
-            store.put(current+1,'generation'); store.delete('identity');store.delete('logout');set(undefined);
+            if (current !== loaded.generation || !!active.result !== !!loaded.account || (expectedGeneration !== undefined && expectedGeneration !== current)) { tx.abort(); return; }
+            store.clear();store.put(current+1,'generation');set(undefined);
           }catch {tx.abort();}
         };
       });

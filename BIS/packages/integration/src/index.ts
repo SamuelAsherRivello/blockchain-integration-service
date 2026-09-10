@@ -30,3 +30,5 @@ export type { BisMarketplaceTradingAvailability } from './core/marketplace-tradi
 
 export { BIS_STEALTH_AND_STEEL_GAME_ID, bisMarketplaceItems, classifyBisEquipmentAsset, marketplaceItemMetadata } from './core/equipment';
 export type { BisEquipmentDefinition, BisEquipmentFamily, BisEquipmentItem, BisEquipmentTier } from './core/equipment';
+export { createBisEquipment } from './core/equipment-loadout';
+export type { BisEquipmentSlots, BisEquipmentState } from './core/equipment-loadout';

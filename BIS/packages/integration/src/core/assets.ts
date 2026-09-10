@@ -30,6 +30,15 @@ export function assetBaseUnits(amount: string, decimals: number): bigint {
   return value;
 }
 const reservedMetadata = new Set(['name','ticker','decimals','icon','bisKind','bisOperationId']);
+export function decodeListedMetadataValue(value: unknown): unknown {
+  if (typeof value !== 'string' || value.length === 0 || value.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(value)) return value;
+  try {
+    const bytes = Uint8Array.from(value.match(/../g)!, pair => Number.parseInt(pair, 16));
+    return new TextDecoder('utf-8', {fatal:true}).decode(bytes);
+  } catch {
+    return value;
+  }
+}
 function metadataValue(value: unknown): value is BisAssetMetadataValue {
   return value === null || typeof value === 'string' || typeof value === 'boolean'
     || (typeof value === 'number' && Number.isFinite(value) && Number.isSafeInteger(value));
@@ -41,7 +50,8 @@ export function normalizeAssetMetadata(input: unknown, mode: 'mint' | 'list' = '
     return;
   }
   const entries: [string, BisAssetMetadataValue][] = [];
-  for (const [key,value] of Object.entries(input)) {
+  for (const [key,rawValue] of Object.entries(input)) {
+    const value = mode === 'list' ? decodeListedMetadataValue(rawValue) : rawValue;
     if (reservedMetadata.has(key)) {
       if (mode === 'mint') throw new AssetError('invalid-input');
       continue;

@@ -38,6 +38,8 @@ import { fundTestAccount } from '../arkade/funding.ts';
 export type BisBalance = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
+  savedProfiles: readonly string[];
+  profileChooser: boolean;
   phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error' | 'restore-entry' | 'restoring' | 'restore-saving' | 'restore-error';
   logoutBackupAcknowledged: boolean;
   logoutPendingCount: number | null;
@@ -108,6 +110,8 @@ export interface BisContext {
   refreshBalance(): Promise<void>;
   createAccount(): Promise<void>;
   openRestoreAccount(): void;
+  openProfileChooser():void;
+  selectProfile(profileId:string):Promise<void>;
   continueAccount(): Promise<void>;
   openLogoutConfirmation(): void;
   setLogoutBackupAcknowledged(acknowledged: boolean): void;
@@ -179,7 +183,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const activityVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && s.accountActivity;
   const idleBalance: BisBalance = Object.freeze({status:'idle'});
   const idleAddresses: BisAddresses = Object.freeze({status:'idle'});
-  let state: BisState = Object.freeze({view:'empty',hasProfile:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
+  let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
   let revealedPhrase: string | undefined;
   let recoveryVersion = 0;
   let recoveryOperation = new AbortController();
@@ -271,7 +275,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   let restorePhrase: string | undefined;
   let operation = new AbortController();
   let failure: 'load' | 'create' | 'save' | undefined;
-  let confirmedProfile: string | undefined;
+  let confirmedProfile: string | undefined, profileHydrated=false;
   const publishedLogouts = new Set<string>();
   let logoutTarget: { profileId: string; generation: number } | undefined;
   let logoutOperations: LogoutOperations | undefined;
@@ -342,13 +346,15 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   function acceptLoaded(loaded: StoredAccount, current: number, closeOnAbsence = false) {
     if (disposed || version !== current) return;
     const former = confirmedProfile;
+    const previouslyHydrated=profileHydrated;profileHydrated=true;
     const logout = !loaded.account && loaded.logout && loaded.logout.profileId === former && loaded.logout.generation === loaded.generation ? loaded.logout : undefined;
     if (logout) invalidate();
     current = version;
     confirmedProfile = loaded.account?.profileId;
     generation = loaded.generation; failure = undefined; logoutTarget = undefined;
     update({...((closeOnAbsence || logout) && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
-    if (former && !loaded.account) emit({type:'accountDisconnected',profileId:former}, current);
+    if (former && former!==loaded.account?.profileId) emit({type:'accountDisconnected',profileId:former}, current);
+    if (previouslyHydrated&&loaded.account && former!==loaded.account.profileId) emit({type:'accountConnected',profileId:loaded.account.profileId},current);
     if (logout && !publishedLogouts.has(logout.id)) {
       publishedLogouts.add(logout.id);
       emit({type:'restartRequested',reason:'logout',logoutId:logout.id},current);
@@ -381,7 +387,10 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     logoutTarget=undefined;
     update({phase:'loading',error:undefined,logoutBackupAcknowledged:false});
     try {
-      acceptLoaded(await readWithRetry(() => readStable(current), operation.signal), current);
+      const loaded=await readWithRetry(() => readStable(current), operation.signal);
+      const profiles=typeof storage.listProfiles==='function'?await storage.listProfiles():{profiles:loaded.account?[loaded.account.profileId]:[],generation:loaded.generation};
+      acceptLoaded(loaded, current);
+      if(!disposed&&version===current)update({savedProfiles:Object.freeze([...profiles.profiles]),profileChooser:false});
       try {
         if(globalThis.localStorage&&readBoardingRecords(state.profileId).some(r=>r.status==='pending'))scheduleTransferCheck();
       } catch { /* The transfer and clearing guards report corrupt/unavailable storage. */ }
@@ -396,7 +405,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   }
   async function runRestore(input: string) {
     assertAlive();
-    if (!['restore-entry','restore-error'].includes(state.phase) || state.hasProfile || !validRecovery(input)) return;
+    if (!['restore-entry','restore-error'].includes(state.phase) || !validRecovery(input)) return;
     restorePhrase=phraseWords(input).join(' ');
     const current=version;
     update({phase:pending?'restore-saving':'restoring',error:undefined,canReset:true});
@@ -404,7 +413,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       // Reconcile an uncertain prior save or another tab's account before any new work.
       const loaded=await readStable(current);
       if(disposed||version!==current) return;
-      if(loaded.generation!==generation || loaded.account) {
+      if(loaded.generation!==generation || loaded.account?.profileId!==state.profileId) {
         if(loaded.generation===generation && pending && loaded.account?.profileId===pending.profileId) activateRestored(pending,current);
         else { pending=undefined;restorePhrase=undefined;acceptLoaded(loaded,current); }
         return;
@@ -417,13 +426,15 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       const account=pending;
       update({phase:'restore-saving'});
       await storage.save(account,generation,operation.signal);
-      if(disposed||version!==current) return;
+      if(disposed)return;
+      if(version!==current){await initialization;return;}
       const saved=await readStable(current);
       if(disposed||version!==current) return;
       if(saved.generation!==generation || saved.account?.profileId!==account.profileId) {
         pending=undefined;restorePhrase=undefined;acceptLoaded(saved,current);return;
       }
       activateRestored(account,current);
+      if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
     } catch {
       if(!disposed&&version===current) update({phase:'restore-error',error:pending?'Your account could not be confirmed saved.':'The test service could not be reached.'});
     }
@@ -867,8 +878,23 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       }
     },
     refreshBalance: () => refreshBalanceView(),
+    openProfileChooser(){
+      assertAlive();if(state.phase!=='active'&&state.phase!=='idle')return;
+      context.openAccountDialog();
+      update({profileChooser:true,accountOnboarding:false,accountContracts:false,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,accountRecovery:false});
+    },
+    async selectProfile(profileId){
+      assertAlive();
+      if(!state.savedProfiles.includes(profileId)||typeof storage.selectProfile!=='function')throw Error('Select a saved profile.');
+      if(state.profileId===profileId){update({profileChooser:false});return;}
+      const current=version,expected=generation;
+      await storage.selectProfile(profileId,expected,operation.signal);
+      if(disposed)return;
+      if(version!==current){await initialization;return;}
+      initialization=hydrate();await initialization;
+    },
     openRestoreAccount() {
-      assertAlive();if(state.phase!=='idle'||state.hasProfile)return;
+      assertAlive();if(!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser)return;
       context.openAccountDialog();invalidate();failure=undefined;
       update({phase:'restore-entry',error:undefined,canReset:true});
     },
@@ -894,7 +920,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       update({view:previous});
     },
     async createAccount() {
-      assertAlive();if(state.phase!=='idle'||state.hasProfile) return;
+      assertAlive();if(!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser) return;
       const current=++version;operation.abort();operation=new AbortController();
       update({phase:'creating',canReset:true,error:undefined});
       try {
@@ -909,10 +935,12 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       update({phase:'saving',error:undefined});
       try {
         await storage.save(account,generation,operation.signal);
-        if(disposed||version!==current)return;
+        if(disposed)return;
+        if(version!==current){await initialization;return;}
         pending=undefined;failure=undefined;
         confirmedProfile=account.profileId;
         update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
+        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
         emit({type:'accountConnected',profileId:account.profileId},current);
       }catch {if(!disposed&&version===current)fail('save','Your account could not be saved.');}
     },
@@ -922,7 +950,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       context.openAccountDialog();
       logoutTarget = {profileId:state.profileId!,generation};
       try {
-        logoutOperations=pendingLogoutOperations();
+        logoutOperations=pendingLogoutOperations(globalThis.localStorage,state.profileId);
         update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutPendingCount:logoutOperations.count,error:undefined});
       } catch {
         logoutOperations=undefined;
@@ -965,9 +993,10 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         if (disposed || version!==current) return;
         if (after.account?.profileId===target.profileId && after.generation===target.generation) throw new Error('Clearing not confirmed.');
         acceptLoaded(after,current,true);
+        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
       } catch (error) {
         if (!disposed && version===current) {
-          try {logoutOperations=pendingLogoutOperations();} catch {logoutOperations=undefined;}
+          try {logoutOperations=pendingLogoutOperations(globalThis.localStorage,target.profileId);} catch {logoutOperations=undefined;}
           update({phase:'logout-error',logoutPendingCount:logoutOperations?.count ?? null,logoutPendingAcknowledged:logoutOperations?.fingerprint === approvedOperations?.fingerprint && state.logoutPendingAcknowledged,error:error instanceof BoardingBlockedError ? error.message : 'Log out did not finish. Browser cleanup could not be confirmed.'});
         }
       }

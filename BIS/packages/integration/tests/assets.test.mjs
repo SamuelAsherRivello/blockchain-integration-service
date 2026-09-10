@@ -40,6 +40,20 @@ test('listing includes non-BIS and metadata-free assets with exact bigint quanti
   wallet.getProviderConnectionState=()=>({mode:'offline',source:'cache'});await assert.rejects(readFreshAssets(wallet),{code:'unavailable'});
   wallet.getProviderConnectionState=()=>({mode:'online',source:'live'});wallet.getBalance=async()=>({assets:[]});assert.deepEqual(await readFreshAssets(wallet),[]);
 });
+test('listing decodes Arkade hex-encoded custom metadata before BIS classification',async()=>{
+  const wallet={
+    getBalance:async()=>({assets:[{assetId:'item',amount:1n}]}),
+    getProviderConnectionState:()=>({mode:'online',source:'live'}),
+    assetManager:{getAssetDetails:async()=>({assetId:'item',metadata:{
+      name:'Shoes I',ticker:'SHO1',icon:'https://example.com/shoes.png',
+      bisSchemaVersion:'31',bisAssetType:'6974656d',bisGameId:'737465616c74682d616e642d737465656c',
+      bisKind:'6173736574',bisOperationId:'6d61726b6574706c6163652d6f70',
+    }})},
+  };
+  const [listed]=await readFreshAssets(wallet);
+  assert.deepEqual(listed.asset.metadata,{bisAssetType:'item',bisGameId:'stealth-and-steel',bisSchemaVersion:'1'});
+  assert.equal(listed.operationId,'marketplace-op');
+});
 function setup(account={phrase:'test-only',profileId:'profile-a'}, assets={list:async()=>[],mint:async(_a,r)=>({status:'minted',profileId:'profile-a',operationId:r.operationId,asset:{assetId:'a',quantity:'1'}})}){
  let generation=0;const listeners=new Set();
  const storage={load:async()=>({account,generation}),save:async()=>{},reset:async()=>{},subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);}};

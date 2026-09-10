@@ -10,6 +10,7 @@ import type { BisToastOptions } from '../core/toasts';
 import type { BisBurnAssetRequest, BisBurnAssetResult } from '../core/burning';
 import { CompactItemRow } from './StatusTypeIcon';
 import { StatusTypeIcon } from './StatusTypeIcon';
+import type { createBisEquipment, BisEquipmentState } from '../core/equipment-loadout';
 
 const preparedIcons = new Set<string>();
 function AssetIcon({url, background = false, fallback}: {url?:string; background?:boolean; fallback?:ReactNode}) {
@@ -33,7 +34,7 @@ function AssetIcon({url, background = false, fallback}: {url?:string; background
   return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:(fallback??<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>)}</span>;
 }
 
-export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
+export function AccountAssets({assets, equipment, equipmentState, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; equipment?:ReturnType<typeof createBisEquipment>;equipmentState?:BisEquipmentState; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [notice, setNotice] = useState('');
@@ -41,6 +42,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   const [burning,setBurning]=useState(false);
   const [burnError,setBurnError]=useState('');
   const [backgroundImages,setBackgroundImages]=useState(false);
+  const [equipmentBusy,setEquipmentBusy]=useState(false);
   const burnInFlight=useRef(false), burnOrigin=useRef(false), mounted=useRef(true);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;onBusyChange(false);};},[onBusyChange]);
   useEffect(()=>{onBusyChange(burning||!!confirmation);},[burning,confirmation,onBusyChange]);
@@ -60,6 +62,14 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   const rows = assets.status === 'ready' ? assets.assets : [];
   const report = rows.map(formatAssetDetail).join('\n\n');
   const selected = rows.find(asset => asset.assetId === selectedId);
+  const equipmentItem=selected&&equipmentState?.status==='ready'?equipmentState.ownedItems.find(item=>item.assetId===selected.assetId):undefined;
+  const equipped=equipmentItem?equipmentState?.effective[equipmentItem.family]?.assetId===equipmentItem.assetId:false;
+  async function updateEquipment(){
+    if(!equipment||!equipmentItem||equipmentBusy)return;setEquipmentBusy(true);setNotice('');
+    try{if(equipped)await equipment.clear(equipmentItem.family);else await equipment.select(equipmentItem.assetId);setNotice(equipped?`${equipmentItem.family} selection cleared.`:`${equipmentItem.name} selected for the next game spawn.`);}
+    catch{setNotice('Equipment ownership could not be verified. Refresh Assets and try again.');}
+    finally{setEquipmentBusy(false);}
+  }
   const explorerUrl = selected ? assetExplorerUrl(selected.assetId) : undefined;
   const list = useRef<HTMLUListElement>(null);
   const scroll = useRef(0);
@@ -113,6 +123,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
     notice={notice&&assets.status==='ready'?<p role="status">{notice}</p>:!loading&&assets.status==='ready'&&!rows.length?<p>No assets.</p>:null}
     actions={<>
       {detailOpen && selected && <button type="button" className="bis-button" disabled={burning || !explorerUrl} title={!explorerUrl ? 'Explorer unavailable: invalid asset ID.' : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>}
+      {detailOpen&&equipmentItem&&<button className="bis-button bis-primary" disabled={burning||equipmentBusy||equipmentState?.status!=='ready'} onClick={()=>void updateEquipment()}>{equipped?`Clear ${equipmentItem.family}`:`Select ${equipmentItem.family}`}</button>}
       {detailOpen && selected && <button className="bis-button bis-danger" disabled={burning} onClick={()=>setConfirmation(selected)}>Burn</button>}
     </>} backDisabled={burning} onBack={()=>{if(detailOpen){restoreFocus.current=true;setDetailOpen(false);}else onBack();}}
     overlay={confirmation&&<ConfirmationDialog onCancel={()=>setConfirmation(undefined)} onConfirm={()=>void burn(confirmation)}/>}

@@ -12,27 +12,27 @@
 
 ## 3. Multiple Player Profiles
 
-- [ ] 3.1 Migrate account IndexedDB from the single encrypted identity to an encrypted profile collection plus optional active pointer without destructive fallback; verify legacy migration, reload, invalid-state preservation, deduplication, cross-tab notification, and non-extractable-key tests.
-- [ ] 3.2 Update create, restore, select, account switching, operation ownership, and logout so committed identities join the collection and logout removes only the active profile; verify stale-work isolation, remaining-profile retention, explicit post-logout selection, pending acknowledgements, and host restart tests.
-- [ ] 3.3 Add the production saved-profile chooser with shortened public IDs, active indication, switching, and Add Profile -> Create/Restore; verify pointer/keyboard behavior, no secret exposure, no duplicate Marketplace implementation, and existing single/no-profile routes.
+- [x] 3.1 Migrate account IndexedDB from the single encrypted identity to an encrypted profile collection plus optional active pointer without destructive fallback; verify legacy migration, reload, invalid-state preservation, deduplication, cross-tab notification, and non-extractable-key tests.
+- [x] 3.2 Update create, restore, select, account switching, operation ownership, and logout so committed identities join the collection and logout removes only the active profile; verify stale-work isolation, remaining-profile retention, explicit post-logout selection, pending acknowledgements, and host restart tests.
+- [x] 3.3 Add the production saved-profile chooser with shortened public IDs, active indication, switching, and Add Profile -> Create/Restore; verify pointer/keyboard behavior, no secret exposure, no duplicate Marketplace implementation, and existing single/no-profile routes.
 
 ## 4. Equipment Loadout API and BIS UI
 
-- [ ] 4.1 Implement chain-metadata equipment recognition and profile-scoped local selection storage with no defaults and at most one Shoes, Dagger, and Shield; verify generic assets/trophies are excluded and profile selections cannot bleed across accounts.
-- [ ] 4.2 Expose Arkade-free public owned-item, select/clear, refresh, effective-loadout, and subscription behavior that revalidates fresh ownership; verify unavailable reads apply no effects and losing one asset clears only its family.
-- [ ] 4.3 Add loadout controls to BIS Account Assets while preserving all generic asset inspection/burn behavior, and render every item image from its chain `iconUrl`; verify selection, clearing, ownership refresh, failed-image honesty, and no bundled item-art fallback.
+- [x] 4.1 Implement chain-metadata equipment recognition and profile-scoped local selection storage with no defaults and at most one Shoes, Dagger, and Shield; verify generic assets/trophies are excluded and profile selections cannot bleed across accounts.
+- [x] 4.2 Expose Arkade-free public owned-item, select/clear, refresh, effective-loadout, and subscription behavior that revalidates fresh ownership; verify unavailable reads apply no effects and losing one asset clears only its family.
+- [x] 4.3 Add loadout controls to BIS Account Assets while preserving all generic asset inspection/burn behavior, and render every item image from its chain `iconUrl`; verify selection, clearing, ownership refresh, failed-image honesty, and no bundled item-art fallback.
 
 ## 5. Marketplace Sessions, Inventory, and Trading
 
-- [ ] 5.1 Replace Marketplace bundled item artwork/pricing with fresh chain-classified metadata and approved prices while retaining anonymous registered-wallet browsing; verify every card/detail image requests the chain `iconUrl` and incomplete/trophy/unrelated assets are not tradable items.
-- [ ] 5.2 Add Marketplace Player Wallet Login and Game Wallet Login through the production BIS surfaces, show shortened active identities, and clearly distinguish the registered game address from a session override; verify public browsing needs no login and protected actions identify the missing role without submission.
-- [ ] 5.3 Implement My Items from the active player's fresh classified holdings and preserve game-wallet/all filters; verify profile switching refreshes ownership and no other profile's assets appear.
-- [ ] 5.4 Wire Buy and Sell-back to the task 1.2 gate: use the single proven atomic adapter with approved equal-direction prices when supported, otherwise keep both disabled with the verified reason. Verify ownership/balance/identity rechecks, exact terms, unknown reconciliation, no new-operation retry, and absence of player-to-player controls.
+- [x] 5.1 Replace Marketplace bundled item artwork/pricing with fresh chain-classified metadata and approved prices while retaining anonymous registered-wallet browsing; verify every card/detail image requests the chain `iconUrl` and incomplete/trophy/unrelated assets are not tradable items.
+- [x] 5.2 Add Marketplace Player Wallet Login and Game Wallet Login through the production BIS surfaces, show shortened active identities, and clearly distinguish the registered game address from a session override; verify public browsing needs no login and protected actions identify the missing role without submission.
+- [x] 5.3 Implement My Items from the active player's fresh classified holdings and preserve game-wallet/all filters; verify profile switching refreshes ownership and no other profile's assets appear.
+- [x] 5.4 Wire Buy and Sell-back to the task 1.2 gate: use the single proven atomic adapter with approved equal-direction prices when supported, otherwise keep both disabled with the verified reason. Verify ownership/balance/identity rechecks, exact terms, unknown reconciliation, no new-operation retry, and absence of player-to-player controls.
 
 ## 6. Package and Stealth & Steel Consumer
 
-- [ ] 6.1 Build and pack the updated public `@bis/integration` package, record its version, source revision, file list, and SHA-256, and verify exports/styles contain the loadout/profile contract without private or Arkade-specific game-facing types.
-- [ ] 6.2 Install the reviewed tarball into the authorized Stealth & Steel `vendor/` workflow and update its lockfile/adapter without a sibling source alias or Arkade dependency; verify the game resolves one compatible React instance and starts when BIS account loading fails.
+- [x] 6.1 Build and pack the updated public `@bis/integration` package, record its version, source revision, file list, and SHA-256, and verify exports/styles contain the loadout/profile contract without private or Arkade-specific game-facing types.
+- [x] 6.2 Install the reviewed tarball into the authorized Stealth & Steel `vendor/` workflow and update its lockfile/adapter without a sibling source alias or Arkade dependency; verify the game resolves one compatible React instance and starts when BIS account loading fails.
 - [ ] 6.3 Add Settings -> Items with a grid of the active player wallet's freshly owned items, none selected by default, and at most one selection per family through the public BIS API; verify profile switching, clearing, ownership loss, keyboard/pointer use, and chain-URL images.
 - [ ] 6.4 Snapshot effective equipment on each player spawn and apply Shoes movement +10/20/30%, Dagger outgoing damage +10/20/30%, and Shield incoming-damage reduction 10/20/30%; verify focused game tests cover all nine tiers, selection changes during a life, the next spawn, and baseline guest behavior.
 - [ ] 6.5 Add `Items: [][][]` under Gold in Shoes/Dagger/Shield order using the spawn snapshot and chain-provided icons; verify empty/mixed/full slots, HUD placement, URL changes, and no bundled item-art fallback.
