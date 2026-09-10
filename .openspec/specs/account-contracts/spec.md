@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Let an account inspect its BIS-tracked unresolved contracts and use eligible operations without exposing private contract material or game-specific UI.
+Let an account inspect its BIS-tracked contracts and use eligible operations without exposing private contract material or game-specific UI.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ BIS SHALL expose a provider-neutral contract query with stable IDs, type, host r
 - **THEN** BIS reports unavailable or stale evidence explicitly rather than reporting an empty list or enabling an unverified action
 
 ### Requirement: Contracts navigation and details
-Account Details SHALL offer Contracts with an Assets-style list and individual Contract Details. The list SHALL include unresolved funding, claims, refunds and uncertain operations, and show `No active contracts` only for a known empty list. Each closed row SHALL use shared compact geometry with a leading toast status icon and six emoji-value fields: operation/type, cost, purpose, current status, role, and expiration. Pending rows use toast information-blue; done, warning, and error states use their truthful matching palettes. Hover/focus/selection add black outlines without changing the status background. Contract IDs and references remain in details/reports. Details SHALL show sanitized identity/amount/state/deadline and related transaction information and follow existing accessible wallet-page loading and error conventions.
+Account Details SHALL offer Contracts with an Assets-style list and individual Contract Details. The list SHALL include every account-relevant BIS-tracked agreement, including unresolved funding, claims, refunds, uncertain operations and terminal claimed, refunded or failed contracts. It SHALL show `No contracts.` only for a known empty complete account list. Each closed row SHALL use shared compact geometry with a leading toast status icon and six emoji-value fields: operation/type, cost, purpose, current status, role, and expiration. Pending rows use toast information-blue; done, warning, and error states use their truthful matching palettes. Hover/focus/selection add black outlines without changing the status background. Contract IDs and references remain in details/reports. Details SHALL show sanitized identity/amount/state/deadline and related transaction information and follow existing accessible wallet-page loading and error conventions.
 
 #### Scenario: Expired refund pending
 - **WHEN** an offer expires but its refund is unverified
@@ -26,7 +26,7 @@ Account Details SHALL offer Contracts with an Assets-style list and individual C
 
 #### Scenario: Verified terminal state
 - **WHEN** a claim or refund is verified
-- **THEN** the agreement leaves the active list while its financial activity and internal deduplication evidence remain available
+- **THEN** the agreement remains visible in Account Contracts with its terminal financial status, final operation and copyable sanitized evidence
 
 #### Scenario: Consistent account collections
 - **WHEN** the user opens Assets, Contracts or Transactions and their details

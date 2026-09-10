@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { BisContext } from '../core/context.ts';
 import type { BisContract } from '../core/contracts.ts';
 import { contractController } from '../core/lto-service.ts';
-import { ItemListDetail, type ItemListItem } from './ItemList';
+import { ItemList, ItemListDetail, type ItemListItem } from './ItemList';
 import { CompactItemRow, StatusTypeIcon, type StatusType } from './StatusTypeIcon';
 
 export function AccountContracts({context,onDetailChange}: {context:BisContext;onDetailChange:(open:boolean)=>void}) {
@@ -42,13 +42,14 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
   const rowStatus=(contract:BisContract):StatusType => ['funding','claiming','refunding','unknown'].includes(contract.financial) ? 'info' : contract.financial==='failed' ? 'error' : contract.eligibility==='expired' ? 'warning' : 'success';
   const report=(detail?[detail]:contracts).map(contract=>`Contract ID: ${contract.id}\nType: ${contract.type}\nPurpose: ${contract.purpose}\nRole: ${contract.role??'Unavailable'}\nAmount: ${contract.amountSats} sats\nFunds: ${contract.financial}\nOffer: ${contract.eligibility}\nEvidence: ${contract.evidence??'Local record'}\nExpires: ${new Date(contract.expiresAt).toISOString()}\nReference: ${contract.hostReference}\nOperation: ${contract.operationId??'Unavailable'}\nFunding transaction: ${contract.fundingTransactionId??'Not verified'}\nCurrent transaction: ${contract.transactionId??'Not submitted'}`).join('\n\n');
   const items:readonly ItemListItem[]=contracts.map(contract=>{const type=rowStatus(contract);return {id:contract.id,selected:selected===contract.id,buttonRef:(element:HTMLButtonElement|null)=>{if(element)buttons.current.set(contract.id,element);else buttons.current.delete(contract.id);},onSelect:()=>{setSelected(contract.id);setMessage('');},content:<CompactItemRow status={type} leading={<StatusTypeIcon type={type}/>} fields={[{icon:'⚙️',label:'Operation',value:contract.operationKind??'Offer'},{icon:'🪙',label:'Cost',value:contract.amountSats.toLocaleString('en-US')+' sats'},{icon:'🎯',label:'Purpose',value:contract.purpose},{icon:'⏳',label:'Status',value:contract.eligibility==='expired'?'Expired':contract.financial},{icon:'👤',label:'Role',value:contract.role??'Unavailable'},{icon:'📅',label:'Expires',value:new Date(contract.expiresAt).toLocaleString()}]}/>};});
+  const Page=detail?ItemListDetail:ItemList;
   const detailContent=detail?<>
       <dl className="bis-contract-fields"><dt>Type</dt><dd>Limited-time offer</dd><dt>Purpose</dt><dd>{detail.purpose}</dd><dt>Amount</dt><dd>{detail.amountSats.toLocaleString('en-US')} sats</dd><dt>Funds</dt><dd>{detail.financial}</dd><dt>Offer</dt><dd>{detail.eligibility}</dd><dt>Expires</dt><dd>{new Date(detail.expiresAt).toLocaleString()}</dd><dt>Contract ID</dt><dd>{detail.id}</dd><dt>Reference</dt><dd>{detail.hostReference}</dd></dl>
       <p>Role: {detail.role??'Unavailable'} · Evidence: {detail.evidence??'Local record'}. Submission is rechecked before spending.</p>
       {[...new Set([detail.fundingTransactionId,detail.transactionId].filter((id):id is string=>!!id&&/^[a-f0-9]{64}$/i.test(id)))].map(id=><p key={id}><a href={`https://explorer.signet.arkade.sh/tx/${id}`} target="_blank" rel="noopener noreferrer">View transaction {id.slice(0,8)}…</a></p>)}
       {detail.eligibility==='expired'&&detail.financial!=='refunded'&&<p>The offer has expired. Its funds remain locked until the refund is verified.</p>}
-    </>:contracts.length?<ul className="bis-collection-list" aria-label="Contracts">{items.map(item=><li key={item.id}><button ref={item.buttonRef} type="button" className="bis-collection-item" aria-pressed={item.selected} onClick={item.onSelect}>{item.content}</button></li>)}</ul>:null;
-  return <ItemListDetail title={detail?'Contract Details':'Contracts'} body={detail?'Inspect this offer and its locked funds.':'All contracts for this account.'} fieldLabel={detail?'Contract':'Contracts'} report={report} listLabel="Contracts" loading={status==='loading'} items={items}
+    </>:undefined;
+  return <Page title={detail?'Contract Details':'Contracts'} body={detail?'Inspect this offer and its locked funds.':'All contracts for this account.'} fieldLabel={detail?'Contract':'Contracts'} report={report} listLabel="Contracts" loading={status==='loading'} items={items}
     onRefresh={refresh} refreshDisabled={!context.checkContracts}
     detail={detailContent}
     actions={detail&&<>
@@ -56,7 +57,7 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
         <button className="bis-button" disabled={!available||busy||!detail.canReject} onClick={()=>void act('reject')}>Reject</button></>}
         {detail.role==='game'&&<button className="bis-button" disabled={!available||busy||!detail.canRefund} onClick={()=>void act('refund')}>Refund to game</button>}
     </>}
-    notice={message&&<p role="status">{message}</p>}
+    notice={<>{status==='unavailable'?<p role="status">Contracts are unavailable. Recovery records have been retained.</p>:status==='ready'&&!detail&&contracts.length===0?<p>No contracts.</p>:null}{message&&<p role="status">{message}</p>}</>}
     onBack={()=>{if(detail){const previous=detail.id;setSelected(undefined);setMessage('');requestAnimationFrame(()=>buttons.current.get(previous)?.focus());}else context.closeAccount();}}
   />;
 }
