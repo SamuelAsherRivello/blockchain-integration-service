@@ -7,7 +7,7 @@ const workspaceDir = 'D:\\Documents\\Projects\\VC\\Bitcoin\\blockchain-integrati
 const skillDir = 'C:\\Users\\srive\\.codex\\plugins\\cache\\openai-primary-runtime\\presentations\\26.905.11957\\skills\\presentations';
 const buildDir = path.join(workspaceDir, '.codex-build', 'bis-architecture-editable');
 const stagingDir = path.join(workspaceDir, '.codex-finalizer');
-const finalPath = path.join(workspaceDir, 'output', 'presentations', 'bis-architecture-editable', 'bis-architecture-editable-v3.pptx');
+const finalPath = path.join(workspaceDir, 'output', 'presentations', 'bis-architecture-editable', 'bis-architecture-editable-v4.pptx');
 const runtimePython = 'C:\\Users\\srive\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe';
 const { resolvePresentationFont, finalizePresentation } = await import(pathToFileURL(
   path.join(skillDir, 'container_tools', 'artifact_tool_utils.mjs'),
@@ -49,12 +49,7 @@ function column({ left, width, title, headerFill, border, cardFill, cards, cardT
   });
   header.text = title;
   header.text.style = { typeface: font, fontSize: 25, bold: true, color: '#FFFFFF', align: 'center', verticalAlignment: 'middle' };
-  const output = {};
-  cards.forEach((label, index) => {
-    output[label] = card({ left: left + 24, top: cardTop + index * (cardHeight + gap), width: width - 48, height: cardHeight, fill: cardFill, line: border, text: label, fontSize: cardFont });
-  });
-  output.__header = header;
-  return output;
+  return { left, width, border, cardFill, cards, cardTop, cardHeight, gap, cardFont, __header: header };
 }
 
 const bis = column({
@@ -79,39 +74,49 @@ const game = column({
 });
 
 const linkColor = '#244B68';
-function connect(source, target) {
-  const connector = slide.shapes.connect(source, target, {
-    kind: 'elbow', fromSide: 'right', toSide: 'left',
-    line: { style: 'solid', fill: linkColor, width: 1.5 },
-    cap: 'round', join: 'round',
+function route(points) {
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const [x1, y1] = points[i]; const [x2, y2] = points[i + 1];
+    slide.shapes.add({
+      geometry: 'line',
+      position: { left: Math.min(x1, x2), top: Math.min(y1, y2), width: Math.max(Math.abs(x2 - x1), 0.2), height: Math.max(Math.abs(y2 - y1), 0.2) },
+      fill: 'none', line: { style: 'solid', fill: linkColor, width: 1.5 },
+    });
+  }
+}
+
+// Each route is composed of native, editable PowerPoint line segments.
+// Cards are added afterwards so their opaque surfaces keep connector paths out of labels.
+route([[350,192],[395,192],[395,217],[441,217]]);
+route([[350,192],[402,192],[402,357],[732,357]]);
+route([[350,192],[390,192],[390,145],[1023,145],[1023,217]]);
+route([[350,292],[405,292],[405,357],[441,357]]);
+route([[350,292],[690,292],[690,217],[732,217]]);
+route([[350,292],[410,292],[410,497],[732,497]]);
+route([[350,292],[398,292],[398,545],[1023,545],[1023,497]]);
+route([[350,392],[405,392],[405,497],[441,497]]);
+route([[350,392],[398,392],[398,447],[1023,447],[1023,357]]);
+route([[350,492],[385,492],[385,267],[1023,267],[1023,217]]);
+route([[350,492],[392,492],[392,417],[1023,417],[1023,357]]);
+route([[350,592],[385,592],[385,237],[441,237]]);
+route([[350,592],[690,592],[690,497],[732,497]]);
+
+function addCards(group) {
+  const output = {};
+  group.cards.forEach((label, index) => {
+    output[label] = card({
+      left: group.left + 24, top: group.cardTop + index * (group.cardHeight + group.gap),
+      width: group.width - 48, height: group.cardHeight, fill: group.cardFill, line: group.border,
+      text: label, fontSize: group.cardFont,
+    });
   });
-  connector.sendToBack();
-  return connector;
+  return output;
 }
-
-// Native PowerPoint connector objects remain attached when the editable cards move.
-connect(bis['Account / Wallet'], admin['A4. Account Dialog']);
-connect(bis['Account / Wallet'], marketplace['Game Wallet Login']);
-connect(bis['Account / Wallet'], game['Pay 1,000 sats to continue']);
-connect(bis['Assets'], admin['C1. Mint Asset & Send']);
-connect(bis['Assets'], marketplace['Stealth & Steel catalog']);
-connect(bis['Assets'], marketplace['Verified game-wallet inventory']);
-connect(bis['Assets'], game['Achievement asset award']);
-connect(bis['Contracts'], admin['G2. LTO Treasure Chest']);
-connect(bis['Contracts'], game['90-second LTO treasure offer']);
-connect(bis['Payments'], game['Pay 1,000 sats to continue']);
-connect(bis['Payments'], game['90-second LTO treasure offer']);
-connect(bis['Transaction History'], admin['A4. Account Dialog']);
-connect(bis['Transaction History'], marketplace['Verified game-wallet inventory']);
-
-// Keep the native connectors attached yet visually behind the editable cards.
-for (const group of [bis, admin, marketplace, game]) {
-  for (const shape of Object.values(group)) shape.bringToFront();
-}
+addCards(bis); addCards(admin); addCards(marketplace); addCards(game);
 
 slide.speakerNotes.textFrame.setText('Architecture labels and relationships derived from the BIS repository, including the AdminPanel, MarketplacePanel, marketplace App, and treasure-session modules.');
 
-const candidatePath = path.join(stagingDir, 'bis-architecture-editable-v3-candidate.pptx');
+const candidatePath = path.join(stagingDir, 'bis-architecture-editable-v4-candidate.pptx');
 await (await PresentationFile.exportPptx(presentation)).save(candidatePath);
 const preview = await presentation.export({ slide, format: 'png', scale: 1 });
 await fs.writeFile(path.join(buildDir, 'bis-architecture-editable-preview.png'), new Uint8Array(await preview.arrayBuffer()));
@@ -128,6 +133,6 @@ const result = await finalizePresentation({
   requiredNativeTableOwnerSlides: [],
   fontPolicy: { basis: 'design', families: [font] },
   verifyArtifactToolImport: true,
-  receiptPath: path.join(stagingDir, 'bis-architecture-editable-v3.validation.json'),
+  receiptPath: path.join(stagingDir, 'bis-architecture-editable-v4.validation.json'),
 });
 console.log(JSON.stringify({ finalPath, font, result }, null, 2));
