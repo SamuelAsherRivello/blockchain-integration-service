@@ -4,7 +4,7 @@ import { createServer } from 'vite';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-test('Assets, Contracts and Transactions render the same titled collection, copy field, scroll list and one Back', async () => {
+test('Assets, Contracts and Transactions render the same titled collection, refresh control, copy field, scroll area and one Back', async () => {
   const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
   try {
     const {AccountAssets}=await server.ssrLoadModule('/BIS/packages/integration/src/ui/AccountAssets.tsx');
@@ -20,10 +20,12 @@ test('Assets, Contracts and Transactions render the same titled collection, copy
       const html=renderToStaticMarkup(createElement(component,props));
       assert.match(html,/bis-card-collection/);
       assert.match(html,new RegExp(`>${title}</h2>`));
+      assert.match(html,new RegExp(`aria-label="Refresh ${title}"`));
       assert.match(html,new RegExp(`aria-label="Copy ${title}"`));
       assert.match(html,/bis-collection-scroll bis-collection-list/);
       assert.equal((html.match(/>Back<\/button>/g)??[]).length,1);
       assert.equal((html.match(/role="dialog"/g)??[]).length,1);
+      if(title==='Contracts')assert.doesNotMatch(html,/Operation unavailable|Contracts are unavailable|No active contracts/);
     }
   } finally {await server.close();}
 });
