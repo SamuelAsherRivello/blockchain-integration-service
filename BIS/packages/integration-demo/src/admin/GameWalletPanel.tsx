@@ -34,6 +34,7 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
     return () => { active = false; };
   }, [state.addresses?.arkadeAddress]);
   const [entry, setEntry] = useState(false), [phrase, setPhrase] = useState('');
+  const [importing, setImporting] = useState(false), [importMessage, setImportMessage] = useState('');
   const [paymentBusy, setPaymentBusy] = useState(false);
   const setPaymentMessage = (message: string) => onDetails({operation:'Pay Player', message});
   const [paymentRevision, setPaymentRevision] = useState(0);
@@ -72,7 +73,7 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
     const unsubscribe = wallet.subscribe(update);
     return () => { onController?.(undefined); unsubscribe(); wallet.dispose(); };
   }, [playerProfileId, walletFactory, onRecipientChange, onController]);
-  const busy = !controller || state.status === 'loading' || boardingBusy || paymentBusy;
+  const busy = !controller || state.status === 'loading' || importing || boardingBusy || paymentBusy;
   const paymentBalance = controller?.getPlayerPaymentBalance?.();
   const paymentBlockReason = !playerActive ? 'Awaiting Player'
     : paymentBusy ? 'Sending' : boardingBusy ? 'Checking Wallet'
@@ -178,7 +179,7 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
     <p className="story-summary">Stories: F1, F2, F3</p>
     <StoryButton label="F1. Game Wallet">
         {state.profileId ? <><button disabled={busy || !state.addresses?.bitcoinAddress} onClick={() => void copyBitcoinAddress()}>Copy BTC Addr</button><button disabled={busy} onClick={() => {setPhrase('');setEntry(false);void controller?.logout();}}>Logout</button></>
-          : <button disabled={busy} onClick={() => {setEntry(!entry);setPhrase('');}}>Login</button>}
+          : <button disabled={busy} onClick={() => {setEntry(!entry);setPhrase('');setImportMessage('');}}>Login</button>}
     </StoryButton>
     <StoryButton label="F2. Board Wallet" sublabel={boardingState === 'boarded' ? <span role="status">Boarded</span> : undefined}>
         <button disabled={busy || !state.profileId} onClick={() => void boardingAction('check')}>Details</button>
@@ -193,12 +194,21 @@ export function GameWalletPanel({onController, playerProfileId, recipient, onDet
       <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
     </StoryButton>
     {entry && !state.profileId && <form onSubmit={async event => {
-      event.preventDefault();const input=phrase;setPhrase('');
-      if(await controller?.importWallet(input))setEntry(false);
+      event.preventDefault();
+      if (!controller || importing) return;
+      const input=phrase;setImporting(true);setImportMessage('');
+      try {
+        if(await controller.importWallet(input)){setPhrase('');setEntry(false);}
+        else setImportMessage(controller.getState().message ?? 'Game wallet login failed. Check the recovery phrase and private wallet service.');
+      } catch {
+        setImportMessage('Game wallet login failed. Check the recovery phrase and private wallet service.');
+      } finally {setImporting(false);}
     }}>
       <label htmlFor="game-wallet-phrase">Recovery phrase</label>
       <input id="game-wallet-phrase" type="password" autoComplete="off" spellCheck={false} value={phrase} onChange={event => setPhrase(event.target.value)} />
-      <button className="story-button" type="submit" disabled={!phrase.trim() || busy}>Import</button>
+      <button className="story-button" type="submit" disabled={!phrase.trim() || busy}>{importing ? 'Importing…' : 'Import'}</button>
+      {importing && <p role="status">Importing game wallet…</p>}
+      {importMessage && <p role="alert">{importMessage}</p>}
     </form>}
   </StorySection>;
 }

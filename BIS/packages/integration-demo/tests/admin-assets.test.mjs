@@ -51,8 +51,8 @@ test('F1 keeps the recovery phrase and reports an import failure beside the form
   const source = await readFile(new URL('../src/admin/GameWalletPanel.tsx', import.meta.url), 'utf8');
   const submit = source.slice(source.indexOf('<form onSubmit='), source.indexOf('</form>') + '</form>'.length);
   assert.match(submit, /role="alert"/, 'F1 needs an accessible inline failure result');
-  assert.match(submit, /await controller\?\.importWallet\(input\)/, 'F1 still delegates import to the wallet controller');
-  assert.ok(submit.indexOf("setPhrase('')") > submit.indexOf('await controller?.importWallet(input)'), 'F1 must not erase the phrase before import succeeds');
+  assert.match(submit, /await controller\.importWallet\(input\)/, 'F1 still delegates import to the wallet controller');
+  assert.ok(submit.indexOf("setPhrase('')") > submit.indexOf('await controller.importWallet(input)'), 'F1 must not erase the phrase before import succeeds');
 });
 
 test('Admin renders implemented asset stories and omits empty categories', async () => {
