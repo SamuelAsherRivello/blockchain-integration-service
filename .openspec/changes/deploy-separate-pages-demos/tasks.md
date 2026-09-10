@@ -12,4 +12,4 @@
 
 - [x] 3.1 Replace the README's single demo link with labeled BIS Admin and BIS Marketplace URLs and update the release steps to require verifying both routes; verify the links match the deployed path contract.
 - [x] 3.2 Run the repository test suite, type check, production build, staging route checks, and strict OpenSpec validation; record any limitations before release.
-- [ ] 3.3 Commit and push the completed release scope, trigger or confirm the GitHub Pages deployment, and verify both public URLs before creating the GitHub release.
+- [x] 3.3 Commit and push the completed release scope, trigger or confirm the GitHub Pages deployment, and verify both public URLs before creating the GitHub release.
