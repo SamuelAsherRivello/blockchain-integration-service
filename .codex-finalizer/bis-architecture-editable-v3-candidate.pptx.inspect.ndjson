@@ -1,0 +1,40 @@
+{"kind":"deck","id":"pr/uelvtb","name":"Deck"}
+{"kind":"layout","layoutId":"5840755e-cdb6-4efa-a691-5b3dcaf287ef","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"88244cae-2600-4494-b5a3-8b7a0f2a00c3","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/q999xl","slide":1,"title":"BIS","textShapes":18}
+{"kind":"shape","id":"sh/m5w3i9sf","slide":1,"bbox":[28,62,346,594]}
+{"kind":"textbox","id":"sh/98n2dorq","slide":1,"text":"BIS","textPreview":"BIS","textChars":3,"textLines":1,"bbox":[28,62,346,67]}
+{"kind":"textbox","id":"sh/87elkja5","slide":1,"text":"Account / Wallet","textPreview":"Account / Wallet","textChars":16,"textLines":1,"bbox":[52,155,298,74]}
+{"kind":"textbox","id":"sh/vu54fe9w","slide":1,"text":"Assets","textPreview":"Assets","textChars":6,"textLines":1,"bbox":[52,255,298,74]}
+{"kind":"textbox","id":"sh/atw3m9sb","slide":1,"text":"Contracts","textPreview":"Contracts","textChars":9,"textLines":1,"bbox":[52,355,298,74]}
+{"kind":"textbox","id":"sh/xw7mhor2","slide":1,"text":"Payments","textPreview":"Payments","textChars":8,"textLines":1,"bbox":[52,455,298,74]}
+{"kind":"textbox","id":"sh/wvylojah","slide":1,"text":"Transaction History","textPreview":"Transaction History","textChars":19,"textLines":1,"bbox":[52,555,298,74]}
+{"kind":"shape","id":"sh/rylk3u9s","slide":1,"bbox":[417,62,248,594]}
+{"kind":"textbox","id":"sh/qdc3aps7","slide":1,"text":"Admin","textPreview":"Admin","textChars":5,"textLines":1,"bbox":[417,62,248,67]}
+{"kind":"textbox","id":"sh/gb6dorqd","slide":1,"text":"A4. Account Dialog","textPreview":"A4. Account Dialog","textChars":18,"textLines":1,"bbox":[441,180,200,74]}
+{"kind":"textbox","id":"sh/hwfexwry","slide":1,"text":"C1. Mint Asset & Send","textPreview":"C1. Mint Asset & Send","textChars":21,"textLines":1,"bbox":[441,321,200,74]}
+{"kind":"textbox","id":"sh/u94vmh8n","slide":1,"text":"G2. LTO Treasure Chest","textPreview":"G2. LTO Treasure Chest","textChars":22,"textLines":1,"bbox":[441,462,200,74]}
+{"kind":"shape","id":"sh/vadwvm98","slide":1,"bbox":[708,62,248,594]}
+{"kind":"textbox","id":"sh/4z6dsrqp","slide":1,"text":"Marketplace","textPreview":"Marketplace","textChars":11,"textLines":1,"bbox":[708,62,248,67]}
+{"kind":"textbox","id":"sh/50fe1wra","slide":1,"text":"Stealth & Steel catalog","textPreview":"Stealth & Steel catalog","textChars":23,"textLines":1,"bbox":[732,180,200,74]}
+{"kind":"textbox","id":"sh/ixovq18j","slide":1,"text":"Game Wallet Login","textPreview":"Game Wallet Login","textChars":17,"textLines":1,"bbox":[732,321,200,74]}
+{"kind":"textbox","id":"sh/3yxwz694","slide":1,"text":"Verified game-wallet inventory","textPreview":"Verified game-wallet inventory","textChars":30,"textLines":1,"bbox":[732,462,200,74]}
+{"kind":"shape","id":"sh/k32dg7ql","slide":1,"bbox":[999,62,252,594]}
+{"kind":"textbox","id":"sh/l4vupcrq","slide":1,"text":"Game","textPreview":"Game","textChars":4,"textLines":1,"bbox":[999,62,252,67]}
+{"kind":"textbox","id":"sh/1o32x4fi","slide":1,"text":"Pay 1,000 sats to continue","textPreview":"Pay 1,000 sats to continue","textChars":26,"textLines":1,"bbox":[1023,180,204,74]}
+{"kind":"textbox","id":"sh/0nu14zyx","slide":1,"text":"90-second LTO treasure offer","textPreview":"90-second LTO treasure offer","textChars":28,"textLines":1,"bbox":[1023,321,204,74]}
+{"kind":"textbox","id":"sh/fmlkvuxc","slide":1,"text":"Achievement asset award","textPreview":"Achievement asset award","textChars":23,"textLines":1,"bbox":[1023,462,204,74]}
+{"kind":"shape","id":"sh/elsj2pgr","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/ps3214fe","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/orul8jy9","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/nqlkzexo","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/2pcj69g3","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/xgn25ofq","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/cfelcje5","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/u1oz6lwn","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/v2xgzqd8","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/g3qh8vet","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/hozi10ve","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/ip8zalwj","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/3qh03qd4","slide":1,"bbox":[0,0,0,0]}
+{"kind":"notes","id":"nt/q999xl","slide":1,"text":"Architecture labels and relationships derived from the BIS repository, including the AdminPanel, MarketplacePanel, marketplace App, and treasure-session modules."}

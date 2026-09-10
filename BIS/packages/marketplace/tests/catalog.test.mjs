@@ -83,10 +83,15 @@ test('desktop Marketplace confines scrolling to the compact catalog grid', async
 });
 
 test('closed BIS account launcher sits 10px from the upper-right of the white content area without intercepting the catalog', async () => {
-  const [app, style] = await Promise.all([text('src/App.tsx'), text('src/style.css')]);
+  const [app, style, launcherStyle] = await Promise.all([
+    text('src/App.tsx'),
+    text('src/style.css'),
+    text('src/account-launcher.css'),
+  ]);
   assert.match(app, /className="marketplace-bis-host"/);
   assert.match(style, /\.marketplace-bis-host \.bis-runtime\{[^}]*pointer-events:none/);
-  assert.match(style, /\.marketplace-bis-host \.bis-layer\{[^}]*place-items:start end;[^}]*padding:43px 10px 10px/);
+  assert.match(style, /\.marketplace-bis-host \.bis-layer\{[^}]*place-items:start end/);
+  assert.match(launcherStyle, /\.marketplace-bis-host \.bis-layer\s*\{[^}]*padding:\s*43px 10px 10px/);
 });
 
 test('equipment artwork containers stay square when card content flexes at browser zoom', async () => {

@@ -22,19 +22,19 @@ function fixture({assets={list:async()=>[],mint:async()=>{throw Error('unused');
   return {context,accounts,get active(){return active;},get generation(){return generation;}};
 }
 
-test('selecting a saved profile aborts stale reads and preserves both profile records',async()=>{
+test('programmatic profile selection aborts stale reads and preserves both profile records',async()=>{
   let resolve;const delayed=new Promise(r=>resolve=r);
   const f=fixture({assets:{list:()=>delayed,mint:async()=>{throw Error();}}});
   await f.context.ready();assert.deepEqual(f.context.getState().savedProfiles,['profile-a','profile-b']);
   const read=f.context.listAssets();await tick();
-  f.context.openAccountDialog();f.context.openProfileChooser();await f.context.selectProfile('profile-b');
+  await f.context.selectProfile('profile-b');
   resolve([{assetId:'a'.repeat(64)+'0000',quantity:'1'}]);
   assert.equal((await read).code,'account-changed');
   assert.equal(f.context.getState().profileId,'profile-b');assert.equal(f.accounts.size,2);f.context.dispose();
 });
 
-test('create and restore join or select the collection without duplicates',async()=>{
-  const f=fixture();await f.context.ready();f.context.openAccountDialog();f.context.openProfileChooser();
+test('programmatic profile management retains duplicate-safe create and restore',async()=>{
+  const f=fixture();await f.context.ready();f.context.openProfileChooser();
   await f.context.createAccount();await f.context.continueAccount();
   assert.equal(f.context.getState().profileId,'profile-c');assert.deepEqual([...f.accounts.keys()],['profile-a','profile-b','profile-c']);
   f.context.openProfileChooser();f.context.openRestoreAccount();await getControls(f.context).restore('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');

@@ -332,4 +332,3 @@
 .bis-address-row input, .bis-account-id input, .bis-game-wallet-recovery textarea, .bis-activity textarea { transition: border-color 140ms ease-out, box-shadow 140ms ease-out; }
 .bis-address-row input:hover, .bis-account-id input:hover, .bis-game-wallet-recovery textarea:hover, .bis-activity textarea:hover { border-color: #8ca9b2; }
 @media (prefers-reduced-motion: reduce) { .bis-button { transition: none; } .bis-button:hover:not(:disabled) { transform: none; } }
-.bis-profile-list{display:grid;gap:.55rem;width:100%}.bis-profile-choice{display:flex;align-items:center;justify-content:space-between;gap:.75rem}.bis-profile-choice strong{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--bis-accent,#f5b942)}.bis-profile-active{border-color:var(--bis-accent,#f5b942)}

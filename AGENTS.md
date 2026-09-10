@@ -26,6 +26,14 @@
 - Share `http://127.0.0.1:15174/` as the confirmed browser URL. Distinguish verified server availability from client tunnel connectivity; a remote agent cannot establish the Windows-side tunnel without access to that machine.
 - Do not pass port flags through the root `npm run dev` wrapper: its nested npm invocation can pass `5173` to Vite as a directory and produce a 404.
 
+## GitHub Pages release contract
+
+- Treat every request to release or publish this project as a two-demo GitHub Pages release unless the user explicitly narrows the scope.
+- The published links are **BIS Admin** at `https://samuelasherrivello.github.io/blockchain-integration-service/admin/` and **BIS Marketplace** at `https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/`.
+- Preserve these labels and links in the README. If their paths change by explicit request, update both links and the Pages workflow together.
+- Before calling a release complete, verify the Pages workflow succeeds and both public routes return their respective application. Retain existing immutable root `/assets/` URLs because issued asset metadata depends on them.
+- Do not create a duplicate release when no releasable change exists after the latest release tag.
+
 ## OpenSpec directory
 
 - The canonical, tracked planning directory is `.openspec/`.
