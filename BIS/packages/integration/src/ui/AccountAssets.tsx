@@ -1,19 +1,20 @@
 import { ReportTextArea } from './ReportTextArea';
 import { ItemList, ItemListDetail } from './ItemList';
-import { IconButton } from './IconButton';
 import { usePendingNotice } from './PendingOperationDialog';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { BisAsset } from '../core/assets';
 import type { BisAssets } from '../core/asset-presentation';
-import { assetExplorerUrl, assetName, formatAssetDetail, formatAssetQuantity, shortAssetId } from '../core/asset-presentation';
+import { assetDecimals, assetExplorerUrl, assetName, formatAssetDetail, formatAssetQuantity, shortAssetId } from '../core/asset-presentation';
 import { useClipboardCopy } from './useClipboardCopy';
 import { CopyableValueField } from './CopyableValueField';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import type { BisToastOptions } from '../core/toasts';
 import type { BisBurnAssetRequest, BisBurnAssetResult } from '../core/burning';
+import { CompactItemRow } from './StatusTypeIcon';
+import { StatusTypeIcon } from './StatusTypeIcon';
 
 const preparedIcons = new Set<string>();
-function AssetIcon({url, background = false}: {url?:string; background?:boolean}) {
+function AssetIcon({url, background = false, fallback}: {url?:string; background?:boolean; fallback?:ReactNode}) {
   const [failed,setFailed]=useState<string>();
   let source:string|undefined;
   try {const parsed=new URL(url!);if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password)source=parsed.href;} catch { /* Missing or malformed metadata uses local artwork. */ }
@@ -31,7 +32,7 @@ function AssetIcon({url, background = false}: {url?:string; background?:boolean}
     try {await image.current?.decode();} catch {setFailed(value);return;}
     if(value){preparedIcons.add(value);setReady(value);}
   }
-  return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>}</span>;
+  return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:(fallback??<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>)}</span>;
 }
 
 function AssetDetails({asset, background}: {asset: BisAsset; background?:boolean}) {
@@ -82,7 +83,6 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   const report = rows.map(formatAssetDetail).join('\n\n');
   const selected = rows.find(asset => asset.assetId === selectedId);
   const explorerUrl = selected ? assetExplorerUrl(selected.assetId) : undefined;
-  const container = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLUListElement>(null);
   const scroll = useRef(0);
   const restoreFocus = useRef(false);
@@ -106,7 +106,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
     restoreFocus.current = false;
     const frame = requestAnimationFrame(() => {
       const target = selectedId ? buttons.current.get(selectedId) : undefined;
-      (target ?? container.current?.closest('section')?.querySelector('h2'))?.focus({preventScroll:true});
+    target?.focus({preventScroll:true});
     });
     return () => cancelAnimationFrame(frame);
   }, [detailOpen, assets, selectedId]);
@@ -121,13 +121,17 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   const Page=detailOpen?ItemListDetail:ItemList;
   return <Page title={detailOpen?'Asset Detail':'Assets'} body={detailOpen?'Inspect this asset and its ownership.':'Assets held by this account.'}
     fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?formatAssetDetail(selected):report} loading={loading} listLabel="Owned assets"
-    headingActions={<IconButton label="Refresh Assets" disabled={loading||burning||!!confirmation} onClick={()=>void onRefresh()}><span aria-hidden="true">↻</span></IconButton>}
+    onRefresh={onRefresh} refreshDisabled={burning||!!confirmation}
     listRef={list} onScroll={event=>{scroll.current=event.currentTarget.scrollTop;}}
     items={rows.map(asset=>({id:asset.assetId,selected:selectedId===asset.assetId,
       buttonRef:element=>{if(element)buttons.current.set(asset.assetId,element);else buttons.current.delete(asset.assetId);},
       onSelect:()=>{if(list.current)scroll.current=list.current.scrollTop;setSelectedId(asset.assetId);setNotice('');setBurnError('');setDetailOpen(true);},
-      content:<><AssetIcon url={asset.iconUrl} background={backgroundImages||assets.status==='ready'&&assets.background}/><span className="bis-asset-row-text"><strong>{assetName(asset)}</strong><span>{formatAssetQuantity(asset)}</span><code>{shortAssetId(asset.assetId)}</code></span></>}))}
-    detail={detailOpen&&selected?<div ref={container} className="bis-asset-detail"><AssetDetails key={selected.assetId} asset={selected} background={assets.status==='ready'&&assets.background}/></div>:undefined}
+      content:<CompactItemRow status="success" leading={<AssetIcon url={asset.iconUrl} fallback={<StatusTypeIcon type="success"/>} background={backgroundImages||assets.status==='ready'&&assets.background}/>} fields={[
+        {icon:'🏷️',label:'Asset',value:assetName(asset)},{icon:'🔢',label:'Amount',value:formatAssetQuantity(asset)},
+        {icon:'🔤',label:'Ticker',value:asset.ticker||'Not provided'},{icon:'✅',label:'Status',value:'Owned'},
+        {icon:'🎯',label:'Decimals',value:assetDecimals(asset)??'Not provided'},{icon:'🌐',label:'Network',value:'Off-chain'},
+      ]}/>}))}
+    detail={detailOpen&&selected?<AssetDetails key={selected.assetId} asset={selected} background={assets.status==='ready'&&assets.background}/>:undefined}
     notice={notice&&assets.status==='ready'?<p role="status">{notice}</p>:!loading&&assets.status==='ready'&&!rows.length?<p>No assets.</p>:null}
     actions={<>
       {detailOpen && selected && <button type="button" className="bis-button" disabled={burning || !explorerUrl} title={!explorerUrl ? 'Explorer unavailable: invalid asset ID.' : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>}

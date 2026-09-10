@@ -18,11 +18,11 @@ BIS SHALL expose a provider-neutral contract query with stable IDs, type, host r
 - **THEN** BIS reports unavailable or stale evidence explicitly rather than reporting an empty list or enabling an unverified action
 
 ### Requirement: Contracts navigation and details
-Account Details SHALL offer Contracts with an Assets-style list and individual Contract Details. The list SHALL include unresolved funding, claims, refunds and uncertain operations, and show `No active contracts` only for a known empty list. Details SHALL show sanitized identity/amount/state/deadline and related transaction information and follow existing accessible wallet-page loading and error conventions.
+Account Details SHALL offer Contracts with an Assets-style list and individual Contract Details. The list SHALL include unresolved funding, claims, refunds and uncertain operations, and show `No active contracts` only for a known empty list. Each closed row SHALL use shared compact geometry with a leading toast status icon and six emoji-value fields: operation/type, cost, purpose, current status, role, and expiration. Pending rows use toast information-blue; done, warning, and error states use their truthful matching palettes. Hover/focus/selection add black outlines without changing the status background. Contract IDs and references remain in details/reports. Details SHALL show sanitized identity/amount/state/deadline and related transaction information and follow existing accessible wallet-page loading and error conventions.
 
 #### Scenario: Expired refund pending
 - **WHEN** an offer expires but its refund is unverified
-- **THEN** it remains visible with refund eligibility/state and is not presented as closed
+- **THEN** its blue row shows operation, cost, purpose, refunding status, role, and expiration beside the information glyph and remains visible
 
 #### Scenario: Verified terminal state
 - **WHEN** a claim or refund is verified

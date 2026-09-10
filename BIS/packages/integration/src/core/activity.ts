@@ -54,11 +54,34 @@ export function transactionRowPresentation(t: BisTransaction) {
   const network = transferDirection ? (transferDirection === 'to-arkade' ? 'On-chain → Off-chain' : 'Off-chain → On-chain') :
     bitcoin ? 'On-chain' : ark || mint || t.status.endsWith('offchain') ? 'Off-chain' : commitment ? 'On-chain' : 'Network unavailable';
   const identifier = bitcoin ? (bitcoin.startsWith('bitcoin:') ? bitcoin : `bitcoin:${bitcoin}`) : ark ?? commitment ?? t.identifier;
+  const status = t.status.startsWith('Pending') ? 'Pending' : t.status === 'Settled offchain' ? 'Settled' : t.status;
+  const messageType = t.status.startsWith('Pending') || t.status === 'Status unavailable' ? 'info' : ['Confirmed','Settled offchain','Transfer verified','Mint recorded'].includes(t.status) ? 'success' : t.status === 'Not submitted' ? 'warning' : 'error';
+  const date = new Date(t.createdAt ?? NaN);
+  const hasTime = t.createdAt! > 0 && Number.isFinite(date.getTime());
+  const time = hasTime ? formatElapsed(Date.now() - date.getTime()) : 'Not reported';
+  const fullDate = hasTime ? date.toLocaleString([], {month:'long',day:'2-digit',hour:'numeric',minute:'2-digit',timeZoneName:'short'}) : undefined;
   return {
     heading: `${operation} · ${t.satsUnknown ? 'Sats unknown' : `${t.amountSats.toLocaleString('en-US')} sats`}`,
     network,
     identifier,
+    operation,
+    cost: t.satsUnknown ? 'Sats unknown' : `${t.amountSats.toLocaleString('en-US')} sats`,
+    status,
+    direction: t.direction,
+    time,
+    fullDate,
+    messageType,
   };
+}
+function formatElapsed(milliseconds:number) {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? '' : 's'}`;
+  const minutes = Math.floor(seconds / 60), remainder = seconds % 60;
+  if (minutes < 60) return `${minutes} min${remainder ? ` ${remainder} sec` : ''}`;
+  const hours = Math.floor(minutes / 60), mins = minutes % 60;
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}${mins ? ` ${mins} min` : ''}`;
+  const days = Math.floor(hours / 24), hrs = hours % 24;
+  return `${days} day${days === 1 ? '' : 's'}${hrs ? ` ${hrs} hour${hrs === 1 ? '' : 's'}` : ''}`;
 }
 export function formatTransactionDetail(t: BisTransaction): string {
   const date = new Date(t.createdAt ?? NaN);
