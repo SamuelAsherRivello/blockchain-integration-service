@@ -25,7 +25,7 @@ The dialog SHALL remain through operation completion, required data refresh, fin
 - **THEN** one dialog represents current work and obsolete results cannot reveal, replace or reopen current content
 
 ### Requirement: Bounded read retry and terminal errors
-Failed data loading SHALL retry once automatically without dismissing the dialog. Each attempt SHALL retain an existing deadline or use 30 seconds where missing; initial Transactions loading SHALL retain its current 75-second runtime budget. After the retry fails, the dialog SHALL show safe contextual error text and only OK. OK SHALL close the dialog and source page, returning to a prepared parent or covering its preparation. Submission SHALL NOT be automatically repeated. Unknown outcomes SHALL be identified as unconfirmed with OK, preserving recovery state.
+Failed data loading SHALL retry once automatically without dismissing the dialog. Each attempt SHALL retain an existing deadline or use 30 seconds where missing; initial Transactions loading SHALL retain its current 75-second runtime budget. After the retry fails, the dialog SHALL show safe contextual error text and only OK. OK SHALL close the dialog and source page, returning to a prepared parent or covering its preparation. Submission SHALL NOT be automatically repeated, except for the narrowly proven safe automatic-onboarding transitions defined in account-automatic-onboarding; ambiguous registration SHALL never be replayed. The onboarding details shell and its background observation follow the nonblocking onboarding presentation requirement rather than this foreground read-error closure contract. Unknown outcomes SHALL be identified as unconfirmed with OK, preserving recovery state.
 
 #### Scenario: Exhausted read retry
 - **WHEN** the initial data read and its single automatic retry fail or time out
@@ -38,3 +38,14 @@ Failed data loading SHALL retry once automatically without dismissing the dialog
 #### Scenario: Uncertain mutation
 - **WHEN** existing mutation handling returns an unconfirmed outcome
 - **THEN** the dialog says the outcome is not yet confirmed, OK closes its source page, and transaction recovery records remain intact
+
+### Requirement: Nonblocking onboarding presentation
+Automatic onboarding assessment, funding waits, settlements and recovery SHALL NOT cover gameplay or the prepared onboarding details page with a Pending Operation Dialog. The details page SHALL render a prepared account-scoped status shell with Checking or available durable progress immediately and remain navigable while observations resolve. Recoverable background failures SHALL remain visible as status with automatic safe retries; blocked states SHALL explain their reason without closing the details page or claiming completion. Unrelated foreground page reads and manual operations SHALL retain their existing dialog behavior.
+
+#### Scenario: Waiting for funding
+- **WHEN** onboarding is observing an unfunded account
+- **THEN** the player can play, navigate, copy the funding address and open the faucet without a settlement-length overlay
+
+#### Scenario: Background observation fails
+- **WHEN** an onboarding status request fails or its stream closes
+- **THEN** details remain inspectable, report the affected verification and retry safely without a modal acknowledgement or financial replay
