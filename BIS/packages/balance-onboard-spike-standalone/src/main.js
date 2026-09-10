@@ -23,6 +23,7 @@ import { recordTiming, loadTimings } from './timing.js';
 import { setupTimingViews, renderTimings } from './timing-view.js';
 
 import './style.css';
+import './admin-polish.css';
 
 
 

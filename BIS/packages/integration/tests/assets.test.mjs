@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assetBaseUnits,validateMint,checkMintRecord,writeAssetRecord,readAssetRecords} from '../src/core/assets.ts';
+import {assetBaseUnits,validateMint,normalizeAssetMetadata,checkMintRecord,writeAssetRecord,readAssetRecords} from '../src/core/assets.ts';
 import {readFreshAssets} from '../src/arkade/assets.ts';
 import {createContext} from '../src/core/context.ts';
 const request={operationId:'op-1',name:'An asset',ticker:'AST',amount:'1',decimals:0};
@@ -13,6 +13,9 @@ test('exact quantities and validation reject lossy or unsupported input',()=>{
   for(const [amount,decimals] of [['0',0],['-1',0],['1e2',0],['1.1',0],['18446744073709551616',0],['1',19]]) assert.throws(()=>assetBaseUnits(amount,decimals));
   for(const patch of [{name:''},{ticker:' '},{iconUrl:'javascript:alert(1)'},{iconUrl:'https://user:pass@example.com'},{controlAssetId:'x'}])assert.throws(()=>validateMint({...request,...patch}));
   assert.equal(validateMint({...request,iconUrl:'https://example.com/icon.png'}).iconUrl,'https://example.com/icon.png');
+  assert.deepEqual(validateMint({...request,metadata:{bisGameId:'stealth-and-steel',bisAssetType:'item',bisTier:'1'}}).metadata,{bisAssetType:'item',bisGameId:'stealth-and-steel',bisTier:'1'});
+  for(const metadata of [{icon:'https://example.com/x'}, {nested:{unsafe:true}}, {constructor:'unsafe'}, {bad:Infinity}, {bad:'x'.repeat(2049)}]) assert.throws(()=>validateMint({...request,metadata}));
+  assert.deepEqual(normalizeAssetMetadata({safe:'yes',nested:{ignored:true},icon:'ignored'},'list'),{safe:'yes'});
 });
 test('operation IDs bind requests, block unknown mints, allow deliberate same-name mint',()=>{
   records.clear();writeAssetRecord('p',{request,status:'pending'});
@@ -30,8 +33,9 @@ test('corrupt and unavailable storage fail closed',()=>{
   try {assert.throws(()=>writeAssetRecord('p2',{request,status:'pending'}),{code:'unavailable'});}finally{localStorage.setItem=original;}
 });
 test('listing includes non-BIS and metadata-free assets with exact bigint quantities',async()=>{
-  const wallet={getBalance:async()=>({assets:[{assetId:'b',amount:9007199254740993n},{assetId:'a',amount:1n},{assetId:'zero',amount:0n}]}),getProviderConnectionState:()=>({mode:'online',source:'live'}),assetManager:{getAssetDetails:async id=>({assetId:id,metadata:id==='b'?{name:'Other token',icon:'https://example.com/icon'}:undefined})}};
+  const wallet={getBalance:async()=>({assets:[{assetId:'b',amount:9007199254740993n},{assetId:'a',amount:1n},{assetId:'zero',amount:0n}]}),getProviderConnectionState:()=>({mode:'online',source:'live'}),assetManager:{getAssetDetails:async id=>({assetId:id,metadata:id==='b'?{name:'Other token',icon:'https://example.com/icon',communityTag:'external',nested:{ignored:true}}:undefined})}};
   const result=await readFreshAssets(wallet);assert.equal(result.length,2);assert.equal(result[0].asset.assetId,'a');assert.equal(result[1].asset.quantity,'9007199254740993');assert.doesNotThrow(()=>JSON.stringify(result));
+  assert.deepEqual(result[1].asset.metadata,{communityTag:'external'});
   wallet.assetManager.getAssetDetails=async()=>{throw Error('private');};await assert.rejects(readFreshAssets(wallet));
   wallet.getProviderConnectionState=()=>({mode:'offline',source:'cache'});await assert.rejects(readFreshAssets(wallet),{code:'unavailable'});
   wallet.getProviderConnectionState=()=>({mode:'online',source:'live'});wallet.getBalance=async()=>({assets:[]});assert.deepEqual(await readFreshAssets(wallet),[]);

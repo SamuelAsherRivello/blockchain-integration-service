@@ -36,6 +36,7 @@ function fixture(t) {
 }
 test('SDK burn preserves other asset outputs and exact amount; completed retries do not submit',async t=>{
   const f=fixture(t);assert.equal((await f.burn()).transactionId,txid);assert.equal(f.state.submits,1);
+  assert.deepEqual(readBurnRecord(account.profileId,request.operationId).inputs,[{txid:'d'.repeat(64),vout:0}]);
   const groups=f.state.packets[0].groups;
   assert.equal(groups.length,2);assert.equal(groups[0].outputs.length,0);assert.equal(groups[0].inputs[0].amount,BigInt(request.quantity));assert.equal(groups[1].outputs[0].amount,7n);
   assert.equal((await f.burn()).status,'burned');assert.equal(f.state.submits,1);assert.equal(pendingLogoutOperations().count,0);
@@ -48,6 +49,7 @@ test('changed holding, missing storage and account change prevent submission',as
 test('lost response stays pending, blocks other spends and is counted for logout',async t=>{
   const f=fixture(t);f.state.fail=true;await assert.rejects(f.burn(),{code:'outcome-unknown'});assert.equal(f.state.submits,1);
   await assert.rejects(f.burn(),{code:'outcome-unknown'});assert.equal(f.state.submits,1);assert.throws(()=>assertNoPendingBurn(account.profileId),{code:'outcome-unknown'});assert.equal(pendingLogoutOperations().count,1);
+  assert.deepEqual(readBurnRecord(account.profileId,request.operationId).inputs,[{txid:'d'.repeat(64),vout:0}]);
 });
 test('request validation rejects malformed or inexact quantities',()=>{
   for(const quantity of [1,'0','-1','1.2','1e3','18446744073709551616'])assert.throws(()=>validateBurn({...request,quantity}),{code:'invalid-input'});

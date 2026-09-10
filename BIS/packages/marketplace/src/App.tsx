@@ -68,7 +68,7 @@ export function App() {
     <div className="network-banner" role="status"><span className="network-anchor"><span>Network: Signet</span><span className="version-label">BIS: v{version}</span></span></div>
     <main className="marketplace-shell">
       <aside className="marketplace-sidebar">
-        <header><p className="eyebrow">BIS</p><h1>Marketplace</h1><p className="lede">Shop before you play.</p></header>
+        <header><h1>Marketplace</h1><p className="lede">Shop before you play.</p></header>
         <section className="wallet-strip" aria-label="Marketplace inventory"><span>Game wallet</span><code title={catalog.gameWalletAddress}>{shortAddress(catalog.gameWalletAddress)}</code><strong>{sourceLabel}</strong></section>
       </aside>
       <section className="collection-panel">

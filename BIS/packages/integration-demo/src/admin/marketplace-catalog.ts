@@ -1,11 +1,16 @@
+import { bisMarketplaceItems, classifyBisEquipmentAsset, marketplaceItemMetadata, type BisAsset } from '@bis/integration';
+
 export type MarketplaceCatalogItem = {
   id: string;
   name: string;
   ticker: string;
   family: 'Shoes' | 'Dagger' | 'Shield';
   tier: number;
+  priceSats: number;
+  effectPercent: number;
   effect: string;
   artwork: string;
+  iconUrl: string;
 };
 
 export type MintedMarketplaceCatalogItem = MarketplaceCatalogItem & {
@@ -20,30 +25,41 @@ export type PublishedMarketplaceCatalog = {
   items: MintedMarketplaceCatalogItem[];
 };
 
-const families = [
-  ['shoes', 'Shoes', 'increase movement speed'],
-  ['dagger', 'Dagger', 'increase player damage'],
-  ['shield', 'Shield', 'reduce damage taken'],
-] as const;
-
-export const marketplaceCatalogItems: MarketplaceCatalogItem[] = families.flatMap(([slug, family, effect]) => [1, 2, 3].map(tier => ({
-  id: `stealth-steel-${slug}-${tier}`,
-  name: `${family} ${['I', 'II', 'III'][tier - 1]}`,
-  ticker: `${slug.slice(0, 3).toUpperCase()}${tier}`,
-  family,
-  tier,
-  effect: `Tier ${tier}: ${effect}.`,
-  artwork: `${slug}-${tier}`,
-})));
+export const marketplaceCatalogItems: MarketplaceCatalogItem[] = bisMarketplaceItems.map(item => ({
+  id: item.catalogId,
+  name: item.name,
+  ticker: item.ticker,
+  family: item.family,
+  tier: item.tier,
+  priceSats: item.priceSats,
+  effectPercent: item.effectPercent,
+  effect: item.effect,
+  artwork: `${item.family.toLowerCase()}-${item.tier}`,
+  iconUrl: item.iconUrl,
+}));
 
 export function marketplaceMintRequest(item: MarketplaceCatalogItem) {
   return {
-    operationId: `marketplace-${item.id}-v1`,
+    operationId: `marketplace-${item.id}-v2`,
     name: item.name,
     ticker: item.ticker,
     amount: '1',
     decimals: 0,
+    iconUrl: item.iconUrl,
+    metadata: marketplaceItemMetadata(bisMarketplaceItems.find(definition => definition.catalogId === item.id)!),
   } as const;
+}
+
+/** Builds publication records only from a complete, unambiguous fresh chain read. */
+export function verifiedMarketplaceRecordsFromAssets(assets: readonly BisAsset[]): MintedMarketplaceCatalogItem[] | null {
+  const classified = assets.map(classifyBisEquipmentAsset).filter(item => item !== null);
+  const records: MintedMarketplaceCatalogItem[] = [];
+  for (const expected of marketplaceCatalogItems) {
+    const matches = classified.filter(item => item.catalogId === expected.id);
+    if (matches.length !== 1) return null;
+    records.push({ ...expected, assetId: matches[0].assetId, quantity: matches[0].quantity });
+  }
+  return records;
 }
 
 /** Returns null unless every expected item has a successful, non-empty mint record. */
@@ -62,8 +78,11 @@ export function createVerifiedMarketplaceCatalog(
       && item.ticker === expected.ticker
       && item.family === expected.family
       && item.tier === expected.tier
+      && item.priceSats === expected.priceSats
+      && item.effectPercent === expected.effectPercent
       && item.effect === expected.effect
       && item.artwork === expected.artwork
+      && item.iconUrl === expected.iconUrl
       && typeof item.assetId === 'string'
       && item.assetId.length > 0
       && typeof item.quantity === 'string'

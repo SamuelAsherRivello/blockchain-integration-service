@@ -316,3 +316,19 @@
 .bis-item-list .bis-collection-item:has(.bis-compact-row[data-message-type="error"]) { --bis-item-bg: #fbe1df; --bis-item-border: #d89994; background: var(--bis-item-bg); color: #822e2b; border-color: var(--bis-item-border); }
 .bis-item-list .bis-collection-item:where(:hover,:focus-visible) { background: var(--bis-item-bg, #f6fafb); border-color: var(--bis-item-border, #c8d7dc); outline: 2px solid #000; outline-offset: -2px; }
 .bis-item-list .bis-collection-item[aria-pressed="true"] { background: var(--bis-item-bg, #f6fafb); border-color: var(--bis-item-border, #c8d7dc); outline: 3px solid #000; outline-offset: -3px; box-shadow: none; }
+
+/* Shared player-facing polish: quiet, legible, and safe to mount over any game. */
+.bis-layer { --bis-ink: #182d39; --bis-muted: #526b74; --bis-mint: #175a4c; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; caret-color: var(--bis-mint); }
+.bis-layer ::selection { background: #bce5d9; color: var(--bis-ink); }
+.bis-layer-open { background: rgb(20 35 48 / 42%); backdrop-filter: blur(2px); }
+.bis-card { border: 0; background: #fbfdfd; box-shadow: 0 18px 42px rgb(8 24 32 / 28%); }
+.bis-button { min-height: 37px; border-color: #b8cbd1; transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out, transform 140ms ease-out; }
+.bis-button:hover:not(:disabled) { transform: translateY(-1px); }
+.bis-primary { border-color: transparent; background: var(--bis-mint); color: #fff; box-shadow: 0 7px 18px rgb(23 90 76 / 24%); }
+.bis-primary:hover:not(:disabled) { background: #104d40; }
+.bis-primary:disabled { color: #e6f4ee; background: #7aa998; border-color: transparent; }
+.bis-card p, .bis-copy-status { color: var(--bis-muted); }
+.bis-network-label { box-shadow: inset 0 -1px rgb(229 181 54 / 52%); }
+.bis-address-row input, .bis-account-id input, .bis-game-wallet-recovery textarea, .bis-activity textarea { transition: border-color 140ms ease-out, box-shadow 140ms ease-out; }
+.bis-address-row input:hover, .bis-account-id input:hover, .bis-game-wallet-recovery textarea:hover, .bis-activity textarea:hover { border-color: #8ca9b2; }
+@media (prefers-reduced-motion: reduce) { .bis-button { transition: none; } .bis-button:hover:not(:disabled) { transform: none; } }

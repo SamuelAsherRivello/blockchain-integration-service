@@ -1,0 +1,20 @@
+/* Player-facing sibling of the integration overlay. */
+:root { color-scheme: light; caret-color: #175a4c; }
+::selection { background: #bce5d9; color: #182d39; }
+body { background: #edf3f5; }
+.network-banner { box-shadow: inset 0 -1px rgb(229 181 54 / 50%); }
+.marketplace-sidebar { gap: 40px; }
+h1 { margin-top: 0; letter-spacing: -.04em; }
+.wallet-strip { border-color: #b8cbd1; background: #fbfdfd; box-shadow: none; }
+.catalog-toolbar { padding-bottom: 16px; }
+.filter-row button { min-height: 30px; transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out, transform 140ms ease-out; }
+.filter-row button:hover:not([aria-pressed="true"]) { transform: translateY(-1px); }
+.asset-card { border-color: #b8cbd1; background: #fbfdfd; border-radius: 16px; box-shadow: none; transition: background-color 140ms ease-out, border-color 140ms ease-out, transform 140ms ease-out; }
+.asset-card:hover, .asset-card:focus-visible { border-color: #487d66; background: #f5fffc; box-shadow: none; }
+.detail { border: 0; border-radius: 16px; background: #fbfdfd; box-shadow: 0 18px 42px rgb(8 24 32 / 30%); }
+.backdrop { background: rgb(24 45 57 / 47%); backdrop-filter: blur(2px); }
+.catalog-scroll { scrollbar-color: #77939b #dce7e9; }
+.catalog-scroll::-webkit-scrollbar { width: 10px; }
+.catalog-scroll::-webkit-scrollbar-track { background: #dce7e9; border-radius: 5px; }
+.catalog-scroll::-webkit-scrollbar-thumb { background: #77939b; border: 2px solid #dce7e9; border-radius: 5px; }
+@media (prefers-reduced-motion: reduce) { .filter-row button, .asset-card { transition: none; } .filter-row button:hover:not([aria-pressed="true"]), .asset-card:hover { transform: none; } }

@@ -4,10 +4,10 @@ export { createBisLto } from './core/lto-service';
 export type { BisLtoRequest, BisContractFilter, BisContractsResult, BisContractActionResult } from './core/lto-service';
 export type { BisContract } from './core/contracts';
 export type { BisGameWalletState } from './core/game-wallet';
-export { validateMint } from './core/assets';
+export { validateMint, normalizeAssetMetadata } from './core/assets';
 export { createBisAssetCollection } from './core/asset-collection';
 export type { BisAssetCollectionOptions, BisAssetCollectionState } from './core/asset-collection';
-export type { BisAsset, BisMintAssetRequest, BisMintAssetResult, BisListAssetsResult, BisAssetError, BisPendingMintResult } from './core/assets';
+export type { BisAsset, BisAssetMetadata, BisAssetMetadataValue, BisMintAssetRequest, BisMintAssetResult, BisListAssetsResult, BisAssetError, BisPendingMintResult } from './core/assets';
 export type { BisAssets } from './core/asset-presentation';
 export type { BisBurnAssetRequest, BisBurnAssetResult } from './core/burning';
 export type { BisContext, BisState, BisEvent, BisBalance } from './core/context';
@@ -24,3 +24,9 @@ export type {BisGameContinueState,BisGameContinueOptions} from './core/game-cont
 export type { BisPlayerRecipient } from './core/game-player-payment';
 
 export { MessageType } from './core/toasts';
+
+export { getBisMarketplaceTradingAvailability } from './core/marketplace-trading';
+export type { BisMarketplaceTradingAvailability } from './core/marketplace-trading';
+
+export { BIS_STEALTH_AND_STEEL_GAME_ID, bisMarketplaceItems, classifyBisEquipmentAsset, marketplaceItemMetadata } from './core/equipment';
+export type { BisEquipmentDefinition, BisEquipmentFamily, BisEquipmentItem, BisEquipmentTier } from './core/equipment';

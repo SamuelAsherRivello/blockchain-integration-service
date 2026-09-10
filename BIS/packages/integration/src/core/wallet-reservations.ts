@@ -2,7 +2,7 @@ import {readBoardingRecords} from './boarding-record.ts';
 import {readSendRecords} from './sending.ts';
 import {readContinuations} from './continuation.ts';
 import {readAssetRecords} from './assets.ts';
-import {readBurnRecord} from './burning.ts';
+import {readBurnRecords} from './burning.ts';
 import {readContractReservations} from './contract-reservations.ts';
 import {readAccountOnboarding} from './onboarding-record.ts';
 
@@ -39,7 +39,7 @@ export function walletReservations(profileId:string):ReservedOperation[] {
   for(const r of readSendRecords(profileId))if(r.status==='pending')operations.push({id:`send:${r.id}`,inputs:r.inputs});
   for(const r of readContinuations(profileId))if(r.status==='pending')operations.push({id:`continue:${r.request.operationId}`,inputs:r.send?.inputs});
   for(const r of readAssetRecords(profileId))if(r.status==='pending')operations.push({id:`mint:${r.request.operationId}`,transactionId:r.transactionId});
-  const burn=readBurnRecord(profileId);if(burn?.status==='pending')operations.push({id:`burn:${burn.id}`,transactionId:burn.transactionId});
+  for(const burn of readBurnRecords(profileId))if(burn.status==='pending')operations.push({id:`burn:${burn.id}`,transactionId:burn.transactionId,inputs:burn.inputs});
   return operations.map(operation=>{
     const recovered=saved?.operations.find(r=>r.id===operation.id&&r.transactionId===operation.transactionId);
     return !operation.inputs&&operation.transactionId&&recovered?.inputs?{...operation,inputs:recovered.inputs}:operation;

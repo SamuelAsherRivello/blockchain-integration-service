@@ -21,7 +21,7 @@ function gameBoarding(key: string, storage: WebStorage) {
   const sharedPrefix = ['bis-signet-wallet-operations-v2:', 'bis-signet-continuations-v1:', 'bis-signet-burn-operation-v1:'].find(prefix => key.startsWith(prefix));
   if (sharedPrefix) {
     const owner = key.slice(sharedPrefix.length).split(':')[0];
-    return ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:'].some(prefix => storage.getItem(prefix + owner) === '1');
+    return ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:'].some(prefix => storage.getItem(prefix + owner) === '1');
   }
   const mintPrefix='bis-signet-mints-v1:';
   if(key.startsWith(mintPrefix)&&storage.getItem('bis-game-wallet-mint-owner:'+key.slice(mintPrefix.length))==='1')return true;

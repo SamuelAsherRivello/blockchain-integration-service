@@ -13,8 +13,9 @@ const request = {
   operationId: 'fixture-mint-1', name: 'Achievement: Level 1', ticker: 'LVL1',
   amount: '1', decimals: 0,
   iconUrl: 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-1-trophy.png',
+  metadata: {bisGameId:'stealth-and-steel',bisAssetType:'trophy',bisCatalogId:'stealth-steel-trophy-1',bisTier:'1'},
 };
-const metadata = r => ({ name: r.name, ticker: r.ticker, decimals: r.decimals, ...(r.iconUrl ? { icon: r.iconUrl } : {}) });
+const metadata = r => ({ name: r.name, ticker: r.ticker, decimals: r.decimals, ...(r.iconUrl ? { icon: r.iconUrl } : {}), ...r.metadata });
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
@@ -133,8 +134,9 @@ test('real adapter and SDK issue preserve the external holding, exact amount, ic
   assert.equal(assets.length, 2);
   assert.deepEqual(assets.find(asset => asset.assetId === externalId), {
     assetId: externalId, quantity: '1', name: request.name, ticker: request.ticker,
-    decimals: request.decimals, iconUrl: request.iconUrl,
+    decimals: request.decimals, iconUrl: request.iconUrl, metadata: request.metadata,
   });
+  assert.deepEqual(result.asset.metadata,{...request.metadata,bisSchemaVersion:'1'});
   assert.equal(assets.find(asset => asset.assetId === result.asset.assetId).quantity, '1');
   assert.notEqual(f.state.storages[0].walletRepository, f.state.storages[1].walletRepository);
   assert.doesNotThrow(() => JSON.stringify({ result, assets }));

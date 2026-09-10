@@ -1,5 +1,7 @@
-export type BisAsset = Readonly<{ assetId: string; name?: string; ticker?: string; quantity: string; decimals?: number; iconUrl?: string }>;
-export type BisMintAssetRequest = Readonly<{ operationId: string; name: string; ticker: string; amount: string; decimals: number; iconUrl?: string }>;
+export type BisAssetMetadataValue = string | number | boolean | null;
+export type BisAssetMetadata = Readonly<Record<string, BisAssetMetadataValue>>;
+export type BisAsset = Readonly<{ assetId: string; name?: string; ticker?: string; quantity: string; decimals?: number; iconUrl?: string; metadata?: BisAssetMetadata }>;
+export type BisMintAssetRequest = Readonly<{ operationId: string; name: string; ticker: string; amount: string; decimals: number; iconUrl?: string; metadata?: BisAssetMetadata }>;
 export type BisAssetErrorCode = 'account-required' | 'invalid-input' | 'insufficient-funds' | 'unavailable' | 'outcome-unknown' | 'account-changed' | 'disposed' | 'unsupported-environment' | 'busy';
 export type BisAssetError = Readonly<{ status: 'error'; code: BisAssetErrorCode; message: string; profileId?: string; operationId?: string }>;
 export type BisMintAssetResult = Readonly<{ status: 'minted' | 'already-minted'; profileId: string; operationId: string; asset: BisAsset; transactionId?: string }> | BisAssetError;
@@ -27,6 +29,38 @@ export function assetBaseUnits(amount: string, decimals: number): bigint {
   if (value <= 0n || value > 18446744073709551615n) throw new AssetError('invalid-input');
   return value;
 }
+const reservedMetadata = new Set(['name','ticker','decimals','icon','bisKind','bisOperationId']);
+function metadataValue(value: unknown): value is BisAssetMetadataValue {
+  return value === null || typeof value === 'string' || typeof value === 'boolean'
+    || (typeof value === 'number' && Number.isFinite(value) && Number.isSafeInteger(value));
+}
+export function normalizeAssetMetadata(input: unknown, mode: 'mint' | 'list' = 'mint'): BisAssetMetadata | undefined {
+  if (input === undefined) return;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    if (mode === 'mint') throw new AssetError('invalid-input');
+    return;
+  }
+  const entries: [string, BisAssetMetadataValue][] = [];
+  for (const [key,value] of Object.entries(input)) {
+    if (reservedMetadata.has(key)) {
+      if (mode === 'mint') throw new AssetError('invalid-input');
+      continue;
+    }
+    if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(key) || ['__proto__','prototype','constructor'].includes(key) || !metadataValue(value) || (typeof value === 'string' && value.length > 2048)) {
+      if (mode === 'mint') throw new AssetError('invalid-input');
+      continue;
+    }
+    entries.push([key,value]);
+  }
+  entries.sort(([a],[b])=>a.localeCompare(b));
+  if (!entries.length) return;
+  const normalized = Object.freeze(Object.fromEntries(entries)) as BisAssetMetadata;
+  if (JSON.stringify(normalized).length > 4096) {
+    if (mode === 'mint') throw new AssetError('invalid-input');
+    return;
+  }
+  return normalized;
+}
 export function validateMint(input: BisMintAssetRequest): BisMintAssetRequest {
   const text = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
   if (!input || !text(input.operationId, 128) || !/^[\w-]+$/.test(input.operationId) || !text(input.name, 128) || !text(input.ticker, 16) || 'controlAssetId' in input) throw new AssetError('invalid-input');
@@ -35,7 +69,8 @@ export function validateMint(input: BisMintAssetRequest): BisMintAssetRequest {
     try { const url = new URL(input.iconUrl); if (url.protocol !== 'https:' || url.username || url.password || input.iconUrl.length > 2048) throw Error(); }
     catch { throw new AssetError('invalid-input'); }
   }
-  return Object.freeze({operationId: input.operationId, name: input.name, ticker: input.ticker, amount: input.amount, decimals: input.decimals, ...(input.iconUrl ? {iconUrl: input.iconUrl} : {})});
+  const metadata = normalizeAssetMetadata(input.metadata);
+  return Object.freeze({operationId: input.operationId, name: input.name, ticker: input.ticker, amount: input.amount, decimals: input.decimals, ...(input.iconUrl ? {iconUrl: input.iconUrl} : {}), ...(metadata ? {metadata} : {})});
 }
 export type AssetRecord = { request: BisMintAssetRequest; status: 'pending' | 'succeeded'; asset?: BisAsset; transactionId?: string };
 const recordKey = (profileId: string) => `bis-signet-mints-v1:${encodeURIComponent(profileId)}`;

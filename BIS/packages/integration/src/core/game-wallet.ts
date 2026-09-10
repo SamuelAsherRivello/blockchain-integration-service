@@ -8,9 +8,10 @@ import { createAccount, restoreAccount, type AccountSecret } from '../arkade/acc
 import { loadAddresses, type AccountAddresses } from '../arkade/addresses.ts';
 import { loadBalance, type BalanceAmounts } from '../arkade/balance.ts';
 import { createGameWalletStorage, type GameWalletStorage } from './game-wallet-storage.ts';
-import {loadMintAvailability,mintWalletAsset} from '../arkade/assets.ts';
+import {burnWalletAsset,listWalletAssets,loadMintAvailability,mintWalletAsset} from '../arkade/assets.ts';
 import {withWalletMutation} from './boarding-record.ts';
-import {validateMint,assetError,AssetError,readAssetRecords,type BisMintAssetRequest,type BisMintAssetResult} from './assets.ts';
+import {validateMint,assetError,AssetError,readAssetRecords,type BisListAssetsResult,type BisMintAssetRequest,type BisMintAssetResult} from './assets.ts';
+import {BurnError,validateBurn,type BisBurnAssetRequest,type BisBurnAssetResult} from './burning.ts';
 
 export type BisGameWalletState = Readonly<{
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
@@ -29,7 +30,7 @@ type GameWalletDependencies = {
 };
 export function createLocalGameWallet(options: { playerProfileId(): string | undefined }, dependencies: GameWalletDependencies = {
   storage: createGameWalletStorage(), restore: restoreAccount, create: createAccount, addresses: loadAddresses, balance: loadBalance, watch: watchGameWalletEvents,
-}, boarding = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting = {availability:loadMintAvailability,mint:mintWalletAsset}) {
+}, boarding = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting: {availability:typeof loadMintAvailability;mint:typeof mintWalletAsset;list?:typeof listWalletAssets;burn?:typeof burnWalletAsset} = {availability:loadMintAvailability,mint:mintWalletAsset,list:listWalletAssets,burn:burnWalletAsset}) {
   const storage: GameWalletStorage = dependencies.storage;
   let selectionVersion = 0, selectedProfileId: string | undefined;
   let state: BisGameWalletState = Object.freeze({status:'loading',selectionVersion});
@@ -196,6 +197,29 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
         if (!signal.aborted) publish({...previous, message:'Import failed. Check the recovery phrase, connection, and use a wallet different from the player.'});
         return false;
       } finally { importing = false; if (refreshQueued) { refreshQueued = false; void refresh(); } }
+    },
+    async burnAsset(input:BisBurnAssetRequest):Promise<BisBurnAssetResult> {
+      const signal=operation.signal;
+      try {
+        const request=validateBurn(input),account=await selectedAccount();
+        if(!minting.burn)throw new BurnError('unavailable','Burn unavailable.');
+        return await withWalletMutation(async()=>{
+          const current=await selectedAccount();
+          if(current.profileId!==account.profileId||signal.aborted)throw new BurnError('account-changed','The game wallet changed.');
+          const owner='bis-game-wallet-burn-owner:'+encodeURIComponent(account.profileId);
+          localStorage.setItem(owner,'1');if(localStorage.getItem(owner)!=='1')throw new BurnError('unavailable','Burn recovery could not be saved.');
+          return minting.burn!(account,request,signal,()=>!disposed&&!signal.aborted&&state.profileId===account.profileId);
+        },account.profileId);
+      } catch(error) {return {status:'error',code:error instanceof BurnError?error.code:'unavailable',message:error instanceof BurnError?error.message:'Burn unavailable.'};}
+    },
+    async listAssets():Promise<BisListAssetsResult> {
+      try {
+        const account=await selectedAccount();
+        if(!minting.list)return assetError('unavailable',account.profileId);
+        const assets=await minting.list(account,operation.signal);
+        if(disposed||operation.signal.aborted||state.profileId!==account.profileId)return assetError('account-changed',account.profileId);
+        return {status:'success',profileId:account.profileId,assets};
+      } catch(error) {return assetError(error instanceof AssetError?error.code:'unavailable',state.profileId);}
     },
     async createWallet() {
       if (disposed || importing) return;

@@ -1,7 +1,7 @@
 import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, type AssetDetails } from '@arkade-os/sdk';
 import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
-import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
-import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, assertNoPendingBurn, type BisBurnAssetRequest, type BisBurnAssetResult } from '../core/burning.ts';
+import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
+import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult, type BurnInput } from '../core/burning.ts';
 import { eligibleUnreservedCoins, walletReservations } from '../core/wallet-reservations.ts';
 
 export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal) {
@@ -32,11 +32,13 @@ export async function readFreshAssets(wallet: AssetWallet): Promise<OwnedAsset[]
     const details: AssetDetails = await wallet.assetManager.getAssetDetails(holding.assetId);
     if (details.assetId !== holding.assetId) throw new AssetError('unavailable');
     const m = details.metadata;
+    const metadata = normalizeAssetMetadata(m, 'list');
     const asset: BisAsset = { assetId: holding.assetId, quantity: holding.amount.toString(),
       ...(typeof m?.name === 'string' ? { name: m.name } : {}),
       ...(typeof m?.ticker === 'string' ? { ticker: m.ticker } : {}),
       ...(typeof m?.icon === 'string' ? { iconUrl: m.icon } : {}),
-      ...(Number.isInteger(m?.decimals) && Number(m?.decimals) >= 0 ? { decimals: m!.decimals } : {}) };
+      ...(Number.isInteger(m?.decimals) && Number(m?.decimals) >= 0 ? { decimals: m!.decimals } : {}),
+      ...(metadata ? {metadata} : {}) };
     owned.push({ asset, ...(m?.bisKind === 'asset' && m.bisSchemaVersion === '1' && typeof m.bisOperationId === 'string' ? { operationId: m.bisOperationId } : {}) });
   }
   return owned.sort((a, b) => a.asset.assetId.localeCompare(b.asset.assetId));
@@ -65,17 +67,18 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
   if(prior?.id===request.operationId) {
     if(JSON.stringify(prior.request)!==JSON.stringify(request))throw new BurnError('invalid-input','The burn request changed.');
     if(prior.status==='succeeded')return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:prior.transactionId!};
+    throw new BurnError('outcome-unknown','This item burn is unresolved. Its asset and inputs remain reserved; do not resubmit it.');
   }
-  assertNoPendingBurn(account.profileId);
   const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]);
-  let submitted=false,open=true;
+  let submitted=false,open=true,burnInputs:BurnInput[]=[];
   const p=providers(deadline,()=>{
     if(!open||!isCurrent())throw new BurnError('account-changed','The account changed.');
-    writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending'});
+    if(!burnInputs.length)throw new BurnError('unavailable','The burn inputs could not be verified.');
+    writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending',inputs:burnInputs});
     submitted=true;
   },transactionId=>{
     if(open&&!deadline.aborted&&/^[a-f0-9]{64}$/i.test(transactionId)) {
-      try {writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending',transactionId});} catch { /* Intent is already durable; let finalization continue. */ }
+      try {writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending',transactionId,inputs:burnInputs});} catch { /* Intent is already durable; let finalization continue. */ }
     }
   });
   try {
@@ -84,10 +87,17 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
       const asset=owned.find(row=>row.asset.assetId===request.assetId)?.asset;
       if(!asset||asset.quantity!==request.quantity)throw new BurnError('invalid-input','The owned quantity changed. Refresh Assets and confirm again.');
       if(!isCurrent())throw new BurnError('account-changed','The account changed.');
+      const spendable=wallet.getSpendableVtxos.bind(wallet);
+      wallet.getSpendableVtxos=async options=>eligibleUnreservedCoins(await spendable(options),walletReservations(account.profileId));
+      const submitOffchain=wallet.buildAndSubmitOffchainTx.bind(wallet);
+      wallet.buildAndSubmitOffchainTx=async(inputs,outputs)=>{
+        burnInputs=inputs.map(input=>({txid:input.txid,vout:input.vout}));
+        return submitOffchain(inputs,outputs);
+      };
       const transactionId=await wallet.assetManager.burn({assetId:request.assetId,amount:BigInt(request.quantity)});
       if(!open||deadline.aborted||!isCurrent())throw new BurnError('outcome-unknown','The burn outcome is unknown. Refresh Assets; do not retry the burn.');
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw Error('Invalid transaction ID');
-      writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'succeeded',transactionId});
+      writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'succeeded',transactionId,inputs:burnInputs});
       return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId};
     },30000);
   } catch(error) {
@@ -154,8 +164,10 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
       if (coins.reduce((sum, c) => sum + BigInt(c.value), 0n) < BigInt(wallet.dustAmount)) throw new AssetError('insufficient-funds');
       if (!isCurrent()) throw new AssetError('account-changed');
       const quantity = assetBaseUnits(request.amount, request.decimals);
-      const result = await wallet.assetManager.issue({ amount: quantity, metadata: { name: request.name, ticker: request.ticker, decimals: request.decimals, ...(request.iconUrl ? {icon: request.iconUrl} : {}), bisKind: 'asset', bisSchemaVersion: '1', bisOperationId: request.operationId } });
-      const asset: BisAsset = {assetId: result.assetId, name: request.name, ticker: request.ticker, quantity: quantity.toString(), decimals: request.decimals, ...(request.iconUrl ? {iconUrl: request.iconUrl} : {})};
+      const chainMetadata = { name: request.name, ticker: request.ticker, decimals: request.decimals, ...(request.iconUrl ? {icon: request.iconUrl} : {}), ...request.metadata, bisKind: 'asset', bisSchemaVersion: '1', bisOperationId: request.operationId };
+      const result = await wallet.assetManager.issue({ amount: quantity, metadata: chainMetadata });
+      const metadata = normalizeAssetMetadata(chainMetadata, 'list');
+      const asset: BisAsset = {assetId: result.assetId, name: request.name, ticker: request.ticker, quantity: quantity.toString(), decimals: request.decimals, ...(request.iconUrl ? {iconUrl: request.iconUrl} : {}), ...(metadata ? {metadata} : {})};
       // SDK finalization continues after abort, but only an open caller still
       // holds the mutation lock needed to update this operation's journal.
       if (open && !deadline.aborted && checkMintRecord(account.profileId, request)) writeAssetRecord(account.profileId, {request, status: 'succeeded', asset, transactionId: result.arkTxId});
