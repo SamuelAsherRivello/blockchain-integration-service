@@ -3,7 +3,7 @@ import { assertNoPendingSend } from './sending.ts';
 import {readAccountOnboarding} from './onboarding-record.ts';
 import { assertNoPendingBoarding, BoardingBlockedError } from './boarding-record.ts';
 import { readContractReservations } from './contract-reservations.ts';
-import { browserMutationLock, clearBrowserPreferences, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
+import { browserMutationLock, clearBrowserPreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
 export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
 export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
 export interface AccountStorage {
@@ -104,6 +104,9 @@ export function createAccountStorage(): AccountStorage {
         await withBrowserMutation(async () => {
           const loaded = await this.load();
           if (loaded.account?.profileId !== options.profileId || (expectedGeneration !== undefined && loaded.generation !== expectedGeneration)) throw Error('The account changed.');
+          const currentOperations = pendingLogoutOperations();
+          if (currentOperations.count !== options.operations.count || currentOperations.fingerprint !== options.operations.fingerprint) throw new BoardingBlockedError('Pending operations changed. Confirm logout again.');
+          if (currentOperations.count > 0) throw new BoardingBlockedError('Wallet operations are unresolved. Open Account and check recovery status before logging out.');
           // No SDK IndexedDB repositories are used by this app: all SDK wallets
           // explicitly use in-memory repositories. Never clear an unrelated SDK DB.
           clearBrowserPreferences(globalThis.localStorage);

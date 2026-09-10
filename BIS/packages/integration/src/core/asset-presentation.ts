@@ -36,6 +36,14 @@ export function formatAssetDetail(asset: BisAsset): string {
     `Explorer URL: ${assetExplorerUrl(asset.assetId) ?? 'Not available'}`,
   ].join('\n');
 }
+/** The shared item-detail page presents readable asset facts, not identity or preview metadata. */
+export function formatAssetDetails(asset: BisAsset): string {
+  return [
+    `Owned quantity: ${formatAssetQuantity(asset)}`,
+    `Owned quantity (base units): ${asset.quantity}`,
+    formatAssetMetadata(asset),
+  ].join('\n');
+}
 export function formatAssetMetadata(asset: BisAsset): string {
   return [
     `Name: ${assetMetadata(asset.name)}`,

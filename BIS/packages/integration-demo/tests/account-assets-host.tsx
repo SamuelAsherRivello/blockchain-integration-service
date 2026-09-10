@@ -1,7 +1,7 @@
 import { readReportPages } from './report-pages';
 import { createContext, getControls } from '../../integration/src/core/context';
 import { createBisUi } from '@bis/integration';
-import { formatAssetDetail } from '../../integration/src/core/asset-presentation';
+import { formatAssetDetail, formatAssetDetails } from '../../integration/src/core/asset-presentation';
 import type { BisAsset } from '../../integration/src/core/assets';
 import '@bis/integration/style.css';
 
@@ -38,7 +38,7 @@ document.getElementById('run')!.onclick=async()=>{
   try {
     await context.ready();context.openAccountDialog();await tick();
     button('Accounts Details').click();await tick();
-    const menu=[...host.querySelectorAll('button')].map(b=>b.textContent);check(menu.indexOf('Assets')===menu.indexOf('Transactions')+1,'menu order');
+    const menu=[...host.querySelectorAll('button')].map(b=>b.textContent);check(menu.includes('Assets'),'Assets is available from account details');
     const before=reads;await showList();check(reads===before+1,'one entry read');
     const list=host.querySelector<HTMLElement>('.bis-asset-list')!;check(list.scrollHeight>list.clientHeight,'list scrolls');
     check(list.previousElementSibling?.querySelector('h3')?.textContent==='Assets','Assets heading above list');
@@ -50,15 +50,19 @@ document.getElementById('run')!.onclick=async()=>{
     list.scrollTop=450;const offset=list.scrollTop;
     const target=host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[8];target.click();await wait(()=>host.querySelector('h2')?.textContent==='Asset Detail'&&!host.querySelector('.bis-pending-dialog'));
     check(document.activeElement===host.querySelector('h2'),'detail heading focus');
-    const detailContent=host.querySelector<HTMLElement>('.bis-assets-content')!;
-    check(detailContent.scrollHeight<=detailContent.clientHeight,'standard asset detail fits without vertical scrolling');
+    const detailContent=host.querySelector<HTMLElement>('.bis-collection-detail')!;
+    const detailField=host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')!;
+    check(host.querySelectorAll('.bis-collection-detail textarea').length===1,'detail has one generic text box');
+    check(getComputedStyle(detailField).overflowY==='scroll','asset detail text box always shows a vertical scrollbar');
+    check(await readReportPages(detailField)===formatAssetDetails(rows[8]),'generic asset details are shown in the text box');
     const detailCard=host.querySelector<HTMLElement>('.bis-card')!;
     check(detailCard.scrollHeight<=detailCard.clientHeight,'standard detail card has no outer scrolling');
-    check(!host.querySelector('.bis-asset-metadata'),'metadata section removed');
+    check(!host.querySelector('.bis-asset-summary'),'asset preview summary removed');
     const burnRect=button('Burn').getBoundingClientRect(), backBounds=button('Back').getBoundingClientRect();
     check(Math.abs(burnRect.width-backBounds.width)<1&&burnRect.bottom<=backBounds.top,'full-width Burn above Back');
-    check(!!host.querySelector('.bis-asset-detail')?.firstElementChild?.querySelector('[aria-label="Copy Details"]'),'Details first below Account ID');
-    check(host.querySelectorAll('button').length===6,'refresh/copy/details/explorer/burn/back actions');
+    check(!host.querySelector('img'),'asset detail shows no icon');
+    check(!host.textContent?.includes(rows[8].assetId),'asset detail does not show the asset ID');
+    check(host.querySelectorAll('button').length===5,'refresh/copy/explorer/burn/back actions');
     const originalOpen=window.open;
     let opened:unknown[]=[];
     try {
@@ -66,23 +70,20 @@ document.getElementById('run')!.onclick=async()=>{
       button('Open On Explorer').click();
       check(opened[0]===`https://explorer.signet.arkade.sh/asset/${rows[8].assetId}`&&opened[1]==='_blank'&&opened[2]==='noopener,noreferrer','explorer opens selected asset safely in a new tab');
     } finally {window.open=originalOpen;}
-    check(host.querySelector<HTMLImageElement>('.bis-asset-summary img')?.src===iconUrl,'detail uses metadata icon URL');
-    check(host.querySelector<HTMLInputElement>('.bis-asset-id input')?.value===rows[8].assetId,'single-line full ID');
-    button('Copy Asset ID').click();await tick();check(copied===rows[8].assetId,'full ID copied');
-    button('Copy Details').click();await tick();check(copied===formatAssetDetail(rows[8]),'metadata details copied');
+    button('Copy Asset details').click();await tick();check(copied===formatAssetDetails(rows[8]),'generic asset details copied');
     button('Back').click();await wait(()=>host.querySelectorAll('.bis-asset-row').length===24);await new Promise(requestAnimationFrame);
     check(host.querySelector('.bis-asset-list')!.scrollTop===offset,'Back retains scroll');await wait(()=>document.activeElement===host.querySelectorAll('.bis-asset-row')[8]);check(reads===before+1,'Back does not read');
-    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Details').click();await wait(()=>!!host.querySelector('.bis-asset-manual'));check(await readReportPages(host.querySelector<HTMLTextAreaElement>('.bis-asset-manual')!)===formatAssetDetail(rows[0]),'manual fallback exact');
-    copyMode='pending';button('Copy Details').click();await tick();button('Back').click();await tick();host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();finishCopy?.();await tick();check(button('Copy Details').title==='Copy Details','late copy ignored');copyMode='success';
-    mode='pending';void context.refreshAssets();await tick();check(!host.querySelector('.bis-asset-quantity'),'old quantity hidden during refresh');check(button('Refresh Asset Detail').disabled,'loading disables refresh');
-    data=rows.map((r,i)=>i===1?{...r,quantity:'12345',decimals:2}:r);resolveRead?.(data);await wait(()=>host.querySelector('.bis-asset-quantity')?.textContent==='123.45 LVL1');
-    mode='fail';await context.refreshAssets();await tick();check(host.querySelector('h2')?.textContent==='Asset Detail','failure retains detail title');check(!host.querySelector('.bis-asset-quantity'),'failure clears data');check(host.querySelector('.bis-pending-dialog')?.textContent?.includes('Assets could not be loaded'),'failure message');
+    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Asset details').click();await wait(()=>!!host.querySelector('[aria-label="Asset details for manual copy"]'));check(await readReportPages(host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details for manual copy"]')!)===formatAssetDetails(rows[0]),'manual fallback exact');
+    copyMode='pending';button('Copy Asset details').click();await tick();button('Back').click();await tick();host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();finishCopy?.();await tick();check(button('Copy Asset details').title==='Copy Asset details','late copy ignored');copyMode='success';
+    mode='pending';void context.refreshAssets();await tick();check(host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')?.value==='','empty generic detail remains visible during refresh');check(button('Refresh Asset Detail').disabled,'loading disables refresh');
+    data=rows.map((r,i)=>i===1?{...r,quantity:'12345',decimals:2}:r);resolveRead?.(data);await wait(()=>host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')?.value===formatAssetDetails(data[1]));
+    mode='fail';await context.refreshAssets();await tick();check(host.querySelector('h2')?.textContent==='Asset Detail','failure retains detail title');check(host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')?.value==='','failure clears detail text without removing the generic field');check(host.querySelector('.bis-pending-dialog')?.textContent?.includes('Assets could not be loaded'),'failure message');
     mode='ready';button('OK').click();await wait(()=>!host.querySelector('.bis-pending-dialog')&&host.querySelectorAll('.bis-asset-row').length===24);host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();
     data=rows.filter((_,i)=>i!==1);await context.refreshAssets();await wait(()=>host.querySelector('h2')?.textContent==='Assets');check(host.textContent?.includes('Asset is no longer'),'removed notice');await new Promise(requestAnimationFrame);check(document.activeElement===host.querySelector('h2'),'removed asset heading focus');
     data=[];await context.refreshAssets();await tick();check(!host.textContent?.includes('No assets found.'),'no empty message');
     const emptyList=host.querySelector<HTMLElement>('.bis-asset-list')!;check(emptyList && !emptyList.children.length && emptyList.clientHeight>0 && getComputedStyle(emptyList).overflowY==='scroll','empty asset list retains space and scrollbar');
     check(button('Copy Assets').disabled,'empty asset copy disabled');
-    data=[rows[22],{...rows[23],name:'<img src=x onerror=alert(1)>'}];await context.refreshAssets();await tick();check(host.textContent?.includes('1 base units'),'missing decimals base units');host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Copy Details').click();await tick();check(copied.includes('Decimals: Not provided'),'missing fields copied');check(!host.querySelector('img'),'invalid URL falls back to local artwork');
+    data=[rows[22],{...rows[23],name:'<img src=x onerror=alert(1)>'}];await context.refreshAssets();await tick();check(host.textContent?.includes('1 base units'),'missing decimals base units');host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Copy Asset details').click();await tick();check(copied.includes('Decimals: Not provided'),'missing fields copied');check(!host.querySelector('img'),'asset detail never shows an icon');
     button('Back').click();await tick();button('Back').click();await tick();button('Transactions').click();await wait(()=>!!host.querySelector('.bis-transaction-row'));check(host.querySelector('h2')?.textContent==='Transactions','Transactions heading');host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();await wait(()=>host.querySelector('h2')?.textContent==='Transaction Detail');button('Back').click();await tick();button('Back').click();await tick();
     await showList();const state=context.getState();await context.listAssets();check(context.getState()===state,'headless listing leaves runtime unchanged');
     host.style.width='280px';host.style.height='360px';await tick();host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[23].click();await tick();check(host.scrollWidth<=host.clientWidth,'narrow host has no horizontal overflow');
@@ -97,7 +98,7 @@ document.getElementById('run')!.onclick=async()=>{
     button('Burn').click();await wait(()=>!!host.querySelector('dialog[open]'));const ok=button('OK');ok.click();ok.click();await wait(()=>burns===beforeBurns+1);
     check(!host.querySelector('.bis-pending-dialog'),'burn progress has no dialog');check(getControls(context).toasts.getSnapshot()?.message==='Asset burn (Pending)','pending toast queued');check(button('Burn').disabled&&button('Back').disabled&&button('Refresh Asset Detail').disabled,'busy actions disabled');finishBurn?.(false);await wait(()=>host.textContent?.includes('Fixture burn unavailable.')===true);check(!!host.querySelector('.bis-pending-dialog'),'failed burn stays covered');button('OK').click();await wait(()=>!host.querySelector('.bis-pending-dialog'));host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
     button('Burn').click();await wait(()=>!!host.querySelector('dialog[open]'));button('OK').click();await wait(()=>burns===beforeBurns+2);finishBurn?.(true);await wait(()=>host.querySelectorAll('.bis-asset-row').length===23);check(!host.textContent?.includes('Asset burned.')&&!host.querySelector('.bis-pending-dialog'),'success reveals refreshed list without completion banner');
-    result.textContent='PASS: exact amounts, row/detail icons, single-line ID and metadata copy, clipboard failure/race, refresh states, safe metadata fallback, navigation/focus/scroll, narrow layout, confirmation Cancel/Escape, single burn after OK, busy state, failed burn and success refresh. Fixtures only; no live asset burned.';
+    result.textContent='PASS: generic asset details text box, no preview, icon or asset ID, clipboard failure/race, refresh states, navigation/focus/scroll, narrow layout, confirmation Cancel/Escape, single burn after OK, busy state, failed burn and success refresh. Fixtures only; no live asset burned.';
   } catch(error) {result.textContent='FAIL: '+(error instanceof Error?error.message:'checks');}
 };
 window.addEventListener('pagehide',()=>{ui.unmount();context.dispose();if(originalClipboard)Object.defineProperty(navigator,'clipboard',originalClipboard);else Reflect.deleteProperty(navigator,'clipboard');});

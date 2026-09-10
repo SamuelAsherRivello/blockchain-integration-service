@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const result = spawnSync(process.execPath, [
   '--test',
+  '--test-concurrency=1',
+  '--test-force-exit',
   ...process.argv.slice(2),
   'BIS/packages/integration/tests/*.test.mjs',
   'BIS/packages/integration-demo/tests/*.test.mjs',

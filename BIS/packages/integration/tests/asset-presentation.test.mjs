@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assetName,assetDecimals,formatAssetQuantity,formatAssetDetail,assetExplorerUrl} from '../src/core/asset-presentation.ts';
+import {assetName,assetDecimals,formatAssetQuantity,formatAssetDetail,formatAssetDetails,assetExplorerUrl} from '../src/core/asset-presentation.ts';
 test('asset explorer uses the full Arkade asset ID on signet and rejects invalid IDs',()=>{
   const assetId='a'.repeat(64)+'0000';
   assert.equal(assetExplorerUrl(assetId),`https://explorer.signet.arkade.sh/asset/${assetId}`);
@@ -26,4 +26,9 @@ test('copy includes full identity and public facts in stable order for duplicate
   const b={...a,assetId:'b'.repeat(64)};
   assert.equal(formatAssetDetail(a),`Asset ID: ${a.assetId}\nOwned quantity: 1 LVL1\nOwned quantity (base units): 1\nName: Level 1\nTicker: LVL1\nDecimals: 0\nIcon URL: https://unused.invalid/icon\nExplorer URL: Not available`);
   assert.notEqual(formatAssetDetail(a),formatAssetDetail(b));
+});
+test('generic asset details omit identity, preview metadata, and explorer links',()=>{
+  const asset={assetId:'a'.repeat(64)+'0000',quantity:'12345',decimals:2,name:'Level 1',ticker:'LVL1',iconUrl:'https://unused.invalid/icon'};
+  assert.equal(formatAssetDetails(asset),'Owned quantity: 123.45 LVL1\nOwned quantity (base units): 12345\nName: Level 1\nTicker: LVL1\nDecimals: 2');
+  assert.doesNotMatch(formatAssetDetails(asset),/Asset ID|Icon URL|Explorer URL|a{68}/);
 });

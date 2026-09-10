@@ -1,13 +1,19 @@
-import {assertNoPendingContinue,continuationPrefix} from './continuation.ts';
+import {assertNoPendingContinue,continuationPrefix,readContinuations} from './continuation.ts';
 import {readContractReservations} from './contract-reservations.ts';
 import {onboardingKey,readOnboardingRecord} from './onboarding-record.ts';
 export const browserMutationLock = 'bis-signet-browser-mutation';
 export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
 type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
 const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1','bis-signet-onboarding-v1'];
-const cleanupPrefixes = [...journalPrefixes, 'bis-signet-continuations-v1', 'bis-signet-wallet-operations-v2'];
-const owns = (key: string) => cleanupPrefixes.some(prefix => key === prefix || key.startsWith(`${prefix}:`)) ||
-  ['bis.integration-demo.admin-split-percent', 'bis.integration-demo.preview-scale'].includes(key);
+const cleanupPrefixes = [...journalPrefixes, 'bis-signet-wallet-operations-v2'];
+function owns(key: string, storage: WebStorage) {
+  if (key.startsWith(continuationPrefix)) {
+    try { readContinuations(decodeURIComponent(key.slice(continuationPrefix.length)), storage); return false; }
+    catch { return true; }
+  }
+  return cleanupPrefixes.some(prefix => key === prefix || key.startsWith(`${prefix}:`)) ||
+    ['bis.integration-demo.admin-split-percent', 'bis.integration-demo.preview-scale'].includes(key);
+}
 function keys(storage: WebStorage) {
   return Array.from({length: storage.length}, (_, i) => storage.key(i)).filter((key): key is string => key !== null);
 }
@@ -57,7 +63,7 @@ export function pendingLogoutOperations(storage: WebStorage | undefined = global
 export function clearBrowserPreferences(storage: WebStorage | undefined) {
   if (!storage) return;
 
-  for (const key of keys(storage).filter(owns)) {
+  for (const key of keys(storage).filter(key => owns(key, storage))) {
     if (gameBoarding(key, storage)) continue;
     storage.removeItem(key);
     if (storage.getItem(key) !== null) throw Error('Browser cleanup could not be verified.');

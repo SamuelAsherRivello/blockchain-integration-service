@@ -1,12 +1,10 @@
-import { ReportTextArea } from './ReportTextArea';
 import { ItemList, ItemListDetail } from './ItemList';
+import { ReportTextArea } from './ReportTextArea';
 import { usePendingNotice } from './PendingOperationDialog';
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { BisAsset } from '../core/assets';
 import type { BisAssets } from '../core/asset-presentation';
-import { assetDecimals, assetExplorerUrl, assetName, formatAssetDetail, formatAssetQuantity, shortAssetId } from '../core/asset-presentation';
-import { useClipboardCopy } from './useClipboardCopy';
-import { CopyableValueField } from './CopyableValueField';
+import { assetDecimals, assetExplorerUrl, assetName, formatAssetDetail, formatAssetDetails, formatAssetQuantity } from '../core/asset-presentation';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import type { BisToastOptions } from '../core/toasts';
 import type { BisBurnAssetRequest, BisBurnAssetResult } from '../core/burning';
@@ -33,26 +31,6 @@ function AssetIcon({url, background = false, fallback}: {url?:string; background
     if(value){preparedIcons.add(value);setReady(value);}
   }
   return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:(fallback??<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>)}</span>;
-}
-
-function AssetDetails({asset, background}: {asset: BisAsset; background?:boolean}) {
-  const id = useId();
-  const report = formatAssetDetail(asset);
-  const idCopy = useClipboardCopy(() => asset.assetId, asset);
-  return <>
-    <div className="bis-asset-summary">
-      <AssetIcon url={asset.iconUrl} background={background} />
-      <strong className="bis-asset-quantity">{formatAssetQuantity(asset)}</strong>
-      <span>{assetName(asset)}</span>
-    </div>
-    <CopyableValueField label="Asset ID" value={asset.assetId} copy={idCopy} className="bis-asset-id" feedback={false} selectOnFocus={false} />
-    <span className="bis-sr-only" role="status">{idCopy.status === 'copied' ? 'Asset ID copied.' : ''}</span>
-    {idCopy.status === 'failed' && <>
-      <p role="status">Could not copy. Select the text and copy it manually.</p>
-      <label htmlFor={`${id}-manual`}>Asset details for manual copy</label>
-      <ReportTextArea id={`${id}-manual`} className="bis-asset-manual" rows={8} value={report} />
-    </>}
-  </>;
 }
 
 export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
@@ -120,7 +98,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
   });
   const Page=detailOpen?ItemListDetail:ItemList;
   return <Page title={detailOpen?'Asset Detail':'Assets'} body={detailOpen?'Inspect this asset and its ownership.':'Assets held by this account.'}
-    fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?formatAssetDetail(selected):report} loading={loading} listLabel="Owned assets"
+    fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?formatAssetDetails(selected):report} loading={loading} listLabel="Owned assets"
     onRefresh={onRefresh} refreshDisabled={burning||!!confirmation}
     listRef={list} onScroll={event=>{scroll.current=event.currentTarget.scrollTop;}}
     items={rows.map(asset=>({id:asset.assetId,selected:selectedId===asset.assetId,
@@ -131,7 +109,7 @@ export function AccountAssets({assets, onDetailChange, onBack, onBurn, onRefresh
         {icon:'🔤',label:'Ticker',value:asset.ticker||'Not provided'},{icon:'✅',label:'Status',value:'Owned'},
         {icon:'🎯',label:'Decimals',value:assetDecimals(asset)??'Not provided'},{icon:'🌐',label:'Network',value:'Off-chain'},
       ]}/>}))}
-    detail={detailOpen&&selected?<AssetDetails key={selected.assetId} asset={selected} background={assets.status==='ready'&&assets.background}/>:undefined}
+    detail={detailOpen?<ReportTextArea aria-label="Asset details" rows={12} value={selected?formatAssetDetails(selected):''}/>:undefined}
     notice={notice&&assets.status==='ready'?<p role="status">{notice}</p>:!loading&&assets.status==='ready'&&!rows.length?<p>No assets.</p>:null}
     actions={<>
       {detailOpen && selected && <button type="button" className="bis-button" disabled={burning || !explorerUrl} title={!explorerUrl ? 'Explorer unavailable: invalid asset ID.' : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>}
