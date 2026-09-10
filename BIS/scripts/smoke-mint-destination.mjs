@@ -11,7 +11,7 @@ async function until(check,message){for(let i=0;i<100;i++){if(await check())retu
 async function open(query=''){
   await page.goto(`${base}/tests/mint-destination.html${query}`);
   await page.getByRole('button',{name:'Open Mint Asset'}).click();
-  await until(async()=>!(await page.locator('#mint-message').innerText()).includes('Checking destination'),'destination did not load');
+  await until(async()=>!(await page.locator('#mint-console').innerText()).includes('Checking destination'),'destination did not load');
 }
 try {
   await open();
@@ -39,22 +39,22 @@ try {
     await open(`?missing=${missing}`);
     for(const destination of ['player','game']){
       await page.getByLabel('Destination',{exact:true}).selectOption(destination);
-      await until(async()=>!(await page.locator('#mint-message').innerText()).includes('Checking destination'),'lookup pending');
-      assert.equal(await mint().isDisabled(),missing===destination||missing==='both', `missing=${missing}, destination=${destination}, message=${await page.locator('#mint-message').innerText()}`);
+      await until(async()=>!(await page.locator('#mint-console').innerText()).includes('Checking destination'),'lookup pending');
+      assert.equal(await mint().isDisabled(),missing===destination||missing==='both', `missing=${missing}, destination=${destination}, message=${await page.locator('#mint-console').innerText()}`);
     }
   }
   await open('?low=game');assert.equal(await mint().isDisabled(),false);
   await mint().click();await page.getByRole('button',{name:'Done',exact:true}).waitFor();
   await open('?funds=insufficient');assert.equal(await mint().isDisabled(),false);
   await mint().click();
-  await until(async()=>(await page.locator('#mint-message').innerText()).includes('Insufficient eligible funds'),'production error missing');
+  await until(async()=>(await page.locator('#mint-console').innerText()).includes('Insufficient eligible funds'),'production error missing');
   assert.equal(await page.evaluate(()=>window.mintFixture.calls.length),0);
   await open('?lookup=error');assert.equal(await mint().isDisabled(),true);
-  assert.match(await page.locator('#mint-message').innerText(),/lookup failed/);
+  assert.match(await page.locator('#mint-console').innerText(),/lookup failed/);
 
   await page.goto(`${base}/tests/mint-destination.html?lookup=held`);
   await page.getByRole('button',{name:'Open Mint Asset'}).click();
-  await until(async()=>(await page.locator('#mint-message').innerText()).includes('Checking destination'),'lookup not held');
+  await until(async()=>(await page.locator('#mint-console').innerText()).includes('Checking destination'),'lookup not held');
   await page.getByLabel('Destination',{exact:true}).selectOption('player');
   await until(async()=>!(await mint().isDisabled()),'independent player lookup blocked');
   await page.evaluate(()=>window.mintFixture.release());
@@ -80,7 +80,7 @@ try {
   await open('?held');await mint().click();
   assert.equal(await page.getByLabel('Destination',{exact:true}).isDisabled(),true);
   await page.evaluate(()=>window.mintFixture.replace());await page.evaluate(()=>window.mintFixture.release());
-  await until(async()=>(await page.locator('#mint-message').innerText()).includes('wallet changed'),'replacement not rejected');
+  await until(async()=>(await page.locator('#mint-console').innerText()).includes('wallet changed'),'replacement not rejected');
   assert.equal(await page.getByRole('button',{name:'Done',exact:true}).count(),0);
   assert.equal(await page.evaluate(()=>window.mintFixture.logs.length),1);
 
