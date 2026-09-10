@@ -15,9 +15,9 @@ Reusable Signet account, payment, and asset integration for browser games, with 
 
 ## Demo
 
-<!-- AI: Keep the verified public demo URLs. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
-* [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/)
-* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/)
+<!-- AI: Keep the verified public demo URLs. Use a hidden ?v=<published-version> cache buster in each destination while leaving the labels unchanged. Advance both values for every published version. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
+* [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.14.4)
+* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.14.4)
 
 ## Table of Contents
 
@@ -52,7 +52,7 @@ Use `npm run preview` to serve the production build locally.
 <!-- AI: Describe the repository's existing release workflow in the fewest steps, based on checked-in workflows or release scripts. Distinguish builds, tags, releases, and deployment accurately. If no release process exists, retain a placeholder rather than inventing one. Documentation edits do not authorize publishing or changing Git history. -->
 1. Run `npm test` and `npm run build` before publishing changes.
 2. Commit and push the intended changes to `main`; [Deploy live demo](.github/workflows/deploy-pages.yml) builds and publishes the Admin and Marketplace routes to GitHub Pages.
-3. Check the [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/). Manual deployment is also available; this workflow does not create version tags or GitHub releases.
+3. Check the [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.14.4) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.14.4). For every new published version, update both hidden `v` values to that version before release. Manual deployment is also available; this workflow does not create version tags or GitHub releases.
 
 ## Project Overview
 

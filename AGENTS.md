@@ -30,7 +30,7 @@
 
 - Treat every request to release or publish this project as a two-demo GitHub Pages release unless the user explicitly narrows the scope.
 - The published links are **BIS Admin** at `https://samuelasherrivello.github.io/blockchain-integration-service/admin/` and **BIS Marketplace** at `https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/`.
-- Preserve these labels and links in the README. If their paths change by explicit request, update both links and the Pages workflow together.
+- Preserve these labels and links in the README. Every displayed Admin or Marketplace link destination SHALL append a hidden `?v=<published-version>` cache-buster query while retaining its clean label; advance both query values to the exact newly published version for every release. If their paths change by explicit request, update both links and the Pages workflow together.
 - Before calling a release complete, verify the Pages workflow succeeds and both public routes return their respective application. Retain existing immutable root `/assets/` URLs because issued asset metadata depends on them.
 - Do not create a duplicate release when no releasable change exists after the latest release tag.
 
