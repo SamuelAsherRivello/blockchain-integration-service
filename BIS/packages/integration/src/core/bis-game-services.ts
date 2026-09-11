@@ -29,7 +29,10 @@ export class BisGameServices {
     this.#getGameHost = options.getGameHost;
     let wallet: ReturnType<typeof createBisGameWallet> | undefined;
     /** 2. Compose BIS internals at one boundary and retain their ownership here. */
-    this.context = createBisContext({ get continueRecipient() { return wallet?.getState().addresses?.arkadeAddress; } });
+    this.context = createBisContext({
+      get continueRecipient() { return wallet?.getState().addresses?.arkadeAddress; },
+      gameWalletProfileId: () => wallet?.getState().profileId,
+    });
     wallet = createBisGameWallet({ playerProfileId: () => this.context.getState().profileId });
     this.gameWallet = wallet;
     this.lto = createBisLto({ context: this.context, gameWallet: wallet });

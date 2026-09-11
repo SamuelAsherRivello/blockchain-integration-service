@@ -1,3 +1,7 @@
+## Purpose
+
+Defines the versioned, provider-neutral boundary through which BIS delivers confirmed wallet workflow outcomes to a game without taking ownership of game state, scenes, or provider implementation details.
+
 ## ADDED Requirements
 
 ### Requirement: BIS exposes a complete game host contract
