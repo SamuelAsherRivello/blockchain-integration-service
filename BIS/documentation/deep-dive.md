@@ -46,9 +46,3 @@ const controller = services.createContinue({ onEffectReceipt });
 ```
 
 The facade intentionally composes existing controllers rather than absorbing their domain rules. Core controllers still own state, validation, persistence, and reconciliation; UI still owns presentation; Arkade adapters remain internal. That makes `BisGameServices` a stable starting point without making it a new catch-all service.
-
-### How the repositories fit
-
-`@bis/integration` publishes types, workflow composition, and the stylesheet. The game dynamically imports that public package only inside `runtime/integration/`. The game’s [`createBisHostGame`](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/src/runtime/integration/bis-host-game.js) maps the contract to its current scene and player state. This direction is intentional: BIS must not import Babylon systems, and the game must not import BIS source internals or Arkade.
-
-For project-level risks, trade-offs, and migration decisions, see [Project Refactor Thoughts — BIS Library](PROJECT_REFACTOR_THOUGHTS_BIS_LIBRARY.md) and [Project Refactor Thoughts — BIS Game](PROJECT_REFACTOR_THOUGHTS_BIS_GAME.md). The companion game report is mirrored in its repository after adoption.
