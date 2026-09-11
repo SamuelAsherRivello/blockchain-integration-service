@@ -8,10 +8,11 @@ import { createAccount, restoreAccount, type AccountSecret } from '../arkade/acc
 import { loadAddresses, type AccountAddresses } from '../arkade/addresses.ts';
 import { loadBalance, type BalanceAmounts } from '../arkade/balance.ts';
 import { createGameWalletStorage, type GameWalletStorage } from './game-wallet-storage.ts';
-import {burnWalletAsset,listWalletAssets,loadMintAvailability,mintWalletAsset} from '../arkade/assets.ts';
+import {burnWalletAsset,deliverWalletAsset,listWalletAssets,loadMintAvailability,mintWalletAsset,reconcileWalletAssetDelivery} from '../arkade/assets.ts';
 import {withWalletMutation} from './boarding-record.ts';
 import {validateMint,assetError,AssetError,readAssetRecords,type BisListAssetsResult,type BisMintAssetRequest,type BisMintAssetResult} from './assets.ts';
 import {BurnError,validateBurn,type BisBurnAssetRequest,type BisBurnAssetResult} from './burning.ts';
+import {AssetDeliveryError,validateAssetDelivery,type BisAssetDeliveryRequest,type BisAssetDeliveryResult} from './asset-delivery.ts';
 
 export type BisGameWalletState = Readonly<{
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
@@ -132,14 +133,14 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     },
     canPayPlayer() { return getPlayerPaymentBlockReason() === undefined; },
     hasPendingPlayerPayment() { try { return !!state.profileId && readSendRecord(state.profileId)?.status === 'pending'; } catch { return true; } },
-    async payPlayer(recipient: BisPlayerRecipient, playerCurrent: () => boolean = () => options.playerProfileId() === recipient.profileId) {
+    async payPlayer(recipient: BisPlayerRecipient, amountSats=1000, playerCurrent: () => boolean = () => options.playerProfileId() === recipient.profileId) {
       if (paying) throw Error('A payment is already in progress.');
       paying = true;
       const signal = operation.signal;
       try {
         const account = await selectedAccount();
         if (recipient.profileId !== options.playerProfileId()) throw Error('The player changed.');
-        return await payments.pay(account, recipient, signal, () => !disposed && !signal.aborted && state.profileId === account.profileId && options.playerProfileId() === recipient.profileId && playerCurrent());
+        return await payments.pay(account, recipient, amountSats, signal, () => !disposed && !signal.aborted && state.profileId === account.profileId && options.playerProfileId() === recipient.profileId && playerCurrent());
       } finally { paying = false; }
     },
     async checkPlayerPayment() { return payments.check(await selectedAccount(), operation.signal); },
@@ -211,6 +212,28 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
           return minting.burn!(account,request,signal,()=>!disposed&&!signal.aborted&&state.profileId===account.profileId);
         },account.profileId);
       } catch(error) {return {status:'error',code:error instanceof BurnError?error.code:'unavailable',message:error instanceof BurnError?error.message:'Burn unavailable.'};}
+    },
+    async deliverAsset(input:BisAssetDeliveryRequest):Promise<BisAssetDeliveryResult> {
+      const signal=operation.signal;
+      try {
+        const request=validateAssetDelivery(input),account=await selectedAccount();
+        return await withWalletMutation(async()=>{
+          const current=await selectedAccount();
+          if(current.profileId!==account.profileId||signal.aborted)throw new AssetDeliveryError('account-changed','The game wallet changed.');
+          const owner='bis-game-wallet-delivery-owner:'+encodeURIComponent(account.profileId);
+          localStorage.setItem(owner,'1');if(localStorage.getItem(owner)!=='1')throw new AssetDeliveryError('unavailable','Item delivery recovery could not be saved.');
+          const result=await deliverWalletAsset(account,request,signal,()=>!disposed&&!signal.aborted&&state.profileId===account.profileId);
+          if(result.status==='delivered'||result.status==='already-delivered')void refresh();
+          return result;
+        },account.profileId);
+      } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery unavailable.',profileId:state.profileId,operationId:input.operationId};}
+    },
+    async checkAssetDelivery(operationId:string):Promise<BisAssetDeliveryResult> {
+      try {
+        const account=await selectedAccount(),result=await withWalletMutation(()=>reconcileWalletAssetDelivery(account,operationId,operation.signal),account.profileId);
+        if(result.status==='delivered'||result.status==='already-delivered')void refresh();
+        return result;
+      } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status unavailable.',profileId:state.profileId,operationId};}
     },
     async listAssets():Promise<BisListAssetsResult> {
       try {

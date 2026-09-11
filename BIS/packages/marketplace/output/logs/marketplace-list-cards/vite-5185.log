@@ -1,0 +1,32 @@
+
+> @bis/marketplace@0.14.5 dev
+> vite --host 127.0.0.1 --port 5185 --strictPort
+
+
+  VITE v8.2.2  ready in 181 ms
+
+  ➜  Local:   http://127.0.0.1:5185/
+  ➜  press h + enter to show help
+11:26:17 AM [vite] (client) page reload src/App.tsx
+11:26:18 AM [vite] (client) hmr update /src/square-grid.css
+11:26:19 AM [vite] (client) hmr update /src/player-polish.css
+11:30:40 AM [vite] (client) page reload src/App.tsx
+11:34:01 AM [vite] (client) hmr update /src/square-grid.css
+11:34:02 AM [vite] (client) hmr update /src/account-launcher.css
+11:35:21 AM [vite] (client) hmr update /src/square-grid.css
+11:36:13 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/core/asset-delivery.ts
+11:36:31 AM [vite] (client) hmr update /src/player-polish.css
+11:36:33 AM [vite] (client) hmr update /src/square-grid.css
+11:37:32 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/arkade/assets.ts
+11:37:49 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/arkade/assets.ts
+11:38:21 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/core/game-wallet.ts
+11:38:39 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/core/context.ts
+11:38:43 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/index.ts
+11:41:37 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/index.ts
+11:41:55 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/core/game-player-payment.ts
+11:42:02 AM [vite] (client) page reload D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/integration/src/core/game-wallet.ts
+11:52:13 AM [vite] (client) hmr update /src/square-grid.css
+11:53:12 AM [vite] (client) page reload src/App.tsx
+11:53:35 AM [vite] (client) page reload src/App.tsx
+12:15:43 PM [vite] (client) page reload src/App.tsx
+12:15:43 PM [vite] (client) hmr update /src/square-grid.css

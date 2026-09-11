@@ -25,18 +25,18 @@ export function assertPlayerPaymentAvailable(profileId: string) {
 const adapter = {quote: quoteSend, submit: submitSend, reconcile: reconcileSend};
 export function createGamePlayerPayments(dependencies = adapter) {
   return {
-    async pay(account: AccountSecret, recipient: BisPlayerRecipient, signal: AbortSignal, current: () => boolean) {
+    async pay(account: AccountSecret, recipient: BisPlayerRecipient, amountSats:number, signal: AbortSignal, current: () => boolean) {
       return withWalletMutation(async () => {
         assertPlayerPaymentAvailable(account.profileId);
         if(readSendRecords(account.profileId).some(record=>record.status==='pending' && paymentSender({identifier:`ark:${record.transactionId}`,amountSats:record.quote.amountSats} as BisTransaction,recipient.profileId)===account.profileId))throw Error('This player payment is still pending verification.');
-        if (!recipient.profileId || recipient.profileId === account.profileId || !current()) throw Error('An active separate player is required.');
-        const quote = await dependencies.quote(account, recipient.address, 1000, signal, true);
+        if (!recipient.profileId || recipient.profileId === account.profileId || !Number.isSafeInteger(amountSats) || amountSats<=0 || !current()) throw Error('An active separate player and exact whole-sats payment are required.');
+        const quote = await dependencies.quote(account, recipient.address, amountSats, signal, true);
         if (!current() || signal.aborted) throw Error('The player or game wallet changed.');
         const journal: SendJournal = {
           read: readSendRecord,
           write(record) {
             const key = prefix + record.transactionId;
-            const raw = JSON.stringify({senderId: account.profileId, playerId: recipient.profileId, amountSats:1000});
+            const raw = JSON.stringify({senderId: account.profileId, playerId: recipient.profileId, amountSats});
             localStorage.setItem(key, raw);
             if (localStorage.getItem(key) !== raw) throw Error('Payment metadata could not be saved.');
             // Retain the game sender's recovery record across player logout.

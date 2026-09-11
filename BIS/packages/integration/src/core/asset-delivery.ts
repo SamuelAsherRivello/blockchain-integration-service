@@ -2,7 +2,7 @@ export type BisAssetDeliveryRequest = Readonly<{operationId:string; assetId:stri
 export type BisAssetDeliveryResult = Readonly<{status:'delivered'|'already-delivered'; profileId:string; operationId:string; assetId:string; quantity:string; recipient:string; transactionId:string}>
   | Readonly<{status:'error'; code:'invalid-input'|'unavailable'|'outcome-unknown'|'account-changed'; message:string; profileId?:string; operationId?:string}>;
 export type AssetDeliveryInput = Readonly<{txid:string;vout:number}>;
-export type AssetDeliveryRecord = Readonly<{version:1;id:string;profileId:string;request:BisAssetDeliveryRequest;status:'pending'|'succeeded';inputs:readonly AssetDeliveryInput[];recipientScript:string;transactionId?:string}>;
+export type AssetDeliveryRecord = Readonly<{version:1;id:string;profileId:string;request:BisAssetDeliveryRequest;status:'pending'|'succeeded';inputs:readonly AssetDeliveryInput[];recipientScript:string;sourceQuantity:string;transactionId?:string}>;
 
 const key=(profileId:string)=>`bis-signet-asset-delivery-v1:${encodeURIComponent(profileId)}`;
 const operationKey=(profileId:string,id:string)=>`${key(profileId)}:${id}`;
@@ -26,6 +26,7 @@ function validRecord(value:unknown,profileId:string,storageKey:string):value is 
   return record.version===1&&record.id===record.request.operationId&&record.profileId===profileId&&storageKey===operationKey(profileId,record.id)
     &&(record.status==='pending'||record.status==='succeeded')&&Array.isArray(record.inputs)&&record.inputs.length>0&&record.inputs.every(validateInput)
     &&typeof record.recipientScript==='string'&&/^5120[a-f0-9]{64}$/i.test(record.recipientScript)
+    &&typeof record.sourceQuantity==='string'&&/^[1-9][0-9]{0,19}$/.test(record.sourceQuantity)&&BigInt(record.sourceQuantity)>=BigInt(record.request.quantity)
     &&(record.transactionId===undefined||/^[a-f0-9]{64}$/i.test(record.transactionId))&&!(record.status==='succeeded'&&!record.transactionId);
 }
 export function readAssetDeliveryRecords(profileId:string|undefined):AssetDeliveryRecord[] {
@@ -58,4 +59,13 @@ export function writeAssetDeliveryRecord(record:AssetDeliveryRecord):void {
 }
 export function assertNoPendingAssetDelivery(profileId:string|undefined):void {
   if(readAssetDeliveryRecords(profileId).some(record=>record.status==='pending'))throw new AssetDeliveryError('outcome-unknown','An item delivery has an unknown outcome. Its exact asset and inputs remain reserved until resolved.');
+}
+
+export function completeAssetDelivery(profileId:string,operationId:string,transactionId:string):AssetDeliveryRecord {
+  const record=readAssetDeliveryRecord(profileId,operationId);
+  if(!record||record.profileId!==profileId||record.transactionId!==transactionId)throw new AssetDeliveryError('outcome-unknown','Item delivery recovery data changed. Do not submit another delivery.');
+  if(record.status==='succeeded')return record;
+  const next={...record,status:'succeeded' as const};
+  writeAssetDeliveryRecord(next);
+  return next;
 }

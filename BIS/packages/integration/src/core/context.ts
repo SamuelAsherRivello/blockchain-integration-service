@@ -16,8 +16,9 @@ import { createSharedWalletObserver } from './shared-wallet-observer.ts';
 import { pendingLogoutOperations, type LogoutOperations } from './logout-cleanup.ts';
 import { loadSendFunds, quoteSend, submitSend, reconcileSend } from '../arkade/sending.ts';
 import { assertNoPendingSend, readSendRecord, readSendRecords, sendStatus, SendError, type BisSendQuote, type BisSendStatus } from './sending.ts';
-import { watchAssetChanges, listWalletAssets, mintWalletAsset, burnWalletAsset, loadMintAvailability } from '../arkade/assets.ts';
+import { watchAssetChanges, listWalletAssets, mintWalletAsset, burnWalletAsset, deliverWalletAsset, reconcileWalletAssetDelivery, loadMintAvailability } from '../arkade/assets.ts';
 import { assertNoPendingBurn, BurnError, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult } from './burning.ts';
+import { AssetDeliveryError, validateAssetDelivery, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from './asset-delivery.ts';
 import type { BisAssets } from './asset-presentation';
 import { AssetError, assetError, validateMint, readAssetRecords, type BisMintAssetRequest, type BisMintAssetResult, type BisListAssetsResult, type BisPendingMintResult } from './assets.ts';
 import { quoteBoarding, submitBoarding, reconcileBoarding } from '../arkade/boarding.ts';
@@ -80,6 +81,8 @@ export interface BisContext {
   requestContinue(request:BisContinueRequest):Promise<BisContinueResult>;
   getContinueStatus(operationId?:string):Promise<readonly BisContinueResult[]>;
   burnAsset(request:BisBurnAssetRequest):Promise<BisBurnAssetResult>;
+  deliverAsset(request:BisAssetDeliveryRequest):Promise<BisAssetDeliveryResult>;
+  checkAssetDelivery(operationId:string):Promise<BisAssetDeliveryResult>;
   getMintAvailability(): Promise<{canMint:boolean;reason?:string;availableSats?:number;minimumSats?:number}>;
   mintAsset(request: BisMintAssetRequest): Promise<BisMintAssetResult>;
   listAssets(): Promise<BisListAssetsResult>;
@@ -670,6 +673,33 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       } catch(error) {
         return {status:'error',code:error instanceof BurnError?error.code:'unavailable',message:error instanceof BurnError?error.message:'Burn unavailable. Check spendable funds and pending wallet operations, then try again.'};
       }
+    },
+    async deliverAsset(input) {
+      const profileId=state.profileId,current=version;
+      const isCurrent=()=>!disposed&&version===current&&state.profileId===profileId&&state.hasProfile&&state.phase==='active';
+      try {
+        const request=validateAssetDelivery(input);
+        if(!isCurrent())throw new AssetDeliveryError('account-changed','An active account is required.');
+        return await withActiveWalletMutation(async()=>{
+          assertNoPendingSend(profileId);assertNoPendingBoarding(profileId);
+          if(readAssetRecords(profileId!).some(record=>record.status==='pending'))throw new AssetDeliveryError('unavailable','An asset mint is unresolved.');
+          const account=await activeTransferAccount();
+          if(!isCurrent())throw new AssetDeliveryError('account-changed','The account changed.');
+          const result=await deliverWalletAsset(account,request,operation.signal,isCurrent);
+          if((result.status==='delivered'||result.status==='already-delivered')&&isCurrent())walletChanged(account.profileId);
+          return result;
+        });
+      } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery unavailable.',profileId,operationId:input.operationId};}
+    },
+    async checkAssetDelivery(operationId) {
+      try {
+        return await withActiveWalletMutation(async()=>{
+          const account=await activeTransferAccount(),current=version;
+          const result=await reconcileWalletAssetDelivery(account,operationId,operation.signal);
+          if((result.status==='delivered'||result.status==='already-delivered')&&!disposed&&current===version)walletChanged(account.profileId);
+          return result;
+        });
+      } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status unavailable.',profileId:state.profileId,operationId};}
     },
     async getMintAvailability() {
       const profileId=state.profileId,current=version;

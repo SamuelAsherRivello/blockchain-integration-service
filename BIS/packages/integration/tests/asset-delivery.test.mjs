@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assertNoPendingAssetDelivery, readAssetDeliveryRecord, readAssetDeliveryRecords, validateAssetDelivery, writeAssetDeliveryRecord} from '../src/core/asset-delivery.ts';
+import {assertNoPendingAssetDelivery, completeAssetDelivery, readAssetDeliveryRecord, readAssetDeliveryRecords, validateAssetDelivery, writeAssetDeliveryRecord} from '../src/core/asset-delivery.ts';
 
 const assetId = 'a'.repeat(64) + '0000';
 const txid = 'b'.repeat(64);
@@ -26,12 +26,12 @@ test('delivery accepts only exact public request fields', () => {
 
 test('delivery records bind immutable operation, exact recipient and known inputs', () => {
   memory();
-  const pending = {version: 1, id: request.operationId, profileId: 'game-profile', request, status: 'pending', inputs: [input], recipientScript: '5120' + 'd'.repeat(64)};
+  const pending = {version: 1, id: request.operationId, profileId: 'game-profile', request, status: 'pending', inputs: [input], recipientScript: '5120' + 'd'.repeat(64), sourceQuantity: '2', transactionId: txid};
   writeAssetDeliveryRecord(pending);
   assert.deepEqual(readAssetDeliveryRecord('game-profile', request.operationId), pending);
   assert.throws(() => writeAssetDeliveryRecord({...pending, request: {...request, quantity: '2'}}), {code: 'invalid-input'});
   assert.throws(() => assertNoPendingAssetDelivery('game-profile'), {code: 'outcome-unknown'});
-  writeAssetDeliveryRecord({...pending, status: 'succeeded', transactionId: txid});
+  completeAssetDelivery('game-profile', request.operationId, txid);
   assert.equal(readAssetDeliveryRecord('game-profile', request.operationId)?.status, 'succeeded');
   assert.doesNotThrow(() => assertNoPendingAssetDelivery('game-profile'));
 });
@@ -44,7 +44,7 @@ test('delivery state fails closed and never manufactures completion from absent 
   const original = localStorage.setItem;
   localStorage.setItem = () => { throw Error('private storage failure'); };
   try {
-    assert.throws(() => writeAssetDeliveryRecord({version: 1, id: request.operationId, profileId: 'game-profile', request, status: 'pending', inputs: [input], recipientScript: '5120' + 'd'.repeat(64)}), {code: 'unavailable'});
+    assert.throws(() => writeAssetDeliveryRecord({version: 1, id: request.operationId, profileId: 'game-profile', request, status: 'pending', inputs: [input], recipientScript: '5120' + 'd'.repeat(64), sourceQuantity: '1'}), {code: 'unavailable'});
   } finally { localStorage.setItem = original; }
   assert.equal(readAssetDeliveryRecord('game-profile', request.operationId), undefined);
 });

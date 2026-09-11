@@ -1,3 +1,11 @@
 .marketplace-bis-host .bis-layer {
   padding: 43px 10px 10px;
 }
+
+@media (min-width: 1100px) and (max-width: 1600px) {
+  .marketplace-bis-host .bis-layer {
+    padding: 28px 16px 8px;
+    transform: scale(.68);
+    transform-origin: top right;
+  }
+}

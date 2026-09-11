@@ -37,8 +37,15 @@
 ## OpenSpec directory
 
 - The canonical, tracked planning directory is `.openspec/`.
+- Before any OpenSpec command or planning-file lookup, check `.openspec/` from
+  the repository root. Its presence establishes the project planning home;
+  never treat a missing plain `openspec/` directory as a missing OpenSpec
+  project.
 - Run `./.openspec/setup.ps1` with PowerShell 7 before using OpenSpec on a fresh checkout. OpenSpec CLI must already be installed.
 - The setup script creates an ignored local `openspec` junction on Windows or symbolic link on other systems, pointing to `.openspec/` for stock CLI compatibility.
+- Treat plain `openspec/` only as that generated compatibility link. Confirm it
+  with `Get-Item -Force openspec` when needed, but inspect, edit, and stage
+  only `.openspec/`; never create a second plain directory.
 - Run OpenSpec commands from the repository root. CLI-reported `openspec/...` paths refer to the same files as `.openspec/...`.
 - Make edits and stage planning files through `.openspec/`. Never force-add the compatibility link or create a second planning directory.
 - Keep upstream-generated OpenSpec skills unchanged; their standard paths resolve through the compatibility link.

@@ -12,9 +12,22 @@ h1 { margin-top: 0; letter-spacing: -.04em; }
 .asset-card { border-color: #b8cbd1; background: #fbfdfd; border-radius: 16px; box-shadow: none; transition: background-color 140ms ease-out, border-color 140ms ease-out, transform 140ms ease-out; }
 .asset-card:hover, .asset-card:focus-visible { border-color: #487d66; background: #f5fffc; box-shadow: none; }
 .detail { border: 0; border-radius: 16px; background: #fbfdfd; box-shadow: 0 18px 42px rgb(8 24 32 / 30%); }
+.detail .marketplace-detail-field { display: flex; flex-wrap: wrap; align-items: end; gap: 5px; min-width: 0; margin: 0; color: #294650; font: 600 13px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; text-align: left; }
+.detail .marketplace-detail-field .bis-copy-field-heading { gap: 4px; font: inherit; }
+.detail .marketplace-detail-field .bis-copy-icon { flex-basis: 1.15em; width: 1.15em; height: 1.15em; padding: 0; font: inherit; }
+.detail .marketplace-detail-field input { width: 100%; min-width: 0; padding: 8px 10px; border: .8px solid #c8d7dc; border-radius: 8px; background: #fff; color: inherit; font: inherit; text-align: left; }
+.detail .marketplace-generic-fields .marketplace-asset-id input { padding: 9px 10px; }
+.detail .marketplace-gameplay-fields input { text-align: left; color: #487d66; }
+.detail .marketplace-detail-field .bis-copy-status { flex-basis: 100%; min-height: 0; font-size: 10px; }
 .backdrop { background: rgb(24 45 57 / 47%); backdrop-filter: blur(2px); }
 .catalog-scroll { scrollbar-color: #77939b #dce7e9; }
 .catalog-scroll::-webkit-scrollbar { width: 10px; }
 .catalog-scroll::-webkit-scrollbar-track { background: #dce7e9; border-radius: 5px; }
 .catalog-scroll::-webkit-scrollbar-thumb { background: #77939b; border: 2px solid #dce7e9; border-radius: 5px; }
+.marketplace-info { display: grid; gap: 18px; text-align: left; }
+.marketplace-info > p { margin: 0; color: #506774; line-height: 1.45; }
+.marketplace-info-group { display: grid; gap: 8px; }
+.marketplace-info-group h2 { margin: 0; color: #182d39; font-size: 22px; }
+.marketplace-info-group ul, .marketplace-info-group ol { margin: 0; text-align: left; }
+.marketplace-info hr { width: 100%; height: 1px; margin: 0; border: 0; background: #c8d7dc; }
 @media (prefers-reduced-motion: reduce) { .filter-row button, .asset-card { transition: none; } .filter-row button:hover:not([aria-pressed="true"]), .asset-card:hover { transform: none; } }

@@ -14,33 +14,33 @@ function fixture() {
  return {map,adapter,pay:createGamePlayerPayments(adapter),submits:()=>submits};
 }
 test('F2 journals before completion, blocks retries and retains recovery on player cleanup',async()=>{
- const f=fixture();const result=await f.pay.pay(sender,recipient,new AbortController().signal,()=>true);
+ const f=fixture();const result=await f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>true);
  assert.equal(result.status,'pending');assert.equal(f.submits(),1);
  assert.equal(paymentSender({identifier:`ark:${txid}`,amountSats:1000},'player'),'sender');
  assert.equal(paymentSender({identifier:`ark:${txid}`,amountSats:999},'player'),undefined);
  assert.equal(paymentSender({identifier:`ark:${txid}`,amountSats:1000},'other'),undefined);
- await assert.rejects(f.pay.pay(sender,recipient,new AbortController().signal,()=>true));
+ await assert.rejects(f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>true));
  clearBrowserPreferences(globalThis.localStorage);assert.equal(readSendRecord('sender').status,'pending');
  assert.equal((await createGamePlayerPayments(f.adapter).check(sender,new AbortController().signal)).status,'pending');
 });
 test('no submission after account changes or quote failure',async()=>{
  const f=fixture();let current=true;f.adapter.quote=async()=>{current=false;throw Error('Insufficient funds');};
- await assert.rejects(f.pay.pay(sender,recipient,new AbortController().signal,()=>current));assert.equal(f.submits(),0);
- await assert.rejects(f.pay.pay(sender,{...recipient,profileId:'sender'},new AbortController().signal,()=>true));
+ await assert.rejects(f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>current));assert.equal(f.submits(),0);
+ await assert.rejects(f.pay.pay(sender,{...recipient,profileId:'sender'},1000,new AbortController().signal,()=>true));
 });
 test('identity change after a successful quote prevents submission',async()=>{
  const f=fixture();let current=true;const quote=f.adapter.quote;
  f.adapter.quote=async(...args)=>{const result=await quote(...args);current=false;return result;};
- await assert.rejects(f.pay.pay(sender,recipient,new AbortController().signal,()=>current));
+ await assert.rejects(f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>current));
  assert.equal(f.submits(),0);
 });
 
 test('historical 1000-sat payment remains recognized and blocks a new payment',async()=>{
- const f=fixture();await f.pay.pay(sender,recipient,new AbortController().signal,()=>true);
+ const f=fixture();await f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>true);
  const record=readSendRecord('sender');
  writeSendRecord({...record,quote:{...record.quote,amountSats:1000,totalSats:1000}});
  f.map.set('bis-game-player-payment:'+txid,JSON.stringify({senderId:'sender',playerId:'player',amountSats:1000}));
  assert.equal(paymentSender({identifier:`ark:${txid}`,amountSats:1000},'player'),'sender');
- await assert.rejects(f.pay.pay(sender,recipient,new AbortController().signal,()=>true));
+ await assert.rejects(f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>true));
  assert.equal(f.submits(),1);
 });

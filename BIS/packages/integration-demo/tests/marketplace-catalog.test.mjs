@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
-  createVerifiedMarketplaceCatalog,
-  isVerifiedMarketplaceCatalog,
   marketplaceCatalogItems,
   marketplaceMintRequest,
   verifiedMarketplaceRecordsFromAssets,
@@ -23,12 +22,6 @@ test('the public Stealth & Steel catalog requires all nine verified mint records
   ]);
   assert.deepEqual(marketplaceCatalogItems.map(item => item.priceSats), [1000, 2000, 3000, 1100, 2100, 3100, 1200, 2200, 3200]);
   assert.deepEqual(marketplaceCatalogItems.map(item => item.effectPercent), [10, 20, 30, 10, 20, 30, 10, 20, 30]);
-  const catalog = createVerifiedMarketplaceCatalog(address, mintedItems);
-  assert.ok(catalog);
-  assert.equal(isVerifiedMarketplaceCatalog(catalog), true);
-  assert.equal(createVerifiedMarketplaceCatalog(address, mintedItems.slice(0, 8)), null);
-  assert.equal(createVerifiedMarketplaceCatalog(address, mintedItems.map((item, index) => index === 4 ? {...item, assetId:''} : item)), null);
-  assert.equal(createVerifiedMarketplaceCatalog(address, mintedItems.map((item, index) => index === 4 ? {...item, name:'Wrong item'} : item)), null);
 });
 
 test('every catalog mint uses a deterministic, distinct operation ID for recovery', () => {
@@ -51,14 +44,16 @@ test('every catalog mint uses a deterministic, distinct operation ID for recover
   });
 });
 
-test('the catalog input rejects templates and mismatched game data', () => {
-  assert.equal(isVerifiedMarketplaceCatalog({
-    version: 1, gameId: 'stealth-and-steel', gameWalletAddress: address,
-    items: marketplaceCatalogItems,
-  }), false);
-  assert.equal(isVerifiedMarketplaceCatalog({
-    version: 1, gameId: 'another-game', gameWalletAddress: address, items: mintedItems,
-  }), false);
+test('Admin does not contain a development-only static Marketplace catalog publisher', async () => {
+  const [panel, vite] = await Promise.all([
+    readFile(new URL('../src/admin/MarketplacePanel.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../vite.config.ts', import.meta.url), 'utf8'),
+  ]);
+  assert.match(panel, /live inventory/);
+  assert.doesNotMatch(panel, /__bis-marketplace-catalog|createVerifiedMarketplaceCatalog/);
+  assert.doesNotMatch(vite, /marketplaceCatalogPublisher|__bis-marketplace-catalog|writeFile/);
+  const catalogSource = await readFile(new URL('../src/admin/marketplace-catalog.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(catalogSource, /PublishedMarketplaceCatalog|createVerifiedMarketplaceCatalog|isVerifiedMarketplaceCatalog/);
 });
 
 test('fresh chain holdings must contain exactly one fully classified asset per catalog item', () => {

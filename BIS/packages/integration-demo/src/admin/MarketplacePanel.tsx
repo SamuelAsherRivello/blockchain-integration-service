@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { createBisGameWallet } from '@bis/integration';
 import { prepareMintDestination } from './mint-destination';
-import { createVerifiedMarketplaceCatalog } from './marketplace-catalog';
 import { mintAndVerifyMarketplaceCatalog } from './marketplace-mint-batch';
 import { burnAllMarketplaceItems } from './marketplace-burn-batch';
 import { StoryButton } from './StoryButton';
@@ -18,14 +17,8 @@ export function MarketplacePanel({ controller, onLog }: {controller?: ReturnType
       const target = await prepareMintDestination('game', controller, () => controller.getState().profileId === targetProfile, result => onLog({operation:'H. Marketplace mint', result}));
       const batch = await mintAndVerifyMarketplaceCatalog({mint:target.mint,listAssets:()=>controller.listAssets()}, target.isCurrent);
       if (batch.status === 'error') { setMessage(`Catalog paused${batch.itemName ? ` at ${batch.itemName}` : ''}: ${batch.code}.`); onLog({operation:'H. Marketplace batch', result:batch}); return; }
-      const address = controller.getState().addresses?.arkadeAddress;
-      if (!address) { setMessage('Catalog minted, but the game-wallet address is unavailable for publication.'); return; }
-      const published = createVerifiedMarketplaceCatalog(address, batch.records);
-      if (!published) throw Error('The nine-item catalog could not be verified.');
-      const response = await fetch('/__bis-marketplace-catalog', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(published)});
-      if (!response.ok) throw Error();
-      setMessage('Nine verified catalog items were published to the Marketplace static input.'); onLog({operation:'H. Marketplace published catalog', published});
-    } catch { setMessage('Catalog issuance is unavailable or needs recovery. No unverified item was published.'); }
+      setMessage('Nine verified catalog items are now available from this Game Wallet’s live inventory.'); onLog({operation:'H. Marketplace verified catalog', result:batch});
+    } catch { setMessage('Catalog issuance is unavailable or needs recovery. No unverified item was reported.'); }
     finally { setBusy(false); }
   }
   async function burnCatalog() {
