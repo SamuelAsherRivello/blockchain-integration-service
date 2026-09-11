@@ -57,12 +57,10 @@ Use `npm run preview` to serve the production build locally.
 
 ## Project Overview
 
-<!-- AI: Summarize the project's purpose, main capabilities, and intended use cases. Describe current implementation; label planned capabilities explicitly rather than presenting them as complete. Keep detailed tooling under Project Details. -->
+<!-- AI: Summarize the project's purpose, main capabilities, and intended use cases. Describe current implementation; label planned capabilities explicitly rather than presenting them as complete. Keep detailed tooling under Project Details. Keep this section brief; do not add release-specific status, smoke-test, or future-work detail unless explicitly requested. -->
 BIS separates reusable game integration from its development demo. The integration owns account creation and restoration, browser persistence, balances, transaction history, receiving addresses, Arkade sending, Bitcoin/Arkade transfer flows, and generic asset minting, listing, and burning. The demo provides admin controls, a console, and a portrait runtime preview through the public API.
 
 This is a Signet-only work in progress with no custom application server. Payment and transfer flows have documented verification limits; Lightning invoice receiving is currently unavailable. Games remain separate and can be playable without an account. See the user stories and package documentation for implementation status and remaining checks.
-
-v0.12.0 adds native compact account sizing and a host-owned restart event after confirmed logout cleanup. Lightning Intents and multi-game support are not implemented. Automated game host/UI checks are recorded in the [smoke-test evidence](.openspec/changes/smoke-test-bis-to-game/verification.md); the full user-assisted create/reload/logout/restore loop and Android acceptance remain open.
 
 ### 📝 Documentation
 
@@ -93,10 +91,8 @@ The root `package.json`, `package-lock.json`, and `tsconfig.json` configure npm 
 
 ## Project Details
 
-<!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. -->
+<!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. Keep this section brief; do not add test commands, test caveats, or dependency-version inventory unless explicitly requested. -->
 React and TypeScript power both packages, with Vite for development and production builds. `@bis/integration-demo` consumes `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. Arkade-specific types and recovery material stay out of public state and events.
-
-Run `npm run typecheck` for type checking or `npm test` for the existing integration and demo tests. Tests use isolated fixtures; passing them does not establish live payment acceptance. Package versions are currently `0.14.1`, and `package-lock.json` pins the dependency tree.
 
 ### 📦 AI
 
