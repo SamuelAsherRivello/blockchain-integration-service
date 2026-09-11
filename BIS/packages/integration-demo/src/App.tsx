@@ -141,7 +141,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
   function start() {
     // Read the currently imported wallet at submission time without replacing the
     // player context or interrupting reconciliation of an existing payment.
-    const context = contextFactory({get continueRecipient() { return recipientRef.current; }});
+    const context = contextFactory({get continueRecipient() { return recipientRef.current; },gameWalletProfileId: () => gameWalletRef.current?.getState().profileId});
     const gameWallet = gameWalletFactory({playerProfileId: () => context.getState().profileId});
     setRuntimeContext(context);
     setGameWalletController(gameWallet);

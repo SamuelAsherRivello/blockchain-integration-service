@@ -8,6 +8,7 @@ import { createAccount, restoreAccount, type AccountSecret } from '../arkade/acc
 import { loadAddresses, type AccountAddresses } from '../arkade/addresses.ts';
 import { loadBalance, type BalanceAmounts } from '../arkade/balance.ts';
 import { createGameWalletStorage, type GameWalletStorage } from './game-wallet-storage.ts';
+import { WalletRoleConflictError, withWalletRoleSelection } from './wallet-role.ts';
 import {burnWalletAsset,deliverWalletAsset,listWalletAssets,loadMintAvailability,mintWalletAsset,reconcileWalletAssetDelivery} from '../arkade/assets.ts';
 import {withWalletMutation} from './boarding-record.ts';
 import {validateMint,assetError,AssetError,readAssetRecords,type BisListAssetsResult,type BisMintAssetRequest,type BisMintAssetResult} from './assets.ts';
@@ -73,7 +74,13 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     if (disposed) return;
     if (importing) { refreshQueued = true; return; }
     const signal = begin(); publish({status:'loading', profileId:state.profileId});
-    try { await inspect(await storage.load(), signal); }
+    try {
+      const account=await storage.load();
+      if(account?.profileId===options.playerProfileId()) {
+        selectProfile(undefined);publish({status:'unavailable',message:'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.'});return;
+      }
+      await inspect(account, signal);
+    }
       catch { if (!signal.aborted) publish({status:'unavailable', message:'Game wallet storage unavailable. Use Details to retry.'}); }
   }
   const unsubscribe = storage.subscribe(() => { void refresh(); });
@@ -82,6 +89,12 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     const account = await storage.load();
     if (disposed || importing || !account || account.profileId !== state.profileId || account.profileId === options.playerProfileId()) throw Error('Select a separate game wallet first.');
     return account;
+  }
+  async function selectSeparateGameWallet(account: AccountSecret, signal: AbortSignal) {
+    await withWalletRoleSelection(account.profileId,options.playerProfileId,'This wallet is already configured as the Player Wallet. Restore or create a separate Game Wallet.',async()=>{
+      await storage.select(account);signal.throwIfAborted();selectProfile(account.profileId);publish({status:'loading',profileId:account.profileId});
+    });
+    await inspect(account,signal);
   }
   let paying = false;
   function getPlayerPaymentBlockReason(): string | undefined {
@@ -187,15 +200,10 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       try {
         const account = await dependencies.restore(phrase, signal);
         signal.throwIfAborted();
-        if (account.profileId === options.playerProfileId()) {
-          publish({...previous, message:'This recovery phrase belongs to the player wallet. Restore or create a separate game wallet.'});
-          return false;
-        }
-        await storage.select(account);
-        await inspect(account, signal);
+        await selectSeparateGameWallet(account,signal);
         return true;
-      } catch {
-        if (!signal.aborted) publish({...previous, message:'Import failed. Check the recovery phrase, connection, and use a wallet different from the player.'});
+      } catch (error) {
+        if (!signal.aborted) publish({...previous, message:error instanceof WalletRoleConflictError?'This recovery phrase belongs to the player wallet. Restore or create a separate game wallet.':'Import failed. Check the recovery phrase, connection, and use a wallet different from the player.'});
         return false;
       } finally { importing = false; if (refreshQueued) { refreshQueued = false; void refresh(); } }
     },
@@ -261,16 +269,18 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       }
     },
     async selectWallet(account: AccountSecret) {
-      if (disposed || importing || account.profileId === options.playerProfileId()) return false;
+      if (disposed || importing) return false;
+      if (account.profileId === options.playerProfileId()) {
+        publish({...state,message:'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.'});
+        return false;
+      }
       importing = true;
       const previous = state, signal = begin(); publish({...previous, status:'loading', message:undefined});
       try {
-        await storage.select(account);
-        signal.throwIfAborted();
-        await inspect(account, signal);
+        await selectSeparateGameWallet(account,signal);
         return true;
-      } catch {
-        if (!signal.aborted) publish({...previous, message:'Game wallet setup failed. Check the connection and try again.'});
+      } catch (error) {
+        if (!signal.aborted) publish({...previous, message:error instanceof WalletRoleConflictError?'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.':'Game wallet setup failed. Check the connection and try again.'});
         return false;
       } finally {
         importing = false;

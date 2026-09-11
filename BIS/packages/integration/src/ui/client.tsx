@@ -119,6 +119,7 @@ function BisScreen({ context, gameWallet, onDeveloperDialogChange, onGameWalletD
         </>}
         {(savedRecovery || recovery || state.phase === 'creating') && <TestWalletWarning />}
         {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <RecoveryPhrasePanel key={savedRecovery ? 'saved' : 'setup'} phrase={getControls(context).recovery()} session={recoverySession} disabled={busy} />}
+        {state.error && !busy && <p role="alert">{state.error}</p>}
         {gameWalletLogin && gameWallet ? <GameWalletLogin wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
           <div className="bis-copy-field-heading"><h3>Player Wallet</h3></div>
           <button className="bis-button" disabled={!state.hasProfile || busy} onClick={() => { setDeveloperOpen(false); context.openAccountOnboarding?.(); }}>{onboardingLabel(state.onboarding)}</button>

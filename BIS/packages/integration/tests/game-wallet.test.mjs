@@ -55,11 +55,11 @@ test('boarding uses selected game identity and rejects a quote from another wall
   c.dispose();
 });
 function fixture() {
-  let selected = null;
+  let selected = null,playerProfileId='player';
   const saved = new Map(), listeners = new Set();
   const storage = {logout:async()=>{selected=null;},load:async()=>selected, select:async a=>{saved.set(a.profileId,a);selected=a;},subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);},dispose(){}};
   const dependencies = {storage, restore:async phrase=>{if(phrase==='invalid')throw Error('sensitive');return {phrase,profileId:phrase};},addresses:async a=>({arkadeAddress:`tark1${a.profileId}`,bitcoinAddress:`tb1${a.profileId}`}),balance:async()=>({availableSats:1000,totalSats:1000,bitcoinSats:0,arkadeSats:1000})};
-  return {dependencies,saved,listeners,create:()=>createBisGameWallet({playerProfileId:()=> 'player'},dependencies)};
+  return {dependencies,saved,listeners,setPlayerProfileId:value=>{playerProfileId=value;},create:()=>createBisGameWallet({playerProfileId:()=> playerProfileId},dependencies)};
 }
 test('import retains wallets, reselects without duplicates and restores last selection',async()=>{
   const f=fixture(),c=f.create();await tick();
@@ -79,6 +79,16 @@ test('F2 create requires explicit selection and publishes a new non-secret selec
   assert.ok(c.getState().selectionVersion>before);assert.equal('phrase' in c.getState(),false);
   const selectedVersion=c.getState().selectionVersion;await c.logout();
   assert.ok(c.getState().selectionVersion>selectedVersion);assert.equal(c.getState().status,'empty');c.dispose();
+});
+test('Game Wallet selection and refresh reject a Player Wallet match without replacing storage',async()=>{
+  const f=fixture(),c=f.create();await tick();await c.importWallet('a');
+  f.setPlayerProfileId('b');
+  assert.equal(await c.selectWallet({profileId:'b',phrase:'b'}),false);
+  assert.equal(c.getState().profileId,'a');assert.match(c.getState().message,/Player Wallet/);
+  f.setPlayerProfileId('a');await c.refresh();
+  assert.equal(c.getState().status,'unavailable');assert.equal(c.getState().profileId,undefined);
+  f.setPlayerProfileId(undefined);await c.refresh();
+  assert.equal(c.getState().profileId,'a');assert.equal(c.getState().status,'ready');c.dispose();
 });
 test('late balance read cannot populate a different selected wallet',async()=>{
   const f=fixture();let resolve;

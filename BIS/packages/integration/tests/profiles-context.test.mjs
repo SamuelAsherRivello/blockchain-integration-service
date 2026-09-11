@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createContext, getControls } from '../src/core/context.ts';
 
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-function fixture({assets={list:async()=>[],mint:async()=>{throw Error('unused');}}}={}) {
+function fixture({assets={list:async()=>[],mint:async()=>{throw Error('unused');}},gameWalletProfileId=()=>undefined}={}) {
   const accounts=new Map([
     ['profile-a',{profileId:'profile-a',phrase:'phrase a'}],
     ['profile-b',{profileId:'profile-b',phrase:'phrase b'}],
@@ -18,9 +18,28 @@ function fixture({assets={list:async()=>[],mint:async()=>{throw Error('unused');
     async reset(expected,options){if(expected!==generation||active!==options?.profileId)throw Error('stale');accounts.delete(active);active=undefined;generation++;notify();},
     subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener);},
   };
-  const context=createContext(storage,async()=>({profileId:'profile-c',phrase:'phrase c'}),async phrase=>phrase.endsWith('b')?'profile-b':phrase.endsWith('c')?'profile-c':'profile-a',async()=>({profileId:'profile-b',phrase:'phrase b'}),undefined,undefined,undefined,undefined,undefined,assets);
+  const context=createContext(storage,async()=>({profileId:'profile-c',phrase:'phrase c'}),async phrase=>phrase.endsWith('b')?'profile-b':phrase.endsWith('c')?'profile-c':'profile-a',async()=>({profileId:'profile-b',phrase:'phrase b'}),undefined,undefined,undefined,undefined,undefined,assets,undefined,undefined,undefined,{gameWalletProfileId});
   return {context,accounts,get active(){return active;},get generation(){return generation;}};
 }
+
+test('player creation and restoration reject the identity selected as Game Wallet',async()=>{
+  for (const gameWalletProfileId of ['profile-c','profile-b']) {
+    const f=fixture({gameWalletProfileId:()=>gameWalletProfileId});await f.context.ready();f.context.openProfileChooser();
+    if(gameWalletProfileId==='profile-c') {await f.context.createAccount();await f.context.continueAccount();}
+    else {f.context.openRestoreAccount();await getControls(f.context).restore('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');}
+    assert.equal(f.context.getState().profileId,'profile-a');
+    assert.equal(f.accounts.has(gameWalletProfileId),gameWalletProfileId==='profile-b');
+    assert.match(f.context.getState().error??'',/Game Wallet/);
+    f.context.dispose();
+  }
+});
+
+test('saved Player Wallet selection rejects the identity selected as Game Wallet',async()=>{
+  const f=fixture({gameWalletProfileId:()=> 'profile-b'});await f.context.ready();
+  await assert.rejects(f.context.selectProfile('profile-b'),/Game Wallet/);
+  assert.equal(f.context.getState().profileId,'profile-a');assert.equal(f.active,'profile-a');
+  assert.match(f.context.getState().error??'',/Game Wallet/);f.context.dispose();
+});
 
 test('programmatic profile selection aborts stale reads and preserves both profile records',async()=>{
   let resolve;const delayed=new Promise(r=>resolve=r);

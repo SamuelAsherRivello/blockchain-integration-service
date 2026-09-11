@@ -32,6 +32,7 @@ import { withTransferActivity, withMintActivity, withSendActivity, type BisActiv
 import { createAccount, restoreAccount, identify, type AccountSecret } from '../arkade/account.ts';
 import { phraseWords, validRecovery } from './recovery-validation.ts';
 import { createAccountStorage, type AccountStorage, type StoredAccount } from './account-storage.ts';
+import { WalletRoleConflictError, withWalletRoleSelection } from './wallet-role.ts';
 import { loadBalance, type BalanceAmounts } from '../arkade/balance.ts';
 import { loadAddresses, type AccountAddresses } from '../arkade/addresses.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
@@ -133,7 +134,9 @@ export function getControls(context: BisContext): Controls {
   return result;
 }
 // Private dependency seam for isolated tests; not exported by the package.
-export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: {continueRecipient?: string} = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined, onboardingFactory:((account:AccountSecret,current:()=>boolean)=>OnboardingAdapter)|undefined = create===createAccount&&identifyAccount===identify&&readBalance===loadBalance?createOnboardingAdapter:undefined): BisContext {
+type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined};
+const playerGameWalletConflict = 'This wallet is already configured as the Game Wallet. Use a different Player Wallet.';
+export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: BisContextOptions = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined, onboardingFactory:((account:AccountSecret,current:()=>boolean)=>OnboardingAdapter)|undefined = create===createAccount&&identifyAccount===identify&&readBalance===loadBalance?createOnboardingAdapter:undefined): BisContext {
   const toasts = createToastQueue();
   const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
   if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
@@ -400,6 +403,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     } catch {if(!disposed&&version===current) fail('load','Your saved account could not be opened. ');}
   }
   let initialization: Promise<void>;
+  const commitPlayerRole = <T>(account: AccountSecret, work: () => Promise<T>) => withWalletRoleSelection(account.profileId, () => options.gameWalletProfileId?.(), playerGameWalletConflict, work);
   function activateRestored(account: AccountSecret, current: number) {
     if (disposed || version !== current) return;
     pending=undefined; restorePhrase=undefined; failure=undefined; confirmedProfile=account.profileId;
@@ -428,18 +432,19 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       }
       const account=pending;
       update({phase:'restore-saving'});
-      await storage.save(account,generation,operation.signal);
-      if(disposed)return;
-      if(version!==current){await initialization;return;}
-      const saved=await readStable(current);
-      if(disposed||version!==current) return;
-      if(saved.generation!==generation || saved.account?.profileId!==account.profileId) {
-        pending=undefined;restorePhrase=undefined;acceptLoaded(saved,current);return;
-      }
-      activateRestored(account,current);
-      if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
-    } catch {
-      if(!disposed&&version===current) update({phase:'restore-error',error:pending?'Your account could not be confirmed saved.':'The test service could not be reached.'});
+      await commitPlayerRole(account, async()=>{
+        await storage.save(account,generation,operation.signal);
+        if(disposed||version!==current)return;
+        const saved=await readStable(current);
+        if(disposed||version!==current) return;
+        if(saved.generation!==generation || saved.account?.profileId!==account.profileId) {
+          pending=undefined;restorePhrase=undefined;acceptLoaded(saved,current);return;
+        }
+        activateRestored(account,current);
+        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
+      });
+    } catch (error) {
+      if(!disposed&&version===current) update({phase:'restore-error',error:error instanceof WalletRoleConflictError?error.message:(pending?'Your account could not be confirmed saved.':'The test service could not be reached.')});
     }
   }
   let walletRefreshQueued = false;
@@ -918,7 +923,8 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if(!state.savedProfiles.includes(profileId)||typeof storage.selectProfile!=='function')throw Error('Select a saved profile.');
       if(state.profileId===profileId){update({profileChooser:false});return;}
       const current=version,expected=generation;
-      await storage.selectProfile(profileId,expected,operation.signal);
+      try {await withWalletRoleSelection(profileId,()=>options.gameWalletProfileId?.(),playerGameWalletConflict,()=>storage.selectProfile!(profileId,expected,operation.signal));}
+      catch(error) {if(error instanceof WalletRoleConflictError)update({error:error.message});throw error;}
       if(disposed)return;
       if(version!==current){await initialization;return;}
       initialization=hydrate();await initialization;
@@ -964,15 +970,17 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       const current=version;const account=pending;
       update({phase:'saving',error:undefined});
       try {
-        await storage.save(account,generation,operation.signal);
-        if(disposed)return;
-        if(version!==current){await initialization;return;}
-        pending=undefined;failure=undefined;
-        confirmedProfile=account.profileId;
-        update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
-        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
-        emit({type:'accountConnected',profileId:account.profileId},current);
-      }catch {if(!disposed&&version===current)fail('save','Your account could not be saved.');}
+        await commitPlayerRole(account,async()=>{
+          await storage.save(account,generation,operation.signal);
+          if(disposed)return;
+          if(version!==current){await initialization;return;}
+          pending=undefined;failure=undefined;
+          confirmedProfile=account.profileId;
+          update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
+          if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
+          emit({type:'accountConnected',profileId:account.profileId},current);
+        });
+      }catch(error) {if(!disposed&&version===current){if(error instanceof WalletRoleConflictError)update({phase:'recovery',error:error.message});else fail('save','Your account could not be saved.');}}
     },
     openLogoutConfirmation() {
       assertAlive();
@@ -1115,7 +1123,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   initialization=hydrate();
   return context;
 }
-export function createBisContext(options: {continueRecipient?: string} = {}): BisContext {return createContext(createAccountStorage(), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, options);}
+export function createBisContext(options: BisContextOptions = {}): BisContext {return createContext(createAccountStorage(), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, options);}
 export function createBisAdminContext(context: BisContext) {
   const internal=getControls(context);internal.assertAlive();
   return Object.freeze({resetClient:()=>internal.reset(), fund1000Sats:()=>internal.fund(), getFundingAddress:()=>internal.fundingAddress()});
