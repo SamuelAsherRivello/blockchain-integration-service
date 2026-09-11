@@ -13,7 +13,7 @@ See proposal.md for motivation. The completed Marketplace/BIS change has already
 **Non-Goals:**
 
 - Add Arkade, wallet recovery data, Marketplace internals, a bundled item-art mapping, or an alternate trade settlement path to the game.
-- Change any gameplay mechanic beyond the three approved item effects and their Settings/HUD surfaces.
+- Change any gameplay mechanic beyond the three approved item effects and their main-menu Items/HUD surfaces.
 
 ## Decisions
 
@@ -23,7 +23,15 @@ The game shall obtain only the effective public loadout when spawning a player, 
 
 ### Render chain URLs directly with honest fallback
 
-Settings and the HUD shall use each selected item's supplied icon URL at runtime. A failed image may use an honest unavailable state but shall not substitute catalog-keyed bundled art, ensuring the game renders the same verified identity as BIS and Marketplace.
+The main-menu Items window and HUD shall use each selected item's supplied icon URL at runtime. A failed image may use an honest unavailable state but shall not substitute catalog-keyed bundled art, ensuring the game renders the same verified identity as BIS and Marketplace.
+
+### Place Items at the main-menu boundary
+
+The game shall remove the Items affordance from Settings and place the existing `Items` label, prefixed by its lightning bolt, directly below Start in the main menu. The menu shall derive its enabled state from the active public player-profile state, without adding player-facing explanation or a separate account prompt. This keeps account-free guest play intact while giving a connected player a clear equipment entry point before starting a run.
+
+### Use a fixed, reference-matched 3-by-3 equipment grid
+
+The Items window shall retain only its existing title and item content plus the exact required body instruction. It shall allocate a fixed three-column by three-row tile region instead of letting the list determine dialog height or scroll. Each occupied tile will be square and reproduce the supplied reference hierarchy: large icon, name and sats price, then Speed, Offense, and Defense values. A selected tile will use a conspicuous high-contrast surface, strong outline, and non-text indicator, rather than adding a textual selected label. This was chosen over a subtle color-only treatment because the current state is too easy to miss, and over new helper copy because no new visible text is permitted.
 
 ### Treat verification as cross-project acceptance
 
@@ -39,6 +47,6 @@ Focused tests establish each calculation and UI state; package and browser check
 ## Migration Plan
 
 1. Update the vendored package through the established package workflow and verify a single compatible React runtime.
-2. Add Settings Items, spawn snapshot effects, and HUD slots with focused game tests.
+2. Add the player-gated main-menu Items window, spawn snapshot effects, and HUD slots with focused game tests.
 3. Run BIS, Marketplace, package-consumer, and game verification; then collect non-secret browser and Signet evidence.
 4. Roll back by reverting the consumer package/artifact and game changes; do not alter saved wallet/profile state or chain assets.

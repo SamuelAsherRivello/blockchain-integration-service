@@ -42,10 +42,28 @@ export function readLocalMarketplaceCheckout(id:string|undefined):BisMarketplace
   try {const raw=localStorage.getItem(key(id));if(raw===null)return;const record=JSON.parse(raw);if(!validRecord(record,id))throw Error();return record;}
   catch {throw Error('Marketplace checkout recovery data is invalid.');}
 }
+/** Reads every durable local checkout so an item reservation survives a page reload. */
+export function readLocalMarketplaceCheckouts():BisMarketplaceCheckoutRecord[] {
+  try {
+    const records:BisMarketplaceCheckoutRecord[]=[];
+    for(let index=0;index<localStorage.length;index++) {
+      const storageKey=localStorage.key(index);
+      if(!storageKey?.startsWith(prefix))continue;
+      const id=storageKey.slice(prefix.length),raw=localStorage.getItem(storageKey);
+      if(!raw||records.some(record=>record.request.id===id))throw Error();
+      const record=JSON.parse(raw);
+      if(!validRecord(record,id))throw Error();
+      records.push(record);
+    }
+    return records.sort((left,right)=>left.request.id.localeCompare(right.request.id));
+  } catch {throw Error('Marketplace checkout recovery data is invalid.');}
+}
+function sellerProfile(request:BisMarketplaceCheckoutRequest){return request.direction==='buy'?request.game.profileId:request.player.profileId;}
 export function beginLocalMarketplaceCheckout(request:BisMarketplaceCheckoutRequest):BisMarketplaceCheckoutRecord {
   if(!validRequest(request))throw Error('Local checkout needs distinct active wallets, one exact item, and a whole-sats price.');
   const existing=readLocalMarketplaceCheckout(request.id);
   if(existing) {if(JSON.stringify(existing.request)!==JSON.stringify(request))throw Error('Marketplace checkout request changed.');return existing;}
+  if(readLocalMarketplaceCheckouts().some(record=>record.status==='pending'&&record.request.assetId===request.assetId&&sellerProfile(record.request)===sellerProfile(request)))throw Error('This exact item is already reserved by a pending marketplace checkout.');
   return write({version:1,request:Object.freeze({...request,player:Object.freeze({...request.player}),game:Object.freeze({...request.game})}),status:'pending',phase:request.direction==='buy'?'payment':'delivery'});
 }
 function pending(record:BisMarketplaceCheckoutRecord,phase:BisMarketplaceCheckoutRecord['phase'],message:string):BisMarketplaceCheckoutRecord {return write({...record,phase,message});}
@@ -59,20 +77,28 @@ export async function advanceLocalMarketplaceCheckout(record:BisMarketplaceCheck
   if(current.phase==='payment') {
     current=pending(current,'payment-submitted','Payment submitted; awaiting confirmation.');
     const result=await deps.pay({recipient:current.request.direction==='buy'?current.request.game.address:current.request.player.address,amountSats:current.request.priceSats});
-    if(result.status!=='succeeded')return current;
+    if(result.status!=='succeeded'||!result.transactionId||!/^[a-f0-9]{64}$/i.test(result.transactionId))return current;
     current=current.request.direction==='buy'
       ?write({...current,phase:'delivery',...(result.transactionId?{paymentTransactionId:result.transactionId}:{}),message:'Payment confirmed; preparing item delivery.'})
       :completed({...current,...(result.transactionId?{paymentTransactionId:result.transactionId}:{})});
     if(current.status==='completed')return current;
   }
   if(current.phase==='delivery') {
-    current=pending(current,'delivery-submitted','Item delivery submitted; awaiting fresh ownership confirmation.');
+    current=pending(current,'delivery-submitted','Completing checkout.');
     const result=await deps.deliver({recipient:current.request.direction==='buy'?current.request.player.address:current.request.game.address,assetId:current.request.assetId,quantity:current.request.quantity});
-    if(result.status!=='delivered')return current;
+    if(result.status!=='delivered'||!result.transactionId||!/^[a-f0-9]{64}$/i.test(result.transactionId))return current;
     current=current.request.direction==='buy'
       ?completed({...current,...(result.transactionId?{deliveryTransactionId:result.transactionId}:{})})
       :write({...current,phase:'payment',...(result.transactionId?{deliveryTransactionId:result.transactionId}:{}),message:'Item delivery confirmed; preparing payment.'});
     if(current.status==='completed')return current;
+  }
+  // Sell-back starts with delivery, so a confirmed delivery must continue to
+  // its payment leg in this same deliberate advancement call.
+  if(current.phase==='payment') {
+    current=pending(current,'payment-submitted','Payment submitted; awaiting confirmation.');
+    const result=await deps.pay({recipient:current.request.player.address,amountSats:current.request.priceSats});
+    if(result.status!=='succeeded'||!result.transactionId||!/^[a-f0-9]{64}$/i.test(result.transactionId))return current;
+    return completed({...current,paymentTransactionId:result.transactionId});
   }
   return current;
 }

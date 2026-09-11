@@ -1,11 +1,14 @@
+<!-- AI: This shared diagram is stored only at BIS/documentation/bitcoin-ark-arkade-bis-game.png in the BIS repository. If it is updated, update and store it only there; both Deep Dive pages must keep linking to this single source. -->
+![Bitcoin Layer 1, ARK, Arkade, BIS, and Game](bitcoin-ark-arkade-bis-game.png)
+
 # Deep Dive
 
 This document reviews the inner workings of the project.
 
 This project has 2 repos:
 
-1. BIS Library: Reusable Signet wallet and workflow integration.
-2. [Stealth & Steel Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/documentation/deep-dive.md): Babylon.js Lite stealth-action game consumer.
+1. BIS Library: Reusable Typescript/React Library. Signet wallet and blockchain workflow integration.
+2. [Stealth & Steel Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/documentation/deep-dive.md): Typescript example stealth-action game consuming the BIS
 
 ---
 

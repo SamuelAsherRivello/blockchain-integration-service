@@ -5,12 +5,12 @@ import {readSendRecord,writeSendRecord} from '../src/core/sending.ts';
 import {clearBrowserPreferences} from '../src/core/logout-cleanup.ts';
 const sender={profileId:'sender',phrase:'fixture-only'}, recipient={profileId:'player',address:'tark1fixture'};
 const txid='a'.repeat(64);
-function fixture() {
+function fixture(amount=1000) {
  const map=new Map();globalThis.localStorage={getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k),key:i=>[...map.keys()][i]??null,get length(){return map.size;}};
  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks:{request:async(_name,_options,fn)=>fn({})}}});
  let submits=0;
- const quote={id:'q',profileId:'sender',recipient:recipient.address,amountSats:1000,feeSats:0,totalSats:1000,maxSats:2000,expiresAt:Date.now()+60000,fingerprint:'b'.repeat(64)};
- const adapter={quote:async(a,r,n,_s,preserve)=>{assert.equal(a,sender);assert.equal(r,recipient.address);assert.equal(n,1000);assert.equal(preserve,true);return quote;},submit:async(a,q,current,journal,preserve)=>{assert.equal(preserve,true);assert.equal(current(),true);submits++;const record={version:1,id:'send',profileId:a.profileId,status:'pending',transactionId:txid,quote:q,inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)};journal.write(record);return record;},reconcile:async()=>readSendRecord('sender')};
+ const quote={id:'q',profileId:'sender',recipient:recipient.address,amountSats:amount,feeSats:0,totalSats:amount,maxSats:2000,expiresAt:Date.now()+60000,fingerprint:'b'.repeat(64)};
+ const adapter={quote:async(a,r,n,_s,preserve)=>{assert.equal(a,sender);assert.equal(r,recipient.address);assert.equal(n,amount);assert.equal(preserve,true);return quote;},submit:async(a,q,current,journal,preserve)=>{assert.equal(preserve,true);assert.equal(current(),true);submits++;const record={version:1,id:'send',profileId:a.profileId,status:'pending',transactionId:txid,quote:q,inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)};journal.write(record);return record;},reconcile:async()=>readSendRecord('sender')};
  return {map,adapter,pay:createGamePlayerPayments(adapter),submits:()=>submits};
 }
 test('F2 journals before completion, blocks retries and retains recovery on player cleanup',async()=>{
@@ -43,4 +43,9 @@ test('historical 1000-sat payment remains recognized and blocks a new payment',a
  assert.equal(paymentSender({identifier:`ark:${txid}`,amountSats:1000},'player'),'sender');
  await assert.rejects(f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>true));
  assert.equal(f.submits(),1);
+});
+
+test('the game wallet payment boundary preserves an exact sell-back price',async()=>{
+ const f=fixture(1100);const result=await f.pay.pay(sender,recipient,1100,new AbortController().signal,()=>true);
+ assert.equal(result.status,'pending');assert.equal(readSendRecord('sender').quote.amountSats,1100);
 });

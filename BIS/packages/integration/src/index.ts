@@ -19,7 +19,7 @@ export type { BisActivity, BisTransaction } from './core/activity';
 export type { BisInvoiceReceiving } from './core/invoice-receiving';
 export type { BisSendQuote, BisSendStatus } from './core/sending';
 export type { BisAssetDeliveryRequest, BisAssetDeliveryResult } from './core/asset-delivery';
-export { advanceLocalMarketplaceCheckout, beginLocalMarketplaceCheckout, confirmLocalMarketplaceCheckoutLeg, readLocalMarketplaceCheckout } from './core/marketplace-checkout';
+export { advanceLocalMarketplaceCheckout, beginLocalMarketplaceCheckout, confirmLocalMarketplaceCheckoutLeg, readLocalMarketplaceCheckout, readLocalMarketplaceCheckouts } from './core/marketplace-checkout';
 export type { BisMarketplaceCheckoutRecord, BisMarketplaceCheckoutRequest } from './core/marketplace-checkout';
 export { createBisUi, GameOverlay } from './ui/client';
 export { CopyableValueField } from './ui/CopyableValueField';

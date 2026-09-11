@@ -34,12 +34,11 @@ h1 { margin-top: 0; letter-spacing: -.04em; }
 .benefits-trigger { appearance: none; padding: 0; border: 0; border-bottom: 1.5px solid #487d66; background: transparent; color: #294650; font: inherit; cursor: pointer; }
 .benefits-trigger:hover { color: #376b56; border-bottom-color: #376b56; }
 .benefits-trigger:focus-visible { outline: 3px solid #e5b536; outline-offset: 3px; border-radius: 2px; }
-.blockchain-benefits-dialog { position: relative; width: min(640px, calc(100vw - 40px)); aspect-ratio: 1; overflow: hidden; border: 0; border-radius: 16px; background: #fbfdfd; padding: 38px 44px; box-shadow: 0 18px 42px rgb(8 24 32 / 30%); }
 .blockchain-benefits-category { margin: 0; color: #487d66; font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .blockchain-benefits-dialog h2 { max-width: 12ch; margin: 6px 48px 20px 0; color: #182d39; font-size: clamp(34px, 5vw, 42px); letter-spacing: -.04em; line-height: 1; }
 .marketplace-benefits-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid #c8d7dc; }
 .marketplace-benefits-list li { display: grid; grid-template-columns: minmax(132px, .9fr) minmax(0, 1.6fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid #c8d7dc; color: #506774; font-size: 14px; line-height: 1.35; }
 .marketplace-benefits-list strong { color: #182d39; font-size: 16px; }
 .marketplace-benefits-list span::before { content: ': '; color: #487d66; font-weight: 800; }
-@media (max-width: 520px) { .blockchain-benefits-dialog { padding: 28px 24px; } .blockchain-benefits-dialog h2 { margin-bottom: 14px; font-size: 32px; } .marketplace-benefits-list li { grid-template-columns: 1fr; gap: 2px; padding: 7px 0; font-size: 12px; } .marketplace-benefits-list strong { font-size: 13px; } }
+@media (max-width: 520px) { .blockchain-benefits-dialog h2 { margin-bottom: 14px; font-size: 32px; } .marketplace-benefits-list li { grid-template-columns: 1fr; gap: 2px; padding: 7px 0; font-size: 12px; } .marketplace-benefits-list strong { font-size: 13px; } }
 @media (prefers-reduced-motion: reduce) { .filter-row button, .asset-card { transition: none; } .filter-row button:hover:not([aria-pressed="true"]), .asset-card:hover { transform: none; } }

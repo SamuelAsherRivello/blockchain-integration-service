@@ -25,18 +25,44 @@ The game SHALL snapshot the active, freshly owned BIS equipment selections when 
 - **THEN** the current player's movement effect remains unchanged
 - **AND** the new Shoes effect applies when the next player is spawned, provided the active wallet still owns it
 
-### Requirement: Settings Items shows the active wallet's owned items
-Settings SHALL contain an Items page that uses the public BIS API to show a grid of all recognized Stealth & Steel items freshly owned by the active player wallet. No item SHALL be selected by default. The user SHALL be able to choose at most one Shoes, one Dagger, and one Shield, or clear any family selection. Items not owned by the active wallet SHALL NOT be selectable.
+### Requirement: Main-menu Items shows the active wallet's owned items
+The main menu SHALL contain an `⚡ Items` action directly below Start and SHALL not retain an Items action in Settings. `⚡ Items` SHALL be enabled only when an active player profile is present. It SHALL open an Items window that uses the public BIS API to show all recognized Stealth & Steel items freshly owned by that player wallet. The window body SHALL say exactly `Select 1 of each item type to activate it for gameplay`. No item SHALL be selected by default. The user SHALL be able to choose at most one Shoes, one Dagger, and one Shield, or clear any family selection. Items not owned by the active wallet SHALL NOT be selectable. The window SHALL introduce no other visible text.
 
-#### Scenario: Player opens Settings Items
-- **WHEN** an active player profile with owned marketplace items opens Settings, then Items
+#### Scenario: Player opens main-menu Items
+- **WHEN** an active player profile with owned marketplace items opens main-menu `⚡ Items`
 - **THEN** the page shows the wallet's recognized owned items in a grid and accurately marks its saved selections
 - **AND** it does not show another profile's items as owned or selected
+
+#### Scenario: Guest opens the main menu
+- **WHEN** no active player profile is present
+- **THEN** the main-menu `⚡ Items` action is disabled
+- **AND** Settings contains no Items action
 
 #### Scenario: Player replaces a family selection
 - **WHEN** the player selects a different owned Dagger
 - **THEN** the new Dagger becomes the only selected Dagger
 - **AND** Shoes and Shield selections remain unchanged
+
+### Requirement: Items window presents nine square tiles without scrolling
+The Items window SHALL render each recognized owned item as a square tile whose icon, title, sats price, and Speed, Offense, and Defense values match the content hierarchy and visual scale of the supplied reference. It SHALL reserve a visible three-by-three tile area so up to nine recognized items are visible without a scrollbar, including when fewer than nine items are owned. The Items window SHALL not use a scrollbar.
+
+#### Scenario: Player owns fewer than nine recognized items
+- **WHEN** the active player opens Items with fewer than nine recognized items
+- **THEN** every owned item appears as a square tile within the reserved three-by-three area
+- **AND** the window has no scrollbar
+
+#### Scenario: Player owns the complete catalog
+- **WHEN** the active player opens Items with all nine recognized item types
+- **THEN** all nine square tiles are visible at once without scrolling
+- **AND** their content remains readable at the reference visual scale
+
+### Requirement: Active item selection is visually unmistakable
+The selected state of an owned item SHALL use a prominent, high-contrast tile treatment that is clearly distinguishable from an unselected tile at a glance. The selected treatment SHALL combine a strong outline and contrasting tile surface with a non-text visual selected indicator; it SHALL not add visible explanatory text.
+
+#### Scenario: Player selects an owned item
+- **WHEN** the player selects an owned Dagger
+- **THEN** that tile presents the prominent selected treatment
+- **AND** the unselected Shoes and Shield tiles retain the normal treatment
 
 ### Requirement: HUD shows three ordered item slots
 The game HUD SHALL show `Items: [][][]` under Gold, with the three icon slots ordered Shoes, Dagger, then Shield. Each slot SHALL show the effective selected item's icon or remain empty when that family has no effective selection.

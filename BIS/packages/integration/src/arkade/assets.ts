@@ -3,7 +3,7 @@ import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret
 import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
 import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult, type BurnInput } from '../core/burning.ts';
 import { eligibleUnreservedCoins, walletReservations } from '../core/wallet-reservations.ts';
-import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, validateAssetDelivery, writeAssetDeliveryRecord, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from '../core/asset-delivery.ts';
+import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, validateAssetDelivery, writeAssetDeliveryRecord, type AssetDeliveryAsset, type AssetDeliveryRecord, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from '../core/asset-delivery.ts';
 
 export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal) {
   try {eligibleUnreservedCoins([],walletReservations(account.profileId));}
@@ -121,11 +121,12 @@ function deliveryRecipient(recipient:string, own:string) {
     const destination=ArkAddress.decode(recipient.trim()), source=ArkAddress.decode(own);
     const bytes=(value:Uint8Array)=>Array.from(value,part=>part.toString(16).padStart(2,'0')).join('');
     if(destination.hrp!=='tark'||destination.version!==0||bytes(destination.serverPubKey)!==bytes(source.serverPubKey)||bytes(destination.vtxoTaprootKey)===bytes(source.vtxoTaprootKey))throw Error();
-    return {address:destination.encode(),script:bytes(destination.pkScript)};
+    return {address:destination.encode(),senderScript:bytes(source.pkScript),recipientScript:bytes(destination.pkScript)};
   } catch {throw new AssetDeliveryError('invalid-input','Use a distinct Signet Arkade recipient address for this item delivery.');}
 }
 
-function deliveryInputs<T extends {txid:string;vout:number;assets?:readonly {assetId:string;amount:bigint}[]}>(coins:readonly T[],profileId:string,assetId:string,quantity:bigint):T[] {
+/** Select only the sender's unreserved inputs that carry the exact asset. */
+export function selectExactAssetDeliveryInputs<T extends {txid:string;vout:number;assets?:readonly {assetId:string;amount:bigint}[]}>(coins:readonly T[],profileId:string,assetId:string,quantity:bigint):T[] {
   const eligible=eligibleUnreservedCoins(coins,walletReservations(profileId)).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
   const selected:typeof eligible=[];let total=0n;
   for(const coin of eligible) {
@@ -136,6 +137,27 @@ function deliveryInputs<T extends {txid:string;vout:number;assets?:readonly {ass
   }
   if(total<quantity)throw new AssetDeliveryError('invalid-input','The selected item is no longer available. Refresh the listing before trying again.');
   return selected;
+}
+
+function selectedAssetTotals(coins:readonly {assets?:readonly {assetId:string;amount:bigint}[]}[]):AssetDeliveryAsset[] {
+  const totals=new Map<string,bigint>();
+  for(const coin of coins)for(const asset of coin.assets??[])totals.set(asset.assetId,(totals.get(asset.assetId)??0n)+asset.amount);
+  return [...totals].sort(([left],[right])=>left.localeCompare(right)).map(([assetId,amount])=>({assetId,quantity:String(amount)}));
+}
+
+type DeliveryEvidenceCoin=Readonly<{txid:string;script:string;assets?:readonly {assetId:string;amount:bigint}[]}>;
+function assetMap(assets:readonly {assetId:string;amount:bigint}[]|undefined){const totals=new Map<string,bigint>();for(const asset of assets??[])totals.set(asset.assetId,(totals.get(asset.assetId)??0n)+asset.amount);return totals;}
+/** Requires current sender and recipient transaction outputs to match the original exact delivery shape. */
+export function hasExactDeliveryEvidence(record:AssetDeliveryRecord,currentSourceQuantity:bigint,vtxos:readonly DeliveryEvidenceCoin[]):boolean {
+  if(!record.transactionId||currentSourceQuantity>BigInt(record.sourceQuantity)-BigInt(record.request.quantity))return false;
+  const outputs=vtxos.filter(coin=>coin.txid===record.transactionId);
+  const recipient=outputs.filter(coin=>coin.script===record.recipientScript).some(coin=>assetMap(coin.assets).get(record.request.assetId)===BigInt(record.request.quantity));
+  if(!recipient)return false;
+  const senderAssets=assetMap(outputs.filter(coin=>coin.script===record.senderScript).flatMap(coin=>coin.assets??[]));
+  const expected=new Map(record.inputAssets.map(asset=>[asset.assetId,BigInt(asset.quantity)]));
+  expected.set(record.request.assetId,(expected.get(record.request.assetId)??0n)-BigInt(record.request.quantity));
+  for(const [assetId,amount] of expected)if((senderAssets.get(assetId)??0n)!==amount)return false;
+  return true;
 }
 
 function deliveryResult(record:NonNullable<ReturnType<typeof readAssetDeliveryRecord>>):Extract<BisAssetDeliveryResult,{status:'delivered'|'already-delivered'}> {
@@ -154,21 +176,21 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
     if(prior) {
       if(JSON.stringify(prior.request)!==JSON.stringify(request))throw new AssetDeliveryError('invalid-input','The item delivery request changed.');
       if(prior.status==='succeeded')return deliveryResult(prior);
-      return {status:'error',code:'outcome-unknown',message:'This item delivery is pending confirmation. Reconcile it before submitting another delivery.',profileId:account.profileId,operationId:request.operationId};
+      return {status:'error',code:'outcome-unknown',message:'This item delivery is pending confirmation.',profileId:account.profileId,operationId:request.operationId};
     }
     const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline);
     return await withTemporaryWallet(Wallet.create({identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}),arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()}),deadline,async wallet=>{
       const own=await wallet.getAddress(),destination=deliveryRecipient(request.recipient,own);
       const spendable=await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false});p.assertFresh();
       const sourceQuantity=spendable.flatMap(coin=>coin.assets??[]).filter(asset=>asset.assetId===request.assetId).reduce((sum,asset)=>sum+asset.amount,0n);
-      const selected=deliveryInputs(spendable,account.profileId,request.assetId,BigInt(request.quantity));
+      const selected=selectExactAssetDeliveryInputs(spendable,account.profileId,request.assetId,BigInt(request.quantity));
       if(!isCurrent()||deadline.aborted)throw new AssetDeliveryError('account-changed','The delivery wallet changed.');
-      const record={version:1 as const,id:request.operationId,profileId:account.profileId,request,status:'pending' as const,inputs:selected.map(coin=>({txid:coin.txid,vout:coin.vout})),recipientScript:destination.script,sourceQuantity:String(sourceQuantity)};
+      const record={version:1 as const,id:request.operationId,profileId:account.profileId,request,status:'pending' as const,inputs:selected.map(coin=>({txid:coin.txid,vout:coin.vout})),inputAssets:selectedAssetTotals(selected),senderScript:destination.senderScript,recipientScript:destination.recipientScript,sourceQuantity:String(sourceQuantity)};
       writeAssetDeliveryRecord(record);
       const transactionId=await wallet.send({recipients:[{address:destination.address,amount:Number(wallet.dustAmount),assets:[{assetId:request.assetId,amount:BigInt(request.quantity)}]}],selectedVtxos:selected});
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw new AssetDeliveryError('outcome-unknown','Item delivery acknowledgement could not be verified.');
       writeAssetDeliveryRecord({...record,transactionId});
-      return {status:'error',code:'outcome-unknown',message:'Item delivery was submitted and is awaiting fresh ownership confirmation. Use Reconcile before trying again.',profileId:account.profileId,operationId:request.operationId};
+      return {status:'error',code:'outcome-unknown',message:'Item delivery confirmation is pending.',profileId:account.profileId,operationId:request.operationId};
     },30000);
   } catch(error) {
     if(error instanceof AssetDeliveryError)return {status:'error',code:error.code,message:error.message,profileId:account.profileId,operationId:request.operationId};
@@ -186,10 +208,9 @@ export async function reconcileWalletAssetDelivery(account:AccountSecret,operati
     const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline);
     const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
     return await withTemporaryWallet(ReadonlyWallet.create({identity,arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()}),deadline,async wallet=>{
-      const [source,{vtxos}]=await Promise.all([readFreshAssets(wallet),p.indexerProvider.getVtxos({outpoints:[{txid:record.transactionId!,vout:0}]})]);p.assertFresh();
+      const [source,{vtxos}]=await Promise.all([readFreshAssets(wallet),p.indexerProvider.getVtxos({scripts:[record.senderScript,record.recipientScript]})]);p.assertFresh();
       const sourceQuantity=source.filter(item=>item.asset.assetId===record.request.assetId).reduce((sum,item)=>sum+BigInt(item.asset.quantity),0n);
-      const received=vtxos.some(coin=>coin.txid===record.transactionId&&coin.vout===0&&coin.script===record.recipientScript&&(coin.assets??[]).some(asset=>asset.assetId===record.request.assetId&&asset.amount===BigInt(record.request.quantity)));
-      if(!received||sourceQuantity>BigInt(record.sourceQuantity)-BigInt(record.request.quantity))return {status:'error',code:'outcome-unknown',message:'Item delivery is still awaiting fresh source and recipient ownership evidence. Do not submit another delivery.',profileId:account.profileId,operationId};
+      if(!hasExactDeliveryEvidence(record,sourceQuantity,vtxos))return {status:'error',code:'outcome-unknown',message:'Item delivery is still awaiting fresh sender-change and recipient ownership evidence. Do not submit another delivery.',profileId:account.profileId,operationId};
       return deliveryResult(completeAssetDelivery(account.profileId,operationId,record.transactionId!));
     },30000);
   } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status is unavailable.',profileId:account.profileId,operationId};}

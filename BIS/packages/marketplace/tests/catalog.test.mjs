@@ -29,10 +29,12 @@ test('public Marketplace uses a read-only address query and live local-sales act
   assert.doesNotMatch(inventory, /MnemonicIdentity|Wallet\.create|mint|send/i);
 });
 
-test('Marketplace enables exactly the action offered by the selected owner and reports insufficient payer funds in a dialog', async () => {
+test('Marketplace enables exactly the action offered by the selected owner only after both local wallet sessions are active', async () => {
   const [app, style] = await Promise.all([text('src/App.tsx'), text('src/square-grid.css')]);
   assert.match(app, /const gameOwnsSelected=Boolean\(selected&&gameItems\?\.some\(item=>item\.assetId===selected\.assetId\)\)/);
   assert.match(app, /const playerOwnsSelected=Boolean\(selected&&playerItems\.some\(item=>item\.assetId===selected\.assetId\)\)/);
+  assert.match(app, /const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending;/);
+  assert.match(app, /const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending;/);
   assert.match(app, /disabled=\{!canBuy\}/);
   assert.match(app, /disabled=\{!canSell\}/);
   assert.match(app, /player\.getSendSpendable\(\)/);
@@ -43,11 +45,20 @@ test('Marketplace enables exactly the action offered by the selected owner and r
   assert.match(style, /\.trade-action-sell\{background:#487d66/);
 });
 
-test('item detail uses the active local-sales session state in its upper-right action column', async () => {
+test('Marketplace restores the pending exact-item checkout after a page reload', async () => {
+  const app = await text('src/App.tsx');
+  assert.match(app, /readLocalMarketplaceCheckouts\(\)\.find\(record=>record\.status==='pending'&&record\.request\.assetId===selected\.assetId\)/);
+  assert.doesNotMatch(app, /checkout-status|Checkout complete\.|Checkout recovery status/);
+});
+
+test('item detail uses the active local-sales session state and never asks users to reconcile checkout', async () => {
   const app = await text('src/App.tsx');
   assert.match(app, /className="detail-actions"><button className="trade-action trade-action-buy" disabled=\{!canBuy\}/);
   assert.match(app, /id="sales-disabled-reason"/);
-  assert.match(app, /Reconcile checkout/);
+  assert.doesNotMatch(app, /Reconcile checkout|pending checkout\. Reconcile|awaiting fresh ownership confirmation/);
+  assert.match(app, /setTimeout\(run,2500\)/);
+  assert.match(app, /title=\{checkoutIsPending\?'Pending transaction':undefined\}/);
+  assert.match(app, /className="trade-action trade-action-sell" disabled=\{!canSell\} title=\{checkoutIsPending\?'Pending transaction':undefined\}/);
   assert.doesNotMatch(app, /Buying and selling are not enabled/);
 });
 
@@ -56,7 +67,7 @@ test('Marketplace opens a separate Blockchain Benefits dialog from the clickable
   assert.match(app, /const \[isBenefitsOpen,setIsBenefitsOpen\]=useState\(false\)/);
   assert.match(app, /className="benefits-trigger" onClick=\{\(\)=>setIsBenefitsOpen\(true\)\}\>before<\/button>/);
   assert.match(app, /isBenefitsOpen&&<div className="backdrop blockchain-benefits-backdrop"/);
-  assert.match(app, /className="blockchain-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="blockchain-benefits-title"/);
+  assert.match(app, /className="detail blockchain-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="blockchain-benefits-title"/);
   assert.match(app, /<h2 id="blockchain-benefits-title">Blockchain Benefits<\/h2>/);
   assert.match(app, /className="blockchain-benefits-category">Marketplace<\/p>/);
   for (const heading of ['Marketplace', 'Account / Wallet', 'Assets', 'Contracts', 'Payments']) {
@@ -65,7 +76,7 @@ test('Marketplace opens a separate Blockchain Benefits dialog from the clickable
   assert.match(app, /Players securely trade a Dagger III between wallets\./);
   assert.match(app, /aria-label="Close Blockchain Benefits"/);
   assert.match(polish, /\.benefits-trigger/);
-  assert.match(polish, /\.blockchain-benefits-dialog \{[^}]*width: min\(640px, calc\(100vw - 40px\)\)[^}]*aspect-ratio: 1[^}]*overflow: hidden/);
+  assert.doesNotMatch(polish, /\.blockchain-benefits-dialog \{[^}]*(?:width|aspect-ratio|overflow|padding):/);
   assert.match(polish, /\.marketplace-benefits-list li \{[^}]*padding: 12px 0/);
 });
 

@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Packaged game accepts account equipment state
 The packaged Stealth & Steel consumer SHALL retain guest gameplay and its existing Account UI behavior while accepting active BIS equipment state through the public package boundary.
@@ -13,13 +13,18 @@ The packaged Stealth & Steel consumer SHALL retain guest gameplay and its existi
 - **THEN** the production game reflects that item's approved effect and icon
 - **AND** the game obtained the state through the public BIS package boundary
 
-### Requirement: Packaged game exposes owned-item selection
-The packaged-game acceptance flow SHALL cover Settings, then Items, where the active player profile can view its recognized owned-item grid and select at most one Shoes, one Dagger, and one Shield item. It SHALL also cover the three ordered HUD item slots below Gold.
+### Requirement: Packaged game exposes player-only main-menu item selection
+The packaged-game acceptance flow SHALL cover an `⚡ Items` action directly below Start in the main menu. The action SHALL be enabled only for an active player profile. It SHALL open the owned-item grid, where the active player profile can select at most one Shoes, one Dagger, and one Shield item, and it SHALL also cover the three ordered HUD item slots below Gold.
 
 #### Scenario: Player changes an item in the packaged game
-- **WHEN** the player selects an owned item in Settings, then Items, and the next player spawn occurs
+- **WHEN** an active player selects an owned item through main-menu `⚡ Items` and the next player spawn occurs
 - **THEN** the corresponding Shoes, Dagger, or Shield HUD slot shows the chain-URL icon
 - **AND** the spawned player uses the corresponding approved effect
+
+#### Scenario: Guest sees an unavailable item action
+- **WHEN** a guest opens the main menu without an active player profile
+- **THEN** `⚡ Items` remains directly below Start and disabled
+- **AND** the guest can still start and play the baseline game
 
 ### Requirement: Packaged acceptance covers multiple player profiles
 The packaged-game account acceptance flow SHALL cover a saved-profile chooser that shows shortened public IDs, identifies the active profile, switches between saved profiles without repeating restoration, and offers Create or Restore when adding a profile. Each saved profile SHALL retain its own wallet and equipment state.

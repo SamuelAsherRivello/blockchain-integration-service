@@ -2,7 +2,8 @@ export type BisAssetDeliveryRequest = Readonly<{operationId:string; assetId:stri
 export type BisAssetDeliveryResult = Readonly<{status:'delivered'|'already-delivered'; profileId:string; operationId:string; assetId:string; quantity:string; recipient:string; transactionId:string}>
   | Readonly<{status:'error'; code:'invalid-input'|'unavailable'|'outcome-unknown'|'account-changed'; message:string; profileId?:string; operationId?:string}>;
 export type AssetDeliveryInput = Readonly<{txid:string;vout:number}>;
-export type AssetDeliveryRecord = Readonly<{version:1;id:string;profileId:string;request:BisAssetDeliveryRequest;status:'pending'|'succeeded';inputs:readonly AssetDeliveryInput[];recipientScript:string;sourceQuantity:string;transactionId?:string}>;
+export type AssetDeliveryAsset = Readonly<{assetId:string;quantity:string}>;
+export type AssetDeliveryRecord = Readonly<{version:1;id:string;profileId:string;request:BisAssetDeliveryRequest;status:'pending'|'succeeded';inputs:readonly AssetDeliveryInput[];inputAssets:readonly AssetDeliveryAsset[];senderScript:string;recipientScript:string;sourceQuantity:string;transactionId?:string}>;
 
 const key=(profileId:string)=>`bis-signet-asset-delivery-v1:${encodeURIComponent(profileId)}`;
 const operationKey=(profileId:string,id:string)=>`${key(profileId)}:${id}`;
@@ -19,13 +20,19 @@ export function validateAssetDelivery(input:BisAssetDeliveryRequest):BisAssetDel
 function validateInput(input:unknown):input is AssetDeliveryInput {
   return !!input&&typeof input==='object'&&typeof (input as AssetDeliveryInput).txid==='string'&&/^[a-f0-9]{64}$/i.test((input as AssetDeliveryInput).txid)&&Number.isSafeInteger((input as AssetDeliveryInput).vout)&&(input as AssetDeliveryInput).vout>=0;
 }
+function validateAsset(asset:unknown):asset is AssetDeliveryAsset {
+  return !!asset&&typeof asset==='object'&&typeof (asset as AssetDeliveryAsset).assetId==='string'&&/^[a-f0-9]{68}$/i.test((asset as AssetDeliveryAsset).assetId)
+    &&typeof (asset as AssetDeliveryAsset).quantity==='string'&&/^[1-9][0-9]{0,19}$/.test((asset as AssetDeliveryAsset).quantity);
+}
 function validRecord(value:unknown,profileId:string,storageKey:string):value is AssetDeliveryRecord {
   if(!value||typeof value!=='object')return false;
   const record=value as AssetDeliveryRecord;
   try {validateAssetDelivery(record.request);}catch{return false;}
   return record.version===1&&record.id===record.request.operationId&&record.profileId===profileId&&storageKey===operationKey(profileId,record.id)
     &&(record.status==='pending'||record.status==='succeeded')&&Array.isArray(record.inputs)&&record.inputs.length>0&&record.inputs.every(validateInput)
-    &&typeof record.recipientScript==='string'&&/^5120[a-f0-9]{64}$/i.test(record.recipientScript)
+    &&Array.isArray(record.inputAssets)&&record.inputAssets.length>0&&record.inputAssets.every(validateAsset)&&new Set(record.inputAssets.map(asset=>asset.assetId)).size===record.inputAssets.length
+    &&typeof record.senderScript==='string'&&/^5120[a-f0-9]{64}$/i.test(record.senderScript)
+    &&typeof record.recipientScript==='string'&&/^5120[a-f0-9]{64}$/i.test(record.recipientScript)&&record.senderScript!==record.recipientScript
     &&typeof record.sourceQuantity==='string'&&/^[1-9][0-9]{0,19}$/.test(record.sourceQuantity)&&BigInt(record.sourceQuantity)>=BigInt(record.request.quantity)
     &&(record.transactionId===undefined||/^[a-f0-9]{64}$/i.test(record.transactionId))&&!(record.status==='succeeded'&&!record.transactionId);
 }
@@ -41,7 +48,7 @@ export function readAssetDeliveryRecords(profileId:string|undefined):AssetDelive
       records.push(record);
     }
     return records.sort((a,b)=>a.id.localeCompare(b.id));
-  }catch{throw new AssetDeliveryError('outcome-unknown','Item delivery recovery data could not be verified. Do not submit another delivery.');}
+  }catch{throw new AssetDeliveryError('outcome-unknown','Item delivery confirmation is pending.');}
 }
 export function readAssetDeliveryRecord(profileId:string|undefined,operationId?:string):AssetDeliveryRecord|undefined {
   const records=readAssetDeliveryRecords(profileId);
