@@ -22,19 +22,67 @@ test('public Marketplace uses a read-only address query and live local-sales act
   assert.doesNotMatch(app, /next\.items/);
   assert.match(app, /beginLocalMarketplaceCheckout/);
   assert.match(app, /advanceLocalMarketplaceCheckout/);
-  assert.match(app, /className="trade-action trade-action-buy" disabled=\{!salesEnabled\}/);
-  assert.match(app, /className="trade-action trade-action-sell" disabled=\{!salesEnabled\}/);
+  assert.match(app, /className="trade-action trade-action-buy" disabled=\{!canBuy\}/);
+  assert.match(app, /className="trade-action trade-action-sell" disabled=\{!canSell\}/);
   assert.doesNotMatch(app,/getBisMarketplaceTradingAvailability/);
   assert.match(inventory, /new RestIndexerProvider/);
   assert.doesNotMatch(inventory, /MnemonicIdentity|Wallet\.create|mint|send/i);
 });
 
+test('Marketplace enables exactly the action offered by the selected owner and reports insufficient payer funds in a dialog', async () => {
+  const [app, style] = await Promise.all([text('src/App.tsx'), text('src/square-grid.css')]);
+  assert.match(app, /const gameOwnsSelected=Boolean\(selected&&gameItems\?\.some\(item=>item\.assetId===selected\.assetId\)\)/);
+  assert.match(app, /const playerOwnsSelected=Boolean\(selected&&playerItems\.some\(item=>item\.assetId===selected\.assetId\)\)/);
+  assert.match(app, /disabled=\{!canBuy\}/);
+  assert.match(app, /disabled=\{!canSell\}/);
+  assert.match(app, /player\.getSendSpendable\(\)/);
+  assert.match(app, /gameWallet\.getPlayerPaymentBalance\(\)/);
+  assert.match(app, /role="alertdialog"/);
+  assert.match(app, /walletName=direction==='buy'\?'Player Wallet':'Game Wallet'/);
+  assert.match(app, /Insufficient \$\{walletName\} balance/);
+  assert.match(style, /\.trade-action-sell\{background:#487d66/);
+});
+
 test('item detail uses the active local-sales session state in its upper-right action column', async () => {
   const app = await text('src/App.tsx');
-  assert.match(app, /className="detail-actions"><button className="trade-action trade-action-buy" disabled=\{!salesEnabled\}/);
+  assert.match(app, /className="detail-actions"><button className="trade-action trade-action-buy" disabled=\{!canBuy\}/);
   assert.match(app, /id="sales-disabled-reason"/);
   assert.match(app, /Reconcile checkout/);
   assert.doesNotMatch(app, /Buying and selling are not enabled/);
+});
+
+test('Marketplace opens a separate Blockchain Benefits dialog from the clickable before link', async () => {
+  const [app, polish] = await Promise.all([text('src/App.tsx'), text('src/player-polish.css')]);
+  assert.match(app, /const \[isBenefitsOpen,setIsBenefitsOpen\]=useState\(false\)/);
+  assert.match(app, /className="benefits-trigger" onClick=\{\(\)=>setIsBenefitsOpen\(true\)\}\>before<\/button>/);
+  assert.match(app, /isBenefitsOpen&&<div className="backdrop blockchain-benefits-backdrop"/);
+  assert.match(app, /className="blockchain-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="blockchain-benefits-title"/);
+  assert.match(app, /<h2 id="blockchain-benefits-title">Blockchain Benefits<\/h2>/);
+  assert.match(app, /className="blockchain-benefits-category">Marketplace<\/p>/);
+  for (const heading of ['Marketplace', 'Account / Wallet', 'Assets', 'Contracts', 'Payments']) {
+    assert.match(app, new RegExp(`<strong>${heading}<\\/strong>`));
+  }
+  assert.match(app, /Players securely trade a Dagger III between wallets\./);
+  assert.match(app, /aria-label="Close Blockchain Benefits"/);
+  assert.match(polish, /\.benefits-trigger/);
+  assert.match(polish, /\.blockchain-benefits-dialog \{[^}]*width: min\(640px, calc\(100vw - 40px\)\)[^}]*aspect-ratio: 1[^}]*overflow: hidden/);
+  assert.match(polish, /\.marketplace-benefits-list li \{[^}]*padding: 12px 0/);
+});
+
+test('item detail provides the selected valid Arkade asset with a bottom explorer action', async () => {
+  const [app, squareGrid] = await Promise.all([text('src/App.tsx'), text('src/square-grid.css')]);
+  assert.match(app, /const explorerUrl=selected&&\/\^\[a-f0-9\]\{68\}\$\/i\.test\(selected\.assetId\)\?`https:\/\/explorer\.signet\.arkade\.sh\/asset\/\$\{selected\.assetId\}`:undefined/);
+  assert.match(app, /className="detail-explorer-action" disabled=\{!explorerUrl\}/);
+  assert.match(app, /window\.open\(explorerUrl, '_blank', 'noopener,noreferrer'\)/);
+  assert.match(app, />Open On Explorer<\/button>/);
+  assert.match(squareGrid, /\.detail-explorer-action\{[\s\S]*?width:100%/);
+});
+
+test('item detail identity shows only the selected item name and formatted sats price', async () => {
+  const app = await text('src/App.tsx');
+  assert.match(app, /<div><h2 id="item-title">\{selected\.name\}<\/h2><strong>\{selected\.priceSats\.toLocaleString\(\)\} sats<\/strong><\/div>/);
+  assert.doesNotMatch(app, /<p className="eyebrow">\{selected\.family\} · TIER \{selected\.tier\}<\/p>/);
+  assert.doesNotMatch(app, /<p className="detail-effect">\{selected\.effect\}<\/p>/);
 });
 
 test('item detail shows copyable generic and gameplay values without decimals or temporary release copy', async () => {
@@ -74,6 +122,13 @@ test('catalog filters game and nonzero gameplay metadata independently', async (
   assert.match(app, /stat\.value!==['"]0['"]/);
 });
 
+test('Marketplace opens with the Game Wallet, Stealth & Steel, and all item types selected', async () => {
+  const app = await text('src/App.tsx');
+  assert.match(app, /const \[owner,setOwner\]=useState<'all'\|'game'\|'player'>\('game'\)/);
+  assert.match(app, /\[game,setGame\]=useState<'all'\|'stealth-and-steel'>\('stealth-and-steel'\)/);
+  assert.match(app, /\[type,setType\]=useState<'all'\|'speed'\|'offense'\|'defense'>\('all'\)/);
+});
+
 test('Marketplace derives item identity, price, and artwork from fresh chain asset metadata',async()=>{
   const [app,inventory]=await Promise.all([text('src/App.tsx'),text('src/inventory.ts')]);
   assert.match(inventory,/getAssetDetails\(assetId\)/);assert.match(app,/map\(classifyBisEquipmentAsset\)/);
@@ -82,25 +137,41 @@ test('Marketplace derives item identity, price, and artwork from fresh chain ass
   assert.match(app,/Image unavailable/);
 });
 
-test('Marketplace can refresh live Game Wallet inventory without changing publisher configuration', async () => {
+test('Marketplace refreshes Game Wallet inventory after a completed checkout without exposing a manual refresh control', async () => {
   const app = await text('src/App.tsx');
-  assert.match(app, />Refresh listings<\/button>/);
+  assert.doesNotMatch(app, />Refresh listings<\/button>/);
   assert.match(app, /setInventoryRevision\(value=>value\+1\)/);
   assert.match(app, /\[inventoryAddress,inventoryRevision\]/);
+});
+
+test('Marketplace shows Loading while the Game Wallet inventory refresh is pending before showing an empty result', async () => {
+  const app = await text('src/App.tsx');
+  assert.match(app, /const \[isCatalogLoading,setIsCatalogLoading\]=useState\(true\)/);
+  assert.match(app, /const \[isGameInventoryLoading,setIsGameInventoryLoading\]=useState\(true\)/);
+  assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|isGameInventoryLoading/);
+  assert.match(app, /setIsGameInventoryLoading\(true\)/);
+  assert.match(app, /setIsGameInventoryLoading\(false\)/);
+  assert.match(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.':owner==='player'&&!playerState\.profileId/);
+  assert.match(app, /:'No freshly verified equipment matches these filters\.'/);
 });
 
 test('Marketplace renders its Wallets and Instructions as left-aligned lists in one panel',async()=>{
   const app=await text('src/App.tsx');
   assert.match(app,/createBisContext\(\)/);assert.match(app,/createBisGameWallet/);assert.match(app,/createBisUi/);
-  assert.match(app,/className="marketplace-info"/);assert.match(app,/This marketplace requires the player wallet for item display and items sales\./);
+  assert.match(app,/className="marketplace-info"/);assert.match(app,/This marketplace requires the player wallet for item display and items sales\./);assert.match(app,/In production the game wallet will be controlled by the server\. However, for this simple POC, you must also login the game wallet which has balance and has any items to display\./);
   assert.match(app,/<div className="marketplace-info-group"><h2>Wallets<\/h2><ul>/);assert.match(app,/Player Wallet:/);assert.match(app,/Game Wallet:/);
-  assert.match(app,/<hr\/>/);assert.match(app,/<div className="marketplace-info-group"><h2>Instructions<\/h2><ol>/);assert.match(app,/Enable Item Listing:/);assert.match(app,/>Enabled<\/strong>/);
+  assert.match(app,/<hr\/>/);assert.match(app,/<div className="marketplace-info-group"><h2>Instructions<\/h2><ol>/);assert.match(app,/Enable Item Listing: <strong title="Requirement complete: the Game Wallet is logged in and has items to display\.">Enabled ℹ️<\/strong>/);
   assert.match(app,/const salesEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&playerState\.profileId!==gameState\.profileId\)/);
-  assert.match(app,/Enable Item Sales: \{salesEnabled\?<><strong>Enabled<\/strong><\/>:'Disabled'\}/);
+  assert.match(app,/Enable Item Sales: \{salesEnabled\?<><strong title="Requirement complete: different Player and Game Wallets are logged in\.">Enabled ℹ️<\/strong><\/>:<span title="Requirement: log in to different Player and Game Wallets from Account\.">Disabled ℹ️<\/span>\}/);
   assert.doesNotMatch(app,/>Enable Item Sales<\/button>/);assert.doesNotMatch(app,/upper-right Account button/);
   assert.doesNotMatch(app,/>Player Wallet Login<\/button>/);assert.doesNotMatch(app,/>Game Wallet Login<\/button>/);
-  assert.match(app,/>My Items<\/button>/);
+  assert.match(app,/>Player Wallet<\/button>/);
   assert.doesNotMatch(app,/recovery phrase|MnemonicIdentity|player-to-player/i);
+});
+
+test('Marketplace requirement tooltip targets use the pointer cursor', async () => {
+  const polish = await text('src/player-polish.css');
+  assert.match(polish, /\.marketplace-info-group li strong\[title\],\.marketplace-info-group li span\[title\]\{cursor:pointer\}/);
 });
 
 test('Marketplace places version and project resources in the upper-right Signet bar', async () => {
@@ -173,7 +244,7 @@ test('item detail is square, has upper-right actions, and has no internal scroll
   assert.match(squareGrid, /\.detail-identity\{display:grid;grid-template-columns:150px minmax\(0,1fr\) 144px/);
   assert.match(squareGrid, /\.detail-actions\{align-self:stretch;display:flex;flex-direction:column/);
   assert.match(squareGrid, /\.trade-action-buy\{.*background:#487d66/);
-  assert.match(squareGrid, /\.trade-action-sell\{.*background:#294650/);
+  assert.match(squareGrid, /\.trade-action-sell\{.*background:#487d66/);
   assert.match(squareGrid, /\.detail-actions \.trade-action:disabled\{.*cursor:not-allowed/);
   assert.doesNotMatch(squareGrid, /detail-footer|detail-status/);
 });

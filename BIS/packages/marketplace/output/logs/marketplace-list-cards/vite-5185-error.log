@@ -1,0 +1,7 @@
+npm error Lifecycle script `dev` failed with error:
+npm error code 4294967295
+npm error path D:\Documents\Projects\VC\Bitcoin\blockchain-integration-service\BIS\packages\marketplace
+npm error workspace @bis/marketplace@0.14.5
+npm error location D:\Documents\Projects\VC\Bitcoin\blockchain-integration-service\BIS\packages\marketplace
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c vite --host 127.0.0.1 --port 5185 --strictPort

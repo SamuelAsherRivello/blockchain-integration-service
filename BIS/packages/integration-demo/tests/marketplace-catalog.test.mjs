@@ -56,6 +56,15 @@ test('Admin does not contain a development-only static Marketplace catalog publi
   assert.doesNotMatch(catalogSource, /PublishedMarketplaceCatalog|createVerifiedMarketplaceCatalog|isVerifiedMarketplaceCatalog/);
 });
 
+test('H1 and H2 report Marketplace progress and results only through the Admin Console', async () => {
+  const panel = await readFile(new URL('../src/admin/MarketplacePanel.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(panel, /useState\(false\);\s*const \[message, setMessage\]/);
+  assert.doesNotMatch(panel, /\{message && <p role="status">\{message\}<\/p>\}/);
+  assert.doesNotMatch(panel, /busy \? 'Working…'/);
+  assert.match(panel, /onLog\(\{operation:'H1\. Marketplace mint'/);
+  assert.match(panel, /onLog\(\{operation:'H2\. Burn All Items for Marketplace'/);
+});
+
 test('fresh chain holdings must contain exactly one fully classified asset per catalog item', () => {
   const assets = marketplaceCatalogItems.map((item, index) => ({
     assetId: `asset-${index + 1}`,
