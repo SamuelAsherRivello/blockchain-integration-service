@@ -1,8 +1,19 @@
-# BIS Deep Dive
+# Deep Dive
 
-This Deep Dive examines the BIS half of a two-repository integration. Stealth and Steel is the game consumer; this repository owns the published wallet/workflow boundary. Read the [Stealth and Steel Deep Dive](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/documentation/deep-dive.md) alongside this document: readers should move between the two to see where a verified BIS result stops and a game-owned effect begins.
+This document reviews the inner workings of the project.
 
-## The shared showcase: `BisHostGame`
+This project has 2 repos:
+
+1. [BIS Library](https://github.com/SamuelAsherRivello/blockchain-integration-service): Reusable Signet wallet and workflow integration.
+2. [Stealth & Steel Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/documentation/deep-dive.md): Babylon.js Lite stealth-action game consumer.
+
+---
+
+## BIS
+
+This repository owns the published wallet/workflow boundary. Read the Stealth & Steel Deep Dive from the first list above alongside this document to see where a verified BIS result stops and a game-owned effect begins.
+
+### The shared showcase: `BisHostGame`
 
 [`BisHostGame`](../packages/integration/src/core/bis-host-game.ts) is the deliberately complete contract the game implements. It has exactly four clearly named methods: identify the active game session, capture an opaque continuation target, apply a confirmed continuation, and present a confirmed reward. The names trade brevity for reviewability.
 
@@ -17,7 +28,7 @@ interface BisHostGame {
 
 A session reference carries `gameId` and `gameSessionId`. BIS treats the continuation target as opaque. The game reports `applied`, `already-applied`, or `not-applicable`; those are effect receipts, not financial status. A stale session therefore cannot revive a new run, and an inapplicable delivery cannot charge, reverse, mint, or retry a confirmed BIS operation.
 
-## BIS-specific showcase: `BisGameServices`
+### BIS-specific showcase: `BisGameServices`
 
 [`BisGameServices`](../packages/integration/src/core/bis-game-services.ts) is the package’s lifecycle-owning facade. Its numbered comments are a concise route through the architecture:
 
@@ -36,7 +47,7 @@ const controller = services.createContinue({ onEffectReceipt });
 
 The facade intentionally composes existing controllers rather than absorbing their domain rules. Core controllers still own state, validation, persistence, and reconciliation; UI still owns presentation; Arkade adapters remain internal. That makes `BisGameServices` a stable starting point without making it a new catch-all service.
 
-## How the repositories fit
+### How the repositories fit
 
 `@bis/integration` publishes types, workflow composition, and the stylesheet. The game dynamically imports that public package only inside `runtime/integration/`. The game’s [`createBisHostGame`](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/src/runtime/integration/bis-host-game.js) maps the contract to its current scene and player state. This direction is intentional: BIS must not import Babylon systems, and the game must not import BIS source internals or Arkade.
 
