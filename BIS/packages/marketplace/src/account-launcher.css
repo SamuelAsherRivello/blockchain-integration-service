@@ -1,15 +1,13 @@
 /* Marketplace alone anchors the closed entry control. The open layer remains
    the unscaled viewport-sized production modal supplied by @bis/integration. */
-@media (min-width: 821px) {
-  .marketplace-bis-host .bis-layer:not(.bis-layer-open) {
-    place-items: start end;
-    padding: 48px 18px 0;
-    transform: none;
-  }
+.marketplace-bis-host .bis-layer:not(.bis-layer-open) {
+  place-items: start end;
+  padding: clamp(12px, 3vw, 48px) clamp(12px, 2vw, 18px) 0;
+  transform: none;
+}
 
-  .marketplace-bis-host .bis-layer.bis-layer-open {
-    place-items: center;
-    padding: 16px;
-    transform: none;
-  }
+.marketplace-bis-host .bis-layer.bis-layer-open {
+  place-items: center;
+  padding: 16px;
+  transform: none;
 }

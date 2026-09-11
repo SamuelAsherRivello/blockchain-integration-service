@@ -6,7 +6,7 @@ The Marketplace owns checkout orchestration in `BIS/packages/marketplace/src/App
 
 **Goals:**
 
-- Reuse the actual BIS pending dialog, backdrop, bolt, focus containment, and reduced-motion behavior for Marketplace initial preparation plus Buy, Sell, and explicit reconciliation work.
+- Reuse the actual BIS pending dialog, backdrop, bolt, focus containment, and reduced-motion behavior for Marketplace initial preparation plus Buy and Sell work.
 - Make a trade attempt visibly and accessibly blocking only while it is actively advancing and refreshing its rendered results.
 - Preserve recovery accuracy: a durable unconfirmed checkout stays unresolved and item-scoped after the foreground prompt ends.
 
@@ -26,7 +26,7 @@ Alternative considered: add Marketplace-local modal markup styled to resemble BI
 
 ### Model active checkout presentation separately from durable checkout state
 
-Add shared busy inputs for initial catalog/required visible inventory preparation and for a foreground operation state entered synchronously before any Buy, Sell, or reconciliation await. Clear each only after the terminal confirmation plus required relevant refresh/render readiness. Labels change only among user-facing `...ing...` operation phases. Durable checkout records remain the source of truth for exact item, direction, and recovery; a record becoming `pending` ends foreground presentation and returns the operator to the existing item-scoped status.
+Add shared busy inputs for initial catalog/required visible inventory preparation and for a foreground operation state entered synchronously before any Buy or Sell await. Clear each only after the terminal confirmation plus required relevant refresh/render readiness. Labels change only among user-facing `...ing...` operation phases. Durable checkout records remain the source of truth for exact item, direction, and recovery; a record becoming `pending` ends foreground presentation and returns the operator to the existing item-scoped status.
 
 Alternative considered: derive modal visibility directly from `checkout.status === 'pending'`. Rejected because recovery can last indefinitely and the existing item-scoped contract explicitly keeps unrelated safe work available.
 
@@ -51,5 +51,5 @@ Clear the prompt only after confirmed checkout and refresh readiness. Route a th
 
 1. Add public shared-pending composition without changing existing BIS consumers.
 2. Wrap Marketplace content and connect its Buy/Sell foreground lifecycle to the shared notice.
-3. Add focused tests and a browser smoke test for buy, sell, terminal failure/unconfirmed recovery, motion reduction, and post-refresh reveal.
+3. Add focused tests and a browser smoke test for initial preparation, Buy, Sell, terminal failure/unconfirmed recovery, motion reduction, and post-refresh reveal.
 4. Roll back by removing Marketplace's new composition/state; no storage, wallet, checkout record, or network migration is involved.

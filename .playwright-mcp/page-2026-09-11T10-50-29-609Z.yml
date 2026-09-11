@@ -1,0 +1,5 @@
+- generic [active] [ref=e1]:
+  - status [ref=e2]:
+    - paragraph [ref=e4]: Loading...
+  - main "Babylon Light Stealth Grid game" [ref=e5]:
+    - generic "Tiny Swords movement demo" [ref=e7]

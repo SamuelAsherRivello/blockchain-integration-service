@@ -29,3 +29,17 @@ test('status preserves pending evidence on network failure and never submits',as
  const s=setup({reconcile:async()=>{throw Error('private');}});await s.context.ready();writeSendRecord({version:1,id:'op',profileId:'p',status:'pending',transactionId:'a'.repeat(64),quote:q(),inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)});
  const status=await s.context.checkAccountSend();assert.equal(status.status,'pending');assert.equal(status.verification,'unavailable');assert.equal(s.calls(),0);s.context.dispose();
 });
+test('marketplace checkout includes asset-bearing balance and preserves those assets through payment',async()=>{
+ const options=[];
+ const s=setup({
+  funds:async(_account,_signal,preserveAssets=false)=>{options.push(['funds',preserveAssets]);return preserveAssets?265975:600;},
+  quote:async(_account,_recipient,_amount,_signal,preserveAssets=false)=>{options.push(['quote',preserveAssets]);return q();},
+  submit:async(_account,quote,_current,_journal,preserveAssets=false)=>{options.push(['submit',preserveAssets]);return {version:1,id:'op',profileId:'p',status:'succeeded',transactionId:'a'.repeat(64),quote,inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)};},
+ });
+ await s.context.ready();
+ assert.equal(await s.context.getSendSpendable(true),265975);
+ const quote=await s.context.quoteAccountSend('tark1test',1200,true);
+ assert.equal((await s.context.confirmAccountSend(quote)).status,'succeeded');
+ assert.deepEqual(options,[['funds',true],['quote',true],['submit',true]]);
+ s.context.dispose();
+});

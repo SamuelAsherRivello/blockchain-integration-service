@@ -95,8 +95,8 @@ export interface BisContext {
   openAccountDialog(): void;
   openAccountReceive(): void;
   openAccountSend(): void;
-  getSendSpendable(): Promise<number>;
-  quoteAccountSend(recipient:string, amountSats?:number): Promise<BisSendQuote>;
+  getSendSpendable(preserveAssets?:boolean): Promise<number>;
+  quoteAccountSend(recipient:string, amountSats?:number, preserveAssets?:boolean): Promise<BisSendQuote>;
   confirmAccountSend(quote:BisSendQuote): Promise<BisSendStatus>;
   checkAccountSend(): Promise<BisSendStatus>;
   openAccountDetails(): void;
@@ -140,7 +140,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const toasts = createToastQueue();
   const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
   if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
-  let issuedSend:BisSendQuote|undefined,sendRevision=0;
+  let issuedSend:BisSendQuote|undefined,issuedSendPreservesAssets=false,sendRevision=0;
   const guardIndependentSpend=()=>{if(state.profileId&&globalThis.localStorage)eligibleUnreservedCoins([],walletReservations(state.profileId));};
   const guardSend=()=>{if(globalThis.localStorage){assertNoPendingSend(state.profileId);assertNoPendingBurn(state.profileId);}};
   const idleAssets: BisAssets = Object.freeze({status:'idle'});
@@ -621,29 +621,29 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         return Object.freeze(results);
       });
     },
-    async getSendSpendable() {
+    async getSendSpendable(preserveAssets=false) {
       guardIndependentSpend();const account=await activeTransferAccount(),current=version;
       if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
-      const amount=await sends.funds(account,operation.signal);
+      const amount=await sends.funds(account,operation.signal,preserveAssets);
       if(disposed||current!==version)throw new SendError('The account changed.');return amount;
     },
-    async quoteAccountSend(recipient,amountSats) {
-      issuedSend=undefined;const request=++sendRevision;
+    async quoteAccountSend(recipient,amountSats,preserveAssets=false) {
+      issuedSend=undefined;issuedSendPreservesAssets=false;const request=++sendRevision;
       guardIndependentSpend();const account=await activeTransferAccount(),current=version;
       if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
-      const quote=await sends.quote(account,recipient,amountSats,operation.signal);
+      const quote=await sends.quote(account,recipient,amountSats,operation.signal,preserveAssets);
       if(disposed||current!==version||request!==sendRevision)throw new SendError('Send details changed. Review again.');
-      issuedSend=Object.freeze({...quote});return issuedSend;
+      issuedSendPreservesAssets=preserveAssets;issuedSend=Object.freeze({...quote});return issuedSend;
     },
     async confirmAccountSend(quote) {
       assertAlive();
       if(!issuedSend||quote!==issuedSend||quote.expiresAt<=Date.now())throw new SendError('Review a fresh send before confirming.');
-      issuedSend=undefined;sendRevision++;
+      const preserveAssets=issuedSendPreservesAssets;issuedSend=undefined;issuedSendPreservesAssets=false;sendRevision++;
       return withActiveWalletMutation(async()=>{
         guardIndependentSpend();const account=await activeTransferAccount(),current=version;
         if(account.profileId!==quote.profileId)throw new SendError('The account changed.');
         if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
-        const result=await sends.submit(account,quote,()=>!disposed&&current===version&&state.profileId===account.profileId&&state.phase==='active');
+        const result=await sends.submit(account,quote,()=>!disposed&&current===version&&state.profileId===account.profileId&&state.phase==='active',undefined,preserveAssets);
         if(disposed||current!==version)throw new SendError('The account changed.');
         if(result.status==='succeeded')walletChanged(account.profileId);
         return sendStatus(result);

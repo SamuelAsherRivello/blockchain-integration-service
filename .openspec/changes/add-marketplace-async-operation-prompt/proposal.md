@@ -4,7 +4,7 @@ Marketplace buy and sell work can begin while the page remains interactive, leav
 
 ## What Changes
 
-- Present Marketplace initial preparation and every foreground user-triggered async operation, including Buy, Sell, and explicit checkout reconciliation, with the shared BIS Pending Operation Dialog: centered over a dark translucent backdrop, with an operation label above the existing spinning bolt.
+- Present Marketplace initial preparation and foreground Buy or Sell async operations with the shared BIS Pending Operation Dialog: centered over a dark translucent backdrop, with an operation label above the existing spinning bolt.
 - Keep the Marketplace covered and non-interactive from operation start through required wallet/inventory refresh and final rendering; preserve accessible focus handling and reduced-motion behavior from the shared BIS component.
 - On confirmed completion, reveal the refreshed Marketplace state. On a failed or unconfirmed foreground operation, use the shared dialog's safe terminal presentation while retaining the durable item-scoped checkout record and recovery path.
 - Preserve nonblocking catalog browsing and disjoint safe actions once a durable checkout has reached its separately represented pending/recovery state; the new prompt is not a settlement-length overlay.
@@ -18,8 +18,8 @@ None.
 
 ### Modified Capabilities
 
-- `marketplace-trading`: Define blocking shared-BIS presentation for active Buy, Sell, and reconciliation work while retaining item-scoped recovery after an unresolved outcome.
-- `pending-operation-dialog`: Extend the shared dialog contract to Marketplace preparation and foreground operations without duplicating its visual or accessibility behavior.
+- `marketplace-trading`: Define blocking shared-BIS presentation for active Buy and Sell work while retaining automatic item-scoped recovery after an unresolved outcome.
+- `pending-operation-dialog`: Extend the shared dialog contract to Marketplace preparation and foreground Buy/Sell operations without duplicating its visual or accessibility behavior.
 
 ## Impact
 

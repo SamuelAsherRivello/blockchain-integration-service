@@ -22,6 +22,7 @@ export type { BisAssetDeliveryRequest, BisAssetDeliveryResult } from './core/ass
 export { advanceLocalMarketplaceCheckout, beginLocalMarketplaceCheckout, confirmLocalMarketplaceCheckoutLeg, readLocalMarketplaceCheckout, readLocalMarketplaceCheckouts } from './core/marketplace-checkout';
 export type { BisMarketplaceCheckoutRecord, BisMarketplaceCheckoutRequest } from './core/marketplace-checkout';
 export { createBisUi, GameOverlay } from './ui/client';
+export { PendingOperations, usePendingNotice } from './ui/PendingOperationDialog';
 export { CopyableValueField } from './ui/CopyableValueField';
 
 export type {BisContinueRequest,BisContinueResult} from './core/continuation';

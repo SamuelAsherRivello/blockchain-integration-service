@@ -22,7 +22,7 @@ export function usePendingNotice(busy: boolean, label: string, error: string | u
 }
 
 /** A host-local modal: document-level showModal would also disable the Admin panel. */
-export function PendingOperations({children, overlay}: {children: ReactNode; overlay?: ReactNode}) {
+export function PendingOperations({children, overlay, className}: {children: ReactNode; overlay?: ReactNode; className?: string}) {
   const runtime = useVisibleViewport();
   const [notices,setNotices] = useState<Map<string,Notice>>(()=>new Map());
   const register = useCallback<Register>((id,notice)=>setNotices(previous=>{
@@ -66,7 +66,7 @@ export function PendingOperations({children, overlay}: {children: ReactNode; ove
   },[open,failed,current?.info?.title]);
   const title=useId(), description=useId();
   return <PendingContext.Provider value={register}>
-    <div ref={runtime} className="bis-runtime">
+    <div ref={runtime} className={`bis-runtime${className?` ${className}`:''}`}>
       <div ref={content} className="bis-runtime-content" inert={open} aria-hidden={open || undefined} aria-busy={!!pending}>{children}</div>
       {current && <div className="bis-pending-backdrop" data-closing={!active || undefined} onKeyDown={event=>{
         if(event.key==='Escape'){event.preventDefault();event.stopPropagation();}
@@ -78,7 +78,7 @@ export function PendingOperations({children, overlay}: {children: ReactNode; ove
         }
       }}>
         <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info?description:undefined}>
-          <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Operation unavailable':current.info?.title??displayLabel}</h2>
+          <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Error':current.info?.title??displayLabel}</h2>
           {failed ? <><p id={description}>{current.error}</p><button className="bis-button" onClick={()=>current.dismiss()}>OK</button></>
             : current.info ? <><p id={description}>{current.info.message}</p>{current.info.confirm ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.info.confirm}>Yes</button><button className="bis-button" onClick={current.dismiss}>Cancel</button></div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
             : <span className="bis-bolt bis-bolt-spin bis-lightning" aria-hidden="true">⚡</span>}
