@@ -1,4 +1,7 @@
 export { createBisContext, createBisAdminContext } from './core/context';
+export { BisGameServices } from './core/bis-game-services';
+export type { BisGameServicesOptions, BisGameContinueDeliveryOptions } from './core/bis-game-services';
+export type { BisHostGame, BisHostGameSessionReference, BisHostGameContinuationTarget, BisHostGameConfirmedContinuation, BisHostGameConfirmedPlayerReward, BisHostGameEffectReceipt } from './core/bis-host-game';
 export { createBisGameWallet } from './core/game-wallet';
 export { createBisLto } from './core/lto-service';
 export type { BisLtoRequest, BisContractFilter, BisContractsResult, BisContractActionResult } from './core/lto-service';

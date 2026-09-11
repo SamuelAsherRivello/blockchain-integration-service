@@ -1,29 +1,28 @@
 ## Why
 
-The BIS library and its Babylon game consumer now demonstrate real, verified Signet workflows, but their growing composition roots and distributed conventions make the next feature more expensive to understand, review, and safely evolve. This change plans a behavior-preserving refactor that improves ownership, documentation, and onboarding while retaining the deliberately thin game-to-BIS boundary.
+The BIS library and Stealth and Steel have a real integration seam, but the seam is currently callback-oriented and the primary composition roots are difficult to evaluate, teach, and evolve. This change establishes a deliberate major-version public contract, focuses the game boundary in one adapter, and makes the architecture discoverable through documentation and representative source files.
 
 ## What Changes
 
-- Publish two cohesive, evidence-based refactor reports: one for the BIS library and one for Stealth and Steel as its consumer.
-- Split oversized composition roots into explicit feature coordinators and lifecycle-owned modules without changing public behavior, Signet-only policy, or game-facing semantics.
-- Establish repository-local Code Templates for the dominant file types, then migrate existing files incrementally to those conventions.
-- Introduce one documented BIS showcase class as the readable public composition story, with exactly five numbered source comments and a README link for newcomers; retain compatible factory entry points during the migration.
-- Add boundary, API-surface, dependency-direction, and focused regression checks to ensure the refactor does not leak Arkade concepts into game code or couple the repositories.
-- Define a staged rollout, review gates, and rollback-safe compatibility approach rather than a disruptive rewrite.
+- Release a breaking major-version API centred on a fully typed `BisHostGame` interface and a `BisGameServices` public facade.
+- Make the game supply every host action through one `createBisHostGame` adapter, with session-scoped idempotent effect receipts for continuation and reward delivery.
+- Keep confirmed BIS financial work separate from game-side effects: a stale, duplicate, or inapplicable host effect never retries, reverses, or alters a BIS operation.
+- Add development-only TypeScript/JSDoc contract checking for the JavaScript game boundary.
+- Add both repositories' Code Templates, long-form Deep Dives, README entry points, and refactor reports.
+- Add focused contract, import-boundary, lifecycle, and packed-artifact checks.
 
 ## Capabilities
 
 ### New Capabilities
 
-None. This is a behavior-preserving refactor and documentation change; the change configuration explicitly skips delta specs.
+- `bis-host-game-contract`: a versioned, protocol-neutral contract for the BIS-to-game boundary.
 
 ### Modified Capabilities
 
-None. Existing account, asset, payment, contract, and game-integration requirements remain unchanged.
+None. Existing wallet, account, asset, and gameplay behavior remains subject to its existing requirements; this change replaces only the public integration composition API.
 
 ## Impact
 
-- BIS: `BIS/packages/integration/src/{core,ui,arkade}`, its package exports/tests, the React demo composition, package README, and `BIS/documentation/`.
-- Game: `STEALTH_STEEL/src/runtime/`, especially `main.js` and `integration/`, plus its tests, README, and `STEALTH_STEEL/documentation/`.
-- The published behavior, existing public API, dependency set, network scope, game-playability-without-BIS guarantee, and real-versus-simulated boundaries remain intact.
-- No production code is changed by this planning change.
+- BIS: `BIS/packages/integration` public exports and composition, documentation, tests, package version, and packed artifact.
+- Game: `STEALTH_STEEL/src/runtime/integration`, the BIS composition in `main.js`, contract tests/tooling, documentation, and the vendored BIS package artifact.
+- This is intentionally a breaking major release. Consumers must adopt `BisGameServices` and implement `BisHostGame`; compatibility factory exports are not retained as the public game entry point.

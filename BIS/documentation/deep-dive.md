@@ -1,0 +1,43 @@
+# BIS Deep Dive
+
+This Deep Dive examines the BIS half of a two-repository integration. Stealth and Steel is the game consumer; this repository owns the published wallet/workflow boundary. Read the [Stealth and Steel Deep Dive](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/documentation/deep-dive.md) alongside this document: readers should move between the two to see where a verified BIS result stops and a game-owned effect begins.
+
+## The shared showcase: `BisHostGame`
+
+[`BisHostGame`](../packages/integration/src/core/bis-host-game.ts) is the deliberately complete contract the game implements. It has exactly four clearly named methods: identify the active game session, capture an opaque continuation target, apply a confirmed continuation, and present a confirmed reward. The names trade brevity for reviewability.
+
+```ts
+interface BisHostGame {
+  getActiveGameSessionReference(): BisHostGameSessionReference | undefined;
+  captureContinuationTarget(input: { gameSessionReference: BisHostGameSessionReference }): BisHostGameContinuationTarget | undefined;
+  applyConfirmedContinuation(input: BisHostGameConfirmedContinuation): Promise<BisHostGameEffectReceipt>;
+  presentConfirmedPlayerReward(input: BisHostGameConfirmedPlayerReward): Promise<BisHostGameEffectReceipt>;
+}
+```
+
+A session reference carries `gameId` and `gameSessionId`. BIS treats the continuation target as opaque. The game reports `applied`, `already-applied`, or `not-applicable`; those are effect receipts, not financial status. A stale session therefore cannot revive a new run, and an inapplicable delivery cannot charge, reverse, mint, or retry a confirmed BIS operation.
+
+## BIS-specific showcase: `BisGameServices`
+
+[`BisGameServices`](../packages/integration/src/core/bis-game-services.ts) is the package’s lifecycle-owning facade. Its numbered comments are a concise route through the architecture:
+
+1. The public surface is the protocol-neutral host, never Arkade.
+2. Context, game wallet, LTO, and UI are assembled at one ownership boundary.
+3. Account hydration remains the readiness gate.
+4. Confirmed results are delivered to the host without changing financial truth.
+5. Disposal runs in reverse ownership order while pending operations remain recoverable.
+
+```ts
+const services = new BisGameServices({ getGameHost });
+await services.ready();
+services.mount(container);
+const controller = services.createContinue({ onEffectReceipt });
+```
+
+The facade intentionally composes existing controllers rather than absorbing their domain rules. Core controllers still own state, validation, persistence, and reconciliation; UI still owns presentation; Arkade adapters remain internal. That makes `BisGameServices` a stable starting point without making it a new catch-all service.
+
+## How the repositories fit
+
+`@bis/integration` publishes types, workflow composition, and the stylesheet. The game dynamically imports that public package only inside `runtime/integration/`. The game’s [`createBisHostGame`](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/src/runtime/integration/bis-host-game.js) maps the contract to its current scene and player state. This direction is intentional: BIS must not import Babylon systems, and the game must not import BIS source internals or Arkade.
+
+For project-level risks, trade-offs, and migration decisions, see [Project Refactor Thoughts — BIS Library](PROJECT_REFACTOR_THOUGHTS_BIS_LIBRARY.md) and [Project Refactor Thoughts — BIS Game](PROJECT_REFACTOR_THOUGHTS_BIS_GAME.md). The companion game report is mirrored in its repository after adoption.

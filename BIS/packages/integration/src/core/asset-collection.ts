@@ -1,10 +1,11 @@
 import type { BisContext } from './context';
-import type { BisAsset, BisMintAssetRequest } from './assets';
+import type { BisAsset, BisMintAssetRequest, BisMintAssetResult } from './assets';
 
 export type BisAssetCollectionOptions = Readonly<{
   asset: Omit<BisMintAssetRequest, 'operationId'>;
   successMessage: string;
   timeoutMs?: number;
+  onCollected?(result: Exclude<BisMintAssetResult, { status: 'error' }>): void;
 }>;
 export type BisAssetCollectionState = Readonly<{
   status: 'checking' | 'available' | 'owned' | 'guest' | 'pending' | 'uncertain' | 'blocked' | 'error';
@@ -83,6 +84,7 @@ export function createBisAssetCollection(context: BisContext, options: BisAssetC
       request = undefined;
       set('owned', 'Already collected.');
       context.showToast(options.successMessage, {imageUrl: result.asset.iconUrl, messageType: 'success'});
+      options.onCollected?.(result);
     } else if (['insufficient-funds','invalid-input','unsupported-environment','account-required','busy'].includes(result.code)) {
       request = undefined; needsAcknowledgment = true; set('error', result.message);
     } else set('uncertain', 'The mint outcome is unknown. Check its status before trying again.');

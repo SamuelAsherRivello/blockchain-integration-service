@@ -25,8 +25,9 @@ Reusable Signet account, payment, and asset integration for browser games, with 
 1. [Getting Started](#getting-started)
 2. [Project Overview](#project-overview)
 3. [Project Details](#project-details)
-4. [Resources](#resources)
-5. [Credits](#credits)
+4. [Deep Dive](#deep-dive)
+5. [Resources](#resources)
+6. [Credits](#credits)
 
 ## Getting Started
 
@@ -111,6 +112,10 @@ Run `npm run typecheck` for type checking or `npm test` for the existing integra
 - [Arkade SDK](https://github.com/arkade-os/sdk): Signet wallet and asset integration (`0.4.67`).
 - [TypeScript](https://www.typescriptlang.org/): Static type checking (`7.0.2`).
 - [Vite](https://vite.dev/): Local development server and production builds (`8.2.2`).
+
+## Deep Dive
+
+Deep Dive takes a closer look at a few representative files and the cross-repository contract that connects them. Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
 
 
 

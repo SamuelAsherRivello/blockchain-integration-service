@@ -2,7 +2,11 @@
 
 ## Purpose and standard
 
-This is an analysis-only proposal for evolving the BIS library toward long-term stability and scalability expected by senior engineers. It preserves the existing product contract: a reusable, Signet-only integration layer for browser games; real Arkade-backed operations; no custom backend; and a game-facing API that does not expose Arkade concepts.
+This report records the refactor proposal and its adopted direction for evolving the BIS library toward long-term stability and scalability expected by senior engineers. It preserves the Signet-only, real-operation, no-custom-backend constraints while making the public game boundary explicit.
+
+## Adopted direction
+
+The implementation is a breaking major-version API centred on `BisHostGame` and `BisGameServices`. `BisHostGame` is the complete, named game contract; `BisGameServices` is the BIS composition/lifecycle facade. Session-scoped `applied`, `already-applied`, and `not-applicable` receipts prevent stale or replayed game effects without changing confirmed financial state. See the implemented [BIS Deep Dive](deep-dive.md).
 
 Read the companion [Project Refactor Thoughts — BIS Game](PROJECT_REFACTOR_THOUGHTS_BIS_GAME.md) for the consumer-side plan. The two documents use one shared rule: BIS owns the reusable wallet/workflow domain, and a game owns its gameplay and host policy.
 
