@@ -1,0 +1,63 @@
+.marketplace-utilities {
+  position: absolute;
+  top: 0;
+  right: 18px;
+  z-index: 2;
+  height: 33px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #785317;
+}
+
+.marketplace-version {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.marketplace-resource-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  border-radius: 5px;
+  color: #785317;
+  transition: color 150ms ease-out, background-color 150ms ease-out;
+}
+
+.marketplace-resource-link:hover {
+  color: #3f2a09;
+  background: #e5b53640;
+}
+
+.marketplace-resource-link:focus-visible {
+  outline: 2px solid #487d66;
+  outline-offset: 2px;
+}
+
+.marketplace-resource-link img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+@media (max-width: 520px) {
+  .network-banner {
+    justify-content: flex-start;
+    padding-left: 16px;
+  }
+
+  .marketplace-utilities {
+    right: 12px;
+    gap: 5px;
+  }
+
+  .marketplace-resource-link {
+    width: 23px;
+    height: 23px;
+  }
+}

@@ -4,7 +4,7 @@ import {onboardingKey,readOnboardingRecord} from './onboarding-record.ts';
 export const browserMutationLock = 'bis-signet-browser-mutation';
 export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
 type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
-const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1','bis-signet-onboarding-v1'];
+const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1', 'bis-signet-asset-delivery-v1','bis-signet-onboarding-v1'];
 const cleanupPrefixes = [...journalPrefixes, 'bis-signet-wallet-operations-v2'];
 function owns(key: string, storage: WebStorage) {
   if (key.startsWith(continuationPrefix)) {
@@ -18,10 +18,10 @@ function keys(storage: WebStorage) {
   return Array.from({length: storage.length}, (_, i) => storage.key(i)).filter((key): key is string => key !== null);
 }
 function gameBoarding(key: string, storage: WebStorage) {
-  const sharedPrefix = ['bis-signet-wallet-operations-v2:', 'bis-signet-continuations-v1:', 'bis-signet-burn-operation-v1:'].find(prefix => key.startsWith(prefix));
+  const sharedPrefix = ['bis-signet-wallet-operations-v2:', 'bis-signet-continuations-v1:', 'bis-signet-burn-operation-v1:', 'bis-signet-asset-delivery-v1:'].find(prefix => key.startsWith(prefix));
   if (sharedPrefix) {
     const owner = key.slice(sharedPrefix.length).split(':')[0];
-    return ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:'].some(prefix => storage.getItem(prefix + owner) === '1');
+    return ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:', 'bis-game-wallet-delivery-owner:'].some(prefix => storage.getItem(prefix + owner) === '1');
   }
   const mintPrefix='bis-signet-mints-v1:';
   if(key.startsWith(mintPrefix)&&storage.getItem('bis-game-wallet-mint-owner:'+key.slice(mintPrefix.length))==='1')return true;
@@ -79,6 +79,7 @@ export function clearBrowserProfilePreferences(profileId:string, storage:WebStor
     `bis-signet-send-operation-v1:${encoded}`,
     `bis-signet-mints-v1:${encoded}`,
     `bis-signet-burn-operation-v1:${encoded}`,
+    `bis-signet-asset-delivery-v1:${encoded}`,
     `bis-signet-onboarding-v1:${encoded}`,
     `bis-signet-wallet-operations-v2:${encoded}`,
     `bis-signet-continuations-v1:${encoded}`,

@@ -11,4 +11,4 @@
 ## 3. UI regression coverage and verification
 
 - [x] 3.1 Replace the profile-chooser rendering test with assertions that active and logged-out Account markup contains no Profiles, Saved Profiles, Add Profile, active-marker, or saved-ID UI while Accounts Details retains its existing Account ID contract.
-- [ ] 3.2 Run the focused integration profile/context/UI tests, `npm run typecheck`, `npm run build`, and `openspec validate hide-profile-chooser-ui --strict`; verify the produced Account UI in a browser host with retained local identities has no profile-management surface.
+- [x] 3.2 Run the focused integration profile/context/UI tests, `npm run typecheck`, `npm run build`, and `openspec validate hide-profile-chooser-ui --strict`; verify the produced Account UI in a browser host with retained local identities has no profile-management surface.

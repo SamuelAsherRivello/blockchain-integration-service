@@ -7,7 +7,7 @@ const workspaceDir = 'D:\\Documents\\Projects\\VC\\Bitcoin\\blockchain-integrati
 const skillDir = 'C:\\Users\\srive\\.codex\\plugins\\cache\\openai-primary-runtime\\presentations\\26.905.11957\\skills\\presentations';
 const buildDir = path.join(workspaceDir, '.codex-build', 'bis-architecture-editable');
 const stagingDir = path.join(workspaceDir, '.codex-finalizer');
-const finalPath = path.join(workspaceDir, 'output', 'presentations', 'bis-architecture-editable', 'bis-architecture-editable-v4.pptx');
+const finalPath = path.join(workspaceDir, 'output', 'presentations', 'bis-architecture-editable', 'bis-architecture-editable-v5.pptx');
 const runtimePython = 'C:\\Users\\srive\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe';
 const { resolvePresentationFont, finalizePresentation } = await import(pathToFileURL(
   path.join(skillDir, 'container_tools', 'artifact_tool_utils.mjs'),
@@ -89,16 +89,12 @@ function route(points) {
 // Cards are added afterwards so their opaque surfaces keep connector paths out of labels.
 route([[350,192],[395,192],[395,217],[441,217]]);
 route([[350,192],[402,192],[402,357],[732,357]]);
-route([[350,192],[390,192],[390,145],[1023,145],[1023,217]]);
 route([[350,292],[405,292],[405,357],[441,357]]);
 route([[350,292],[690,292],[690,217],[732,217]]);
-route([[350,292],[410,292],[410,497],[732,497]]);
 route([[350,292],[398,292],[398,545],[1023,545],[1023,497]]);
 route([[350,392],[405,392],[405,497],[441,497]]);
 route([[350,392],[398,392],[398,447],[1023,447],[1023,357]]);
 route([[350,492],[385,492],[385,267],[1023,267],[1023,217]]);
-route([[350,492],[392,492],[392,417],[1023,417],[1023,357]]);
-route([[350,592],[385,592],[385,237],[441,237]]);
 route([[350,592],[690,592],[690,497],[732,497]]);
 
 function addCards(group) {
@@ -116,7 +112,7 @@ addCards(bis); addCards(admin); addCards(marketplace); addCards(game);
 
 slide.speakerNotes.textFrame.setText('Architecture labels and relationships derived from the BIS repository, including the AdminPanel, MarketplacePanel, marketplace App, and treasure-session modules.');
 
-const candidatePath = path.join(stagingDir, 'bis-architecture-editable-v4-candidate.pptx');
+const candidatePath = path.join(stagingDir, 'bis-architecture-editable-v5-candidate.pptx');
 await (await PresentationFile.exportPptx(presentation)).save(candidatePath);
 const preview = await presentation.export({ slide, format: 'png', scale: 1 });
 await fs.writeFile(path.join(buildDir, 'bis-architecture-editable-preview.png'), new Uint8Array(await preview.arrayBuffer()));
@@ -133,6 +129,6 @@ const result = await finalizePresentation({
   requiredNativeTableOwnerSlides: [],
   fontPolicy: { basis: 'design', families: [font] },
   verifyArtifactToolImport: true,
-  receiptPath: path.join(stagingDir, 'bis-architecture-editable-v4.validation.json'),
+  receiptPath: path.join(stagingDir, 'bis-architecture-editable-v5.validation.json'),
 });
 console.log(JSON.stringify({ finalPath, font, result }, null, 2));

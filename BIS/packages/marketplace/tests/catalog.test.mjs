@@ -16,7 +16,7 @@ test('public catalog contains the exact nine game equipment entries and no walle
 
 test('public Marketplace uses a read-only address query and proof-gated trade actions', async () => {
   const [app, inventory] = await Promise.all([text('src/App.tsx'), text('src/inventory.ts')]);
-  assert.match(app, /fetch\('\/catalog\.json'/);
+  assert.match(app, /fetch\(`\$\{import\.meta\.env\.BASE_URL\}catalog\.json`/);
   assert.match(app, /<button disabled title=\{trading\.message\}>Buy<\/button>/);
   assert.match(app, /<button disabled title=\{trading\.message\}>Sell<\/button>/);
   assert.match(app,/getBisMarketplaceTradingAvailability/);
@@ -65,13 +65,16 @@ test('Marketplace delegates Player and Game Wallet login to production BIS surfa
   assert.doesNotMatch(app,/recovery phrase|MnemonicIdentity|player-to-player/i);
 });
 
-test('Marketplace uses the BIS Signet banner wording and version treatment', async () => {
-  const [app, style] = await Promise.all([text('src/App.tsx'), text('src/style.css')]);
+test('Marketplace places version and project resources in the upper-right Signet bar', async () => {
+  const [app, style, utilities] = await Promise.all([text('src/App.tsx'), text('src/style.css'), text('src/marketplace-utilities.css')]);
   assert.match(app, /Network: Signet/);
-  assert.match(app, /BIS: v\{version\}/);
+  assert.match(app, /className="marketplace-utilities"/);
+  assert.match(app, /v\{version\}/);
+  assert.match(app, /https:\/\/github\.com\/SamuelAsherRivello\/blockchain-integration-service/);
+  assert.match(app, /https:\/\/docs\.arkadeos\.com\//);
   assert.match(style, /background:#fff0b8/);
   assert.match(style, /border-bottom:\.8px solid #e5b536/);
-  assert.match(style, /\.version-label\{position:absolute;left:100%;top:50%/);
+  assert.match(utilities, /\.marketplace-utilities\s*\{\s*position: absolute;\s*top: 0;\s*right: 18px/);
 });
 
 test('desktop Marketplace confines scrolling to the compact catalog grid', async () => {

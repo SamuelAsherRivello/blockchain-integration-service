@@ -1,0 +1,57 @@
+{"kind":"deck","id":"pr/mxe944","name":"Deck"}
+{"kind":"layout","layoutId":"1d9de45e-e155-4e12-9c0f-23e52c979903","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"396dfc53-edeb-4b90-85a6-33dd55a49b8d","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/00mzt3","slide":1,"title":"BIS","textShapes":18}
+{"kind":"shape","id":"sh/8v6pk3yt","slide":1,"bbox":[28,62,346,594]}
+{"kind":"textbox","id":"sh/7uxoryx8","slide":1,"text":"BIS","textPreview":"BIS","textChars":3,"textLines":1,"bbox":[28,62,346,67]}
+{"kind":"shape","id":"sh/mt47itgn","slide":1,"bbox":[417,62,248,594]}
+{"kind":"textbox","id":"sh/h0f6x8fa","slide":1,"text":"Admin","textPreview":"Admin","textChars":5,"textLines":1,"bbox":[417,62,248,67]}
+{"kind":"shape","id":"sh/wz6po3ep","slide":1,"bbox":[708,62,248,594]}
+{"kind":"textbox","id":"sh/vyxovyx4","slide":1,"text":"Marketplace","textPreview":"Marketplace","textChars":11,"textLines":1,"bbox":[708,62,248,67]}
+{"kind":"shape","id":"sh/uxo7mtwj","slide":1,"bbox":[999,62,252,594]}
+{"kind":"textbox","id":"sh/5oz618f6","slide":1,"text":"Game","textPreview":"Game","textChars":4,"textLines":1,"bbox":[999,62,252,67]}
+{"kind":"shape","id":"sh/4nqpsnel","slide":1,"bbox":[350,192,45,0.2]}
+{"kind":"shape","id":"sh/u14jyhcf","slide":1,"bbox":[395,192,0.2,25]}
+{"kind":"shape","id":"sh/v2d07mt0","slide":1,"bbox":[395,217,46,0.2]}
+{"kind":"shape","id":"sh/wnm10rul","slide":1,"bbox":[350,192,52,0.2]}
+{"kind":"shape","id":"sh/hovi9wb6","slide":1,"bbox":[402,192,0.2,165]}
+{"kind":"shape","id":"sh/ip4j21cb","slide":1,"bbox":[402,357,330,0.2]}
+{"kind":"shape","id":"sh/jqd0b6tw","slide":1,"bbox":[350,292,55,0.2]}
+{"kind":"shape","id":"sh/4rm14buh","slide":1,"bbox":[405,292,0.2,65]}
+{"kind":"shape","id":"sh/5sf2dwb2","slide":1,"bbox":[405,357,36,0.2]}
+{"kind":"shape","id":"sh/ytkjqxc7","slide":1,"bbox":[350,292,340,0.2]}
+{"kind":"shape","id":"sh/zut0z2ts","slide":1,"bbox":[690,217,0.2,75]}
+{"kind":"shape","id":"sh/nypgry9k","slide":1,"bbox":[690,217,42,0.2]}
+{"kind":"shape","id":"sh/2dgfytsz","slide":1,"bbox":[350,292,48,0.2]}
+{"kind":"shape","id":"sh/p07yt8rq","slide":1,"bbox":[398,292,0.2,253]}
+{"kind":"shape","id":"sh/ozyx03a5","slide":1,"bbox":[398,545,625,0.2]}
+{"kind":"shape","id":"sh/fapg3y98","slide":1,"bbox":[1023,497,0.2,48]}
+{"kind":"shape","id":"sh/e9wfuts3","slide":1,"bbox":[350,392,55,0.2]}
+{"kind":"shape","id":"sh/1c7y5ore","slide":1,"bbox":[405,392,0.2,105]}
+{"kind":"shape","id":"sh/gbyxw3at","slide":1,"bbox":[405,497,36,0.2]}
+{"kind":"shape","id":"sh/z69gzi9s","slide":1,"bbox":[350,392,48,0.2]}
+{"kind":"shape","id":"sh/y50z6ds7","slide":1,"bbox":[398,392,0.2,55]}
+{"kind":"shape","id":"sh/wzalkvmd","slide":1,"bbox":[398,447,625,0.2]}
+{"kind":"shape","id":"sh/x0jmdg3y","slide":1,"bbox":[1023,357,0.2,90]}
+{"kind":"shape","id":"sh/ax83il47","slide":1,"bbox":[350,492,35,0.2]}
+{"kind":"shape","id":"sh/vy14bqls","slide":1,"bbox":[385,267,0.2,225]}
+{"kind":"shape","id":"sh/k3alovmp","slide":1,"bbox":[385,267,638,0.2]}
+{"kind":"shape","id":"sh/54jmh03u","slide":1,"bbox":[1023,217,0.2,50]}
+{"kind":"shape","id":"sh/i1s3ml4j","slide":1,"bbox":[350,592,340,0.2]}
+{"kind":"shape","id":"sh/j214fql4","slide":1,"bbox":[690,497,0.2,95]}
+{"kind":"shape","id":"sh/s7u5cfml","slide":1,"bbox":[690,497,42,0.2]}
+{"kind":"textbox","id":"sh/t83mlk36","slide":1,"text":"Account / Wallet","textPreview":"Account / Wallet","textChars":16,"textLines":1,"bbox":[52,155,298,74]}
+{"kind":"textbox","id":"sh/d0vm1076","slide":1,"text":"Assets","textPreview":"Assets","textChars":6,"textLines":1,"bbox":[52,255,298,74]}
+{"kind":"textbox","id":"sh/sfm5svql","slide":1,"text":"Contracts","textPreview":"Contracts","textChars":9,"textLines":1,"bbox":[52,355,298,74]}
+{"kind":"textbox","id":"sh/ret4zqpg","slide":1,"text":"Payments","textPreview":"Payments","textChars":8,"textLines":1,"bbox":[52,455,298,74]}
+{"kind":"textbox","id":"sh/qdknql8v","slide":1,"text":"Transaction History","textPreview":"Transaction History","textChars":19,"textLines":1,"bbox":[52,555,298,74]}
+{"kind":"textbox","id":"sh/5cbmxg7a","slide":1,"text":"A4. Account Dialog","textPreview":"A4. Account Dialog","textChars":18,"textLines":1,"bbox":[441,180,200,74]}
+{"kind":"textbox","id":"sh/4b2lovqp","slide":1,"text":"C1. Mint Asset & Send","textPreview":"C1. Mint Asset & Send","textChars":21,"textLines":1,"bbox":[441,321,200,74]}
+{"kind":"textbox","id":"sh/3at4vqp4","slide":1,"text":"G2. LTO Treasure Chest","textPreview":"G2. LTO Treasure Chest","textChars":22,"textLines":1,"bbox":[441,462,200,74]}
+{"kind":"textbox","id":"sh/i9k3ml8j","slide":1,"text":"Stealth & Steel catalog","textPreview":"Stealth & Steel catalog","textChars":23,"textLines":1,"bbox":[732,180,200,74]}
+{"kind":"textbox","id":"sh/p8fm9k7e","slide":1,"text":"Game Wallet Login","textPreview":"Game Wallet Login","textChars":17,"textLines":1,"bbox":[732,321,200,74]}
+{"kind":"textbox","id":"sh/o7650fqt","slide":1,"text":"Verified game-wallet inventory","textPreview":"Verified game-wallet inventory","textChars":30,"textLines":1,"bbox":[732,462,200,74]}
+{"kind":"textbox","id":"sh/6dgjuhob","slide":1,"text":"Pay 1,000 sats to continue","textPreview":"Pay 1,000 sats to continue","textChars":26,"textLines":1,"bbox":[1023,180,204,74]}
+{"kind":"textbox","id":"sh/7epk3m5w","slide":1,"text":"90-second LTO treasure offer","textPreview":"90-second LTO treasure offer","textChars":28,"textLines":1,"bbox":[1023,321,204,74]}
+{"kind":"textbox","id":"sh/8fy1wr6h","slide":1,"text":"Achievement asset award","textPreview":"Achievement asset award","textChars":23,"textLines":1,"bbox":[1023,462,204,74]}
+{"kind":"notes","id":"nt/00mzt3","slide":1,"text":"Architecture labels and relationships derived from the BIS repository, including the AdminPanel, MarketplacePanel, marketplace App, and treasure-session modules."}

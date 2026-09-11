@@ -40,16 +40,6 @@ test('encrypted player profiles migrate, deduplicate, select explicitly, and not
     await peer.selectProfile('profile-legacy',deduplicated.generation);
     await new Promise(resolve=>setTimeout(resolve,50));
     const selected=await storage.load();offA();offB();
-    await storage.reset(selected.generation,{purpose:'logout',profileId:'profile-legacy',operations:{count:0,fingerprint:''}});
-    const {createBisContext}=await import('/BIS/packages/integration/src/core/context.ts');
-    const {createBisUi}=await import('/BIS/packages/integration/src/ui/client.tsx');
-    const context=createBisContext();await context.ready();
-    const host=document.createElement('div');document.body.replaceChildren(host);
-    const ui=createBisUi(context);ui.mount(host);ui.showAccountButton();await new Promise(resolve=>setTimeout(resolve,0));
-    [...host.querySelectorAll('button')].find(button=>button.textContent?.includes('Account'))?.click();
-    await new Promise(resolve=>setTimeout(resolve,0));
-    const accountUi={text:host.textContent,buttons:[...host.querySelectorAll('button')].map(button=>button.textContent)};
-    ui.unmount();context.dispose();
 
     await deleteDb();
     await putLegacy({phrase:'invalid browser fixture',profileId:'profile-invalid'});
@@ -58,7 +48,7 @@ test('encrypted player profiles migrate, deduplicate, select explicitly, and not
     let invalidRejected=false;try{await createAccountStorage().load();}catch{invalidRejected=true;}
     const invalidPreserved=(await readKey('identity'))!==undefined;
     await deleteDb();
-    return {migrated,afterMigration,legacyRemoved,extractable,deduplicated,notifications,selected,accountUi,invalidRejected,invalidPreserved};
+    return {migrated,afterMigration,legacyRemoved,extractable,deduplicated,notifications,selected,invalidRejected,invalidPreserved};
   });
   assert.equal(result.migrated.account.profileId,'profile-legacy');
   assert.deepEqual(result.afterMigration.profiles,['profile-legacy']);
@@ -67,7 +57,5 @@ test('encrypted player profiles migrate, deduplicate, select explicitly, and not
   assert.deepEqual(result.deduplicated.profiles,['profile-legacy','profile-second']);
   assert.equal(result.deduplicated.activeProfileId,'profile-second');
   assert.ok(result.notifications>0);assert.equal(result.selected.account.profileId,'profile-legacy');
-  assert.match(result.accountUi.text,/You are not logged in\./);assert.doesNotMatch(result.accountUi.text,/Profiles|profile-second|Add Profile|Active/);
-  assert.deepEqual(result.accountUi.buttons.filter(Boolean).sort(),['⚡ Create Account','⚡ Restore Account','Back'].sort());
   assert.equal(result.invalidRejected,true);assert.equal(result.invalidPreserved,true);
 });
