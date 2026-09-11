@@ -1,6 +1,14 @@
 <!-- AI: This shared diagram is stored only at BIS/documentation/bitcoin-ark-arkade-bis-game.png in the BIS repository. If it is updated, update and store it only there; both Deep Dive pages must keep linking to this single source. -->
 ![Bitcoin Layer 1, ARK, Arkade, BIS, and Game](bitcoin-ark-arkade-bis-game.png)
 
+### Legend
+
+1. [Bitcoin](https://bitcoin.org/en/) (Layer 1) — The decentralized base layer that provides final settlement and security.
+2. [Ark](https://ark-protocol.org/) (Layer 2) — An off-chain Bitcoin transaction-batching protocol for fast, low-cost payments with self-custodied exits to Layer 1.
+3. [Arkade](https://arkadeos.com/) (Layer 2) — A programmable Bitcoin execution layer for wallets, payments, assets, and contracts.
+4. [BIS](https://github.com/SamuelAsherRivello/blockchain-integration-service) (Integration) — A custom TypeScript/React library that connects Arkade workflows to a game through a small, game-neutral contract.
+5. [Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game) (Application) — The custom Stealth & Steel host game, which owns scenes and gameplay consequences after BIS confirms an outcome.
+
 # Deep Dive
 
 This document reviews the inner workings of the project.

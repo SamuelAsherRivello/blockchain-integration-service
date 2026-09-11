@@ -1,7 +1,7 @@
 ## 1. Stealth & Steel equipment consumer
 
 - [x] 1.1 Build and pack the completed public `@bis/integration` boundary, update the authorized Stealth & Steel vendored package and lockfile without a sibling source alias or Arkade dependency, and verify one compatible React instance plus guest startup when BIS account loading fails.
-- [ ] 1.2 Remove the Settings Items action; add a main-menu `⚡ Items` action directly below Start that is enabled only for an active player profile; render the exact Items-window instruction, a non-scrolling reserved 3-by-3 grid of square reference-matched item tiles, and an unmistakable non-text selected treatment; verify guest/player enablement, profile switching, clearing, ownership loss, keyboard/pointer use, runtime chain-URL images, nine visible tiles, and no added visible text.
+- [x] 1.2 Remove the Settings Items action; add a main-menu `⚡ Items` action directly below Start that is enabled only for an active player profile; render the exact Items-window instruction, a non-scrolling reserved 3-by-3 grid of square reference-matched item tiles, and an unmistakable non-text selected treatment; verify guest/player enablement, profile switching, clearing, ownership loss, keyboard/pointer use, runtime chain-URL images, nine visible tiles, and no added visible text.
 - [x] 1.3 Snapshot the effective equipment at each player spawn; apply the approved Shoes movement, Dagger outgoing-damage, and Shield incoming-damage effects; render `Items: [][][]` below Gold in Shoes/Dagger/Shield order; verify all nine tiers, next-spawn behavior, guest baseline, empty/mixed/full HUD slots, and no bundled item-art fallback.
 
 ## 2. Cross-project and live acceptance

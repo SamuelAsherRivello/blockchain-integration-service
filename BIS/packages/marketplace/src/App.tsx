@@ -7,6 +7,7 @@ import { version } from '../package.json';
 import arkadeLogo from '../../integration-demo/src/assets/arkade-logo.png';
 import './marketplace-utilities.css';
 
+const blockchainBenefitsImageUrl = 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/documentation/bitcoin-ark-arkade-bis-game.png?raw=1';
 function shortAddress(address: string | undefined) {return address ? `${address.slice(0, 7)}…${address.slice(-6)}` : 'Not connected';}
 function isInsufficientFundsError(error: unknown) {return error instanceof Error&&/insufficient.*(?:funds|balance)/i.test(error.message);}
 function gameplayMetadata(item:BisEquipmentItem){return [
@@ -185,7 +186,7 @@ export function App(){
       </article></div>}
       {isBenefitsOpen&&<div className="backdrop blockchain-benefits-backdrop" role="presentation" onMouseDown={()=>setIsBenefitsOpen(false)}><article className="detail blockchain-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="blockchain-benefits-title" onMouseDown={event=>event.stopPropagation()}>
         <button type="button" className="close" onClick={()=>setIsBenefitsOpen(false)} aria-label="Close Blockchain Benefits">×</button>
-        <p className="blockchain-benefits-category">Marketplace</p>
+        <img className="blockchain-benefits-image" src={blockchainBenefitsImageUrl} alt="Bitcoin Ark Arkade BIS game" />
         <h2 id="blockchain-benefits-title">Blockchain Benefits</h2>
         <ul className="marketplace-benefits-list">
           <li><strong>Marketplace</strong><span>Players securely trade a Dagger III between wallets.</span></li>

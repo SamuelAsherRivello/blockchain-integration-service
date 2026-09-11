@@ -69,15 +69,19 @@ test('Marketplace opens a separate Blockchain Benefits dialog from the clickable
   assert.match(app, /isBenefitsOpen&&<div className="backdrop blockchain-benefits-backdrop"/);
   assert.match(app, /className="detail blockchain-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="blockchain-benefits-title"/);
   assert.match(app, /<h2 id="blockchain-benefits-title">Blockchain Benefits<\/h2>/);
-  assert.match(app, /className="blockchain-benefits-category">Marketplace<\/p>/);
+  assert.match(app, /const blockchainBenefitsImageUrl = 'https:\/\/github\.com\/SamuelAsherRivello\/blockchain-integration-service\/blob\/main\/BIS\/documentation\/bitcoin-ark-arkade-bis-game\.png\?raw=1';/);
+  assert.match(app, /<img className="blockchain-benefits-image" src=\{blockchainBenefitsImageUrl\} alt="Bitcoin Ark Arkade BIS game" \/>/);
+  assert.doesNotMatch(app, /className="blockchain-benefits-category">Marketplace<\/p>/);
   for (const heading of ['Marketplace', 'Account / Wallet', 'Assets', 'Contracts', 'Payments']) {
     assert.match(app, new RegExp(`<strong>${heading}<\\/strong>`));
   }
   assert.match(app, /Players securely trade a Dagger III between wallets\./);
   assert.match(app, /aria-label="Close Blockchain Benefits"/);
   assert.match(polish, /\.benefits-trigger/);
+  assert.match(polish, /\.blockchain-benefits-image \{[^}]*max-height: 210px/);
   assert.doesNotMatch(polish, /\.blockchain-benefits-dialog \{[^}]*(?:width|aspect-ratio|overflow|padding):/);
   assert.match(polish, /\.marketplace-benefits-list li \{[^}]*padding: 12px 0/);
+  assert.match(polish, /\.marketplace-benefits-list li \{[^}]*grid-template-columns: 136px minmax\(0, 1fr\); gap: 8px/);
 });
 
 test('item detail provides the selected valid Arkade asset with a bottom explorer action', async () => {
