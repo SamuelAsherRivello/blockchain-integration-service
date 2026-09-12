@@ -11,3 +11,9 @@
   padding: 16px;
   transform: none;
 }
+
+@media (max-width: 767px) {
+  .marketplace-bis-host .bis-layer:not(.bis-layer-open) {
+    padding: calc(40px + env(safe-area-inset-top)) 16px 0;
+  }
+}

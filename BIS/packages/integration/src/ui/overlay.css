@@ -239,7 +239,7 @@
 .bis-pending-backdrop { opacity: 1; transition: opacity 0.1s linear; }
 .bis-pending-backdrop[data-closing] { opacity: 0; }
 @starting-style { .bis-pending-backdrop { opacity: 0; } }
-.bis-pending-dialog { height: 100px; scrollbar-width: none; -webkit-user-select: none; user-select: none; }
+.bis-pending-dialog { min-height: 100px; height: auto; scrollbar-width: none; -webkit-user-select: none; user-select: none; }
 .bis-pending-dialog::-webkit-scrollbar { display: none; }
 .bis-pending-dialog h2 { margin: 0 0 14.4px; font-size: 16px; font-weight: 650; }
 .bis-pending-dialog p { font-size: 10.4px; line-height: 1.6; overflow-wrap: anywhere; margin: 0 0 16px; }
