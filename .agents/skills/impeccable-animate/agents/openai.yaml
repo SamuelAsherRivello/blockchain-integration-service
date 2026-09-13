@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Animate"
+  short_description: "Add purposeful motion and micro-interactions"
+  default_prompt: "Use $impeccable-animate to add purposeful motion to this UI."
+policy:
+  allow_implicit_invocation: false

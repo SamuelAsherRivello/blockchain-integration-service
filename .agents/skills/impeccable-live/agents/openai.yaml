@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Live"
+  short_description: "Iterate visually on a running web UI"
+  default_prompt: "Use $impeccable-live to iterate on this running UI in the browser."
+policy:
+  allow_implicit_invocation: false

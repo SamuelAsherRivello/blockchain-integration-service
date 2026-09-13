@@ -16,10 +16,10 @@
     "verify:pages": "node BIS/scripts/verify-pages-routes.mjs"
   },
   "devDependencies": {
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "playwright": "^1.63.0",
     "typescript": "7.0.2",
-    "vite": "8.2.2"
+    "vite": "8.3.0"
   }
 }

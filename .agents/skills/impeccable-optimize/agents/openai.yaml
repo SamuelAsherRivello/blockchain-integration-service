@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Optimize"
+  short_description: "Diagnose and improve UI performance"
+  default_prompt: "Use $impeccable-optimize to improve this UI's performance."
+policy:
+  allow_implicit_invocation: false

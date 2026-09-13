@@ -9,10 +9,10 @@
     "test": "node --test --test-isolation=none tests/*.test.mjs"
   },
   "dependencies": {
-    "@arkade-os/sdk": "0.4.71",
+    "@arkade-os/sdk": "0.4.72",
     "@scure/bip39": "2.4.0"
   },
   "devDependencies": {
-    "vite": "8.2.2"
+    "vite": "8.3.0"
   }
 }

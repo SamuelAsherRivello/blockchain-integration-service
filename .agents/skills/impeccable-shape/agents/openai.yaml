@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Shape"
+  short_description: "Plan a UI or UX feature before coding"
+  default_prompt: "Use $impeccable-shape to plan the UI and UX for this feature."
+policy:
+  allow_implicit_invocation: false

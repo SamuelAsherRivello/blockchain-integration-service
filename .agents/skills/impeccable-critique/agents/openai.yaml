@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Critique"
+  short_description: "Review UI and UX quality"
+  default_prompt: "Use $impeccable-critique to review this UI and give actionable design feedback."
+policy:
+  allow_implicit_invocation: false

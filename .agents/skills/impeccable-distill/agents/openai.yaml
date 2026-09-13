@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Distill"
+  short_description: "Simplify a UI and remove unnecessary complexity"
+  default_prompt: "Use $impeccable-distill to simplify and focus this UI."
+policy:
+  allow_implicit_invocation: false

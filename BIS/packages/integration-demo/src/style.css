@@ -70,10 +70,12 @@ nav + .story-section { margin-top: 24px; }
 .runtime-scale-layer { position: absolute; top: 0; left: 0; transform-origin: top left; }
 
 .aspect-tag { color: #9aa9bd; border: 1px solid #303a49; border-radius: 5px; padding: 5px 9px; font-size: 10px; }
-.preview-stage { grid-area: 1 / 1; align-self: start; display: flex; justify-content: center; }
+.preview-stage { grid-area: 1 / 1; align-self: stretch; display: flex; align-items: center; justify-content: center; }
 .game-viewport { position: relative; aspect-ratio: 9 / 16; width: min(100%, 390px, calc((100svh - 130px) * .5625)); isolation: isolate; background-color: #19222c; background-image: linear-gradient(#29354440 1px, transparent 1px), linear-gradient(90deg, #29354440 1px, transparent 1px); background-size: 32px 32px; border: 1px solid #394657; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 64px #0004; }
 .runtime-container { position: absolute; inset: 0; }
 @media (max-width: 700px) { .app-header { height: 50px; padding: 0 18px; } .identity { font-size: 12px; gap: 9px; } .version-tag { display: none; } .workspace { grid-template-columns: 1fr; } .admin-panel { padding: 16px 24px; gap: 20px; border-right: 0; border-bottom: 1px solid #2b303a; } .reset-button { margin-top: 0; } .preview-panel { padding: 16px 24px; } .game-viewport { width: min(100%, 360px); } }
+
+@media (min-width: 701px) { .preview-panel { height: calc(100svh - 50px); box-sizing: border-box; grid-template-rows: minmax(0, 1fr); } }
 
 .game-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px; justify-content: center; align-items: center; color: #78899e; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; pointer-events: none; }
 .game-placeholder span { font-size: 30px; font-weight: 200; color: #56677d; line-height: 1; }

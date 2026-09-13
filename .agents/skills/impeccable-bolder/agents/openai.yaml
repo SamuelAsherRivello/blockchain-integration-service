@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Bolder"
+  short_description: "Give a bland UI stronger visual impact"
+  default_prompt: "Use $impeccable-bolder to make this UI more distinctive without losing usability."
+policy:
+  allow_implicit_invocation: false

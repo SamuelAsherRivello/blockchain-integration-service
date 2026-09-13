@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Layout"
+  short_description: "Improve layout, spacing, rhythm, and hierarchy"
+  default_prompt: "Use $impeccable-layout to improve the spacing and hierarchy of this UI."
+policy:
+  allow_implicit_invocation: false

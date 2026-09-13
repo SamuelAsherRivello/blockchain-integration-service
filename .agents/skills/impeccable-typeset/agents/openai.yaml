@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Typeset"
+  short_description: "Improve typography hierarchy and readability"
+  default_prompt: "Use $impeccable-typeset to improve typography in this UI."
+policy:
+  allow_implicit_invocation: false

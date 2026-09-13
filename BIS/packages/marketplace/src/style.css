@@ -50,3 +50,14 @@ h1 { color: #182d39; }
 .truth { font-size: 12px; color: #647987 !important; }
 .marketplace-pending-runtime { z-index: 100; }
 .marketplace-pending-runtime .bis-pending-backdrop { z-index: 60; }
+
+@media (max-width: 767px) {
+  /* The document is the only mobile scroll surface. Keeping body visible avoids
+     scroll chaining between the browser viewport and the desktop panel rules. */
+  html { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
+  body { height: auto; min-height: 100%; overflow: visible; }
+  #root { height: auto; min-height: 100%; }
+  .marketplace-pending-runtime,
+  .marketplace-pending-runtime > .bis-runtime-content { position: static; inset: auto; }
+  .marketplace-pending-runtime > .bis-pending-backdrop { position: fixed; }
+}

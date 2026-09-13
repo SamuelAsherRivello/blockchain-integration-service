@@ -76,6 +76,10 @@ In the local Vite admin, loading the selected wallet also saves only its public 
 
 F3 shows the payment-usable balance left of Details, including 0. Arkade script events update it automatically while Admin is open, without a balance polling timer. Details retries after a disconnection. Bitcoin onchain changes alone are not subscribed by this Arkade event stream.
 
+### 04. Batch Operations
+
+The Admin-only **04. Batch Operations** section contains **Clear Last Batch** and **Start New Batch**. These controls create, replace, or clear only an in-memory local Admin batch-session marker and report that local change in Console. They do not start, clear, cancel, submit, or settle a wallet, Arkade, Marketplace, or remote batch operation; no account or Game Wallet is required to use them.
+
 ## F3 payments and notifications
 
 F3 **Send 1000 Sats (Game->Player)** sends immediately from the imported F1 wallet to the active preview player. It disables without an eligible player/sender or while unresolved. `createBisGameWallet` exposes `canPayPlayer`, `payPlayer`, `hasPendingPlayerPayment`, and `checkPlayerPayment`; `BisContext.getPaymentRecipient()` resolves the active player's public recipient without opening Account.

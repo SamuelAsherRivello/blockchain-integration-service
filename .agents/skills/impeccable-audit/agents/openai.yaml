@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Audit"
+  short_description: "Audit accessibility, performance, and responsive UI"
+  default_prompt: "Use $impeccable-audit to audit this UI for accessibility, performance, and responsiveness."
+policy:
+  allow_implicit_invocation: false

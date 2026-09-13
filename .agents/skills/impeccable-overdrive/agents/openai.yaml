@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Overdrive"
+  short_description: "Push a UI beyond conventional limits"
+  default_prompt: "Use $impeccable-overdrive to make this UI technically and visually extraordinary."
+policy:
+  allow_implicit_invocation: false

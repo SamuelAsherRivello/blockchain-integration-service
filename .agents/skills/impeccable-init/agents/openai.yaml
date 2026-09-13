@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Init"
+  short_description: "Set up durable product design context"
+  default_prompt: "Use $impeccable-init to set up this app's Impeccable context."
+policy:
+  allow_implicit_invocation: false

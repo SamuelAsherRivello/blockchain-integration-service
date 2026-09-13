@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Onboard"
+  short_description: "Design first-run flows and empty states"
+  default_prompt: "Use $impeccable-onboard to improve first-run and empty-state UX."
+policy:
+  allow_implicit_invocation: false

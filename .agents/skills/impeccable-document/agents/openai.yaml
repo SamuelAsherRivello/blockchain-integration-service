@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Document"
+  short_description: "Capture the existing visual design system"
+  default_prompt: "Use $impeccable-document to document this app's existing UI design system."
+policy:
+  allow_implicit_invocation: false

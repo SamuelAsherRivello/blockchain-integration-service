@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Adapt"
+  short_description: "Adapt a UI for screens and devices"
+  default_prompt: "Use $impeccable-adapt to make this UI work well across screen sizes."
+policy:
+  allow_implicit_invocation: false

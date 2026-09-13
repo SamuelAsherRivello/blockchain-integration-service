@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Quieter"
+  short_description: "Calm an overstimulating UI"
+  default_prompt: "Use $impeccable-quieter to make this UI calmer and more refined."
+policy:
+  allow_implicit_invocation: false

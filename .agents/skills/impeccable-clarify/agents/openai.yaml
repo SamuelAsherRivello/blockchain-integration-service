@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Clarify"
+  short_description: "Improve labels, guidance, and UX copy"
+  default_prompt: "Use $impeccable-clarify to improve the UX copy in this target."
+policy:
+  allow_implicit_invocation: false

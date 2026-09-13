@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Delight"
+  short_description: "Add memorable and useful personality"
+  default_prompt: "Use $impeccable-delight to add thoughtful personality to this UI."
+policy:
+  allow_implicit_invocation: false

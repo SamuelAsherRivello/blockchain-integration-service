@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Colorize"
+  short_description: "Add strategic color and visual character"
+  default_prompt: "Use $impeccable-colorize to give this UI a more intentional color system."
+policy:
+  allow_implicit_invocation: false

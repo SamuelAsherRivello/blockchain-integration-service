@@ -219,10 +219,14 @@ test('Marketplace lays out its desktop panels independently so mobile can preser
 });
 
 test('Marketplace changes to a touch-sized 1-to-6 vertical flow on narrow screens', async () => {
-  const [redesign, launcher] = await Promise.all([text('src/marketplace-redesign.css'), text('src/account-launcher.css')]);
+  const [redesign, style, launcher] = await Promise.all([text('src/marketplace-redesign.css'), text('src/style.css'), text('src/account-launcher.css')]);
   assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?grid-template-areas:[\s\S]*?"heading"[\s\S]*?"toolbar"[\s\S]*?"wallet"[\s\S]*?"catalog"/);
   assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?overflow: visible;/);
   assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.filter-row button\s*\{[\s\S]*?min-height: 44px;/);
+  assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page\s*\{[\s\S]*?min-height: 100svh;[\s\S]*?overflow: visible;/);
+  assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?overflow: visible;[\s\S]*?overscroll-behavior: auto;[\s\S]*?scrollbar-gutter: auto;/);
+  assert.match(style, /@media \(max-width: 767px\)\s*\{[\s\S]*?html\s*\{[\s\S]*?overflow-y: auto;[\s\S]*?body\s*\{[\s\S]*?overflow: visible;[\s\S]*?#root\s*\{[\s\S]*?min-height: 100%;/);
+  assert.match(style, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-pending-runtime,\s*\.marketplace-pending-runtime > \.bis-runtime-content\s*\{[\s\S]*?position: static;[\s\S]*?inset: auto;[\s\S]*?\.marketplace-pending-runtime > \.bis-pending-backdrop\s*\{[\s\S]*?position: fixed;/);
   assert.match(launcher, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-bis-host \.bis-layer:not\(\.bis-layer-open\)\s*\{[\s\S]*?padding: calc\(40px \+ env\(safe-area-inset-top\)\) 16px 0;/);
 });
 

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Polish"
+  short_description: "Perform a final visual quality pass"
+  default_prompt: "Use $impeccable-polish to make this UI ready to ship."
+policy:
+  allow_implicit_invocation: false

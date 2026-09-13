@@ -203,9 +203,7 @@
 }
 
 @media (max-width: 767px) {
-  html, body, #root { height: auto; min-height: 100%; }
-  body { overflow: auto; }
-  .marketplace-page { height: auto; min-height: 100dvh; overflow: visible; }
+  .marketplace-page { height: auto; min-height: 100svh; overflow: visible; }
   .marketplace-page .marketplace-shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -226,7 +224,7 @@
   .marketplace-page .filter-row [role="group"] { gap: 8px; }
   .marketplace-page .filter-row button { min-height: 44px; padding: 8px 13px; font-size: 13px; }
   .marketplace-page .wallet-strip { padding: 20px; border-radius: 16px; font-size: 15px; }
-  .marketplace-page .catalog-scroll { min-height: auto; padding: 2px 0 0; overflow: visible; }
+  .marketplace-page .catalog-scroll { min-height: auto; padding: 2px 0 0; overflow: visible; overscroll-behavior: auto; scrollbar-gutter: auto; }
   .marketplace-page .catalog-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: 12px; }
   .marketplace-page .asset-card { min-height: 10rem; }
 }

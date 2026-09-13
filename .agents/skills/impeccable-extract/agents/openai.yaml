@@ -1,0 +1,6 @@
+interface:
+  display_name: "Impeccable · Extract"
+  short_description: "Extract reusable tokens and components"
+  default_prompt: "Use $impeccable-extract to extract reusable UI patterns from this target."
+policy:
+  allow_implicit_invocation: false
