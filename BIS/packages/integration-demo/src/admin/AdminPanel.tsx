@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { StoryAction } from './StoryAction';
 import { StorySection } from './StorySection';
-import { getContinuePriceSats } from '@bis/integration';
+import { getContinuePriceSats, networkLabel, type TestNetwork } from '@bis/integration';
 const userStoriesUrl = './documentation/user-stories/';
-const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1, C2' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
+const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6, A7' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1, C2' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
 
 const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A4', category: 'Account', label: 'Account Dialog' }] as const;
-export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, contracts, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false }: {
+export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, contracts, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false, network }: {
   continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; contracts?:ReactNode; continueAvailable?: boolean;
   onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
   onContinue?():void; continueBusy?:boolean;
@@ -15,6 +15,7 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
   onOpenOnboarding?(): void;
   onCompleteLevel?(): void; completionOpen?: boolean;
   onMint(): void; assetBusy: boolean; consoleOutput: string;
+  network?: TestNetwork;
 }) {
   return <aside className="admin-panel" aria-label="Admin UI">
     <h1 className="panel-title">Admin</h1>
@@ -38,11 +39,12 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
         </>}
         {stories.filter(story => story.category === category.name).map(story =>
           <StoryAction key={story.id} id={story.id} label={story.label} selected={selected === story.id} disabled={accountOpen} onClick={() => onSelect(story.id)} />)}
+        {category.name === 'Account' && <StoryAction id="A7" label={`Account Wallet: ${networkLabel(network ?? 'signet')}`} disabled />}
       </StorySection>)}
     </nav>
     <StorySection title="E. Admin Tools">
       <p className="story-summary">Stories: E1, E2, E3</p>
-      <StoryAction id="E1" label="Open Signet Faucet(s)" disabled={!canFund || funding} onClick={onFund} />
+      <StoryAction id="E1" label={`Open ${networkLabel(network)} Faucet(s)`} disabled={!canFund || funding} onClick={onFund} />
       <StoryAction id="E2" label="Open On Mempool.space" disabled={!canFund || funding} onClick={onExplorer} />
       <StoryAction id="E3" label="Open Onboarding" disabled={!playerActive || !onOpenOnboarding} onClick={onOpenOnboarding} />
     </StorySection>

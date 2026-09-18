@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createBisGameWallet} from '../src/core/game-wallet.ts';
+import {createBisGameWallet,createLocalGameWallet,createNetworkScopedGameWalletStorage} from '../src/core/game-wallet.ts';
 import {testLocks} from './locks-fixture.mjs';
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -88,7 +88,8 @@ test('Game Wallet selection and refresh reject a Player Wallet match without rep
   f.setPlayerProfileId('a');await c.refresh();
   assert.equal(c.getState().status,'unavailable');assert.equal(c.getState().profileId,undefined);
   f.setPlayerProfileId(undefined);await c.refresh();
-  assert.equal(c.getState().profileId,'a');assert.equal(c.getState().status,'ready');c.dispose();
+  assert.equal(c.getState().profileId,undefined);assert.equal(c.getState().status,'empty');
+  assert.match(c.getState().message,/Connect a Player Wallet/);c.dispose();
 });
 test('late balance read cannot populate a different selected wallet',async()=>{
   const f=fixture();let resolve;
@@ -111,6 +112,35 @@ test('logout deselects persistently without deleting retained wallets',async()=>
   assert.equal(c.getState().status,'empty');assert.equal(c.getState().profileId,undefined);assert.equal(f.saved.size,1);
   c.dispose();const reopened=f.create();await tick();assert.equal(reopened.getState().status,'empty');
   await reopened.importWallet('a');assert.equal(reopened.getState().profileId,'a');assert.equal(f.saved.size,1);reopened.dispose();
+});
+
+test('a Player network change cannot leave the prior-network Game Wallet visible',async()=>{
+  let network='signet';
+  const stores=new Map();
+  const storageFor=value=>{
+    if(!stores.has(value)){
+      let selected=null;
+      stores.set(value,{load:async()=>selected,select:async account=>{selected=account;},logout:async()=>{selected=null;},reset:async()=>{selected=null;},subscribe:()=>()=>{},dispose:()=>{}});
+    }
+    return stores.get(value);
+  };
+  const c=createLocalGameWallet({playerProfileId:()=> 'player',playerNetwork:()=>network},{
+    storage:createNetworkScopedGameWalletStorage(()=>network,storageFor),
+    restore:async(phrase,_signal,selectedNetwork)=>({phrase,profileId:`${selectedNetwork}-wallet`,network:selectedNetwork}),
+    addresses:async()=>({arkadeAddress:'tark1fixture',bitcoinAddress:'tb1fixture'}),
+    balance:async()=>({availableSats:1,totalSats:1,bitcoinSats:0,arkadeSats:1}),watch:undefined,
+  });
+  await tick();
+  await c.importWallet('signet fixture');
+  assert.equal(c.getState().profileId,'signet-wallet');
+  assert.equal(c.getState().network,'signet');
+
+  network='mutinynet';
+  await c.refresh();
+  assert.equal(c.getState().status,'empty');
+  assert.equal(c.getState().profileId,undefined);
+  assert.equal(c.getState().network,'mutinynet');
+  c.dispose();
 });
 
 test('push events refresh balance without scheduled reads and logout aborts the subscription',async()=>{

@@ -4,6 +4,7 @@ import {assetName,assetDecimals,formatAssetQuantity,formatAssetDetail,formatAsse
 test('asset explorer uses the full Arkade asset ID on signet and rejects invalid IDs',()=>{
   const assetId='a'.repeat(64)+'0000';
   assert.equal(assetExplorerUrl(assetId),`https://explorer.signet.arkade.sh/asset/${assetId}`);
+  assert.equal(assetExplorerUrl(assetId,'mutinynet'),undefined);
   for(const invalid of ['', 'a'.repeat(64), 'g'.repeat(68), '../asset', 'https://example.com']) assert.equal(assetExplorerUrl(invalid),undefined);
 });
 test('exact decimal placement preserves large integers and supported precision',()=>{

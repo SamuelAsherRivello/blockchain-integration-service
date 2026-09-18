@@ -1,14 +1,14 @@
 import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
-import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { validRecovery } from '../core/recovery-validation.ts';
 
 export type AccountAddresses = Readonly<{ arkadeAddress: string; bitcoinAddress: string }>;
 export async function loadAddresses(account: AccountSecret, signal: AbortSignal): Promise<AccountAddresses> {
   if (!validRecovery(account.phrase)) throw new Error('Invalid account.');
   signal.throwIfAborted();
-  const provider = new RestArkProvider(SIGNET_OPERATOR);
+  const network=account.network ?? 'signet', provider = new RestArkProvider(operatorFor(network));
   const getInfo = provider.getInfo.bind(provider);
-  provider.getInfo = async () => { const info = await getInfo(); requireSignet(info.network); return info; };
+  provider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
   return withTemporaryWallet(ReadonlyWallet.create({
     identity: await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly(),
     arkProvider: provider,

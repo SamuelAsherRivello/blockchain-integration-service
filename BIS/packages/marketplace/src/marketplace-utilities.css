@@ -11,9 +11,15 @@
 }
 
 .marketplace-version {
+  display: flex;
+  align-self: stretch;
+  min-width: 96px;
+  align-items: center;
+  justify-content: flex-end;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  text-align: right;
 }
 
 .marketplace-resource-link {

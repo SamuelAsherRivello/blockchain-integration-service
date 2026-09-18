@@ -2,9 +2,10 @@ import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletReposi
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { phraseWords, validRecovery } from '../core/recovery-validation.ts';
+import { testNetwork, type TestNetwork } from '../core/test-network.ts';
 
 export const SIGNET_OPERATOR = 'https://signet.arkade.sh';
-export type AccountSecret = { phrase: string; profileId: string };
+export type AccountSecret = { phrase: string; profileId: string; network?: TestNetwork };
 export async function identify(phrase: string): Promise<string> {
   const identity = MnemonicIdentity.fromMnemonic(phrase, { isMainnet: false });
   const publicKey = await identity.compressedPublicKey();
@@ -14,19 +15,24 @@ export async function identify(phrase: string): Promise<string> {
 export function requireSignet(network: string) {
   if (network !== 'signet') throw new Error('Only Signet is supported.');
 }
-export async function createAccount(signal: AbortSignal): Promise<AccountSecret> {
-  return restoreAccount(generateMnemonic(wordlist), signal);
+export function requireNetwork(network: string, expected: TestNetwork) {
+  if (network !== expected) throw new Error(`Operator network mismatch: expected ${testNetwork(expected).label}.`);
 }
-export async function restoreAccount(input: string, signal: AbortSignal): Promise<AccountSecret> {
+export function operatorFor(network: TestNetwork = 'signet') { return testNetwork(network).operator; }
+export async function createAccount(signal: AbortSignal, network: TestNetwork = 'signet'): Promise<AccountSecret> {
+  return restoreAccount(generateMnemonic(wordlist), signal, network);
+}
+export async function restoreAccount(input: string, signal: AbortSignal, network: TestNetwork = 'signet'): Promise<AccountSecret> {
   if (!validRecovery(input)) throw new Error('Invalid recovery phrase.');
   const phrase = phraseWords(input).join(' ');
-  const response = await fetch(`${SIGNET_OPERATOR}/v1/info`, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) });
+  const operator = operatorFor(network);
+  const response = await fetch(`${operator}/v1/info`, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) });
   if (!response.ok) throw new Error('Test service unavailable.');
-  requireSignet((await response.json()).network);
-  const provider = new RestArkProvider(SIGNET_OPERATOR);
+  requireNetwork((await response.json()).network, network);
+  const provider = new RestArkProvider(operator);
   // Validate the SDK's own configuration read as well as the initial fetch.
   const getInfo = provider.getInfo.bind(provider);
-  provider.getInfo = async () => { const info = await getInfo(); requireSignet(info.network); return info; };
+  provider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network, network); return info; };
   const pending = ReadonlyWallet.create({
     identity: await MnemonicIdentity.fromMnemonic(phrase, { isMainnet: false }).toReadonly(),
     arkProvider: provider,
@@ -34,7 +40,7 @@ export async function restoreAccount(input: string, signal: AbortSignal): Promis
   });
   return withTemporaryWallet(pending, signal, async wallet => {
     await wallet.getAddress();
-    return { phrase, profileId: await identify(phrase) };
+    return { phrase, profileId: await identify(phrase), network };
   });
 }
 // Private lifecycle seam: the deadline covers address acquisition as well as creation.

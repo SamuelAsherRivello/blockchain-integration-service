@@ -48,6 +48,16 @@ test('incoming confirmations are per transaction and no foreign outputs are show
  const f=fixture(t);f.txs=[{txid:'1'.repeat(64),status:{confirmed:true},vout:[{scriptpubkey_address:'tb1-fixture',value:'1234'}]},{txid:'2'.repeat(64),status:{confirmed:false},vout:[{scriptpubkey_address:'tb1-fixture',value:'777'}]},{txid:'3'.repeat(64),status:{confirmed:true},vout:[{scriptpubkey_address:'foreign',value:'9999'}]}];
  const facts=await readOnboardingFacts(f.wallet,f.provider,scope,undefined,new AbortController().signal);assert.deepEqual(facts.transactions.map(t=>[t.confirmed,t.value]),[[true,1234],[false,777]]);assert.equal(facts.snapshot.policy.arkadeMaximum,0);
 });
+test('a funded Mutinynet account publishes its boarding address and existing spendable funds',async t=>{
+ const f=fixture(t);f.info.network='mutinynet';f.receipts=[receipt];
+ const mutinyScope={...scope,network:'mutinynet',operator:'https://mutinynet.arkade.sh'};
+ const facts=await readOnboardingFacts(f.wallet,f.provider,mutinyScope,undefined,new AbortController().signal);
+ assert.equal(facts.address,'tb1-fixture');assert.deepEqual(facts.snapshot.spendable,[{...receipt,confirmed:true,expired:false,reserved:false}]);
+ let operator;
+ const adapter=createOnboardingAdapter({...mutinyScope,phrase:'unused-test-placeholder'},()=>true,{provider:value=>{operator=value;return f.provider;},readonly:async()=>f.wallet,signing:async()=>f.wallet});
+ const observed=await adapter.inspect(undefined,new AbortController().signal);
+ assert.equal(operator,mutinyScope.operator);assert.equal(observed.address,'tb1-fixture');
+});
 test('a delayed SDK disposal holds the signer lease and prevents another leg from opening',async t=>{
  const f=fixture(t);writeOnboardingRecord(scope,f.r,0);let release,disposing=false;const gate=new Promise(r=>release=r);f.wallet.dispose=async()=>{disposing=true;await gate;};
  const first=f.adapter.submit(f.r,'boarding',new AbortController().signal,f.save);

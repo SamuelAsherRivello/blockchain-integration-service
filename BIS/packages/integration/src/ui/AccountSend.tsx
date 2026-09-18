@@ -9,6 +9,7 @@ import type {BisContext} from '../core/context';
 import type {BisSendQuote,BisSendStatus} from '../core/sending';
 import {SendError} from '../core/sending';
 import {BoardingBlockedError} from '../core/boarding-record';
+import { networkLabel } from '../core/test-network';
 
 import {AmountChooserRow} from './AmountChooserRow';
 
@@ -48,6 +49,7 @@ export function AccountSend({context}:{context:BisContext}) {
   catch(e){if(alive.current&&request===revision.current){setQuote(undefined);setError(fail(e));setFunds(undefined);try{const next=await readWithRetry(()=>context.checkAccountSend(),readController.current.signal);if(alive.current&&request===revision.current)setStatus(next);}catch{/* Keep confirmation unavailable until checked. */}}}
   finally{if(alive.current&&request===revision.current){working.current=false;setBusy(false);}}
  }
+ const network=networkLabel(context.getState().network);
  const validAddress=recipient.trim().startsWith('tark1'),validAmount=/^\d+$/.test(amount)&&Number.isSafeInteger(Number(amount))&&Number(amount)>0&&funds!==undefined&&Number(amount)<=funds;
  const pending=status.status==='pending',done=status.status==='succeeded';
  usePendingNotice(busy,operationLabel,error||undefined,()=>context.closeAccount());
@@ -63,7 +65,7 @@ export function AccountSend({context}:{context:BisContext}) {
    <h3 tabIndex={-1} ref={heading} data-bis-autofocus>Review Send</h3>
    <p>You are sending {sats(quote.amountSats)} with a fee of {sats(quote.feeSats)}.</p>
    <ReviewDetails rows={[
-    ['Amount', sats(quote.amountSats)], ['From', 'Arkade balance'], ['Payment type', 'Arkade'], ['Network', 'Signet'], ['Fee', sats(quote.feeSats)], ['Total deducted', sats(quote.totalSats)],
+    ['Amount', sats(quote.amountSats)], ['From', 'Arkade balance'], ['Payment type', 'Arkade'], ['Network', network], ['Fee', sats(quote.feeSats)], ['Total deducted', sats(quote.totalSats)],
    ]} />
    <p>Send to</p><p className="bis-send-address">{quote.recipient}</p>
    {expired&&<p role="status">Quote expired. Go Back for a fresh review.</p>}

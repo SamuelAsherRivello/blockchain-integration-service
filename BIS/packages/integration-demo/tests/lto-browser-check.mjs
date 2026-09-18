@@ -12,6 +12,12 @@ async function noContractRows(page){await page.waitForFunction(()=>document.quer
 async function contractRows(page,count){await page.waitForFunction(value=>document.querySelectorAll('.bis-collection-item').length===value,count);}
 try{
  {
+  const {context,page}=await fixture();await button(page,'Hold contract reads').click();await button(page,'Refresh Contracts').click();
+  await page.getByRole('heading',{name:'Loading...',exact:true}).waitFor();
+  assert.equal(await page.getByRole('dialog',{name:'Pending Operation Dialog'}).isVisible(),true);
+  await button(page,'Release contract reads').click();await page.waitForFunction(()=>!document.querySelector('.bis-pending-dialog'));await context.close();
+ }
+ {
   const {context,page}=await fixture();await button(page,'Claim LTO').click();await event(page,'No treasure offer available');
   await button(page,'Hold operations').click();await button(page,'Start LTO').click();await event(page,'Offer funding pending');
   await page.locator('.bis-collection-item').click();assert.equal(await button(page,'Claim').isEnabled(),false);assert.equal(await button(page,'Reject').isEnabled(),false);

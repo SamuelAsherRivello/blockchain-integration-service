@@ -3,6 +3,8 @@ export { BisGameServices } from './core/bis-game-services';
 export type { BisGameServicesOptions, BisGameContinueDeliveryOptions } from './core/bis-game-services';
 export type { BisHostGame, BisHostGameSessionReference, BisHostGameContinuationTarget, BisHostGameConfirmedContinuation, BisHostGameConfirmedPlayerReward, BisHostGameEffectReceipt } from './core/bis-host-game';
 export { createBisGameWallet } from './core/game-wallet';
+export { arkExplorerAssetUrl, arkExplorerTransactionUrl, testNetwork } from './core/test-network';
+export type { TestNetwork } from './core/test-network';
 export { createBisLto } from './core/lto-service';
 export type { BisLtoRequest, BisContractFilter, BisContractsResult, BisContractActionResult } from './core/lto-service';
 export type { BisContract } from './core/contracts';
@@ -26,7 +28,7 @@ export { PendingOperations, usePendingNotice } from './ui/PendingOperationDialog
 export { CopyableValueField } from './ui/CopyableValueField';
 
 export type {BisContinueRequest,BisContinueResult} from './core/continuation';
-export {createBisContinue,getContinuePriceSats} from './core/game-continue';
+export {createBisContinue,getContinuePriceSats,networkLabel} from './core/game-continue';
 export type {BisGameContinueState,BisGameContinueOptions} from './core/game-continue';
 
 export type { BisPlayerRecipient } from './core/game-player-payment';

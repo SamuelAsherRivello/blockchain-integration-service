@@ -10,6 +10,13 @@ try {
   await page.evaluate(() => window.uiFeedback.open('account'));
   const card = page.locator('.bis-card');
   await card.waitFor();
+  const actionWidths = await page.locator('.bis-account-actions').evaluate(element => {
+    const [create, restore] = [...element.querySelectorAll('button')].map(button => button.getBoundingClientRect());
+    const row = element.getBoundingClientRect();
+    return { create: create.width, restore: restore.width, row: row.width, gap: Number.parseFloat(getComputedStyle(element).columnGap) };
+  });
+  const halfAvailableWidth = (actionWidths.row - actionWidths.gap) / 2;
+  assert.ok(Math.abs(actionWidths.create - halfAvailableWidth) < 0.5 && Math.abs(actionWidths.restore - halfAvailableWidth) < 0.5, `Create and Restore must each use half of the action row: ${JSON.stringify(actionWidths)}`);
   // At a short viewport/browser zoom, wheel or focus scrolling can move the card contents.
   for (const scroll of [6, 24, 44]) {
     await card.evaluate((element, value) => { element.scrollTop = value; }, scroll);

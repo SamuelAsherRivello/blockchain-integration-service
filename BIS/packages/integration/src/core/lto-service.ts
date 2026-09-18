@@ -7,9 +7,10 @@ import { createContractStorage, type ContractDocument, type ContractRecovery } f
 import { beginContractOperation, contractResolved, endContract, finishContractOperation, presentContract, startLto, contractFailureMessages, type BisContract, type ContractRecord, type LtoRequest } from './contracts.ts';
 import { publishContractReservations, reserveContract } from './contract-reservations.ts';
 import { prepareLtoRecovery, reconcileLtoSpend, resumeLtoFinalization, submitLtoSpend } from '../arkade/lto-contract.ts';
-import { SIGNET_OPERATOR } from '../arkade/account.ts';
+import { SIGNET_OPERATOR, operatorFor } from '../arkade/account.ts';
+import { isTestNetwork, type TestNetwork } from './test-network.ts';
 
-export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string; exclusivityKey?: string; gameId?: string; hostReference?: string; includeResolved?: boolean }>;
+export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string; exclusivityKey?: string; gameId?: string; hostReference?: string; includeResolved?: boolean; includeOtherNetworks?: boolean }>;
 export type BisContractsResult = Readonly<{ status: 'ready' | 'unavailable'; contracts: readonly BisContract[] }>;
 export type BisContractActionResult = Readonly<{ status: 'pending' | 'confirmed' | 'unavailable' | 'too-late' | 'not-submitted'; contract?: BisContract }>;
 export type BisLtoRequest = Omit<LtoRequest,'id'|'operationId'|'scope'> & Readonly<{ exclusivityKey: string }>;
@@ -28,16 +29,17 @@ function persistEnd(record: Pick<ContractRecord,'scope'|'sessionId'>, reason: 'r
   localStorage.setItem(key,reason);
   if (localStorage.getItem(key) !== reason) throw Error('Contract end request could not be saved.');
 }
-export async function queryAccountContracts(profileId: string | undefined, filter: BisContractFilter = {}): Promise<BisContractsResult> {
+export async function queryAccountContracts(profileId: string | undefined, filter: BisContractFilter = {}, network: TestNetwork = 'signet'): Promise<BisContractsResult> {
   if (!profileId) return {status:'ready',contracts:[]};
   try {
     const document = await createContractStorage().load();
-    return inspectContractDocument(document,profileId,filter);
+    return inspectContractDocument(document,profileId,filter,network);
   } catch { return {status:'unavailable',contracts:[]}; }
 }
 /** Read-only projection used by both account inspection and the host controller. */
-export function inspectContractDocument(document:ContractDocument,profileId:string,filter:BisContractFilter={}):BisContractsResult {
-  const records=document.ledger.contracts.filter(record=>(filter.includeResolved||!contractResolved(record))&&(record.scope.playerId===profileId||record.scope.gameId===profileId)&&record.scope.network==='signet'&&record.scope.operator===SIGNET_OPERATOR&&
+export function inspectContractDocument(document:ContractDocument,profileId:string,filter:BisContractFilter={},network:TestNetwork='signet'):BisContractsResult {
+  const records=document.ledger.contracts.filter(record=>(filter.includeResolved||!contractResolved(record))&&(record.scope.playerId===profileId||record.scope.gameId===profileId)&&
+    (filter.includeOtherNetworks ? isTestNetwork(record.scope.network)&&record.scope.operator===operatorFor(record.scope.network) : record.scope.network===network&&record.scope.operator===operatorFor(network))&&
     (filter.purpose===undefined||record.purpose===filter.purpose)&&(filter.sessionId===undefined||record.sessionId===filter.sessionId)&&
     (filter.hostReference===undefined||record.hostReference===filter.hostReference)&&(filter.exclusivityKey===undefined||record.scope.exclusivityKey===filter.exclusivityKey)&&(filter.gameId===undefined||record.scope.gameId===filter.gameId));
   return {status:'ready',contracts:records.map(record=>{
@@ -161,7 +163,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
   const controller = {
     checkContracts: async(filter: BisContractFilter = {}):Promise<BisContractsResult> => {
       const profileId=context.getState().profileId;if(!profileId)return {status:'ready',contracts:[]};
-      try {const result=inspectContractDocument(await storage.load(),profileId,filter);return context.getState().profileId===profileId?result:{status:'unavailable',contracts:[]};}
+      try {const result=inspectContractDocument(await storage.load(),profileId,filter,context.getState().network??'signet');return context.getState().profileId===profileId?result:{status:'unavailable',contracts:[]};}
       catch{return {status:'unavailable',contracts:[]};}
     },
     start(request: BisLtoRequest): Promise<BisContractActionResult> {

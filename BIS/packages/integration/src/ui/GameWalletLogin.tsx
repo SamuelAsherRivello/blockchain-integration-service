@@ -47,6 +47,10 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
     finally { setBusy(false); }
   }
 
+  if (!state.playerConnected) return <div className="bis-actions">
+    <p role="status">Connect a Player Wallet before creating, restoring, or logging in to a Game Wallet.</p>
+    <button className="bis-button bis-back" onClick={onBack}>Back</button>
+  </div>;
   if (state.profileId) return <div className="bis-actions">
     <p role="status">Game wallet configured.</p>
     <button className="bis-button bis-danger" disabled={busy} onClick={() => void logout()}>Log Out Game Wallet</button>

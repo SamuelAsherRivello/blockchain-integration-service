@@ -4,6 +4,7 @@ import type { BisTransferStatus } from './context.ts';
 import type { SendRecord } from './sending.ts';
 import { assetBaseUnits, type AssetRecord } from './assets.ts';
 import type { BisContract } from './contracts.ts';
+import { arkExplorerTransactionUrl, testNetwork, type TestNetwork } from './test-network.ts';
 
 export type BisTransaction = Readonly<{
   id: string;
@@ -23,15 +24,15 @@ export type BisTransaction = Readonly<{
 }>;
 export type BisActivity = Readonly<{ status: 'idle' | 'loading' }> | Readonly<{status:'unavailable';transactions?:readonly BisTransaction[]}> |
   Readonly<{ status: 'ready'; transactions: readonly BisTransaction[] }>;
-export function transactionExplorerUrl(t: BisTransaction): string | undefined {
+export function transactionExplorerUrl(t: BisTransaction, network: TestNetwork = 'signet'): string | undefined {
   const refs = t.identifier.split(/\s+/);
   const bitcoin = t.bitcoin?.txid && /^[a-f0-9]{64}$/i.test(t.bitcoin.txid) ? t.bitcoin.txid :
     refs.map(ref => /^([a-f0-9]{64})(?::\d+)?$/i.exec(ref)?.[1]).find(Boolean);
-  if (bitcoin) return `https://mempool.space/signet/tx/${bitcoin}`;
+  if (bitcoin) return testNetwork(network).bitcoinExplorerTransactionUrl(bitcoin);
   const ark = refs.map(ref => /^ark:([a-f0-9]{64})$/i.exec(ref)?.[1]).find(Boolean);
-  if (ark) return `https://explorer.signet.arkade.sh/tx/${ark}`;
+  if (ark) return arkExplorerTransactionUrl(network,ark);
   const commitment = refs.map(ref => /^commitment:([a-f0-9]{64})$/i.exec(ref)?.[1]).find(Boolean);
-  if (commitment) return `https://mempool.space/signet/tx/${commitment}`;
+  if (commitment) return testNetwork(network).bitcoinExplorerTransactionUrl(commitment);
   return undefined;
 }
 export function formatTransactionSummary(t: BisTransaction): string {
@@ -83,7 +84,7 @@ function formatElapsed(milliseconds:number) {
   const days = Math.floor(hours / 24), hrs = hours % 24;
   return `${days} day${days === 1 ? '' : 's'}${hrs ? ` ${hrs} hour${hrs === 1 ? '' : 's'}` : ''}`;
 }
-export function formatTransactionDetail(t: BisTransaction): string {
+export function formatTransactionDetail(t: BisTransaction, network: TestNetwork = 'signet'): string {
   const date = new Date(t.createdAt ?? NaN);
   const timestamp = t.createdAt! > 0 && Number.isFinite(date.getTime())
     ? date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '') : 'Not yet reported';
@@ -92,7 +93,7 @@ export function formatTransactionDetail(t: BisTransaction): string {
     ...(t.transfer?transferProgressLines(t.transfer):[]),
     ...(t.kind ? [`Type: ${t.kind}`] : []),
     ...(t.bitcoin ? [
-      'Network: Bitcoin Signet (test network)',
+      `Network: Bitcoin ${testNetwork(network).label} (test network)`,
       `Confirmations: ${t.bitcoin.confirmations ?? 'Unavailable'}`,
       ...(t.bitcoin.blockHeight === undefined ? [] : [`Confirmed in block: ${t.bitcoin.blockHeight}`]),
       '',

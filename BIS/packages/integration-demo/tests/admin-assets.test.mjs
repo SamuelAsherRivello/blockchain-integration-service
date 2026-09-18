@@ -32,7 +32,7 @@ test('requested admin navigation controls use an arrow-only affordance', async (
     continueAvailable: true, canShowToast: true, onShowToast() {}, onShowToastWithIcon() {},
     playerActive: true, onOpenOnboarding() {},
   }));
-  for (const id of ['A1', 'A4', 'B1', 'C1', 'D1', 'D2', 'E1', 'E2', 'E3']) {
+  for (const id of ['A1', 'A4', 'A7', 'B1', 'C1', 'D1', 'D2', 'E1', 'E2', 'E3']) {
     assert.match(html, new RegExp(`<button\\b[^>]*aria-label="${id}\\.[^"]*"[^>]*>↗</button>`), `${id} is arrow-only`);
   }
 
@@ -81,6 +81,7 @@ test('Admin renders implemented asset stories and omits empty categories', async
       onMint: unexpected, mintAvailable:true, assetBusy: false, consoleOutput: '',
     }));
     assert.match(html, />A\. Account</);
+    assert.match(html, /A7\. Account Wallet: Signet/);
     assert.match(html, />C\. Assets</);
     assert.match(html, /C1\. Mint Asset &amp; Send/);
     assert.doesNotMatch(html, /<span>C4<\/span>List Assets/);
@@ -88,6 +89,15 @@ test('Admin renders implemented asset stories and omits empty categories', async
     assert.match(html, />B\. Pay-to-play</);
     assert.match(html, /&quot;Pay 1000 Sats To Continue&quot;/);
     assert.match(html, /aria-label="Console output"/);
+});
+
+test('A7 reports the live account-wallet network without becoming an action', async () => {
+  const AdminPanel = await loadAdmin();
+  for (const [network, label] of [['signet', 'Signet'], ['mutinynet', 'Mutinynet']]) {
+    const html = renderToStaticMarkup(createElement(AdminPanel, { network, consoleOutput: '' }));
+    const button = html.match(/<button\b[^>]*aria-label="A7\.[^"]*"[^>]*>/)?.[0];
+    assert.equal(button, `<button type="button" aria-label="A7. Account Wallet: ${label}" disabled="">`);
+  }
 });
 
 test('D1/D2 and E1/E2 retain independent availability and exact action routing', async () => {
@@ -118,7 +128,7 @@ test('D1/D2 and E1/E2 retain independent availability and exact action routing',
   assert.match(markup, />D\. UI</); assert.match(markup, /D1\. Show Toast/);
   assert.match(markup, /D2\. Show Toast With Icon/);
   assert.match(markup, />E\. Admin Tools</);
-  assert.match(markup, /E1\. Open Signet Faucet/);
+  assert.match(markup, /E1\. Open Choose a test network Faucet/);
   assert.match(markup, /E2\. Open On Mempool.space/);
   for (const options of [{canFund: false}, {funding: true}]) {
     const disabled = actions(AdminPanel({...props,...options}));

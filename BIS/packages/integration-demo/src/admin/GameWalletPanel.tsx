@@ -47,6 +47,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
     return controller.subscribe(update);
   }, [controller]);
   const busy = !controller || state.status === 'loading' || importing || boardingBusy;
+  const playerReady = state.playerConnected === true;
   async function boardingAction(action: 'review' | 'confirm' | 'check') {
     if (!controller || boardingBusy) return;
     if (action !== 'check' && boardingState !== 'ready') return;
@@ -101,17 +102,18 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
     <p className="story-summary">Stories: F1, F2, F3</p>
     <StoryButton label="F1. Game Wallet (Admin-facing)">
         {state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
-          : <button disabled={busy} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
+          : <button disabled={busy || !playerReady} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
     </StoryButton>
     <StoryButton label="F2. Game Wallet (User-facing)">
-      <button aria-label="F2. Game Wallet (User-facing)" disabled={!controller} onClick={onOpenDeveloper}>↗</button>
+      <button aria-label="F2. Game Wallet (User-facing)" disabled={!controller || !playerReady} onClick={onOpenDeveloper}>↗</button>
     </StoryButton>
     <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
         <button disabled={busy || !state.profileId} onClick={() => void boardingAction('check')}>Details</button>
         {boardingState !== 'boarded' &&
           <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
     </StoryButton>
-    {entry && !state.profileId && <form onSubmit={async event => {
+    {!playerReady && <p role="status">Connect a Player Wallet to use the Game Wallet on that same network.</p>}
+    {entry && playerReady && !state.profileId && <form onSubmit={async event => {
       event.preventDefault();
       if (!controller || importing) return;
       const input=phrase;setImporting(true);setImportMessage('');

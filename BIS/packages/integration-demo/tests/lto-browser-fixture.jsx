@@ -2,11 +2,13 @@ import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {TreasureLtoPanel} from '../src/admin/TreasureLtoPanel.tsx';
 import {AccountContracts} from '../../integration/src/ui/AccountContracts.tsx';
+import {PendingOperations} from '../../integration/src/ui/PendingOperationDialog.tsx';
 import {createLtoService} from '../../integration/src/core/lto-service.ts';
 import {createContractStorage} from '../../integration/src/core/contract-storage.ts';
 import {markContractSubmission,finishContractOperation} from '../../integration/src/core/contracts.ts';
 import '../../integration/src/ui/overlay.css';
-let mode='success',release,offset=0,offline=false,profileId='player',emit=()=>{};
+let mode='success',release,offset=0,offline=false,holdReads=false,profileId='player',emit=()=>{};
+const readWaiters=[];
 const clock=Date.now;Date.now=()=>clock()+offset;
 const events=[];const log=value=>{events.push(value);emit();};
 const storage=createContractStorage(),game={profileId:'game',phrase:'unfunded-fixture'};
@@ -26,12 +28,14 @@ const dependencies={storage,playerStorage:{load:async()=>({account:{profileId:'p
   await commit(record,material);return {record,recovery:material};
  }};
 const service=createLtoService({context,gameWallet},dependencies);
-context.checkContracts=filter=>offline?Promise.resolve({status:'unavailable',contracts:[]}):service.checkContracts(filter);
+context.checkContracts=filter=>offline?Promise.resolve({status:'unavailable',contracts:[]}):holdReads?new Promise(resolve=>readWaiters.push(()=>resolve(service.checkContracts(filter)))):service.checkContracts(filter);
 context.claimContract=service.claim;context.rejectContract=service.reject;context.refundContract=service.refund;
 const offers={...service,checkContracts:context.checkContracts};
-function Fixture(){const [,render]=useState(0);emit=()=>render(value=>value+1);return <main>
+function Fixture(){const [,render]=useState(0);emit=()=>render(value=>value+1);return <>
+<div><button onClick={()=>{holdReads=true;}}>Hold contract reads</button><button onClick={()=>{holdReads=false;for(const release of readWaiters.splice(0))release();}}>Release contract reads</button></div>
+<PendingOperations><main>
 <h1>Automated fixture — simulated transactions only</h1>
 <div><button onClick={()=>{mode='pending';}}>Hold operations</button><button onClick={()=>{mode='success';release?.();}}>Complete operation</button><button onClick={()=>{mode='unknown';release?.();}}>Lose acknowledgement</button><button onClick={()=>{offset+=91000;}}>Advance 91 seconds</button><button onClick={()=>void service.reconcile()}>Reconcile</button><button onClick={()=>{offline=!offline;}}>Toggle unavailable read</button><button onClick={()=>{profileId=profileId==='player'?'game':'player';render(value=>value+1);}}>Switch role</button><button onClick={()=>{profileId='replacement';render(value=>value+1);}}>Replace account</button></div>
 <div style={{display:'flex',gap:20}}><section style={{width:300}}><TreasureLtoPanel context={context} offers={offers} gameWallet={gameWallet} onLog={log}/></section><section style={{width:320}}><AccountContracts key={profileId} context={context} onDetailChange={()=>{}}/></section></div>
 <textarea aria-label="Fixture events" readOnly value={JSON.stringify(events)} style={{width:'95%',height:180}}/>
-</main>};createRoot(document.getElementById('root')).render(<Fixture/>);
+</main></PendingOperations></>};createRoot(document.getElementById('root')).render(<Fixture/>);

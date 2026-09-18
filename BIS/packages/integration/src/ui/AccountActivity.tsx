@@ -10,8 +10,9 @@ import { formatOperationRecovery, operationMatches, withWalletOperationActivity,
 import type { RecoveryContext } from './TransactionRecovery';
 import { formatTransferRecoveryReport } from '../core/boarding-status';
 import { CompactItemRow, StatusTypeIcon, type StatusType } from './StatusTypeIcon';
+import { networkLabel } from '../core/test-network';
 
-export function AccountActivity({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity'> & Partial<RecoveryContext & Pick<BisContext,'checkContracts'>> }) {
+export function AccountActivity({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContracts'>> }) {
   const id = useId();
   const [recoveryDialog, setRecoveryDialog] = useState<{ report: string; trigger: HTMLButtonElement }>();
   const [selectedId, setSelectedId] = useState<string>();
@@ -34,6 +35,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
     return () => { active = false; };
   }, [context, activity]);
   const rows = withContractActivity(withWalletOperationActivity(activity.status === 'ready' || activity.status === 'unavailable' ? activity.transactions ?? [] : [], report?.operations ?? []),contracts);
+  const network = context?.getState().network ?? 'signet';
   const selected = rows.find(row => row.id === selectedId);
   const opened = detailOpen ? selected : undefined;
   const recovery = opened ? report?.operations.filter(op => operationMatches(opened, op)) ?? [] : [];
@@ -43,9 +45,9 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
     `Available for independent payments: ${report.availableSats === undefined ? 'Unavailable' : `${report.availableSats} sats`}`,
     ...(report.reason ? [report.reason] : []),
   ].join('\n') : '';
-  const text = opened ? [formatTransactionDetail(opened), ...recovery.map(formatOperationRecovery), ...(funds ? [funds] : [])].join('\n\n') : formatTransactions(rows);
-  const explorerUrl = opened ? transactionExplorerUrl(opened) : undefined;
-  const recoveryText = [opened?.transfer ? formatTransferRecoveryReport(opened.transfer) : '', ...recovery.map(formatOperationRecovery), funds].filter(Boolean).join('\n\n');
+  const text = opened ? [formatTransactionDetail(opened, network), ...recovery.map(formatOperationRecovery), ...(funds ? [funds] : [])].join('\n\n') : formatTransactions(rows);
+  const explorerUrl = opened ? transactionExplorerUrl(opened, network) : undefined;
+  const recoveryText = [opened?.transfer ? formatTransferRecoveryReport(opened.transfer, network) : '', ...recovery.map(formatOperationRecovery), funds].filter(Boolean).join('\n\n');
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   useLayoutEffect(() => { onDetailChange(detailOpen); }, [detailOpen, onDetailChange]);
   useLayoutEffect(() => { if (activity.status==='ready' && !selected) { setSelectedId(undefined); setDetailOpen(false); } }, [selected?.id,activity.status]);
@@ -59,7 +61,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
     else context?.closeAccount();
   });
   const Page=opened?ItemListDetail:ItemList;
-  return <Page title={opened?'Transaction Detail':'Transactions'} body={opened?'Inspect this transaction and its recovery status.':'Transactions recorded for this account.'}
+  return <Page network={networkLabel(network)} title={opened?'Transaction Detail':'Transactions'} body={opened?'Inspect this transaction and its recovery status.':'Transactions recorded for this account.'}
     fieldLabel={opened?'Transaction':'Transactions'} report={text} listLabel="Transactions" loading={loading}
     onRefresh={()=>context?.refreshActivity()} refreshDisabled={!context?.refreshActivity}
     items={rows.map(row=>{const presentation=transactionRowPresentation(row);return {id:row.id,selected:selectedId===row.id,

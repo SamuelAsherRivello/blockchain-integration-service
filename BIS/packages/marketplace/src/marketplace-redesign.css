@@ -177,6 +177,9 @@
   gap: 8px;
 }
 .marketplace-page .detail-actions .trade-action,.marketplace-page .detail-explorer-action { min-height: 40px; font-size: 13px; }
+.marketplace-page .marketplace-dialog-back { width: 100%; min-height: 40px; border: 1px solid var(--market-line); border-radius: 9px; background: var(--market-surface); color: var(--market-ink); font: 700 13px/1 Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+.marketplace-page .marketplace-dialog-back:hover { border-color: var(--market-accent); background: var(--market-accent-soft); color: var(--market-accent-strong); }
+.marketplace-page .marketplace-dialog-back:focus-visible { outline: 3px solid var(--market-warm); outline-offset: 3px; }
 .marketplace-page .sales-disabled-reason { grid-column: 1 / -1; }
 .marketplace-page .asset-data { padding-top: 12px; }
 .marketplace-page .data-label { margin-bottom: 8px !important; font-size: 11px; }

@@ -1,5 +1,6 @@
 import {Wallet,ReadonlyWallet,MnemonicIdentity,RestArkProvider,RestIndexerProvider,InMemoryWalletRepository,InMemoryContractRepository,ArkAddress,CSVMultisigTapscript,hasBoardingTxExpired,Transaction,sdkVersion,type SettleParams} from '@arkade-os/sdk';
-import {SIGNET_OPERATOR,requireSignet,type AccountSecret} from './account.ts';
+import {operatorFor,requireNetwork,type AccountSecret} from './account.ts';
+import type {TestNetwork} from '../core/test-network.ts';
 import {walletReservations,eligibleUnreservedCoins} from '../core/wallet-reservations.ts';
 import {readOnboardingRecord,type OnboardingRecord,type OnboardingCoin,type OnboardingScope} from '../core/onboarding-record.ts';
 import {onboardingFailure,type OnboardingAdapter,type OnboardingFacts,type OnboardingTransaction} from '../core/onboarding-service.ts';
@@ -10,8 +11,8 @@ const hex=(value:Uint8Array)=>Array.from(value,b=>b.toString(16).padStart(2,'0')
 const plain=({txid,vout,value}:OnboardingCoin)=>({txid,vout,value});
 const point=(c:{txid:string;vout:number})=>`${c.txid}:${c.vout}`;
 const sum=(items:{value:number}[])=>items.reduce((s,c)=>s+c.value,0);
-export const onboardingScope=(profileId:string):OnboardingScope=>({profileId,network:'signet',operator:SIGNET_OPERATOR});
-function options(provider:RestArkProvider){return {arkProvider:provider,indexerProvider:new RestIndexerProvider(SIGNET_OPERATOR),settlementConfig:false as const,storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}};}
+export const onboardingScope=(profileId:string,network:TestNetwork='signet'):OnboardingScope=>({profileId,network,operator:operatorFor(network)});
+function options(provider:RestArkProvider,operator:string){return {arkProvider:provider,indexerProvider:new RestIndexerProvider(operator),settlementConfig:false as const,storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}};}
 async function bounded<T>(work:Promise<T>,signal:AbortSignal,ms=30000):Promise<T>{
   const stop=AbortSignal.any([signal,AbortSignal.timeout(ms)]);stop.throwIfAborted();let abort:()=>void=()=>{};
   try{return await Promise.race([work,new Promise<never>((_,reject)=>{abort=()=>reject(Error('Onboarding connection deadline exceeded.'));stop.addEventListener('abort',abort,{once:true});})]);}
@@ -19,7 +20,7 @@ async function bounded<T>(work:Promise<T>,signal:AbortSignal,ms=30000):Promise<T
 }
 export async function readOnboardingFacts(wallet:ReadonlyWallet,provider:RestArkProvider,scope:OnboardingScope,r:OnboardingRecord|undefined,signal:AbortSignal):Promise<OnboardingFacts>{
   const [info,coins,receipts,tip,address,own]=await bounded(Promise.all([provider.getInfo(),wallet.getBoardingUtxos(),wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),wallet.onchainProvider.getChainTip(),wallet.getBoardingAddress(),wallet.getAddress()]),signal);
-  requireSignet(info.network);const live=wallet.getProviderConnectionState();if(live.mode!=='online'||live.source!=='live')throw Error('Live connection unavailable.');
+  requireNetwork(info.network,scope.network);const live=wallet.getProviderConnectionState();if(live.mode!=='online'||live.source!=='live')throw Error('Live connection unavailable.');
   const txs=await bounded(wallet.onchainProvider.getTransactions(address),signal);
   const bitcoinScript=hex(wallet.boardingTapscript.pkScript),arkadeScript=hex(ArkAddress.decode(own).pkScript);
   const allReservations=walletReservations(scope.profileId),other=allReservations.filter(v=>v.id!==`onboarding:${r?.id}`);
@@ -74,16 +75,16 @@ export async function readOnboardingFacts(wallet:ReadonlyWallet,provider:RestArk
   for(const which of ['boarding','returning'] as const)if(next?.plan){const leg=next[which];if(leg.commitmentTxid&&!leg.bitcoinConfirmedAt&&txs.some(tx=>tx.txid===leg.commitmentTxid&&tx.status.confirmed))next={...next,[which]:{...leg,bitcoinConfirmedAt:Date.now()}};}
   return {snapshot,address,transactions,independent:[...new Map(independent.map(c=>[point(c),c])).values()],...(next&&next!==r?{reconciled:next}:{})};
 }
-const runtime={provider:()=>new RestArkProvider(SIGNET_OPERATOR),readonly:async(provider:RestArkProvider,account:AccountSecret)=>ReadonlyWallet.create({...options(provider),identity:await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly()}),signing:(provider:RestArkProvider,account:AccountSecret)=>Wallet.create({...options(provider),identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})})};
+const runtime={provider:(operator:string)=>new RestArkProvider(operator),readonly:async(provider:RestArkProvider,account:AccountSecret,operator:string)=>ReadonlyWallet.create({...options(provider,operator),identity:await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly()}),signing:(provider:RestArkProvider,account:AccountSecret,operator:string)=>Wallet.create({...options(provider,operator),identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})})};
 export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>boolean,dependencies=runtime):OnboardingAdapter{
-  const scope=onboardingScope(account.profileId);
+  const scope=onboardingScope(account.profileId,account.network??'signet');
   let cleanup:Promise<void>=Promise.resolve();
   const current=(signal:AbortSignal)=>{signal.throwIfAborted();if(!isCurrent())throw Error('Onboarding account changed.');};
   return {
     async inspect(record,signal){
       await bounded(cleanup,signal);current(signal);
-      const provider=dependencies.provider();let wallet:ReadonlyWallet|undefined;
-      const acquiring=dependencies.readonly(provider,account);
+      const provider=dependencies.provider(scope.operator);let wallet:ReadonlyWallet|undefined;
+      const acquiring=dependencies.readonly(provider,account,scope.operator);
       try{wallet=await bounded(acquiring,signal);current(signal);return await readOnboardingFacts(wallet,provider,scope,record,signal);}
       finally{cleanup=wallet?wallet.dispose():acquiring.then(w=>w.dispose());void cleanup.catch(()=>{});await bounded(cleanup,signal);}
     },
@@ -92,7 +93,7 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
       await navigator.locks.request(`bis-onboarding-signer:${account.profileId}`,{ifAvailable:true},async lease=>{
         if(!lease)return;
         await withBrowserMutation(async()=>{
-          let wallet:Wallet|undefined,settling:Promise<string>|undefined,attemptTimer:ReturnType<typeof setTimeout>|undefined;const stop=new AbortController(),active=AbortSignal.any([signal,stop.signal]);const provider=dependencies.provider();let hash:string|undefined,open=true,progressWindow=300000,deadline=Date.now()+300000;
+          let wallet:Wallet|undefined,settling:Promise<string>|undefined,attemptTimer:ReturnType<typeof setTimeout>|undefined;const stop=new AbortController(),active=AbortSignal.any([signal,stop.signal]);const provider=dependencies.provider(scope.operator);let hash:string|undefined,open=true,progressWindow=300000,deadline=Date.now()+300000;
           const assert=()=>{current(active);if(!open||Date.now()>=deadline)throw Error('Onboarding signing deadline exceeded.');};
           const progress=async(stage:NonNullable<OnboardingRecord['progress']>['stage'])=>{assert();await checkpoint(r=>{
             if(r.status!=='pending'||r.id!==original.id)return r;
@@ -122,9 +123,9 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
           const forfeits=provider.submitSignedForfeitTxs.bind(provider);provider.submitSignedForfeitTxs=async(...args)=>{assert();await forfeits(...args);await progress('signing');};
           let acquisition:Promise<Wallet>|undefined;
           try{
-            const info=await bounded(provider.getInfo(),active);requireSignet(info.network);progressWindow=settlementTimeoutMs(info);deadline=Date.now()+progressWindow;
+            const info=await bounded(provider.getInfo(),active);requireNetwork(info.network,scope.network);progressWindow=settlementTimeoutMs(info);deadline=Date.now()+progressWindow;
             attemptTimer=setTimeout(()=>{open=false;stop.abort();},Math.max(1,deadline-Date.now()));
-            acquisition=dependencies.signing(provider,account);wallet=await bounded(acquisition,active);assert();
+            acquisition=dependencies.signing(provider,account,scope.operator);wallet=await bounded(acquisition,active);assert();
             const r=readOnboardingRecord(scope);if(!r?.plan||r.id!==original.id||r[which].phase!=='prepared')return;
             const facts=await readOnboardingFacts(wallet,provider,scope,r,active),p=r.plan,policy=facts.snapshot.policy;
             if(!policy.zeroFees||p.targetSats<policy.arkadeMinimum||p.returnSats<policy.bitcoinMinimum||policy.arkadeMaximum>0&&p.totalSats>policy.arkadeMaximum||policy.bitcoinMaximum>0&&p.returnSats>policy.bitcoinMaximum||p.bitcoinScript!==facts.snapshot.bitcoinScript||p.arkadeScript!==facts.snapshot.arkadeScript){

@@ -1,5 +1,6 @@
 import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, type AssetDetails } from '@arkade-os/sdk';
-import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
+import type { TestNetwork } from '../core/test-network.ts';
 import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
 import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult, type BurnInput } from '../core/burning.ts';
 import { eligibleUnreservedCoins, walletReservations } from '../core/wallet-reservations.ts';
@@ -8,7 +9,7 @@ import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, val
 export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal) {
   try {eligibleUnreservedCoins([],walletReservations(account.profileId));}
   catch {return {canMint:false,reason:'Pending operation inputs could not be verified. Open wallet recovery details before minting.'};}
-  const p=providers(signal);
+  const p=providers(signal, undefined, undefined, account.network ?? 'signet');
   const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
   return withTemporaryWallet(ReadonlyWallet.create({identity,arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()}),signal,async wallet=>{
     const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId));
@@ -46,10 +47,11 @@ export async function readFreshAssets(wallet: AssetWallet): Promise<OwnedAsset[]
   return owned.sort((a, b) => a.asset.assetId.localeCompare(b.asset.assetId));
 }
 
-function providers(signal: AbortSignal, beforeSubmit?: () => void, afterSubmit?: (transactionId: string) => void) {
-  const arkProvider = new RestArkProvider(SIGNET_OPERATOR), indexerProvider = new RestIndexerProvider(SIGNET_OPERATOR);
+function providers(signal: AbortSignal, beforeSubmit?: () => void, afterSubmit?: (transactionId: string) => void, network: TestNetwork = 'signet') {
+  const operator=operatorFor(network);
+  const arkProvider = new RestArkProvider(operator), indexerProvider = new RestIndexerProvider(operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);
-  arkProvider.getInfo = async () => { signal.throwIfAborted(); const info = await getInfo(); requireSignet(info.network); return info; };
+  arkProvider.getInfo = async () => { signal.throwIfAborted(); const info = await getInfo(); requireNetwork(info.network,network); return info; };
   let failed = false;
   const getVtxos = indexerProvider.getVtxos.bind(indexerProvider);
   indexerProvider.getVtxos = async (...args) => { try { signal.throwIfAborted(); return await getVtxos(...args); } catch (e) { failed = true; throw e; } };
@@ -109,7 +111,7 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
 }
 export async function listWalletAssets(account: AccountSecret, signal: AbortSignal): Promise<BisAsset[]> {
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
-  const p = providers(deadline);
+  const p = providers(deadline, undefined, undefined, account.network ?? 'signet');
   const identity = await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly();
   return withTemporaryWallet(ReadonlyWallet.create({ identity, arkProvider: p.arkProvider, indexerProvider: p.indexerProvider, storage: storage() }), deadline, async wallet => {
     const owned = await readFreshAssets(wallet); p.assertFresh(); return owned.map(o => o.asset);
@@ -242,7 +244,7 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
       // Durable intent already exists. A secondary journal write must not stop
       // SDK finalization of an accepted transaction; completion still persists.
     }
-  });
+  }, account.network ?? 'signet');
   try {
     return await withTemporaryWallet(Wallet.create({ identity: MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }), arkProvider: p.arkProvider, indexerProvider: p.indexerProvider, settlementConfig: false, storage: storage() }), deadline, async wallet => {
       const owned = await readFreshAssets(wallet); p.assertFresh();
@@ -283,7 +285,7 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
 
 /** Stream wallet output changes directly; no history or balance polling. */
 export async function watchAssetChanges(account: AccountSecret, signal: AbortSignal, changed: () => void): Promise<void> {
-  const p = providers(signal);
+  const p = providers(signal, undefined, undefined, account.network ?? 'signet');
   const identity = await MnemonicIdentity.fromMnemonic(account.phrase, {isMainnet:false}).toReadonly();
   const wallet = await ReadonlyWallet.create({identity, arkProvider:p.arkProvider, indexerProvider:p.indexerProvider, storage:storage()});
   try {

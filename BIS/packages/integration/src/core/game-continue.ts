@@ -2,6 +2,7 @@ import type { BisContext } from './context';
 import type { BisContinueRequest, BisContinueResult } from './continuation';
 import { BoardingBlockedError } from './boarding-record.ts';
 import { SendError } from './sending.ts';
+export { networkLabel } from './test-network.ts';
 
 /** Demo price, owned by BIS. Client-side pricing is not trusted enforcement. */
 export function getContinuePriceSats(): number { return 1000; }

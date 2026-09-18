@@ -19,13 +19,14 @@ const metadata = r => ({ name: r.name, ticker: r.ticker, decimals: r.decimals, .
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function fixture(t) {
+function fixture(t, network = 'signet') {
+  const walletAccount = {...account, network};
   const values = new Map();
   const state = {
     storageFailure: false, indexerFailure: false, staleCacheFallback: false, current: true,
     submitFailure: false, finalizeFailure: false, beforeSubmit: undefined, submitGate: undefined, finalizeGate: undefined,
     onAccepted: undefined, onFinalized: undefined,
-    submitted: 0, finalized: 0, disposed: 0, created: 0, storageWrites: 0, issues: [], packets: [], storages: [],
+    submitted: 0, finalized: 0, disposed: 0, created: 0, storageWrites: 0, issues: [], packets: [], storages: [], providerUrls: [],
     coins: [{ txid: 'b'.repeat(64), vout: 0, value: 1000, assets: [{ assetId: externalId, amount: 1n }] }],
     holdings: new Map([[externalId, { amount: 1n, metadata: metadata(request) }]]),
   };
@@ -39,7 +40,7 @@ function fixture(t) {
     getItem: key => values.get(key) ?? null,
     setItem: (key, value) => { state.storageWrites++; if (state.storageFailure) throw Error('fixture storage unavailable'); values.set(key, value); },
   } });
-  t.mock.method(RestArkProvider.prototype, 'getInfo', async () => ({ network: 'signet' }));
+  t.mock.method(RestArkProvider.prototype, 'getInfo', async function () { return { network: this.serverUrl.includes('mutinynet') ? 'mutinynet' : 'signet' }; });
   t.mock.method(RestIndexerProvider.prototype, 'getVtxos', async () => {
     if (state.indexerFailure) throw Error('fixture required live read failed');
     return { vtxos: [] };
@@ -68,6 +69,7 @@ function fixture(t) {
     assert.ok(options.storage.walletRepository instanceof InMemoryWalletRepository);
     assert.ok(options.storage.contractRepository instanceof InMemoryContractRepository);
     state.storages.push(options.storage);
+    state.providerUrls.push([options.arkProvider.serverUrl, options.indexerProvider.serverUrl]);
     await options.arkProvider.getInfo();
     const wallet = {
       ...options, dustAmount: 330n,
@@ -104,10 +106,20 @@ function fixture(t) {
   t.mock.method(ReadonlyWallet, 'create', create);
   return {
     state, values,
-    mint: (r = request, signal = new AbortController().signal) => mintWalletAsset(account, r, signal, () => state.current),
-    list: () => listWalletAssets(account, new AbortController().signal),
+    mint: (r = request, signal = new AbortController().signal) => mintWalletAsset(walletAccount, r, signal, () => state.current),
+    list: () => listWalletAssets(walletAccount, new AbortController().signal),
+    availability: () => loadMintAvailability(walletAccount, new AbortController().signal),
   };
 }
+
+test('Mutinynet wallet asset preflight and mint use its saved operator', async t => {
+  const f = fixture(t, 'mutinynet');
+  assert.equal((await f.availability()).canMint, true);
+  assert.deepEqual(f.state.providerUrls, [['https://mutinynet.arkade.sh', 'https://mutinynet.arkade.sh']]);
+  f.state.providerUrls.length = 0;
+  assert.equal((await f.mint()).status, 'minted');
+  assert.deepEqual(f.state.providerUrls, [['https://mutinynet.arkade.sh', 'https://mutinynet.arkade.sh']]);
+});
 
 test('real adapter and SDK issue preserve the external holding, exact amount, icon and no control asset', async t => {
   const f = fixture(t);

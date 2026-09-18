@@ -40,6 +40,21 @@ test('logout passes the reviewed operation snapshot to complete cleanup', async 
   c.dispose();
 });
 
+test('active Game Wallet needs an explicit third acknowledgement and is reset before Player cleanup', async () => {
+  const f = fixture(); let resets = 0;
+  const c = createContext(f.storage, async () => identity, async () => identity.profileId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, {
+    hasGameWallet: () => true,
+    resetGameWallet: async () => { resets++; return true; },
+  });
+  await confirm(c);
+  assert.equal(c.getState().hasGameWallet, true);
+  await c.confirmLogout(); assert.equal(f.clears(), 0); assert.equal(resets, 0);
+  c.setLogoutGameWalletAcknowledged(true);
+  await c.confirmLogout();
+  assert.equal(resets, 1); assert.equal(f.clears(), 1); assert.equal(c.getState().hasProfile, false);
+  c.dispose();
+});
+
 test('logout requires acknowledgement, cancels, resets checkbox and preserves host destination', async () => {
   const f = fixture(), c = f.make(); await c.ready(); getControls(c).present(); c.openAccountDialog();
   c.openLogoutConfirmation(); await c.confirmLogout(); assert.equal(f.clears(), 0);

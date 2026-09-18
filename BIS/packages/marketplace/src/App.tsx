@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { advanceLocalMarketplaceCheckout, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, CopyableValueField, createBisContext, createBisEquipment, createBisGameWallet, createBisUi, PendingOperations, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord } from '@bis/integration';
+import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, CopyableValueField, createBisContext, createBisEquipment, createBisGameWallet, createBisUi, networkLabel, PendingOperations, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord } from '@bis/integration';
 import '@bis/integration/style.css';
 import { fallbackCatalog, type MarketplaceCatalog } from './catalog';
 import { readPublicInventory } from './inventory';
@@ -39,10 +39,11 @@ export function App(){return <PendingOperations className="marketplace-pending-r
 
 function MarketplaceContent(){
   const player=useMemo(()=>createBisContext(),[]);
-  const gameWallet=useMemo(()=>createBisGameWallet({playerProfileId:()=>player.getState().profileId}),[player]);
+  const gameWallet=useMemo(()=>createBisGameWallet({playerProfileId:()=>player.getState().profileId,playerNetwork:()=>player.getState().network}),[player]);
   const walletUi=useMemo(()=>createBisUi(player,{gameWallet}),[player,gameWallet]);
   const equipment=useMemo(()=>createBisEquipment(player),[player]);
   const playerState=useSyncExternalStore(player.subscribe,player.getState,player.getState);
+  const network=playerState.network;
   const gameState=useSyncExternalStore(gameWallet.subscribe,gameWallet.getState,gameWallet.getState);
   const equipmentState=useSyncExternalStore(equipment.subscribe,equipment.getState,equipment.getState);
   const walletHost=useRef<HTMLDivElement>(null);
@@ -59,19 +60,21 @@ function MarketplaceContent(){
   useEffect(()=>{if(walletHost.current){walletUi.mount(walletHost.current);walletUi.showAccountButton();}return()=>{walletUi.unmount();equipment.dispose();gameWallet.dispose();player.dispose();};},[walletUi,equipment,gameWallet,player]);
   useEffect(()=>{void fetch(`${import.meta.env.BASE_URL}catalog.json`,{cache:'no-store'}).then(async response=>{if(!response.ok)throw Error();const next=await response.json() as MarketplaceCatalog;if(next.version!==2||next.gameId!=='stealth-and-steel'||typeof next.gameWalletAddress!=='string')throw Error();setCatalog(next);setReadable(true);}).catch(()=>setReadable(false)).finally(()=>setIsCatalogLoading(false));},[]);
   useEffect(()=>{if(playerState.profileId)void equipment.refresh();},[playerState.profileId,equipment]);
+  useEffect(()=>{void gameWallet.refresh();},[gameWallet,network,playerState.profileId]);
   const sessionGameAddress=gameState.addresses?.arkadeAddress;
   const inventoryAddress=sessionGameAddress??catalog.gameWalletAddress;
   const salesEnabled=Boolean(playerState.profileId&&gameState.profileId&&playerState.profileId!==gameState.profileId);
   useEffect(()=>{
     const controller=new AbortController();let active=true;
     setGameItems(undefined);setIsGameInventoryLoading(true);
+    if(!network){setGameItems([]);setIsGameInventoryLoading(false);return()=>{active=false;controller.abort();};}
     if(!inventoryAddress) {setIsGameInventoryLoading(false);return()=>{active=false;controller.abort();};}
-    void readPublicInventory(inventoryAddress,controller.signal)
+    void readPublicInventory(inventoryAddress,controller.signal,network)
       .then(assets=>{if(active)setGameItems(Object.freeze(assets.map(classifyBisEquipmentAsset).filter(item=>item!==null)));})
       .catch(()=>{if(active)setGameItems([]);})
       .finally(()=>{if(active)setIsGameInventoryLoading(false);});
     return()=>{active=false;controller.abort();};
-  },[inventoryAddress,inventoryRevision]);
+  },[inventoryAddress,inventoryRevision,network]);
   const playerItems=equipmentState.status==='ready'?equipmentState.ownedItems:[];
   const source=owner==='player'?playerItems:owner==='game'?gameItems??[]:[...(gameItems??[]),...playerItems].filter((item,index,all)=>all.findIndex(candidate=>candidate.assetId===item.assetId)===index);
   const visibleItems=source.filter(item=>(game==='all'||game==='stealth-and-steel')&&(type==='all'||gameplayMetadata(item).some(stat=>stat.label.toLowerCase()===type&&stat.value!=='0')));
@@ -83,7 +86,7 @@ function MarketplaceContent(){
   const checkoutIsPending=activeCheckout?.status==='pending';
   const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending;
   const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending;
-  const explorerUrl=selected&&/^[a-f0-9]{68}$/i.test(selected.assetId)?`https://explorer.signet.arkade.sh/asset/${selected.assetId}`:undefined;
+  const explorerUrl=selected&&/^[a-f0-9]{68}$/i.test(selected.assetId)?arkExplorerAssetUrl(network,selected.assetId):undefined;
   useEffect(()=>{
     if(!selected)return;
     try {
@@ -166,7 +169,7 @@ function MarketplaceContent(){
     <div className="marketplace-bis-host" ref={walletHost}/>
     <div className="marketplace-page">
     <div className="network-banner">
-      <span role="status">Network: Signet</span>
+      <span role="status">Network: {networkLabel(network)}</span>
       <div className="marketplace-utilities" role="navigation" aria-label="Marketplace resources">
       <span className="marketplace-version">v{version}</span>
       <a className="marketplace-resource-link" href="https://github.com/SamuelAsherRivello/blockchain-integration-service" target="_blank" rel="noopener noreferrer" aria-label="View repository on GitHub">
@@ -189,6 +192,7 @@ function MarketplaceContent(){
         <section className="asset-data" aria-label="Generic asset data"><p className="data-label">Generic asset</p><div className="marketplace-detail-fields marketplace-generic-fields"><CopyableValueField label="Asset ID" value={selected.assetId} className="marketplace-detail-field marketplace-asset-id" /><CopyableValueField label="Ticker" value={selected.ticker} className="marketplace-detail-field" /><CopyableValueField label="Quantity" value={String(selected.quantity)} className="marketplace-detail-field" /></div></section>
         <section className="asset-data" aria-label="Gameplay metadata"><p className="data-label">Gameplay metadata</p><div className="marketplace-detail-fields marketplace-gameplay-fields">{gameplayMetadata(selected).map(stat=><CopyableValueField key={stat.label} label={stat.label} value={stat.value} className="marketplace-detail-field" />)}</div></section>
         <button type="button" className="detail-explorer-action" disabled={!explorerUrl} title={!explorerUrl?'Explorer unavailable: invalid asset ID.':undefined} onClick={()=>{if(explorerUrl)window.open(explorerUrl, '_blank', 'noopener,noreferrer');}}>Open On Explorer</button>
+        <button type="button" className="marketplace-dialog-back" onClick={()=>setSelected(undefined)}>Back</button>
       </article></div>}
       {isBenefitsOpen&&<div className="backdrop blockchain-benefits-backdrop" role="presentation" onMouseDown={()=>setIsBenefitsOpen(false)}><article className="detail blockchain-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="blockchain-benefits-title" onMouseDown={event=>event.stopPropagation()}>
         <button type="button" className="close" onClick={()=>setIsBenefitsOpen(false)} aria-label="Close Blockchain Benefits">×</button>
@@ -201,6 +205,7 @@ function MarketplaceContent(){
           <li><strong>Marketplace</strong><span>Players securely trade a Dagger III between wallets.</span></li>
           <li><strong>Payments</strong><span>Sats move instantly when you buy Shoes III.</span></li>
         </ul>
+        <button type="button" className="marketplace-dialog-back" onClick={()=>setIsBenefitsOpen(false)}>Back</button>
       </article></div>}
     </main>
     </div>

@@ -4,6 +4,7 @@ import {readAccountOnboarding} from './onboarding-record.ts';
 import { assertNoPendingBoarding, BoardingBlockedError } from './boarding-record.ts';
 import { readContractReservations } from './contract-reservations.ts';
 import { browserMutationLock, clearBrowserPreferences, clearBrowserProfilePreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
+import type { TestNetwork } from './test-network.ts';
 export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
 export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
 export interface AccountStorage {
@@ -14,22 +15,20 @@ export interface AccountStorage {
   reset(expectedGeneration?: number, options?: { purpose: 'logout'; profileId: string; operations: LogoutOperations }): Promise<void>;
   subscribe(listener: () => void): () => void;
 }
-const DB = 'bis-account-signet-v1';
 const STORE = 'account';
-type Envelope = { version: 1; network: 'signet'; key: CryptoKey; iv: Uint8Array<ArrayBuffer>; encrypted: ArrayBuffer };
-const aad = new TextEncoder().encode('bis:signet:account:v1');
-function open(): Promise<IDBDatabase> {
+type Envelope = { version: 1; network: TestNetwork; key: CryptoKey; iv: Uint8Array<ArrayBuffer>; encrypted: ArrayBuffer };
+function open(database: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (!globalThis.indexedDB || !globalThis.crypto?.subtle) { reject(new Error('Private storage unavailable.')); return; }
-    const request = indexedDB.open(DB, 2);
+    const request = indexedDB.open(database, 2);
     request.onupgradeneeded = () => {if(!request.result.objectStoreNames.contains(STORE))request.result.createObjectStore(STORE);};
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(new Error('Private storage unavailable.'));
     request.onblocked = () => reject(new Error('Private storage blocked.'));
   });
 }
-async function transaction<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore, set: (value:T)=>void, tx: IDBTransaction)=>void): Promise<T> {
-  const db = await open();
+async function transaction<T>(database: string, mode: IDBTransactionMode, run: (store: IDBObjectStore, set: (value:T)=>void, tx: IDBTransaction)=>void): Promise<T> {
+  const db = await open(database);
   return new Promise((resolve,reject) => {
     let result: T;
     const tx = db.transaction(STORE,mode);
@@ -43,14 +42,16 @@ function generation(value: unknown) {
   if (!Number.isSafeInteger(value) || (value as number) < 0) throw new Error('Invalid account generation.');
   return value as number;
 }
-export function createAccountStorage(): AccountStorage {
+export function createAccountStorage(network: TestNetwork = 'signet'): AccountStorage {
+  const database = `bis-account-${network}-v1`;
+  const aad = new TextEncoder().encode(`bis:${network}:account:v1`);
   const listeners = new Set<() => void>();
   let revision = 0;
   let channel: BroadcastChannel | undefined;
   const notify = () => { for (const listener of listeners) listener(); };
   let pendingSessionLogout: LogoutReceipt | undefined;
   type RawCollection={generation:number;legacy?:Envelope;profiles:string[];activeProfileId?:string;envelope?:Envelope;logout?:LogoutReceipt};
-  const readRaw=()=>transaction<RawCollection>('readonly',(store,set,tx)=>{
+  const readRaw=()=>transaction<RawCollection>(database,'readonly',(store,set,tx)=>{
     const g=store.get('generation'),legacy=store.get('identity'),profiles=store.get('profiles'),logout=store.get('logout'),active=store.get('activeProfile');
     active.onsuccess=()=>{try{
       const list=profiles.result===undefined?[]:profiles.result;
@@ -63,7 +64,7 @@ export function createAccountStorage(): AccountStorage {
     }catch{tx.abort();}};
   });
   const decrypt=async(e:Envelope):Promise<AccountSecret>=>{
-      if(e.version!==1 || e.network!=='signet' || !(e.key instanceof CryptoKey) || e.key.extractable) throw new Error('Saved account cannot be read.');
+      if(e.version!==1 || e.network!==network || !(e.key instanceof CryptoKey) || e.key.extractable) throw new Error('Saved account cannot be read.');
       const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:e.iv,additionalData:aad},e.key,e.encrypted);
       const account=JSON.parse(new TextDecoder().decode(plain));
       if(typeof account.phrase!=='string'||typeof account.profileId!=='string') throw new Error('Invalid saved account.');
@@ -72,7 +73,7 @@ export function createAccountStorage(): AccountStorage {
   const migrateLegacy=async(raw:RawCollection)=>{
     if(!raw.legacy)return raw;
     const account=await decrypt(raw.legacy);
-    await transaction<void>('readwrite',(store,set,tx)=>{
+    await transaction<void>(database,'readwrite',(store,set,tx)=>{
       const legacy=store.get('identity'),profiles=store.get('profiles'),existing=store.get(`profile:${account.profileId}`);
       existing.onsuccess=()=>{try{
         if(!legacy.result) {set(undefined);return;}
@@ -98,7 +99,7 @@ export function createAccountStorage(): AccountStorage {
     async listProfiles(){const raw=await collection();return Object.freeze({profiles:Object.freeze([...raw.profiles]),...(raw.activeProfileId?{activeProfileId:raw.activeProfileId}:{}),generation:raw.generation});},
     async selectProfile(profileId,expectedGeneration,signal){
       if(!profileId)throw Error('Select a saved profile.');signal?.throwIfAborted();
-      await withBrowserMutation(()=>transaction<void>('readwrite',(store,set,tx)=>{
+      await withBrowserMutation(()=>transaction<void>(database,'readwrite',(store,set,tx)=>{
         const g=store.get('generation'),profiles=store.get('profiles'),envelope=store.get(`profile:${profileId}`);
         envelope.onsuccess=()=>{try{
           const current=generation(g.result),list=profiles.result;
@@ -124,13 +125,14 @@ export function createAccountStorage(): AccountStorage {
       });
     },
     async save(account, expected, signal) {
+      if (account.network !== undefined && account.network !== network) throw Error('Account network does not match this browser session.');
       const currentRevision = revision;
       signal.throwIfAborted();
       const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
       const iv=crypto.getRandomValues(new Uint8Array(12));
       const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad},key,new TextEncoder().encode(JSON.stringify(account)));
       signal.throwIfAborted();
-      await withBrowserMutation(() => transaction<void>('readwrite',(store,set,tx)=> {
+      await withBrowserMutation(() => transaction<void>(database,'readwrite',(store,set,tx)=> {
         const abort=()=> {try {tx.abort();}catch {}};
         signal.addEventListener('abort',abort,{once:true});
         tx.addEventListener('complete',()=>signal.removeEventListener('abort',abort));
@@ -141,7 +143,7 @@ export function createAccountStorage(): AccountStorage {
             const list=profiles.result===undefined?[]:profiles.result;
             if(signal.aborted || revision !== currentRevision || generation(g.result)!==expected || !Array.isArray(list)) {tx.abort();return;}
             store.delete('logout');
-            if(!existing.result)store.put({version:1,network:'signet',key,iv,encrypted} satisfies Envelope,`profile:${account.profileId}`);
+            if(!existing.result)store.put({version:1,network,key,iv,encrypted} satisfies Envelope,`profile:${account.profileId}`);
             if(!list.includes(account.profileId))store.put([...list,account.profileId],'profiles');
             store.put(account.profileId,'activeProfile');set(undefined);
           }catch {tx.abort();}
@@ -162,7 +164,7 @@ export function createAccountStorage(): AccountStorage {
           clearBrowserProfilePreferences(options.profileId,globalThis.localStorage);
           clearBrowserProfilePreferences(options.profileId,globalThis.sessionStorage);
           const receipt: LogoutReceipt = {id:crypto.randomUUID(),profileId:options.profileId,generation:loaded.generation+1};
-          await transaction<void>('readwrite', (store, set, tx) => {
+          await transaction<void>(database,'readwrite', (store, set, tx) => {
             const request = store.get('generation');
             request.onsuccess = () => {
               if (generation(request.result) !== loaded.generation) { tx.abort(); return; }
@@ -190,7 +192,7 @@ export function createAccountStorage(): AccountStorage {
       // Administrative reset retains its existing unresolved-transfer guard.
       assertNoPendingBoarding(profileId);
       if(profileId&&readAccountOnboarding(profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('Onboarding is unresolved. Open Account → Balance → Onboarding before resetting this account.');
-      await transaction<void>('readwrite',(store,set,tx)=> {
+      await transaction<void>(database,'readwrite',(store,set,tx)=> {
         const request=store.get('generation');
         const active=store.get('activeProfile');
         active.onsuccess=()=> {
@@ -206,7 +208,7 @@ export function createAccountStorage(): AccountStorage {
     },
     subscribe(listener) {
       listeners.add(listener);
-      if(!channel && typeof BroadcastChannel!=='undefined') {channel=new BroadcastChannel(DB);channel.onmessage=event=>{
+      if(!channel && typeof BroadcastChannel!=='undefined') {channel=new BroadcastChannel(database);channel.onmessage=event=>{
         revision++;
         if(event.data?.type==='logout') pendingSessionLogout=event.data as LogoutReceipt;
         notify();

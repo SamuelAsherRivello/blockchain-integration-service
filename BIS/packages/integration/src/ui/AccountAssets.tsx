@@ -11,6 +11,7 @@ import type { BisBurnAssetRequest, BisBurnAssetResult } from '../core/burning';
 import { CompactItemRow } from './StatusTypeIcon';
 import { StatusTypeIcon } from './StatusTypeIcon';
 import type { createBisEquipment, BisEquipmentState } from '../core/equipment-loadout';
+import { networkLabel, type TestNetwork } from '../core/test-network';
 
 const preparedIcons = new Set<string>();
 function AssetIcon({url, background = false, fallback}: {url?:string; background?:boolean; fallback?:ReactNode}) {
@@ -34,7 +35,7 @@ function AssetIcon({url, background = false, fallback}: {url?:string; background
   return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:(fallback??<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>)}</span>;
 }
 
-export function AccountAssets({assets, equipment, equipmentState, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; equipment?:ReturnType<typeof createBisEquipment>;equipmentState?:BisEquipmentState; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
+export function AccountAssets({assets, network, equipment, equipmentState, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; network:TestNetwork; equipment?:ReturnType<typeof createBisEquipment>;equipmentState?:BisEquipmentState; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [notice, setNotice] = useState('');
@@ -60,7 +61,7 @@ export function AccountAssets({assets, equipment, equipmentState, onDetailChange
     finally {burnInFlight.current=false;if(mounted.current)setBurning(false);}
   }
   const rows = assets.status === 'ready' ? assets.assets : [];
-  const report = rows.map(formatAssetDetail).join('\n\n');
+  const report = rows.map(asset=>formatAssetDetail(asset, network)).join('\n\n');
   const selected = rows.find(asset => asset.assetId === selectedId);
   const equipmentItem=selected&&equipmentState?.status==='ready'?equipmentState.ownedItems.find(item=>item.assetId===selected.assetId):undefined;
   const equipped=equipmentItem?equipmentState?.effective[equipmentItem.family]?.assetId===equipmentItem.assetId:false;
@@ -70,7 +71,7 @@ export function AccountAssets({assets, equipment, equipmentState, onDetailChange
     catch{setNotice('Equipment ownership could not be verified. Refresh Assets and try again.');}
     finally{setEquipmentBusy(false);}
   }
-  const explorerUrl = selected ? assetExplorerUrl(selected.assetId) : undefined;
+  const explorerUrl = selected ? assetExplorerUrl(selected.assetId, network) : undefined;
   const list = useRef<HTMLUListElement>(null);
   const scroll = useRef(0);
   const restoreFocus = useRef(false);
@@ -107,7 +108,7 @@ export function AccountAssets({assets, equipment, equipmentState, onDetailChange
     else onBack();
   });
   const Page=detailOpen?ItemListDetail:ItemList;
-  return <Page title={detailOpen?'Asset Detail':'Assets'} body={detailOpen?'Inspect this asset and its ownership.':'Assets held by this account.'}
+  return <Page network={networkLabel(network)} title={detailOpen?'Asset Detail':'Assets'} body={detailOpen?'Inspect this asset and its ownership.':'Assets held by this account.'}
     fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?formatAssetDetails(selected):report} loading={loading} listLabel="Owned assets"
     onRefresh={onRefresh} refreshDisabled={burning||!!confirmation}
     listRef={list} onScroll={event=>{scroll.current=event.currentTarget.scrollTop;}}

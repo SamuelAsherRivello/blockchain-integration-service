@@ -87,9 +87,16 @@ test('Marketplace opens a separate Blockchain Benefits dialog from the clickable
   assert.match(polish, /\.marketplace-benefits-list li \{[^}]*grid-template-columns: 136px minmax\(0, 1fr\); gap: 8px/);
 });
 
+test('Marketplace detail pages provide an explicit Back action', async () => {
+  const [app, redesign] = await Promise.all([text('src/App.tsx'), text('src/marketplace-redesign.css')]);
+  assert.match(app, /className="marketplace-dialog-back" onClick=\{\(\)=>setSelected\(undefined\)\}>Back<\/button>/);
+  assert.match(app, /className="marketplace-dialog-back" onClick=\{\(\)=>setIsBenefitsOpen\(false\)\}>Back<\/button>/);
+  assert.match(redesign, /\.marketplace-page \.marketplace-dialog-back\s*\{[\s\S]*?width: 100%;[\s\S]*?min-height: 40px;/);
+});
+
 test('item detail provides the selected valid Arkade asset with a bottom explorer action', async () => {
   const [app, squareGrid] = await Promise.all([text('src/App.tsx'), text('src/square-grid.css')]);
-  assert.match(app, /const explorerUrl=selected&&\/\^\[a-f0-9\]\{68\}\$\/i\.test\(selected\.assetId\)\?`https:\/\/explorer\.signet\.arkade\.sh\/asset\/\$\{selected\.assetId\}`:undefined/);
+  assert.match(app, /const explorerUrl=selected&&\/\^\[a-f0-9\]\{68\}\$\/i\.test\(selected\.assetId\)\?arkExplorerAssetUrl\(network,selected\.assetId\):undefined/);
   assert.match(app, /className="detail-explorer-action" disabled=\{!explorerUrl\}/);
   assert.match(app, /window\.open\(explorerUrl, '_blank', 'noopener,noreferrer'\)/);
   assert.match(app, />Open On Explorer<\/button>/);
@@ -147,6 +154,7 @@ test('Marketplace opens with the Game Wallet, Stealth & Steel, and all item type
   assert.match(app, /\[type,setType\]=useState<'all'\|'speed'\|'offense'\|'defense'>\('all'\)/);
 });
 
+
 test('Marketplace derives item identity, price, and artwork from fresh chain asset metadata',async()=>{
   const [app,inventory]=await Promise.all([text('src/App.tsx'),text('src/inventory.ts')]);
   assert.match(inventory,/getAssetDetails\(assetId\)/);assert.match(app,/map\(classifyBisEquipmentAsset\)/);
@@ -159,7 +167,7 @@ test('Marketplace refreshes Game Wallet inventory after a completed checkout wit
   const app = await text('src/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
   assert.match(app, /setInventoryRevision\(value=>value\+1\)/);
-  assert.match(app, /\[inventoryAddress,inventoryRevision\]/);
+  assert.match(app, /\[inventoryAddress,inventoryRevision,network\]/);
 });
 
 test('Marketplace delegates visible Marketplace loading to the shared pending prompt', async () => {
@@ -193,9 +201,9 @@ test('Marketplace requirement tooltip targets use the pointer cursor', async () 
   assert.match(polish, /\.marketplace-info-group li strong\[title\],\.marketplace-info-group li span\[title\]\{cursor:pointer\}/);
 });
 
-test('Marketplace places version and project resources in the Signet bar without device-specific presentation logic', async () => {
+test('Marketplace places version and project resources in the selected-network bar without device-specific presentation logic', async () => {
   const [app, utilities, redesign] = await Promise.all([text('src/App.tsx'), text('src/marketplace-utilities.css'), text('src/marketplace-redesign.css')]);
-  assert.match(app, /<div className="network-banner">\s*<span role="status">Network: Signet<\/span>\s*<div className="marketplace-utilities" role="navigation" aria-label="Marketplace resources">/);
+  assert.match(app, /<div className="network-banner">\s*<span role="status">Network: \{networkLabel\(network\)\}<\/span>\s*<div className="marketplace-utilities" role="navigation" aria-label="Marketplace resources">/);
   assert.match(app, /v\{version\}/);
   assert.match(app, /https:\/\/github\.com\/SamuelAsherRivello\/blockchain-integration-service/);
   assert.match(app, /https:\/\/docs\.arkadeos\.com\//);

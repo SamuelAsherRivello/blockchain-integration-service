@@ -46,3 +46,20 @@ test('an interrupted or incomplete batch never returns verified publication reco
   },()=>true);
   assert.deepEqual(incomplete,{status:'error',code:'verification-failed'});
 });
+
+test('a transient unavailable result retries the same catalog operation before pausing the batch', async () => {
+  const calls = [];
+  const wallet = {
+    async mint(request) {
+      calls.push(request.operationId);
+      if (request.name === 'Shoes II' && calls.filter(id => id === request.operationId).length === 1) {
+        return {status:'error',code:'unavailable',message:'temporary spendability refresh'};
+      }
+      return {status:'minted',profileId:'game',operationId:request.operationId,asset:{assetId:`asset-${calls.length}`,quantity:'1'}};
+    },
+    async listAssets() { return {status:'success',profileId:'game',assets:chainAssets()}; },
+  };
+  const result = await mintAndVerifyMarketplaceCatalog(wallet, () => true);
+  assert.equal(result.status, 'verified');
+  assert.equal(calls.filter(id => id === marketplaceMintRequest(marketplaceCatalogItems[1]).operationId).length, 2);
+});

@@ -24,6 +24,16 @@ test('refresh failure removes old addresses and a subsequent refresh recovers',a
   assert.deepEqual(c.getState().addresses,{status:'unavailable'});assert.equal(c.getState().phase,'active');
   fail=false;await c.refreshBalance();assert.equal(c.getState().addresses.status,'ready');c.dispose();
 });
+test('onboarding immediately reuses the Bitcoin address already loaded for Receive',async()=>{
+ let calls=0;const c=setup(async()=>{calls++;return addresses;});
+ await c.ready();c.openAccountDialog();c.openAccountReceive();await tick();
+ assert.deepEqual(c.getState().addresses,{status:'ready',...addresses});
+ c.openAccountOnboarding();
+ assert.equal(c.getState().accountOnboarding,true);
+ assert.deepEqual(c.getState().addresses,{status:'ready',...addresses});
+ assert.equal(calls,1);
+ c.dispose();
+});
 test('closing or disposing prevents a late address result from publishing',async()=>{
   for(const action of ['close','dispose']) {
     let finish,signal;const c=setup((_,s)=>{signal=s;return new Promise(resolve=>{finish=resolve;});});

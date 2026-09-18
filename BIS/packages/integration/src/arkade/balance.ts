@@ -1,5 +1,5 @@
 import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
-import { requireSignet, SIGNET_OPERATOR, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { validRecovery } from '../core/recovery-validation.ts';
 
 export type BalanceAmounts = Readonly<{ availableSats: number; totalSats: number; bitcoinSats: number; arkadeSats: number }>;
@@ -23,16 +23,17 @@ export async function readFreshBalance(wallet: BalanceWallet): Promise<BalanceAm
 
 export async function loadBalance(account: AccountSecret, signal: AbortSignal): Promise<BalanceAmounts> {
   if (!validRecovery(account.phrase)) throw new Error('Invalid account.');
-  const response = await fetch(`${SIGNET_OPERATOR}/v1/info`, {
+  const network=account.network ?? 'signet', operator=operatorFor(network);
+  const response = await fetch(`${operator}/v1/info`, {
     cache: 'no-store', signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
   });
   if (!response.ok) throw new Error('Balance unavailable.');
-  requireSignet((await response.json()).network);
+  requireNetwork((await response.json()).network,network);
   signal.throwIfAborted();
-  const arkProvider = new RestArkProvider(SIGNET_OPERATOR);
+  const arkProvider = new RestArkProvider(operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);
-  arkProvider.getInfo = async () => { const info = await getInfo(); requireSignet(info.network); return info; };
-  const indexerProvider = new RestIndexerProvider(SIGNET_OPERATOR);
+  arkProvider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
+  const indexerProvider = new RestIndexerProvider(operator);
   // SDK synchronization can catch provider errors and return its repository.
   // Latch failures so a concurrent watcher success cannot erase that evidence.
   let indexerFailed = false;

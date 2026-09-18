@@ -14,13 +14,54 @@ import {withWalletMutation} from './boarding-record.ts';
 import {validateMint,assetError,AssetError,readAssetRecords,type BisListAssetsResult,type BisMintAssetRequest,type BisMintAssetResult} from './assets.ts';
 import {BurnError,validateBurn,type BisBurnAssetRequest,type BisBurnAssetResult} from './burning.ts';
 import {AssetDeliveryError,validateAssetDelivery,type BisAssetDeliveryRequest,type BisAssetDeliveryResult} from './asset-delivery.ts';
+import type { TestNetwork } from './test-network.ts';
 
 export type BisGameWalletState = Readonly<{
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
-  profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string; selectionVersion?: number;
+  profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string; selectionVersion?: number; playerConnected?: boolean; network?: TestNetwork;
 }>;
 export function createBisGameWallet(...args:Parameters<typeof createLocalGameWallet>):ReturnType<typeof createLocalGameWallet> {
+  if (args.length === 1) {
+    const [options] = args;
+    return createLocalGameWallet(options, {
+      storage:createNetworkScopedGameWalletStorage(options.playerNetwork ?? (() => undefined)), restore:restoreAccount, create:createAccount, addresses:loadAddresses, balance:loadBalance, watch:watchGameWalletEvents,
+    });
+  }
   return createLocalGameWallet(...args);
+}
+/**
+ * The Player context owns the network preference. Resolve the Game Wallet store
+ * at each operation boundary so a wallet selected on Signet can never be read
+ * as the active Mutinynet wallet after the Player context changes network.
+ */
+export function createNetworkScopedGameWalletStorage(selectedNetwork: () => TestNetwork | undefined, createStorage: (network: TestNetwork) => GameWalletStorage = createGameWalletStorage): GameWalletStorage {
+  const stores = new Map<TestNetwork, GameWalletStorage>();
+  const subscriptions = new Map<() => void, Map<GameWalletStorage, () => void>>();
+  const current = () => {
+    const network = selectedNetwork() ?? 'signet';
+    let store = stores.get(network);
+    if (!store) { store = createStorage(network); stores.set(network, store); }
+    for (const [listener, attached] of subscriptions) {
+      if (!attached.has(store)) attached.set(store, store.subscribe(listener));
+    }
+    return store;
+  };
+  return Object.freeze({
+    load: () => current().load(),
+    select: (account: AccountSecret) => current().select(account),
+    logout: () => current().logout(),
+    reset: () => current().reset(),
+    subscribe(listener: () => void) {
+      const attached = new Map<GameWalletStorage, () => void>();
+      subscriptions.set(listener, attached);
+      current();
+      return () => { for (const unsubscribe of attached.values()) unsubscribe(); subscriptions.delete(listener); };
+    },
+    dispose() {
+      for (const attached of subscriptions.values()) for (const unsubscribe of attached.values()) unsubscribe();
+      subscriptions.clear(); for (const store of stores.values()) store.dispose(); stores.clear();
+    },
+  });
 }
 type GameWalletDependencies = {
   storage: GameWalletStorage;
@@ -30,7 +71,7 @@ type GameWalletDependencies = {
   balance: typeof loadBalance;
   watch: typeof watchGameWalletEvents | undefined;
 };
-export function createLocalGameWallet(options: { playerProfileId(): string | undefined }, dependencies: GameWalletDependencies = {
+export function createLocalGameWallet(options: { playerProfileId(): string | undefined; playerNetwork?(): TestNetwork | undefined }, dependencies: GameWalletDependencies = {
   storage: createGameWalletStorage(), restore: restoreAccount, create: createAccount, addresses: loadAddresses, balance: loadBalance, watch: watchGameWalletEvents,
 }, boarding = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting: {availability:typeof loadMintAvailability;mint:typeof mintWalletAsset;list?:typeof listWalletAssets;burn?:typeof burnWalletAsset} = {availability:loadMintAvailability,mint:mintWalletAsset,list:listWalletAssets,burn:burnWalletAsset}) {
   const storage: GameWalletStorage = dependencies.storage;
@@ -38,7 +79,9 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
   let state: BisGameWalletState = Object.freeze({status:'loading',selectionVersion});
   let operation = new AbortController(), disposed = false, importing = false, refreshQueued = false;
   const listeners = new Set<() => void>();
-  const publish = (next: Omit<BisGameWalletState,'selectionVersion'> | BisGameWalletState) => { if (!disposed) { state = Object.freeze({...next,selectionVersion}); listeners.forEach(l => l()); } };
+  const selectedNetwork = () => options.playerNetwork?.() ?? 'signet';
+  const playerConnected = () => !!options.playerProfileId();
+  const publish = (next: Omit<BisGameWalletState,'selectionVersion'> | BisGameWalletState) => { if (!disposed) { state = Object.freeze({...next,selectionVersion,playerConnected:playerConnected(),network:selectedNetwork()}); listeners.forEach(l => l()); } };
   const selectProfile = (profileId: string | undefined) => {
     if (profileId === selectedProfileId) return;
     selectedProfileId = profileId;
@@ -73,10 +116,11 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
   async function refresh() {
     if (disposed) return;
     if (importing) { refreshQueued = true; return; }
+    if (!playerConnected()) { begin(); selectProfile(undefined); publish({status:'empty',message:'Connect a Player Wallet before using the Game Wallet.'}); return; }
     const signal = begin(); publish({status:'loading', profileId:state.profileId});
     try {
       const account=await storage.load();
-      if(account?.profileId===options.playerProfileId()) {
+      if(account?.profileId===options.playerProfileId() || (account?.network !== undefined && account.network !== selectedNetwork())) {
         selectProfile(undefined);publish({status:'unavailable',message:'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.'});return;
       }
       await inspect(account, signal);
@@ -87,10 +131,11 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
   void refresh();
   async function selectedAccount() {
     const account = await storage.load();
-    if (disposed || importing || !account || account.profileId !== state.profileId || account.profileId === options.playerProfileId()) throw Error('Select a separate game wallet first.');
+    if (disposed || importing || !playerConnected() || !account || account.profileId !== state.profileId || account.profileId === options.playerProfileId() || (account.network !== undefined && account.network !== selectedNetwork())) throw Error('Connect a Player Wallet and select a separate Game Wallet first.');
     return account;
   }
   async function selectSeparateGameWallet(account: AccountSecret, signal: AbortSignal) {
+    if (!playerConnected() || (account.network !== undefined && account.network !== selectedNetwork())) throw Error('Connect a Player Wallet on the same network first.');
     await withWalletRoleSelection(account.profileId,options.playerProfileId,'This wallet is already configured as the Player Wallet. Restore or create a separate Game Wallet.',async()=>{
       await storage.select(account);signal.throwIfAborted();selectProfile(account.profileId);publish({status:'loading',profileId:account.profileId});
     });
@@ -194,11 +239,17 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       try { await storage.logout(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } }
       catch { if (!signal.aborted) publish({...state, message:'Logout failed. Please retry.'}); }
     },
-    async importWallet(phrase: string) {
+    async reset() {
       if (disposed || importing) return false;
+      const signal = begin();
+      try { await storage.reset(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } return true; }
+      catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.'}); return false; }
+    },
+    async importWallet(phrase: string) {
+      if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return false; }
       importing = true; const previous = state, signal = begin(); publish({...previous, status:'loading', message:undefined});
       try {
-        const account = await dependencies.restore(phrase, signal);
+        const account = await dependencies.restore(phrase, signal, selectedNetwork());
         signal.throwIfAborted();
         await selectSeparateGameWallet(account,signal);
         return true;
@@ -253,11 +304,11 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       } catch(error) {return assetError(error instanceof AssetError?error.code:'unavailable',state.profileId);}
     },
     async createWallet() {
-      if (disposed || importing) return;
+      if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return; }
       importing = true;
       const signal = begin();
       try {
-        const account = await (dependencies.create ?? createAccount)(signal);
+        const account = await (dependencies.create ?? createAccount)(signal, selectedNetwork());
         signal.throwIfAborted();
         if (account.profileId === options.playerProfileId()) throw Error();
         return account;
@@ -269,7 +320,7 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       }
     },
     async selectWallet(account: AccountSecret) {
-      if (disposed || importing) return false;
+      if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return false; }
       if (account.profileId === options.playerProfileId()) {
         publish({...state,message:'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.'});
         return false;

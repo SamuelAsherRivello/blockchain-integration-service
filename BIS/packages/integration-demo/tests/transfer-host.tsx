@@ -28,6 +28,18 @@ document.getElementById('run')!.onclick = async () => {
     const transferCard=host.querySelector('.bis-card')!;
     check(transferCard.scrollHeight<=transferCard.clientHeight,'Zero Bitcoin transfer fits without cropping or scrolling');
     check(host.querySelectorAll('.bis-balance-direction').length===1 && !!button('→'),'Single direction button starts forward');
+    const transferControls = [
+      host.querySelector<HTMLElement>('[aria-label="Total balance"]')!,
+      host.querySelector<HTMLElement>('[aria-label="Bitcoin balance"]')!,
+      host.querySelector<HTMLElement>('[aria-label="Arkade balance"]')!,
+      host.querySelector<HTMLElement>('.bis-balance-direction')!,
+      host.querySelector<HTMLElement>('[aria-label="Decrease amount"]')!,
+      host.querySelector<HTMLElement>('[aria-label="Amount (sats)"]')!,
+      host.querySelector<HTMLElement>('[aria-label="Increase amount"]')!,
+      button('Max'),
+    ];
+    const transferControlHeight = transferControls[0].getBoundingClientRect().height;
+    check(transferControls.every(control => Math.abs(control.getBoundingClientRect().height - transferControlHeight) < 0.1), 'Transfer fields and amount controls share one height');
     button('→').click();await tick();
     check(!!button('←'),'Click toggles reverse');
     button('←').click();await tick();

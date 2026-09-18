@@ -1,13 +1,11 @@
 import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk';
-import { normalizeAssetMetadata, type BisAsset } from '@bis/integration';
-
-const operator = 'https://signet.arkade.sh';
+import { normalizeAssetMetadata, testNetwork, type BisAsset, type TestNetwork } from '@bis/integration';
 const hex = (bytes: Uint8Array) => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 
-/** Reads public Signet inventory only. It creates no wallet and cannot sign. */
-export async function readPublicInventory(address: string, signal: AbortSignal): Promise<readonly BisAsset[]> {
+/** Reads public inventory only from the currently selected test network. It creates no wallet and cannot sign. */
+export async function readPublicInventory(address: string, signal: AbortSignal, network: TestNetwork): Promise<readonly BisAsset[]> {
   const script = hex(ArkAddress.decode(address).pkScript);
-  const indexer=new RestIndexerProvider(operator);
+  const indexer=new RestIndexerProvider(testNetwork(network).operator);
   const result = await indexer.getVtxos({scripts:[script]});
   signal.throwIfAborted();
   const totals = new Map<string, bigint>();

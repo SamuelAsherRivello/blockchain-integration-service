@@ -2,6 +2,7 @@ import type { BoardingRecord } from './boarding-record.ts';
 import { boardingFailureLabels, publicBoardingFailure } from './boarding-record.ts';
 import type { BisTransferStatus } from './context.ts';
 import { boardingWorkerActive } from './boarding-execution.ts';
+import { testNetwork, type TestNetwork } from './test-network.ts';
 export function settlementDiagnostic(error:unknown):NonNullable<BoardingRecord['diagnostic']> {
   try {
   if(error instanceof Error&&error.name==='ServerResponseMismatchError')return 'response-mismatch';
@@ -25,14 +26,14 @@ export function transferProgressLines(status:BisTransferStatus):string[] {
 }
 
 /** A public-data projection, never a serialization of wallet or provider state. */
-export function formatTransferRecoveryReport(status: BisTransferStatus): string {
+export function formatTransferRecoveryReport(status: BisTransferStatus, network: TestNetwork = 'signet'): string {
   if (status.status !== 'pending') return '';
   const uuid = (value?: string) => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value) ? value : 'Unknown';
   const phase = status.phase === 'registered' ? 'Registered' : status.phase === 'submitting' ? 'Submission may have reached the operator' : status.phase === 'prepared' ? 'Prepared' : 'Unknown';
   const diagnostic = status.diagnostic === 'registration-unconfirmed' ? 'Registration response unconfirmed' : status.diagnostic === 'deadline-exceeded' ? 'Processing time limit reached' : status.diagnostic === 'settlement-interrupted' ? 'Processing interrupted' : status.diagnostic==='response-mismatch'?'SDK rejected a mismatching operator response':status.diagnostic==='event-stream-closed'?'Settlement event stream closed':status.diagnostic==='batch-failed'?'Operator reported the selected batch failed':'Not recorded';
   return [
     'Transfer recovery report',
-    'Network: Signet',
+    `Network: ${testNetwork(network).label}`,
     'Status: Pending; completion has not been verified',
     `Direction: ${status.direction === 'to-bitcoin' ? 'Arkade → Bitcoin' : status.direction === 'to-arkade' ? 'Bitcoin → Arkade' : 'Unknown'}`,
     `Amount: ${Number.isSafeInteger(status.amountSats) && status.amountSats! > 0 ? `${status.amountSats} sats` : 'Unknown'}`,

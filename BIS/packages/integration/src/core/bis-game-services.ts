@@ -32,8 +32,11 @@ export class BisGameServices {
     this.context = createBisContext({
       get continueRecipient() { return wallet?.getState().addresses?.arkadeAddress; },
       gameWalletProfileId: () => wallet?.getState().profileId,
+      hasGameWallet: () => !!wallet?.getState().profileId,
+      resetGameWallet: async () => wallet ? wallet.reset() : true,
     });
-    wallet = createBisGameWallet({ playerProfileId: () => this.context.getState().profileId });
+    wallet = createBisGameWallet({ playerProfileId: () => this.context.getState().profileId, playerNetwork: () => this.context.getState().network });
+    this.context.subscribe(() => { void wallet?.refresh(); });
     this.gameWallet = wallet;
     this.lto = createBisLto({ context: this.context, gameWallet: wallet });
     this.ui = createBisUi(this.context, { gameWallet: wallet });

@@ -35,6 +35,8 @@ import { createAccountStorage, type AccountStorage, type StoredAccount } from '.
 import { WalletRoleConflictError, withWalletRoleSelection } from './wallet-role.ts';
 import { loadBalance, type BalanceAmounts } from '../arkade/balance.ts';
 import { loadAddresses, type AccountAddresses } from '../arkade/addresses.ts';
+import type { TestNetwork } from './test-network.ts';
+import { createTestNetworkSession } from './test-network.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
 import { fundTestAccount } from '../arkade/funding.ts';
 export type BisBalance = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
@@ -46,6 +48,9 @@ export type BisState = Readonly<{
   logoutBackupAcknowledged: boolean;
   logoutPendingCount: number | null;
   logoutPendingAcknowledged: boolean;
+  logoutGameWalletAcknowledged: boolean;
+  hasGameWallet: boolean;
+  network?: TestNetwork;
   accountRecovery: boolean;
   recoveryStatus: 'hidden' | 'loading' | 'ready' | 'unavailable';
   profileId?: string; error?: string; canReset: boolean;
@@ -120,6 +125,8 @@ export interface BisContext {
   openLogoutConfirmation(): void;
   setLogoutBackupAcknowledged(acknowledged: boolean): void;
   setLogoutPendingAcknowledged(acknowledged: boolean): void;
+  setLogoutGameWalletAcknowledged(acknowledged: boolean): void;
+  selectNetwork(network: TestNetwork): void;
   confirmLogout(): Promise<void>;
   cancelLogout(): void;
   retry(): Promise<void>;
@@ -134,7 +141,7 @@ export function getControls(context: BisContext): Controls {
   return result;
 }
 // Private dependency seam for isolated tests; not exported by the package.
-type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined};
+type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined; hasGameWallet?:()=>boolean; resetGameWallet?:()=>Promise<boolean>; getNetwork?:()=>TestNetwork|undefined; selectNetwork?:(network:TestNetwork)=>void; requireNetworkSelection?:boolean};
 const playerGameWalletConflict = 'This wallet is already configured as the Game Wallet. Use a different Player Wallet.';
 export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: BisContextOptions = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined, onboardingFactory:((account:AccountSecret,current:()=>boolean)=>OnboardingAdapter)|undefined = create===createAccount&&identifyAccount===identify&&readBalance===loadBalance?createOnboardingAdapter:undefined): BisContext {
   const toasts = createToastQueue();
@@ -189,7 +196,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const activityVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && s.accountActivity;
   const idleBalance: BisBalance = Object.freeze({status:'idle'});
   const idleAddresses: BisAddresses = Object.freeze({status:'idle'});
-  let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
+  let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:false,network:options.getNetwork?.() ?? (options.requireNetworkSelection ? undefined : 'signet'),balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
   let revealedPhrase: string | undefined;
   let recoveryVersion = 0;
   let recoveryOperation = new AbortController();
@@ -228,7 +235,8 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     const current=()=>!disposed&&!signal.aborted&&state.profileId===profile&&state.hasProfile&&generation===expected;
     queueMicrotask(()=>void (async()=>{
       const saved=await storage.load();if(!current()||saved.account?.profileId!==profile||saved.generation!==expected)return;
-      onboardingWorker=startOnboarding(onboardingScope(profile),onboardingFactory(saved.account,current),view=>{if(current())update({onboarding:view});},work=>withWalletMutation(work,profile),signal,()=>{if(current())walletChanged(profile,true,true);});
+      const network=saved.account.network??state.network??'signet',account={...saved.account,network};
+      onboardingWorker=startOnboarding(onboardingScope(profile,network),onboardingFactory(account,current),view=>{if(current())update({onboarding:view});},work=>withWalletMutation(work,profile),signal,()=>{if(current())walletChanged(profile,true,true);});
     })().catch(()=>{if(current())update({onboarding:{status:'pending',detail:'Account storage could not be read. Onboarding is paused safely.',transactions:[]}});}));
   }
   let paymentGeneration = -1;
@@ -288,7 +296,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   let storageRevision = 0;
   let balanceVersion = 0;
   let balanceOperation = new AbortController();
-  const balanceVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && (s.accountDetails || s.accountReceive || s.accountTransfer);
+  const balanceVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && (s.accountDetails || s.accountReceive || s.accountTransfer || s.accountOnboarding);
   const cancelBalance = () => { balanceVersion++; balanceOperation.abort(); balanceOperation=new AbortController(); };
   const listeners = new Set<() => void>();
   const events = new Set<(event: BisEvent)=>void>();
@@ -319,7 +327,8 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     const enteringActivity = activityVisible(state) && (!activityVisible(before) || before.profileId !== state.profileId);
     if (!activityVisible(state) || enteringActivity) { cancelActivity(); state=Object.freeze({...state,activity:idleActivity}); }
     const entering=balanceVisible(state) && (!balanceVisible(before) || before.accountReceive!==state.accountReceive || before.accountTransfer!==state.accountTransfer || before.profileId!==state.profileId);
-    if (!balanceVisible(state) || entering) {
+    const retainReceivedAddressForOnboarding=state.accountOnboarding&&before.accountReceive&&before.addresses.status==='ready';
+    if ((!balanceVisible(state) || entering) && !retainReceivedAddressForOnboarding) {
       cancelBalance();
       state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses});
     }
@@ -327,7 +336,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     syncPaymentObserver();
     syncOnboarding();
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
-    if(entering) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void context.refreshBalance();});
+    if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void context.refreshBalance();});
   };
   const invalidate = () => {issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
@@ -511,8 +520,9 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       const request=balanceVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
       const signal=balanceOperation.signal;
       const current=()=>!disposed && !signal.aborted && request===balanceVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && balanceVisible(state);
-      const receiving = state.accountReceive;
-      if (!background || receiving || state.balance.status !== 'ready') update({balance:receiving ? idleBalance : Object.freeze({status:'loading'}),addresses:receiving ? Object.freeze({status:'loading'}) : idleAddresses});
+      const needsAddresses = state.accountReceive || state.accountOnboarding;
+      const needsBalance = !state.accountReceive;
+      if (!background || (needsAddresses && state.addresses.status !== 'ready') || (needsBalance && state.balance.status !== 'ready')) update({balance:needsBalance ? Object.freeze({status:'loading'}) : idleBalance,addresses:needsAddresses ? Object.freeze({status:'loading'}) : idleAddresses});
       let identityReadFailed=false;
       try {
         const result = await readWithRetry(async attemptSignal => {
@@ -524,9 +534,11 @@ export function createContext(storage: AccountStorage, create = createAccount, i
             if(current()) initialization=hydrate();
             throw new Error('Account changed.');
           }
-          return receiving
-            ? {addresses:await readAddresses(saved.account, attemptSignal)}
-            : {balance:await readBalance(saved.account, attemptSignal)};
+          const [addresses,balance]=await Promise.all([
+            needsAddresses ? readAddresses(saved.account, attemptSignal) : undefined,
+            needsBalance ? readBalance(saved.account, attemptSignal) : undefined,
+          ]);
+          return {addresses,balance};
         }, signal);
         if(current()) {
           if(result.addresses) update({addresses:Object.freeze({status:'ready',...result.addresses})});
@@ -534,7 +546,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         }
       } catch {
         if(current() && identityReadFailed) fail('load','Your saved account could not be opened.');
-        else if(current()) update(receiving ? {addresses:Object.freeze({status:'unavailable'})} : {balance:Object.freeze({status:'unavailable'})});
+        else if(current()) update({... (needsAddresses ? {addresses:Object.freeze({status:'unavailable'} as const)} : {}),... (needsBalance ? {balance:Object.freeze({status:'unavailable'} as const)} : {})});
       } finally { if(request===balanceVersion) { receiptBalanceLoading = false; cancelBalance(); } }
   }
   const context: BisContext = {
@@ -822,7 +834,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     refreshOnboarding(){assertAlive();onboardingWorker?.refresh();},
     async checkContracts(filter) {
       const profileId=state.profileId;
-      const result=await (contractController(context)?.checkContracts?.(filter)??queryAccountContracts(profileId,filter));
+      const result=await (contractController(context)?.checkContracts?.(filter)??queryAccountContracts(profileId,filter,state.network??'signet'));
       return !disposed&&state.profileId===profileId?result:{status:'unavailable',contracts:[]};
     },
     openAccountContracts() {
@@ -930,7 +942,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       initialization=hydrate();await initialization;
     },
     openRestoreAccount() {
-      assertAlive();if(!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser)return;
+      assertAlive();if(!state.network||!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser)return;
       context.openAccountDialog();invalidate();failure=undefined;
       update({phase:'restore-entry',error:undefined,canReset:true});
     },
@@ -941,8 +953,8 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if(state.accountTransfer) {context.openAccountDetails();return;}
       if(state.accountRecovery) {update({accountRecovery:false,...recoveryReturn});return;}
       if(state.accountReceive || state.accountSend) {update({accountReceive:false,accountSend:false});return;}
-      if(state.accountAssets) {update({accountAssets:false});return;}
-      if(state.accountActivity) {update({accountActivity:false});return;}
+      if(state.accountAssets) {update({accountAssets:false,accountDetails:true});return;}
+      if(state.accountActivity) {update({accountActivity:false,accountDetails:true});return;}
       if(state.accountDetails) {update({accountTransfer:false,accountDetails:false});return;}
       if(['restore-entry','restoring','restore-error'].includes(state.phase)) {
         invalidate();initialization=hydrate();return;
@@ -956,7 +968,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       update({view:previous});
     },
     async createAccount() {
-      assertAlive();if(!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser) return;
+      assertAlive();if(!state.network||!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser) return;
       const current=++version;operation.abort();operation=new AbortController();
       update({phase:'creating',canReset:true,error:undefined});
       try {
@@ -989,10 +1001,10 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       logoutTarget = {profileId:state.profileId!,generation};
       try {
         logoutOperations=pendingLogoutOperations(globalThis.localStorage,state.profileId);
-        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutPendingCount:logoutOperations.count,error:undefined});
+        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:logoutOperations.count,error:undefined});
       } catch {
         logoutOperations=undefined;
-        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutPendingCount:null,error:'Pending transactions could not be counted. You can still log out; locally saved transaction records will be removed.'});
+        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:null,error:'Pending transactions could not be counted. You can still log out; locally saved transaction records will be removed.'});
       }
     },
     setLogoutBackupAcknowledged(acknowledged) {
@@ -1003,6 +1015,16 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       assertAlive();
       if (!state.accountRecovery && ['logout-confirmation','logout-error'].includes(state.phase) && state.logoutPendingCount !== null && state.logoutPendingCount > 0) update({logoutPendingAcknowledged:acknowledged === true});
     },
+    setLogoutGameWalletAcknowledged(acknowledged) {
+      assertAlive();
+      if (!state.accountRecovery && ['logout-confirmation','logout-error'].includes(state.phase) && state.hasGameWallet) update({logoutGameWalletAcknowledged:acknowledged === true});
+    },
+    selectNetwork(network) {
+      assertAlive();
+      if (state.hasProfile || !['idle','active'].includes(state.phase)) return;
+      options.selectNetwork?.(network);
+      update({network,error:undefined});
+    },
     cancelLogout() {
       assertAlive();
       if (state.phase === 'logout-error') { initialization=hydrate();return; }
@@ -1012,7 +1034,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     },
     async confirmLogout() {
       assertAlive();
-      if (state.accountRecovery || !logoutTarget || !state.logoutBackupAcknowledged || !['logout-confirmation','logout-error'].includes(state.phase)) return;
+      if (state.accountRecovery || !logoutTarget || !state.logoutBackupAcknowledged || (state.hasGameWallet && !state.logoutGameWalletAcknowledged) || !['logout-confirmation','logout-error'].includes(state.phase)) return;
       if (state.logoutPendingCount !== null && state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged) return;
       // Logout clears identity and player transaction records after acknowledgement.
       const target=logoutTarget;
@@ -1025,6 +1047,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         if (!loaded.account || loaded.generation!==target.generation || loaded.account.profileId!==target.profileId) {
           acceptLoaded(loaded,current,true); return;
         }
+        if (state.hasGameWallet && !(await options.resetGameWallet?.())) throw Error('Game Wallet reset could not be confirmed.');
         await storage.reset(target.generation, {purpose:'logout',profileId:target.profileId,operations:approvedOperations ?? {count:0,fingerprint:''}});
         if (disposed || version!==current) return;
         const after=await readStable(current);
@@ -1123,7 +1146,39 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   initialization=hydrate();
   return context;
 }
-export function createBisContext(options: BisContextOptions = {}): BisContext {return createContext(createAccountStorage(), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, options);}
+export function createBisContext(options: BisContextOptions = {}): BisContext {
+  const session=createTestNetworkSession();
+  const network=session.getSelected();
+  const selected=()=>session.getSelected();
+  const stores=new Map<TestNetwork,AccountStorage>();
+  const currentStore=()=>{
+    const key=selected() ?? 'signet';
+    let store=stores.get(key);
+    if(!store){store=createAccountStorage(key);stores.set(key,store);}
+    return store;
+  };
+  // The selector is available before a wallet exists, so choose the encrypted
+  // store at every operation boundary instead of rebuilding the visible dialog.
+  const storage:AccountStorage={
+    load:()=>currentStore().load(),
+    listProfiles:()=>currentStore().listProfiles(),
+    selectProfile:(...args)=>currentStore().selectProfile(...args),
+    save:(...args)=>currentStore().save(...args),
+    reset:(...args)=>currentStore().reset(...args),
+    subscribe:listener=>{
+      const unsubscribers=[...stores.values()].map(store=>store.subscribe(listener));
+      return()=>unsubscribers.forEach(unsubscribe=>unsubscribe());
+    },
+  };
+  const createSelected=(signal:AbortSignal)=>{const value=selected();if(!value)throw Error('Choose a test network first.');return createAccount(signal,value);};
+  const restoreSelected=(phrase:string,signal:AbortSignal)=>{const value=selected();if(!value)throw Error('Choose a test network first.');return restoreAccount(phrase,signal,value);};
+  return createContext(storage, createSelected, undefined, restoreSelected, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, {
+    ...options,
+    requireNetworkSelection:true,
+    getNetwork:selected,
+    selectNetwork:value=>session.select(value),
+  });
+}
 export function createBisAdminContext(context: BisContext) {
   const internal=getControls(context);internal.assertAlive();
   return Object.freeze({resetClient:()=>internal.reset(), fund1000Sats:()=>internal.fund(), getFundingAddress:()=>internal.fundingAddress()});

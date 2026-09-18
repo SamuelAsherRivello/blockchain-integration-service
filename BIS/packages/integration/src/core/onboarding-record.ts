@@ -1,6 +1,7 @@
 /** Public checkpoints only. Callers must hold the account mutation lock when writing. */
+import {isTestNetwork,type TestNetwork} from './test-network.ts';
 export const onboardingPrefix = 'bis-signet-onboarding-v1';
-export type OnboardingScope = {profileId: string; network: 'signet'; operator: string};
+export type OnboardingScope = {profileId: string; network: TestNetwork; operator: string};
 export type OnboardingCoin = {txid: string; vout: number; value: number};
 export type OnboardingOutput = {network: 'bitcoin' | 'arkade'; script: string; value: number};
 export type OnboardingLeg = {
@@ -31,7 +32,7 @@ function keys(value: unknown, allowed: string[]): asserts value is Record<string
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(k => !allowed.includes(k))) invalid();
 }
 function validScope(scope: OnboardingScope) {
-  if (!identifier(scope?.profileId) || scope.network !== 'signet') throw new OnboardingRecordError('Invalid onboarding scope.');
+  if (!identifier(scope?.profileId) || !isTestNetwork(scope.network)) throw new OnboardingRecordError('Invalid onboarding scope.');
   try {
     const url = new URL(scope.operator);
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.origin !== scope.operator) throw Error();

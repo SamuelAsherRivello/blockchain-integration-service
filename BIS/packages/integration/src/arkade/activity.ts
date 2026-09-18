@@ -1,5 +1,6 @@
 import { ReadonlyWallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, EsploraProvider, InMemoryWalletRepository, InMemoryContractRepository, assetMintResolver, type ArkTransaction } from '@arkade-os/sdk';
-import { requireSignet, SIGNET_OPERATOR, type AccountSecret } from './account.ts';
+import { requireNetwork, operatorFor, type AccountSecret } from './account.ts';
+import { testNetwork } from '../core/test-network.ts';
 import { validRecovery } from '../core/recovery-validation.ts';
 import type { BisTransaction } from '../core/activity.ts';
 
@@ -101,11 +102,12 @@ export async function observeActivityWallet(pending: Promise<ActivityWallet>, si
 export async function watchActivity(account: AccountSecret, signal: AbortSignal, publish: (rows: readonly BisTransaction[]) => void): Promise<void> {
   if (!validRecovery(account.phrase)) throw Error('Invalid account.');
   signal.throwIfAborted();
-  const arkProvider = new RestArkProvider(SIGNET_OPERATOR);
+  const network=account.network ?? 'signet',operator=operatorFor(network);
+  const arkProvider = new RestArkProvider(operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);
-  arkProvider.getInfo = async () => { const info = await getInfo(); requireSignet(info.network); return info; };
-  const indexerProvider = new RestIndexerProvider(SIGNET_OPERATOR);
-  const onchainProvider = new EsploraProvider('https://mempool.space/signet/api', { forcePolling: true, pollingInterval: 15000 });
+  arkProvider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
+  const indexerProvider = new RestIndexerProvider(operator);
+  const onchainProvider = new EsploraProvider(testNetwork(network).explorerApiUrl, { forcePolling: true, pollingInterval: 15000 });
   let failed = false;
   const getVtxos = indexerProvider.getVtxos.bind(indexerProvider);
   indexerProvider.getVtxos = async (...args) => { try { signal.throwIfAborted(); return await getVtxos(...args); } catch (error) { failed = true; throw error; } };

@@ -1,10 +1,11 @@
 import type { BisAsset } from './assets';
+import { arkExplorerAssetUrl, type TestNetwork } from './test-network.ts';
 
 export type BisAssets = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }>
   | Readonly<{ status: 'ready'; background?: boolean; assets: readonly BisAsset[] }>;
 
-export function assetExplorerUrl(assetId: string): string | undefined {
-  return /^[a-f0-9]{68}$/i.test(assetId) ? `https://explorer.signet.arkade.sh/asset/${assetId}` : undefined;
+export function assetExplorerUrl(assetId: string, network: TestNetwork = 'signet'): string | undefined {
+  return /^[a-f0-9]{68}$/i.test(assetId) ? arkExplorerAssetUrl(network, assetId) : undefined;
 }
 
 export function assetDecimals(asset: BisAsset): number | undefined {
@@ -26,14 +27,14 @@ export function formatAssetQuantity(asset: BisAsset): string {
   const quantity = decimals ? `${digits.slice(0, -decimals)}.${digits.slice(-decimals)}` : digits;
   return `${quantity}${typeof asset.ticker === 'string' && asset.ticker.trim() ? ` ${asset.ticker}` : ''}`;
 }
-export function formatAssetDetail(asset: BisAsset): string {
+export function formatAssetDetail(asset: BisAsset, network: TestNetwork = 'signet'): string {
   return [
     `Asset ID: ${asset.assetId}`,
     `Owned quantity: ${formatAssetQuantity(asset)}`,
     `Owned quantity (base units): ${asset.quantity}`,
     formatAssetMetadata(asset),
     `Icon URL: ${assetMetadata(asset.iconUrl)}`,
-    `Explorer URL: ${assetExplorerUrl(asset.assetId) ?? 'Not available'}`,
+    `Explorer URL: ${assetExplorerUrl(asset.assetId, network) ?? 'Not available'}`,
   ].join('\n');
 }
 /** The shared item-detail page presents readable asset facts, not identity or preview metadata. */
