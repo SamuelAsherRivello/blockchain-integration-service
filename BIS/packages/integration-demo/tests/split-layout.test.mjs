@@ -7,11 +7,14 @@ test('split width follows the pointer and reserves room for both panes', async (
   try {
     const { splitPercent } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/split-layout.ts');
     assert.equal(splitPercent(400, 1000), 40);
-    assert.equal(splitPercent(-10, 1000), 34);
-    assert.equal(splitPercent(256, 800), 42.5);
+    assert.equal(splitPercent(-10, 1000), 38);
+    assert.equal(splitPercent(256, 800), 47.5);
     assert.equal(splitPercent(1200, 1000), 73);
     assert.equal(splitPercent(0, 0), 32);
     assert.equal(splitPercent(900, 800), 66.25);
+    assert.equal(splitPercent(-10, 600), 63.33333333333333);
+    assert.equal(splitPercent(300, 600), 63.33333333333333);
+    assert.equal(splitPercent(900, 600), 68.83333333333333);
   } finally { await server.close(); }
 });
 

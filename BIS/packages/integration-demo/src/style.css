@@ -16,7 +16,7 @@ body { margin: 0; background: #11151c; }
 .workspace-divider:focus-visible { box-shadow: inset 0 0 0 2px #a9d9c3; }
 .admin-panel, .preview-panel { overflow-wrap: anywhere; }
 .story-button { box-sizing: border-box; white-space: nowrap; }
-@media (min-width: 701px) { .workspace { grid-template-columns: minmax(340px, var(--admin-width, 32%)) 10px minmax(0, 1fr); } }
+@media (min-width: 701px) { .workspace { grid-template-columns: minmax(380px, var(--admin-width, 32%)) 10px minmax(0, 1fr); } }
 .story-button > span { min-width: 0; }
 .admin-panel button { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .story-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -24,7 +24,6 @@ body { margin: 0; background: #11151c; }
 .preview-panel { container-type: inline-size; }
 .preview-controls { flex-wrap: wrap; }
 .game-viewport { box-sizing: border-box; min-width: 0; }
-@media (max-width: 700px) { .workspace-divider { display: none; } }
 .admin-panel { box-sizing: border-box; height: calc(100svh - 50px); min-height: 0; min-width: 0; padding: 16px 28px; border-right: 1px solid #2b303a; background: #171c25; display: flex; flex-direction: column; gap: 30px; }
 .admin-panel > .panel-title { flex-shrink: 0; }
 .demo-app .admin-panel .admin-scroll { min-height: 0; flex: 1; overflow-y: scroll; overflow-x: hidden; scrollbar-width: auto; scrollbar-color: #71849b #1e2632; scrollbar-gutter: stable; padding-right: 12px; display: flex; flex-direction: column; gap: 30px; }
@@ -73,7 +72,7 @@ nav + .story-section { margin-top: 24px; }
 .preview-stage { grid-area: 1 / 1; align-self: stretch; display: flex; align-items: center; justify-content: center; }
 .game-viewport { position: relative; aspect-ratio: 9 / 16; width: min(100%, 390px, calc((100svh - 130px) * .5625)); isolation: isolate; background-color: #19222c; background-image: linear-gradient(#29354440 1px, transparent 1px), linear-gradient(90deg, #29354440 1px, transparent 1px); background-size: 32px 32px; border: 1px solid #394657; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 64px #0004; }
 .runtime-container { position: absolute; inset: 0; }
-@media (max-width: 700px) { .app-header { height: 50px; padding: 0 18px; } .identity { font-size: 12px; gap: 9px; } .version-tag { display: none; } .workspace { grid-template-columns: 1fr; } .admin-panel { padding: 16px 24px; gap: 20px; border-right: 0; border-bottom: 1px solid #2b303a; } .reset-button { margin-top: 0; } .preview-panel { padding: 16px 24px; } .game-viewport { width: min(100%, 360px); } }
+@media (max-width: 700px) { .app-header { height: 50px; padding: 0 18px; } .identity { font-size: 12px; gap: 9px; } .version-tag { display: none; } .admin-panel { padding: 16px 24px; gap: 20px; border-right: 1px solid #2b303a; border-bottom: 0; } .reset-button { margin-top: 0; } .preview-panel { padding: 16px 24px; } .game-viewport { width: min(100%, 360px); } }
 
 @media (min-width: 701px) { .preview-panel { height: calc(100svh - 50px); box-sizing: border-box; grid-template-rows: minmax(0, 1fr); } }
 
@@ -91,6 +90,12 @@ nav + .story-section { margin-top: 24px; }
 /* Stack the heading on small screens where the three items cannot fit side by side. */
 @container (max-width: 650px) { .preview-heading { grid-area: auto; } .preview-stage { grid-area: auto; padding-top: 12px; } }
 @media (max-width: 700px) { .preview-heading { grid-area: auto; } .preview-stage { grid-area: auto; padding-top: 12px; } }
+
+/* Keep the admin/preview split and its divider available in compact windows. */
+@media (max-width: 700px) {
+  .workspace { grid-template-columns: minmax(380px, var(--admin-width, 32%)) 10px minmax(180px, 1fr); }
+  .workspace-divider { display: block; }
+}
 
 .game-wallet-panel dd { margin: 4px 0 12px; overflow-wrap: anywhere; font-size: 12px; user-select: text; }
 .game-wallet-panel dt, .game-wallet-panel label { color: var(--muted, #a3a9b8); font-size: 12px; }

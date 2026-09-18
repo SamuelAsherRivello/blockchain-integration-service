@@ -1,5 +1,5 @@
 /* Native dimensions match the approved 80% preview; hosts mount at 100%. */
-.bis-layer { --bis-dialog-content-gap: 4.8px; --bis-card-bottom-clearance: 48px; position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; color: #182d39; color-scheme: light; line-height: 1.5; }
+.bis-layer { --bis-dialog-content-gap: 4.8px; --bis-card-bottom-clearance: 16px; position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; color: #182d39; color-scheme: light; line-height: 1.5; }
 /* Keep overflowing production UI scrollable without visible scrollbars. */
 .bis-layer, .bis-layer * { box-sizing: border-box; scrollbar-width: none; }
 .bis-layer::-webkit-scrollbar, .bis-layer *::-webkit-scrollbar { display: none; }

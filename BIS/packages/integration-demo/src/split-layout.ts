@@ -15,7 +15,11 @@ export function saveSplitPercent(percent: number, storage?: Pick<Storage, 'setIt
 
 export function splitPercent(position: number, width: number): number {
   if (width <= 0) return 32;
-  const previewMinimum = Math.min(260, (width - 10) / 2);
-  const adminMinimum = Math.min(340, width - previewMinimum - 10);
-  return Math.max(adminMinimum, Math.min(position, width - previewMinimum - 10)) / width * 100;
+  const available = Math.max(0, width - 10);
+  const compact = width <= 700;
+  const previewMinimum = compact ? Math.min(180, available * 0.3) : Math.min(260, available / 2);
+  const adminMinimum = Math.min(380, Math.max(0, available - previewMinimum));
+  const minimum = Math.min(adminMinimum, Math.max(0, available - previewMinimum));
+  const maximum = Math.max(minimum, available - previewMinimum);
+  return Math.max(minimum, Math.min(position, maximum)) / width * 100;
 }

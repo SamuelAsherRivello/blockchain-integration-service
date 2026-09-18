@@ -11,7 +11,7 @@ export function SplitWorkspace({ children }: { children: [ReactNode, ReactNode] 
     const observer = new ResizeObserver(() => {
       const nextWidth = element.getBoundingClientRect().width;
       setWidth(nextWidth);
-      if (nextWidth > 700) setPercent(value => splitPercent(value / 100 * nextWidth, nextWidth));
+      setPercent(value => splitPercent(value / 100 * nextWidth, nextWidth));
     });
     observer.observe(element);
     return () => observer.disconnect();
