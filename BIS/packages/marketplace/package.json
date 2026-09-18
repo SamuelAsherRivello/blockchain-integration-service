@@ -1,8 +1,8 @@
 {
   "name": "@bis/marketplace",
-  "version": "0.0.2",
+  "version": "0.0.6",
   "private": true,
   "type": "module",
   "scripts": { "dev": "vite --host 127.0.0.1", "build": "vite build", "preview": "vite preview --host 127.0.0.1" },
-  "dependencies": { "@arkade-os/sdk": "0.4.72", "@bis/integration": "0.0.2", "react": "19.3.0", "react-dom": "19.3.0" }
+  "dependencies": { "@arkade-os/sdk": "0.4.72", "@bis/integration": "0.0.6", "react": "19.3.0", "react-dom": "19.3.0" }
 }

@@ -210,6 +210,12 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       await reconcile();
     },
     reconcile,
+    async reset() {
+      attempts.clear();
+      started.clear();
+      notifications.clear();
+      await storage.reset();
+    },
     dispose({endSessions=true}={}) { if(detached)return;detachedGameId=gameWallet.getState().profileId;detached=true;if(endSessions)for(const record of started.values())persistEnd(record,'session-ended');if(controllers.get(context)===controller)controllers.delete(context);void reconcile(); },
   };
   controllers.set(context,controller);

@@ -29,6 +29,10 @@ ui.unmount();
 context.dispose();
 ```
 
+### Force reset from a consuming game
+
+`BisGameServices.resetForGame()` is the public Clear All Settings integration point. It forcefully clears BIS-owned local player-wallet and game-wallet state, operation journals, contract recovery, transient workflows, and UI/session state without opening a confirmation dialog. The game must clear its own gameplay settings separately, then await this method before starting a fresh guest session. The result is provider-neutral: `{ status: 'completed', resetId }`. Local reset does not cancel or reverse a payment, transfer, send, mint, burn, continuation, or other operation that was already submitted to a remote network; such work may still settle remotely, and no reset result claims otherwise.
+
 The demo rebuilds all handles after reset, clears selection, and leaves runtime content empty. `getState()` returns an immutable snapshot; `subscribe()` returns cleanup. `closeAccount()` restores the prior presentation. Mounting twice in the same container is idempotent; unmount before changing containers. Calling actions on a disposed context throws. `GameOverlay` remains a compatibility wrapper around the same UI.
 
 The Account chooser enables Create Account and Restore Account. A3 uses twelve numbered word inputs, initially masked with one asterisk per character, with one Show checkbox and explicit Paste from Clipboard. Word-list and checksum validation gate Restore; successful Signet connection and durable saving return directly to Account. `openRestoreAccount()` opens entry when logged out; recovery submission stays inside the private production UI/Core boundary. Creation uses the real Signet SDK with memory repositories; Continue commits encrypted identity to origin-scoped IndexedDB. Refresh before Continue forgets unfinished creation. The active Account menu shows Accounts Details, side-by-side Send/Receive/Swap, Log Out, and Back. Accounts Details opens a submenu containing Balance, Transactions, Assets, and Back. Each option returns to the submenu; its Back returns to Account. Balance shows identity/network and available/total balances with Refresh; A6 is implemented with manual storage verification pending. `ready()` awaits hydration, `createAccount()` and `continueAccount()` drive creation, and `onEvent()` exposes safe `accountConnected` and `accountDisconnected` payloads. Public state never contains the phrase or SDK types. Ordinary disposal preserves saved identity. Browser storage is test-only, automatically accessible to this origin, and does not protect against compromised same-origin code. Live deletion-based reset verification remains manual under the repository rules.
@@ -68,6 +72,14 @@ Account Details now shows `totalSats` first, then `bitcoinSats` and `arkadeSats`
 D5a read-only transfer recovery: pending Account Transfer offers **Recovery details**, a selectable public-status report and **Copy recovery details**. Clipboard failure provides manual-copy guidance. The report omits secrets, raw errors, addresses and balances, and nothing is sent to support automatically. Existing status/clearing guards are unchanged. D5b actual cancellation remains separately blocked by operator feasibility; copying does not unlock an account.
 
 ## Asset minting and listing
+
+### Game item support
+
+Game hosts may call `BisGameServices.hasItemSupport()` before enabling item or trophy affordances. It returns `true` when the Player Wallet is active and the BIS item path can safely run in the supported browser environment. It does not require a Game Wallet, Game Wallet balance, or Game Wallet login. Game items remain admin-minted and consumed by the game; the separate trophy reward flow mints one trophy at a time and immediately transfers it to the Player Wallet.
+
+This capability is a read-only enable/disable hint. The item and reward operations remain authoritative and preserve their existing ownership, operation-ID, pending, uncertain-result, and late-result protections. `BisGameServices.hasAssetMintingSupport()` additionally requires a distinct ready Game Wallet on the Player Wallet's selected network with at least 1,000 available sats. `BisGameServices.hasContractSupport()` requires both distinct ready wallets on the selected network; it does not promise that a particular contract call has enough funds, because each operation remains authoritative. Neither check opens UI or mutates wallet state. Stealth & Steel must update to the packaged API separately; this BIS change does not modify that repository.
+
+The Developer page shows these three read-only capabilities above the Player Wallet controls. Each row contains only its label and disabled checkbox, and refreshes from the current capability result when the page opens or either wallet changes.
 
 ### Runtime asset inspection
 

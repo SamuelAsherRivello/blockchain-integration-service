@@ -31,6 +31,7 @@
 .bis-account-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .bis-account-actions .bis-button { width: 100%; min-width: 0; padding-inline: 12px; white-space: nowrap; }
 .bis-back { position: relative; margin-top: 6px; }
+.bis-button.bis-back { overflow: visible; }
 .bis-back::before { content: ''; position: absolute; left: 50%; top: -8px; width: 2px; height: 2px; border-radius: 50%; background: rgba(82, 107, 116, 0.28); box-shadow: -6px 0 rgba(82, 107, 116, 0.28), 6px 0 rgba(82, 107, 116, 0.28); transform: translateX(-50%); pointer-events: none; }
 .bis-card p { margin: 0 0 var(--bis-dialog-content-gap); font-size: 9.6px; line-height: 1.6; color: #667a84; }
 
@@ -58,6 +59,11 @@
 .bis-backup-check { display: flex; align-items: center; gap: 8px; padding: 9.6px; margin-bottom: 14.4px; border: 0.8px solid #c8d7dc; border-radius: 8px; font-size: 9.6px; text-align: left; cursor: pointer; }
 .bis-backup-check input { flex: 0 0 auto; width: 14.4px; height: 14.4px; margin: 0; accent-color: #175a4c; }
 .bis-backup-check input:focus-visible { outline: 2.4px solid #30977f; outline-offset: 2.4px; }
+.bis-support-list { display: flex; flex-direction: column; gap: 0; width: 100%; margin: -8px 0; }
+.bis-support-entry + .bis-support-entry { margin-top: -8px; }
+.bis-support-entry { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 28px; padding: 0 9.6px; box-sizing: border-box; font-size: 9.6px; line-height: 1; text-align: left; }
+.bis-support-entry span { display: block; line-height: 1; }
+.bis-support-entry input { display: block; flex: 0 0 auto; width: 14.4px; height: 14.4px; margin: 0; accent-color: #175a4c; }
 .bis-danger { background: #be3535; color: #fff; border-color: #a82b2b; }
 .bis-danger:hover:not(:disabled) { background: #a82b2b; }
 .bis-restore-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4.8px; margin-bottom: 9.6px; }
@@ -81,7 +87,7 @@
 .bis-balance-amount span { font-size: 10.4px; font-weight: inherit; }
 .bis-addresses { margin-bottom: 11.2px; font-size: 9.6px; }
 .bis-address-row, .bis-account-id { display: flex; flex-wrap: wrap; align-items: end; gap: 4.8px; text-align: left; margin-bottom: 5.12px; }
-.bis-copy-field-heading { display: flex; align-items: center; gap: 3.2px; width: 100%; font-size: 9.6px; }
+.bis-copy-field-heading { display: flex; align-items: center; gap: 3.2px; width: 100%; font-size: 9.6px; font-weight: 700; }
 .bis-copy-field-heading label { min-width: 0; }
 .bis-copy-field-heading h3 { margin: 0; font: inherit; }
 .bis-balance-tooltip { position: relative; display: inline-flex; min-width: 0; outline: none; }

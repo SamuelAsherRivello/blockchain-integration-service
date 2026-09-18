@@ -3,7 +3,7 @@ import { assertNoPendingSend } from './sending.ts';
 import {readAccountOnboarding} from './onboarding-record.ts';
 import { assertNoPendingBoarding, BoardingBlockedError } from './boarding-record.ts';
 import { readContractReservations } from './contract-reservations.ts';
-import { browserMutationLock, clearBrowserPreferences, clearBrowserProfilePreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
+import { browserMutationLock, clearBrowserForceReset, clearBrowserPreferences, clearBrowserProfilePreferences, pendingLogoutOperations, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
 import type { TestNetwork } from './test-network.ts';
 export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
 export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
@@ -13,6 +13,7 @@ export interface AccountStorage {
   selectProfile(profileId:string, expectedGeneration?:number, signal?:AbortSignal):Promise<void>;
   save(account: AccountSecret, generation: number, signal: AbortSignal): Promise<void>;
   reset(expectedGeneration?: number, options?: { purpose: 'logout'; profileId: string; operations: LogoutOperations }): Promise<void>;
+  forceReset?(resetId?: string): Promise<void>;
   subscribe(listener: () => void): () => void;
 }
 const STORE = 'account';
@@ -205,6 +206,27 @@ export function createAccountStorage(network: TestNetwork = 'signet'): AccountSt
       });
       channel?.postMessage('changed'); notify();
       },true);
+    },
+    async forceReset(resetId = crypto.randomUUID()) {
+      await withBrowserMutation(async () => {
+        await transaction<void>(database, 'readwrite', (store, set, tx) => {
+          const request = store.get('generation');
+          request.onsuccess = () => {
+            try {
+              const current = generation(request.result);
+              store.clear();
+              store.put(current + 1, 'generation');
+              set(undefined);
+            } catch { tx.abort(); }
+          };
+        });
+        pendingSessionLogout = undefined;
+        clearBrowserForceReset(globalThis.localStorage);
+        clearBrowserForceReset(globalThis.sessionStorage);
+        revision++;
+        channel?.postMessage({type: 'force-reset', resetId});
+        notify();
+      }, true);
     },
     subscribe(listener) {
       listeners.add(listener);

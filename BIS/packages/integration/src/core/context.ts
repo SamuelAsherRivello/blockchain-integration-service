@@ -133,7 +133,7 @@ export interface BisContext {
   dispose(): void;
 }
 export function accountDestination(hasProfile: boolean) { return hasProfile ? 'account-menu' : 'account-chooser'; }
-type Controls = { toasts: ReturnType<typeof createToastQueue>; dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void> };
+type Controls = { toasts: ReturnType<typeof createToastQueue>; dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; forceReset(resetId?: string): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void> };
 const controls = new WeakMap<BisContext, Controls>();
 export function getControls(context: BisContext): Controls {
   const result = controls.get(context);
@@ -293,6 +293,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const publishedLogouts = new Set<string>();
   let logoutTarget: { profileId: string; generation: number } | undefined;
   let logoutOperations: LogoutOperations | undefined;
+  let forceResetPromise: Promise<void> | undefined;
   let storageRevision = 0;
   let balanceVersion = 0;
   let balanceOperation = new AbortController();
@@ -1138,6 +1139,30 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       try {await storage.reset();if(disposed)return;previous='empty';update({view:'empty'});initialization=hydrate();await initialization;}
       catch (error) {const message=error instanceof BoardingBlockedError?error.message:'Reset did not finish. Your account has not been confirmed cleared.';if(!disposed)fail('load',message);throw new Error(message);}
     },
+    async forceReset(resetId?: string) {
+      assertAlive();
+      if (forceResetPromise) return forceResetPromise;
+      const id = resetId ?? crypto.randomUUID();
+      forceResetPromise = (async () => {
+        invalidate();
+        logoutTarget = undefined;
+        update({view:'empty', phase:'resetting', hasProfile:false, profileId:undefined, canReset:false, savedProfiles:Object.freeze([]), error:undefined, logoutBackupAcknowledged:false, logoutPendingAcknowledged:false, logoutGameWalletAcknowledged:false, hasGameWallet:false});
+        try {
+          if (storage.forceReset) await storage.forceReset(id);
+          else await storage.reset();
+          if (disposed) return;
+          previous = 'empty';
+          generation++;
+          update({view:'empty', phase:'idle', hasProfile:false, profileId:undefined, canReset:false, savedProfiles:Object.freeze([]), error:undefined});
+        } catch (error) {
+          if (!disposed) fail('load', error instanceof Error ? error.message : 'BIS reset did not finish.');
+          throw error instanceof Error ? error : Error('BIS reset did not finish.');
+        } finally {
+          forceResetPromise = undefined;
+        }
+      })();
+      return forceResetPromise;
+    },
   });
   const unsubscribeStorage=storage.subscribe(()=> {
     storageRevision++;
@@ -1165,6 +1190,7 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
     selectProfile:(...args)=>currentStore().selectProfile(...args),
     save:(...args)=>currentStore().save(...args),
     reset:(...args)=>currentStore().reset(...args),
+    forceReset:(...args)=>currentStore().forceReset?.(...args) ?? Promise.resolve(),
     subscribe:listener=>{
       const unsubscribers=[...stores.values()].map(store=>store.subscribe(listener));
       return()=>unsubscribers.forEach(unsubscribe=>unsubscribe());

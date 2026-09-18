@@ -6,6 +6,15 @@ import { createBisLto } from './lto-service';
 import { createBisEquipment } from './equipment-loadout';
 import type { BisHostGame, BisHostGameEffectReceipt } from './bis-host-game';
 import { createBisUi } from '../ui/client';
+import { getControls } from './context';
+import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable } from './capabilities.ts';
+
+export type BisGameResetResult = Readonly<{ status: 'completed'; resetId: string }>;
+export type BisGameResetErrorCode = 'disposed' | 'cleanup-failed';
+export class BisGameResetError extends Error {
+  readonly code: BisGameResetErrorCode;
+  constructor(code: BisGameResetErrorCode, message: string) { super(message); this.name = 'BisGameResetError'; this.code = code; }
+}
 
 export type BisGameServicesOptions = Readonly<{
   getGameHost(): BisHostGame | undefined;
@@ -24,6 +33,7 @@ export class BisGameServices {
   readonly ui;
   #disposed = false;
   #getGameHost: BisGameServicesOptions['getGameHost'];
+  #resetPromise: Promise<BisGameResetResult> | undefined;
 
   constructor(options: BisGameServicesOptions) {
     this.#getGameHost = options.getGameHost;
@@ -39,13 +49,56 @@ export class BisGameServices {
     this.context.subscribe(() => { void wallet?.refresh(); });
     this.gameWallet = wallet;
     this.lto = createBisLto({ context: this.context, gameWallet: wallet });
-    this.ui = createBisUi(this.context, { gameWallet: wallet });
+    this.ui = createBisUi(this.context, {
+      gameWallet: wallet,
+      hasItemSupport: () => this.hasItemSupport(),
+      hasAssetMintingSupport: () => this.hasAssetMintingSupport(),
+      hasContractSupport: () => this.hasContractSupport(),
+    });
   }
 
   /** 3. Hydrate account state before a host asks BIS to start an operation. */
   ready() { return this.context.ready(); }
   mount(container: HTMLElement) { this.ui.mount(container); }
   openAccountDialog() { this.context.openAccountDialog(); }
+
+  /** Item support is Player Wallet-only; admin-minted items do not require a Game Wallet. */
+  hasItemSupport(): boolean {
+    return !this.#disposed && itemSupportAvailable(this.context.getState());
+  }
+
+  /** Asset minting also requires a distinct, funded Game Wallet. */
+  hasAssetMintingSupport(): boolean {
+    return !this.#disposed && assetMintingSupportAvailable(this.context.getState(), this.gameWallet.getState());
+  }
+
+  /** Contract support requires distinct ready wallets; contract calls still verify their exact funding needs. */
+  hasContractSupport(): boolean {
+    return !this.#disposed && contractSupportAvailable(this.context.getState(), this.gameWallet.getState());
+  }
+
+
+  /** Force-clears BIS-owned local game state without changing remote funds. */
+  resetForGame(): Promise<BisGameResetResult> {
+    if (this.#disposed) return Promise.reject(new BisGameResetError('disposed', 'BIS game services are disposed.'));
+    if (this.#resetPromise) return this.#resetPromise;
+    const resetId = crypto.randomUUID();
+    this.#resetPromise = (async () => {
+      try {
+        const gameWalletReset = await this.gameWallet.reset();
+        if (!gameWalletReset) throw new Error('Game Wallet reset could not be confirmed.');
+        await this.lto.reset();
+        await getControls(this.context).forceReset(resetId);
+        return Object.freeze({status: 'completed' as const, resetId});
+      } catch (error) {
+        if (error instanceof BisGameResetError) throw error;
+        throw new BisGameResetError('cleanup-failed', error instanceof Error ? error.message : 'BIS reset did not finish.');
+      } finally {
+        this.#resetPromise = undefined;
+      }
+    })();
+    return this.#resetPromise;
+  }
 
   createEquipment() {
     if (this.#disposed) throw Error('BIS game services are disposed.');

@@ -91,6 +91,15 @@ export function clearBrowserProfilePreferences(profileId:string, storage:WebStor
     if(storage.getItem(key)!==null)throw Error('Profile cleanup could not be verified.');
   }
 }
+/** Force-reset cleanup used by a consuming game. It intentionally has no
+ * acknowledgement gate, but remains limited to BIS-owned browser keys. */
+export function clearBrowserForceReset(storage: WebStorage | undefined) {
+  if (!storage) return;
+  for (const key of keys(storage).filter(key => key.startsWith('bis-') || key.startsWith('bis:') || key.startsWith('bis.'))) {
+    storage.removeItem(key);
+    if (storage.getItem(key) !== null) throw Error('BIS reset could not be verified.');
+  }
+}
 export function assertLogoutResolvable(storage: WebStorage | undefined = globalThis.localStorage) {
   if(pendingLogoutOperations(storage).count>0)throw Error('Wallet operations are unresolved. Open Account → Transactions and check recovery status before logging out.');
 }

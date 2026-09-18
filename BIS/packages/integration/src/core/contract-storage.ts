@@ -101,6 +101,16 @@ export function createContractStorage(backend: ContractBackend = indexedContract
         return next;
       } catch { throw fail(); }
     },
+    async reset(): Promise<void> {
+      try {
+        const previous = await load();
+        const next: ContractDocument = { version: 1, revision: previous.revision + 1, ledger: emptyContractLedger(), recovery: {} };
+        const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt','decrypt']);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad(next.revision) }, key, new TextEncoder().encode(JSON.stringify(next)));
+        await backend.write({ version: 1, revision: next.revision, key, iv, encrypted }, previous.revision);
+      } catch { throw fail(); }
+    },
   };
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "blockchain-integration-service",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.6",
   "type": "module",
   "workspaces": [
     "BIS/packages/*"
