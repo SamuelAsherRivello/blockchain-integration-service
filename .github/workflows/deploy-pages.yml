@@ -30,6 +30,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Validate release version surfaces
+        run: npm run check:release
       - name: Check types and build Admin and Marketplace
         run: npm run build
       - name: Stage two demo routes

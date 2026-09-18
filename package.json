@@ -1,17 +1,20 @@
 {
   "name": "blockchain-integration-service",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.2",
   "type": "module",
   "workspaces": [
     "BIS/packages/*"
   ],
   "scripts": {
     "test": "node BIS/scripts/test.mjs",
-    "dev": "npm run dev --workspace @bis/integration-demo",
+    "dev": "node BIS/scripts/dev-all.mjs",
+    "dev:admin": "npm run dev --workspace @bis/integration-demo -- --port 5174 --strictPort",
+    "dev:marketplace": "npm run dev --workspace @bis/marketplace -- --port 5176 --strictPort",
     "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-demo && npm run build --workspace @bis/marketplace",
     "typecheck": "tsc --noEmit",
     "preview": "npm run preview --workspace @bis/integration-demo",
+    "check:release": "node BIS/scripts/check-release-version.mjs",
     "stage:pages": "node BIS/scripts/stage-pages-artifact.mjs",
     "verify:pages": "node BIS/scripts/verify-pages-routes.mjs"
   },

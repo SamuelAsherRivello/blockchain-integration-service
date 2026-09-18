@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { createReadStream } from 'node:fs';
-import { access, stat } from 'node:fs/promises';
+import { access, readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const artifactRoot = resolve(import.meta.dirname, '..', '..', 'output', 'pages', 'deploy-separate-pages-demos');
+const releaseVersion = JSON.parse(await readFile(resolve(import.meta.dirname, '..', '..', 'package.json'), 'utf8')).version;
 const mime = new Map([['.css', 'text/css'], ['.html', 'text/html'], ['.js', 'text/javascript'], ['.json', 'application/json'], ['.png', 'image/png'], ['.svg', 'image/svg+xml']]);
 const server = createServer(async (request, response) => {
   try {
@@ -30,11 +31,13 @@ try {
   const adminResponse = await admin.goto(`${base}admin/`, { waitUntil: 'networkidle' });
   assert.equal(adminResponse?.status(), 200);
   await expectText(admin, 'Blockchain Integration Service - Demo');
+  await expectText(admin, `v${releaseVersion}`);
 
   const marketplace = await browser.newPage();
   const marketplaceResponse = await marketplace.goto(`${base}marketplace/`, { waitUntil: 'networkidle' });
   assert.equal(marketplaceResponse?.status(), 200);
   await expectText(marketplace, 'Marketplace');
+  await expectText(marketplace, `v${releaseVersion}`);
   const catalog = await marketplace.request.get(`${base}marketplace/catalog.json`);
   assert.equal(catalog.status(), 200);
   const artwork = await marketplace.request.get(`${base}assets/marketplace/v1/shoes-1.png`);
