@@ -18,7 +18,7 @@ document.getElementById('run')!.onclick=async()=>{
   try {
     await c.ready();c.openAccountDialog();await waitFor(()=>!!button('Accounts Details'));await click('Accounts Details');
     const labels=[...host.querySelectorAll('.bis-actions button')].map(b=>b.textContent?.replace('⚡','').trim());
-    check(labels.join('|')==='Assets|Contracts|Transactions|Get Recovery Phrase|Back','Account Details actions');
+    check(labels.join('|')==='Assets|Contracts|Transactions|Get Recovery Phrase|Developer|Back','Account Details actions');
     await click('Get Recovery Phrase');await waitFor(()=>host.querySelectorAll('.bis-recovery li').length===12);
     check(host.querySelector('h2')?.textContent==='Get Recovery Phrase','Get title');
     for(const width of [280,360]) {

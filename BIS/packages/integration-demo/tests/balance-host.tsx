@@ -20,7 +20,7 @@ document.getElementById('run')!.onclick=async()=>{
   await c.ready();c.openAccountDialog();await tick();check(calls===0&&!!button('Accounts Details')&&!!button('Log Out'),'Menu does not read');
   button('Accounts Details').click();await wait(()=>calls===1);await tick();check(host.querySelector('h2')?.textContent==='Accounts Details'&&!button('Log Out'),'Account details title/actions');
   check(values()[0]===account.profileId&&host.querySelectorAll('input').length===4,'Account ID and all three balance fields share Account Details');
-  check(['Assets','Contracts','Transactions','Get Recovery Phrase','Back'].every(label=>!!button(label)),'Account detail actions remain available');
+  check(['Assets','Contracts','Transactions','Get Recovery Phrase','Developer','Back'].every(label=>!!button(label)),'Account detail actions remain available');
   check(!!host.querySelector('.bis-pending-dialog')&&button('Refresh Accounts Details').disabled,'Pending covered');await finish();
   check(balanceValues().join('|')==='1,500 sats|500 sats|1,000 sats','Full balance split');
   const tooltip=(name:string)=>host.querySelector<HTMLElement>(`[data-bis-balance-tooltip="${name}"] [role="tooltip"]`);

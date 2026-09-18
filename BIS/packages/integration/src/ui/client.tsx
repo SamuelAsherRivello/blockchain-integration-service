@@ -68,6 +68,7 @@ function BisScreen({ context, gameWallet, onDeveloperDialogChange, onGameWalletD
   const [assetOpen, setAssetOpen] = useState(false);
   const [assetBusy, setAssetBusy] = useState(false);
   const [gameWalletLogin, setGameWalletLogin] = useState(false);
+  const [developerReturn, setDeveloperReturn] = useState(false);
   const mountGeneration = useRef(0);
   const mountedContext = useRef(context);
   mountedContext.current = context;
@@ -89,7 +90,7 @@ function BisScreen({ context, gameWallet, onDeveloperDialogChange, onGameWalletD
   }, [context, onDeveloperDialogChange]);
   useEffect(()=>{onGameWalletDialogChange?.(()=>{setGameWalletLogin(true);context.openAccountDialog();});return()=>onGameWalletDialogChange?.(undefined);},[context,onGameWalletDialogChange]);
   useEffect(() => {
-    if (state.view !== 'account') setDeveloperOpen(false);
+    if (state.view !== 'account') { setDeveloperOpen(false); setDeveloperReturn(false); setGameWalletLogin(false); }
   }, [state.view]);
   const button = useRef<HTMLButtonElement>(null);
   const close = useRef<HTMLButtonElement>(null);
@@ -108,7 +109,7 @@ function BisScreen({ context, gameWallet, onDeveloperDialogChange, onGameWalletD
   const [contractOpen,setContractOpen]=useState(false);
   const receive = state.phase === 'active' && state.accountReceive;
   const send = state.phase === 'active' && state.accountSend;
-  const developer = state.view === 'account' && developerOpen;
+  const developer = state.view === 'account' && developerOpen && !onboarding;
   const menu = state.phase === 'active' && !developer && !onboarding && !details && !transfer && !activity && !assets && !contracts && !savedRecovery && !receive && !send;
   const recovery = state.phase === 'recovery' || state.phase === 'saving';
   const recoverySession = useMemo(() => ({}), [context, recovery, savedRecovery, state.profileId]);
@@ -160,7 +161,7 @@ function BisScreen({ context, gameWallet, onDeveloperDialogChange, onGameWalletD
         {state.error && !busy && <p role="alert">{state.error}</p>}
         {gameWalletLogin && gameWallet ? <GameWalletLogin wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
           <div className="bis-copy-field-heading"><h3>Player Wallet</h3></div>
-          <button className="bis-button" disabled={!state.hasProfile || busy} onClick={() => { setDeveloperOpen(false); context.openAccountOnboarding?.(); }}>{onboardingLabel(state.onboarding,state.balance)}</button>
+          <button className="bis-button" disabled={!state.hasProfile || busy} onClick={() => { setDeveloperOpen(false); setDeveloperReturn(true); context.openAccountOnboarding?.(); }}>{onboardingLabel(state.onboarding,state.balance)}</button>
           <div className="bis-copy-field-heading"><h3>Game Wallet</h3></div>
           {gameWallet && <p>This demo has no server. So game wallet is temporarily here.</p>}
           {gameWallet && <button className="bis-button" disabled={!state.hasProfile} onClick={() => setGameWalletLogin(true)}>Game Wallet Login</button>}
@@ -173,12 +174,16 @@ function BisScreen({ context, gameWallet, onDeveloperDialogChange, onGameWalletD
             <button className="bis-button" title="Transactions" onClick={()=>context.openAccountActivity()}>Transactions</button>
           </div>}
           {details && <button className="bis-button" onClick={()=>context.openAccountRecovery()}>Get Recovery Phrase</button>}
+          {details && <button className="bis-button bis-danger" disabled={busy} onClick={() => setDeveloperOpen(true)}>Developer</button>}
           {menu && <div className="bis-transfer-actions"><FitTextButton onClick={()=>context.openAccountSend()}>⚡ Send</FitTextButton><FitTextButton onClick={()=>context.openAccountReceive()}>⚡ Receive</FitTextButton><FitTextButton onClick={()=>context.openAccountTransfer()}>⚡ Swap</FitTextButton></div>}
-          {savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : onboarding || details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || (state.logoutPendingCount !== null && state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged) || (state.hasGameWallet && !state.logoutGameWalletAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <><button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button><button className="bis-button bis-danger" disabled={busy} onClick={() => setDeveloperOpen(true)}>Developer</button></> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
+          {savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : onboarding || details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || (state.logoutPendingCount !== null && state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged) || (state.hasGameWallet && !state.logoutGameWalletAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
             <div className="bis-entry-group"><FieldHeading label="Network" /><NetworkSelect value={state.network} onChange={context.selectNetwork} /></div>
             <div className="bis-entry-group"><FieldHeading label="Account" /><div className="bis-account-actions"><button className="bis-button bis-primary" disabled={!state.network} onClick={()=>void context.createAccount()}>⚡ Create Account</button><button className="bis-button" disabled={!state.network} onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button></div></div>
           </>}
-          {!(activity && transactionOpen) && <button ref={close} className="bis-button bis-back" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={()=>context.closeAccount()}>Back</button>}
+          {!(activity && transactionOpen) && <button ref={close} className="bis-button bis-back" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={()=>{
+            if (onboarding && developerReturn) { setDeveloperReturn(false); context.closeAccount(); setDeveloperOpen(true); }
+            else context.closeAccount();
+          }}>Back</button>}
         </div>}
       </AccountCard>}
   </div>;

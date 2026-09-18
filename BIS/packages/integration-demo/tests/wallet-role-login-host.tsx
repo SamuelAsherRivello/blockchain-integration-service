@@ -32,8 +32,8 @@ document.getElementById('run')!.onclick=async()=>{
     playerRoot.render(<div className="bis-layer bis-layer-open"><section className="bis-card"><GameWalletLogin wallet={playerFirstWallet} onBack={()=>undefined}/></section></div>);
     await frame();
     Object.defineProperty(navigator,'clipboard',{configurable:true,value:{readText:async()=>phrase}});
-    button(playerFirst,'⚡ Restore Game Wallet').click();await frame();button(playerFirst,'Paste from Clipboard').click();await frame();
-    check(!button(playerFirst,'⚡ Restore Game Wallet').disabled,'Player-first restore is not enabled');button(playerFirst,'⚡ Restore Game Wallet').click();await tick();
+    button(playerFirst,'⚡ Restore Wallet').click();await frame();button(playerFirst,'Paste from Clipboard').click();await frame();
+    check(!button(playerFirst,'⚡ Restore Wallet').disabled,'Player-first restore is not enabled');button(playerFirst,'⚡ Restore Wallet').click();await tick();
     check(playerFirst.textContent?.includes('belongs to the player wallet'),'Player-first conflict is not visible');
     check(player.getState().profileId==='player-fixture'&&!playerFirstWallet.getState().profileId,'Player-first conflict changed a role');
 

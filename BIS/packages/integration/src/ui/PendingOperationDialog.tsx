@@ -1,4 +1,5 @@
 import { useVisibleViewport } from './useVisibleViewport';
+import { useFitTextButtons } from './FitTextButton';
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 type NoticeInfo = {title:string;message:string;confirm?:()=>void};
@@ -24,6 +25,7 @@ export function usePendingNotice(busy: boolean, label: string, error: string | u
 /** A host-local modal: document-level showModal would also disable the Admin panel. */
 export function PendingOperations({children, overlay, className}: {children: ReactNode; overlay?: ReactNode; className?: string}) {
   const runtime = useVisibleViewport();
+  useFitTextButtons(runtime);
   const [notices,setNotices] = useState<Map<string,Notice>>(()=>new Map());
   const register = useCallback<Register>((id,notice)=>setNotices(previous=>{
     if(!notice && !previous.has(id))return previous;

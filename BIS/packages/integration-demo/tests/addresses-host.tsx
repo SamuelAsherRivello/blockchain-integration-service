@@ -37,7 +37,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(transfer.length === 3 && transfer[0].top === transfer[1].top && transfer[0].right < transfer[1].left, 'Send and Receive side by side');
     click('Accounts Details');await tick();await tick();
     check(addressInputs().length === 0 && host.querySelectorAll('input').length === 4, 'Details has the Account ID and all balances');
-    check(JSON.stringify([...host.querySelectorAll('.bis-actions button')].map(b => b.textContent?.trim())) === JSON.stringify(['Assets','Contracts','Transactions','Get Recovery Phrase','Back']), 'Collections and recovery are available from Details');
+    check(JSON.stringify([...host.querySelectorAll('.bis-actions button')].map(b => b.textContent?.trim())) === JSON.stringify(['Assets','Contracts','Transactions','Get Recovery Phrase','Developer','Back']), 'Collections, recovery, and Developer are available from Details');
     click('Get Recovery Phrase');await tick();check(host.querySelector('h2')?.textContent === 'Get Recovery Phrase', 'Recovery dialog');
     click('Back');await tick();check(host.querySelector('h2')?.textContent === 'Accounts Details', 'Recovery Back returns to Details');
     click('Back');await tick();click('⚡ Receive');await tick();await tick();

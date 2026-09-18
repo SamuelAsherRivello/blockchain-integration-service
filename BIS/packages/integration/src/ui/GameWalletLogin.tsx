@@ -3,6 +3,7 @@ import type { AccountSecret } from '../arkade/account.ts';
 import { createBisGameWallet } from '../core/game-wallet.ts';
 import { RecoveryPhrasePanel } from './RecoveryPhrasePanel';
 import { RecoveryPhraseEntry } from './RecoveryPhraseEntry';
+import { usePendingNotice } from './PendingOperationDialog';
 
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 
@@ -12,8 +13,10 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
   const [page, setPage] = useState<'start' | 'created' | 'restore'>('start');
   const [candidate, setCandidate] = useState<AccountSecret>();
   const [busy, setBusy] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [message, setMessage] = useState('');
   const recoverySession = useMemo(() => ({}), [candidate?.profileId]);
+  usePendingNotice(loggingOut, 'Logging out...', undefined, () => {});
 
   async function create() {
     if (busy) return;
@@ -42,9 +45,9 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
   }
   async function logout() {
     if (busy) return;
-    setBusy(true); setMessage('');
+    setBusy(true); setLoggingOut(true); setMessage('');
     try { await wallet.logout(); }
-    finally { setBusy(false); }
+    finally { setLoggingOut(false); setBusy(false); }
   }
 
   if (!state.playerConnected) return <div className="bis-actions">
@@ -60,16 +63,18 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
   if (page === 'created' && candidate) return <>
     <RecoveryPhrasePanel phrase={candidate.phrase} session={recoverySession} disabled={busy} />
     <div className="bis-actions">
-      <button className="bis-button bis-primary" disabled={busy} onClick={() => void commit()}>⚡ Continue</button>
+      <button className="bis-button bis-primary" disabled={busy} onClick={() => void commit()}>&#x26A1; Continue</button>
       <button className="bis-button bis-back" disabled={busy} onClick={() => { setCandidate(undefined); setPage('start'); }}>Back</button>
     </div>
     {message && <p role="alert">{message}</p>}
   </>;
-  if (page === 'restore') return <RecoveryPhraseEntry editable={!busy} disabled={busy} submitLabel="⚡ Restore Game Wallet"
+  if (page === 'restore') return <RecoveryPhraseEntry editable={!busy} disabled={busy} submitLabel="⚡ Restore Wallet"
     onSubmit={phrase => void restore(phrase)} onBack={() => { setMessage(''); setPage('start'); }} backDisabled={busy} message={message} />;
   return <div className="bis-actions">
-    <button className="bis-button bis-primary" disabled={busy} onClick={() => void create()}>⚡ Create Game Wallet</button>
-    <button className="bis-button" disabled={busy} onClick={() => { setMessage(''); setPage('restore'); }}>⚡ Restore Game Wallet</button>
+    <div className="bis-account-actions">
+      <button className="bis-button bis-primary" disabled={busy} onClick={() => void create()}>&#x26A1; Create Wallet</button>
+      <button className="bis-button" disabled={busy} onClick={() => { setMessage(''); setPage('restore'); }}>&#x26A1; Restore Wallet</button>
+    </div>
     {message && <p role="alert">{message}</p>}
     <button className="bis-button bis-back" disabled={busy} onClick={onBack}>Back</button>
   </div>;
