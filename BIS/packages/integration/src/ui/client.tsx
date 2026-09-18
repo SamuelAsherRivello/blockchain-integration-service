@@ -24,6 +24,7 @@ import { createBisGameWallet } from '../core/game-wallet';
 import { createBisEquipment } from '../core/equipment-loadout';
 import { networkLabel } from '../core/test-network';
 import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable } from '../core/capabilities';
+import { FormRowBoolean } from './FormRowBoolean';
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 const emptySubscribe = () => () => {};
 const emptySnapshot = () => undefined;
@@ -61,12 +62,6 @@ function NetworkSelect({ value, onChange }: { value: 'signet' | 'mutinynet' | un
 
 export function BisView({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
   return <PendingOperations overlay={<ToastViewport context={context} />}><BisScreen context={context} gameWallet={gameWallet} hasItemSupport={hasItemSupport} hasAssetMintingSupport={hasAssetMintingSupport} hasContractSupport={hasContractSupport} onDeveloperDialogChange={onDeveloperDialogChange} onGameWalletDialogChange={onGameWalletDialogChange} /></PendingOperations>;
-}
-function SupportStatus({ label, supported }: { label: string; supported: boolean }) {
-  return <label className="bis-support-entry">
-    <span>{label}</span>
-    <input type="checkbox" aria-label={`${label} supported`} checked={supported} disabled readOnly />
-  </label>;
 }
 function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
@@ -172,9 +167,9 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
         {gameWalletLogin && gameWallet ? <GameWalletLogin wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
           <div className="bis-copy-field-heading"><h3>Support</h3></div>
           <div className="bis-support-list">
-            <SupportStatus label="Asset Minting" supported={hasAssetMintingSupport?.() ?? (!!walletSnapshot && assetMintingSupportAvailable(state, walletSnapshot))} />
-            <SupportStatus label="Contracts" supported={hasContractSupport?.() ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot))} />
-            <SupportStatus label="Items" supported={hasItemSupport?.() ?? itemSupportAvailable(state)} />
+            <FormRowBoolean label="Asset Minting" value={hasAssetMintingSupport?.() ?? (!!walletSnapshot && assetMintingSupportAvailable(state, walletSnapshot))} enabledText="Enabled because the Player Wallet and a funded Game Wallet are ready." disabledText="Disabled because the Player Wallet, Game Wallet, network, or minimum minting funds are not ready." />
+            <FormRowBoolean label="Contracts" value={hasContractSupport?.() ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot))} enabledText="Enabled because both distinct wallets are ready on the same network." disabledText="Disabled because both distinct wallets are not ready on the same network." />
+            <FormRowBoolean label="Items" value={hasItemSupport?.() ?? itemSupportAvailable(state)} enabledText="Enabled because the Player Wallet is active and BIS item support is available." disabledText="Disabled because the Player Wallet is not active or BIS item support is unavailable." />
           </div>
           <div className="bis-copy-field-heading"><h3>Player Wallet</h3></div>
           <p>Allow easy account funding.</p>
