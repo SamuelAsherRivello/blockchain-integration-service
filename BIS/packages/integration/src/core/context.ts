@@ -358,7 +358,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     } while (!disposed && version === current && revision !== storageRevision);
     return loaded;
   }
-  function acceptLoaded(loaded: StoredAccount, current: number, closeOnAbsence = false) {
+  function acceptLoaded(loaded: StoredAccount, current: number, closeOnAbsence = false, suppressConnectionEvent = false) {
     if (disposed || version !== current) return;
     const former = confirmedProfile;
     const previouslyHydrated=profileHydrated;profileHydrated=true;
@@ -369,7 +369,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     generation = loaded.generation; failure = undefined; logoutTarget = undefined;
     update({...((closeOnAbsence || logout) && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
     if (former && former!==loaded.account?.profileId) emit({type:'accountDisconnected',profileId:former}, current);
-    if (previouslyHydrated&&loaded.account && former!==loaded.account.profileId) emit({type:'accountConnected',profileId:loaded.account.profileId},current);
+    if (!suppressConnectionEvent && previouslyHydrated&&loaded.account && former!==loaded.account.profileId) emit({type:'accountConnected',profileId:loaded.account.profileId},current);
     if (logout && !publishedLogouts.has(logout.id)) {
       publishedLogouts.add(logout.id);
       emit({type:'restartRequested',reason:'logout',logoutId:logout.id},current);
@@ -397,14 +397,14 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     signal.throwIfAborted();
     return {profileId: account.profileId, assets: Object.freeze(holdings.map(asset => Object.freeze({...asset})).sort((a,b) => a.assetId.localeCompare(b.assetId)))};
   }
-  async function hydrate() {
+  async function hydrate(suppressConnectionEvent = false) {
     invalidate(); const current=version;
     logoutTarget=undefined;
     update({phase:'loading',error:undefined,logoutBackupAcknowledged:false});
     try {
       const loaded=await readWithRetry(() => readStable(current), operation.signal);
       const profiles=typeof storage.listProfiles==='function'?await storage.listProfiles():{profiles:loaded.account?[loaded.account.profileId]:[],generation:loaded.generation};
-      acceptLoaded(loaded, current);
+      acceptLoaded(loaded, current, false, suppressConnectionEvent);
       if(!disposed&&version===current)update({savedProfiles:Object.freeze([...profiles.profiles]),profileChooser:false});
       try {
         if(globalThis.localStorage&&readBoardingRecords(state.profileId).some(r=>r.status==='pending'))scheduleTransferCheck();
@@ -1141,7 +1141,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   });
   const unsubscribeStorage=storage.subscribe(()=> {
     storageRevision++;
-    if(!disposed&&!['resetting','logging-out','logout-error'].includes(state.phase)){initialization=hydrate();}
+    if(!disposed&&!['resetting','logging-out','logout-error'].includes(state.phase)){initialization=hydrate(['restoring','restore-saving'].includes(state.phase));}
   });
   initialization=hydrate();
   return context;

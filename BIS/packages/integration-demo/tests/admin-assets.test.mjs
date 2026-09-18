@@ -37,7 +37,7 @@ test('requested admin navigation controls use an arrow-only affordance', async (
   }
 
   const gameWalletSource = await readFile(new URL('../src/admin/GameWalletPanel.tsx', import.meta.url), 'utf8');
-  assert.match(gameWalletSource, /<button aria-label="F2\. Game Wallet \(User-facing\)" disabled=\{!controller\} onClick=\{onOpenDeveloper\}>↗<\/button>/, 'F2 is arrow-only');
+  assert.match(gameWalletSource, /<button aria-label="F2\. Game Wallet \(User-facing\)" disabled=\{!controller \|\| !playerReady\} onClick=\{onOpenDeveloper\}>↗<\/button>/, 'F2 is arrow-only');
 });
 
 test('B1 stays enabled with the Account dialog open and retains payment guards', async () => {

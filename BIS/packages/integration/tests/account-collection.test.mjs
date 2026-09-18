@@ -14,7 +14,7 @@ test('Assets, Contracts and Transactions render the same titled collection, refr
     const fixtures=[
       [AccountAssets,{assets:{status:'ready',assets:[]},onDetailChange:noop,onBack:noop,onBurn:noop,onRefresh:noop,onBusyChange:noop,onToast:noop},'Assets'],
       [AccountActivity,{activity:{status:'ready',transactions:[]},onDetailChange:noop},'Transactions'],
-      [AccountContracts,{context:{},onDetailChange:noop},'Contracts'],
+      [AccountContracts,{context:{getState:()=>({network:'signet'}),closeAccount:noop},onDetailChange:noop},'Contracts'],
     ];
     for(const [component,props,title] of fixtures) {
       const html=renderToStaticMarkup(createElement(component,props));

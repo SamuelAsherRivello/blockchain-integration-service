@@ -53,7 +53,7 @@ test('logout and reset preserve unresolved identity and journals; verified termi
   queueMicrotask(()=>{
    request.result={close(){},transaction(){
     const tx={objectStore(){return {
-     get(key){const result={result:stored.get(key)};queueMicrotask(()=>{result.onsuccess?.();if(key==='generation')queueMicrotask(()=>tx.oncomplete());});return result;},
+     get(key){const result={result:key==='profiles'?['profile']:stored.get(key)};queueMicrotask(()=>{result.onsuccess?.();if(key==='generation')queueMicrotask(()=>tx.oncomplete());});return result;},
      put(value,key){stored.set(key,value);},delete(key){stored.delete(key);},clear(){stored.clear();}
     };},abort(){tx.onabort();}};
     return tx;
@@ -75,7 +75,8 @@ test('logout and reset preserve unresolved identity and journals; verified termi
   writeBoardingRecord({...pending,status:'succeeded',commitmentTxid:'e'.repeat(64)});
   await storage.reset(0,{purpose:'logout',profileId:'profile',operations:pendingLogoutOperations()});
   assert.equal(stored.has('identity'),false);
-  assert.deepEqual([...stored.keys()].sort(),['generation','logout']);
+  assert.deepEqual([...stored.keys()].sort(),['generation','logout','profiles']);
+  assert.deepEqual(stored.get('profiles'),[]);
   assert.equal(stored.get('generation'),1);
   const receipt=stored.get('logout');
   assert.deepEqual(Object.keys(receipt).sort(),['generation','id','profileId']);

@@ -32,7 +32,7 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
   const fixture=Symbol.for('bis.lto.public-factory.test');globalThis[fixture]=dependencies;
   const prefix="const d=globalThis[Symbol.for('bis.lto.public-factory.test')];";
   const stubs={
-    '/arkade/account.ts':'export const SIGNET_OPERATOR="https://signet.arkade.sh";',
+    '/arkade/account.ts':'export const SIGNET_OPERATOR="https://signet.arkade.sh";export const operatorFor=()=>SIGNET_OPERATOR;',
     '/core/contract-storage.ts':prefix+'export const createContractStorage=()=>d.storage;',
     '/core/account-storage.ts':prefix+'export const createAccountStorage=()=>d.playerStorage;',
     '/core/game-wallet-storage.ts':prefix+'export const createGameWalletStorage=()=>d.gameStorage;',
@@ -41,7 +41,7 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
   const server=await createServer({configFile:false,plugins:[{name:'isolated-lto-boundaries',enforce:'pre',load(id){return Object.entries(stubs).find(([suffix])=>id.replaceAll('\\','/').endsWith(suffix))?.[1];}}],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
   try {
     const {createBisLto}=await server.ssrLoadModule('/BIS/packages/integration/src/core/lto-service.ts');
-    const context={getState:()=>({profileId:'player',phase:'active'}),showToast:message=>toasts.push(message),refreshBalance:async()=>{}};
+    const context={getState:()=>({profileId:'player',phase:'active',network:'signet'}),showToast:message=>toasts.push(message),refreshBalance:async()=>{}};
     const gameWallet={getState:()=>({profileId:'game',status:'ready'}),refresh:async()=>{}};
     const request=sessionId=>({sessionId,hostReference:sessionId,purpose:'treasureLTO',exclusivityKey:'treasure',amountSats:1000,startedAt:Date.now(),expiresAt:Date.now()+90000});
     const service=createBisLto({context,gameWallet});await idle();
