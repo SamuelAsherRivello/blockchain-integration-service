@@ -12,6 +12,12 @@ function documentationRedirects() {
     configureServer(server: { middlewares: { use: (handler: (request: { url?: string }, response: { statusCode: number; setHeader: (name: string, value: string) => void; end: () => void }, next: () => void) => void) => void } }) {
       server.middlewares.use((request, response, next) => {
         const url = new URL(request.url ?? '/', 'http://localhost');
+        if (url.pathname === '/book' || url.pathname === '/book/') {
+          response.statusCode = 302;
+          response.setHeader('Location', `/book.html${url.search}`);
+          response.end();
+          return;
+        }
         const legacyFile = !url.pathname.startsWith('/@fs/') && decodeURIComponent(url.pathname).endsWith('/BIS/documentation/User Story Diagrams.md');
         if (url.pathname !== legacyDocumentationPath && url.pathname !== `${legacyDocumentationPath}/` && !legacyFile) return next();
         response.statusCode = 302;
@@ -28,6 +34,7 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       input: {
         admin: resolve(packageRoot, 'index.html'),
+        book: resolve(packageRoot, 'book.html'),
         documentation: resolve(packageRoot, 'documentation/user-stories/index.html'),
       },
     },

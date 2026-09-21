@@ -72,6 +72,8 @@ export function AccountAssets({assets, network, equipment, equipmentState, onDet
     finally{setEquipmentBusy(false);}
   }
   const explorerUrl = selected ? assetExplorerUrl(selected.assetId, network) : undefined;
+  const explorerUnavailableReason = 'Explorer unavailable: no supported explorer URL is available for this asset and active network.';
+  const detailReport = selected ? formatAssetDetails(selected, network) : '';
   const list = useRef<HTMLUListElement>(null);
   const scroll = useRef(0);
   const restoreFocus = useRef(false);
@@ -109,7 +111,7 @@ export function AccountAssets({assets, network, equipment, equipmentState, onDet
   });
   const Page=detailOpen?ItemListDetail:ItemList;
   return <Page network={networkLabel(network)} title={detailOpen?'Asset Detail':'Assets'} body={detailOpen?'Inspect this asset and its ownership.':'Assets held by this account.'}
-    fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?formatAssetDetails(selected):report} loading={loading} listLabel="Owned assets"
+    fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?detailReport:report} loading={loading} listLabel="Owned assets"
     onRefresh={onRefresh} refreshDisabled={burning||!!confirmation}
     listRef={list} onScroll={event=>{scroll.current=event.currentTarget.scrollTop;}}
     items={rows.map(asset=>({id:asset.assetId,selected:selectedId===asset.assetId,
@@ -120,10 +122,10 @@ export function AccountAssets({assets, network, equipment, equipmentState, onDet
         {icon:'🔤',label:'Ticker',value:asset.ticker||'Not provided'},{icon:'✅',label:'Status',value:'Owned'},
         {icon:'🎯',label:'Decimals',value:assetDecimals(asset)??'Not provided'},{icon:'🌐',label:'Network',value:'Off-chain'},
       ]}/>}))}
-    detail={detailOpen?<ReportTextArea aria-label="Asset details" rows={12} value={selected?formatAssetDetails(selected):''}/>:undefined}
+    detail={detailOpen?<ReportTextArea aria-label="Asset details" rows={12} value={detailReport}/>:undefined}
     notice={notice&&assets.status==='ready'?<p role="status">{notice}</p>:!loading&&assets.status==='ready'&&!rows.length?<p>No assets.</p>:null}
     actions={<>
-      {detailOpen && selected && <button type="button" className="bis-button" disabled={burning || !explorerUrl} title={!explorerUrl ? 'Explorer unavailable: invalid asset ID.' : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>}
+      {detailOpen && selected && <><button type="button" className="bis-button" disabled={burning || !explorerUrl} aria-describedby={!explorerUrl?'asset-explorer-unavailable':undefined} title={!explorerUrl ? explorerUnavailableReason : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>{!explorerUrl&&<span id="asset-explorer-unavailable" className="bis-sr-only">{explorerUnavailableReason}</span>}</>}
       {detailOpen&&equipmentItem&&<button className="bis-button bis-primary" disabled={burning||equipmentBusy||equipmentState?.status!=='ready'} onClick={()=>void updateEquipment()}>{equipped?`Clear ${equipmentItem.family}`:`Select ${equipmentItem.family}`}</button>}
       {detailOpen && selected && <button className="bis-button bis-danger" disabled={burning} onClick={()=>setConfirmation(selected)}>Burn</button>}
     </>} backDisabled={burning} onBack={()=>{if(detailOpen){restoreFocus.current=true;setDetailOpen(false);}else onBack();}}

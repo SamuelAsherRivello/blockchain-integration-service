@@ -1,7 +1,7 @@
 export type BisAssetMetadataValue = string | number | boolean | null;
 export type BisAssetMetadata = Readonly<Record<string, BisAssetMetadataValue>>;
 import type { TestNetwork } from './test-network.ts';
-export type BisAsset = Readonly<{ assetId: string; name?: string; ticker?: string; quantity: string; decimals?: number; iconUrl?: string; metadata?: BisAssetMetadata }>;
+export type BisAsset = Readonly<{ assetId: string; name?: string; ticker?: string; quantity: string; decimals?: number; iconUrl?: string; metadata?: BisAssetMetadata; sourceOperationId?: string; sourceTransactionId?: string }>;
 export type BisMintAssetRequest = Readonly<{ operationId: string; name: string; ticker: string; amount: string; decimals: number; iconUrl?: string; metadata?: BisAssetMetadata }>;
 export type BisAssetErrorCode = 'account-required' | 'invalid-input' | 'insufficient-funds' | 'unavailable' | 'outcome-unknown' | 'account-changed' | 'disposed' | 'unsupported-environment' | 'busy';
 export type BisAssetError = Readonly<{ status: 'error'; code: BisAssetErrorCode; message: string; profileId?: string; operationId?: string }>;

@@ -41,6 +41,8 @@ const definitions: Record<TestNetwork, TestNetworkDefinition> = Object.freeze({
     faucetUrl: 'https://faucet.mutinynet.com/',
     bitcoinExplorerAddressUrl: (address: string) => `https://mempool.mutinynet.arkade.sh/address/${encodeURIComponent(address)}`,
     bitcoinExplorerTransactionUrl: (transactionId: string) => `https://mempool.mutinynet.arkade.sh/tx/${encodeURIComponent(transactionId)}`,
+    arkExplorerAssetUrl: (assetId: string) => `https://explorer.mutinynet.arkade.sh/asset/${encodeURIComponent(assetId)}`,
+    arkExplorerTransactionUrl: (transactionId: string) => `https://explorer.mutinynet.arkade.sh/tx/${encodeURIComponent(transactionId)}`,
     fundingCommand: (address: string) => `mutinynet-cli onchain ${address} [sats]`,
     fundingHelp: 'Run mutinynet-cli login yourself to complete GitHub device login before funding. Or use the Mutinynet faucet manually.',
   }),

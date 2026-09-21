@@ -9,14 +9,24 @@ Let players inspect every owned asset and its exact quantity through a reusable 
 ### Requirement: Two-page asset inspection
 An active Account SHALL offer Assets immediately below Transactions. Assets SHALL show the title Assets, current account identity and Signet network, Refresh, a bounded scrollable list, and Back. Selecting a row SHALL replace the list with Asset Detail in the same dialog. Back from detail SHALL return to the same list without another ownership request, retaining the selected asset, scroll position, and focus on its row when that row remains present. Back from the list SHALL return to Account. Opening Account alone SHALL NOT request assets.
 
+The Assets list page SHALL use the shared account-collection dimensions: a 456px compact parent-card height shared with Contracts and Transactions, a list viewport sized for 3.5 shared rows even when empty or nearly empty, a persistent vertical scrollbar with stable gutter, a Back footer that remains inside the card, and closed rows whose width and height exactly match contract and transaction rows.
+
 #### Scenario: Inspect and return
-- **WHEN** a player scrolls Assets, opens a row, and selects Back
+- **WHEN** the player scrolls Assets, opens a row, and selects Back
 - **THEN** the list returns at its previous scroll position with the selected row focused and no additional ownership read
 - **AND** selecting Back again returns to Account
+
+#### Scenario: Empty or short asset list
+- **WHEN** the fresh ownership query returns zero, one, or two assets
+- **THEN** the Assets list still reserves the full 3.5-row viewport and keeps its vertical scrollbar visible
 
 #### Scenario: Keyboard and narrow host
 - **WHEN** the player uses keyboard navigation or a narrow 9:16 host container
 - **THEN** rows and actions remain reachable, detail entry announces/focuses the new heading, long fields wrap or scroll within their bounds, and the outer page does not overflow horizontally
+
+#### Scenario: Shared asset row geometry
+- **WHEN** an asset row is displayed beside contract and transaction rows
+- **THEN** its rendered width and height are exactly equal to the other collection row types
 
 ### Requirement: Complete and exact ownership presentation
 Assets SHALL include all positive holdings returned by the existing fresh ownership query, including non-BIS assets, ordered by asset ID. Each closed row SHALL use shared two-column by three-row compact geometry with six emoji-value fields: name, exact quantity, ticker, ownership status, decimals, and network. The HTTPS metadata icon image with no referrer SHALL lead; missing or failed artwork SHALL use the toast success glyph. Asset IDs remain in detail/reports, not the priority row. Owned rows use toast success-green with black outline-only hover/focus/selection feedback. Quantities SHALL use integer base units and known valid decimals without floating-point rounding; absent or invalid decimals SHALL display truthful base units.
@@ -99,3 +109,35 @@ Every Stealth & Steel equipment icon rendered by BIS SHALL load at runtime from 
 #### Scenario: BIS renders a recognized item
 - **WHEN** BIS renders a recognized Stealth & Steel item whose chain metadata contains an icon URL
 - **THEN** the rendered image request uses that chain-provided URL
+
+### Requirement: Asset detail exposes actionable identity and provenance
+Asset Detail SHALL show the full Asset ID, exact owned quantity and base-unit quantity, Name, Ticker, Decimals, the active account network, the network-correct Explorer URL when available, and Icon URL when available. It SHALL also show a source or mint transaction ID and mint operation ID when those identifiers are known for the selected holding. Unknown or unavailable values SHALL be labeled `Not available` and SHALL never be inferred from a name, ticker, balance change, or asset ID.
+
+The detail report and its copy action SHALL include these labeled values in stable order. Full identifiers SHALL remain selectable and usable for manual copying without wrapping away the significant characters.
+
+#### Scenario: Level 3 achievement has inspectable identity
+- **WHEN** the player opens an owned asset with name `Achievement: Level 3`, ticker `LVL3`, decimals `0`, and quantity `1`
+- **THEN** Asset Detail shows those values plus the complete Asset ID, active network, Explorer URL, and any known source transaction or mint operation identifiers
+- **AND** the copied report contains the same values and the exact base-unit quantity `1`
+
+#### Scenario: External holding has no local provenance
+- **WHEN** an owned asset was created outside BIS and no source transaction or mint operation record is available
+- **THEN** Asset Detail remains usable and labels those provenance fields `Not available`
+- **AND** it does not claim that the holding completed a BIS mint operation
+
+### Requirement: Asset detail actions use the selected account and network
+For a valid selected owned holding, Open On Explorer SHALL open the explorer URL for the active account's verified network in a new tab with safe opener protections. Burn SHALL remain enabled until the player explicitly confirms or the holding/account state becomes invalid, and SHALL submit the selected asset ID and entire displayed base-unit quantity through the existing burn safety contract. A missing or unsupported explorer URL SHALL disable only Open On Explorer and expose an accessible reason; it SHALL not disable Burn.
+
+#### Scenario: Mutinynet asset opens the Mutinynet explorer
+- **WHEN** the active account is verified on Mutinynet and the selected asset has a valid Asset ID
+- **THEN** Open On Explorer is enabled and opens the Mutinynet asset page
+- **AND** the action does not use the Signet URL
+
+#### Scenario: Explorer URL unavailable but burn is valid
+- **WHEN** the selected asset is owned and burnable but its explorer URL cannot be constructed
+- **THEN** Open On Explorer is disabled with an accessible explanation
+- **AND** Burn remains available and uses the selected asset's exact base-unit quantity after confirmation
+
+#### Scenario: Selection changes before an action completes
+- **WHEN** the player changes account, leaves Asset Detail, or the selected holding disappears before a delayed action completes
+- **THEN** the obsolete action cannot open an explorer page for another asset or submit a burn under another account

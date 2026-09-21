@@ -15,7 +15,8 @@ function wallet(profileId) {
 function gameWallet(profileId='game-profile') {
   const selected=wallet(profileId);
   selected.getState=()=>({profileId});
-  selected.deliverAsset=async request=>({status:'delivered',profileId,operationId:request.operationId,assetId:request.assetId,quantity:request.quantity,recipient:'tark1player',transactionId:'delivery'});
+  selected.deliveries=[];
+  selected.deliverAsset=async request=>{selected.deliveries.push(request);return {status:'delivered',profileId,operationId:request.operationId,assetId:request.assetId,quantity:request.quantity,recipient:request.recipient,transactionId:'delivery'};};
   return selected;
 }
 test('each destination calls only its wallet and logs its original identity', async()=>{
@@ -39,6 +40,16 @@ test('player destination issues through Game Wallet and then delivers to Player 
   assert.equal(result.status,'minted');
   assert.equal(game.calls.length,1);
   assert.equal(player.calls.length,0);
+});
+test('player destination resolves a lazy Player Wallet receiving address before minting', async()=>{
+  const game=gameWallet(),player=wallet('player-profile');
+  player.getState=()=>({profileId:'player-profile',phase:'active'});
+  player.getPaymentRecipient=async()=>({profileId:'player-profile',address:'tark1lazy-player'});
+  const target=await prepareMintDestination('player',game,player,()=>true,()=>{});
+  const result=await target.mint(request);
+  assert.equal(result.status,'minted');
+  assert.equal(game.calls.length,1);
+  assert.equal(game.deliveries[0].recipient,'tark1lazy-player');
 });
 test('missing wallet and failed lookup prevent preparation; production reports insufficient funds',async()=>{
   await assert.rejects(prepareMintDestination('player',undefined,()=>true,()=>{}),/Log in/);

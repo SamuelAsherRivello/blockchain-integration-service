@@ -12,7 +12,7 @@ const check=(condition:unknown,label:string)=>{if(!condition)throw Error(label);
 const button=(name:string)=>{const b=[...host.querySelectorAll('button')].find(b=>b.textContent===name||b.getAttribute('aria-label')===name);if(!b)throw Error(`Missing button: ${name}`);return b;};
 
 const iconUrl='https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-1-trophy.png';
-const rows:BisAsset[]=Array.from({length:24},(_,i)=>({assetId:`${String(i).padStart(2,'0')}${'a'.repeat(62)}${String(i).padStart(4,'0')}`,quantity:i===0?'9007199254740993':'1',name:i===23?'Very long asset metadata '.repeat(15):i===22?undefined:'Achievement: Level 1',ticker:i===22?undefined:'LVL1',decimals:i===22?undefined:0,iconUrl:i===22?'javascript:alert(1)':iconUrl}));
+const rows:BisAsset[]=Array.from({length:24},(_,i)=>({assetId:`${String(i).padStart(2,'0')}${'a'.repeat(62)}${String(i).padStart(4,'0')}`,quantity:i===0?'9007199254740993':'1',name:i===8?'Achievement: Level 3':i===23?'Very long asset metadata '.repeat(15):i===22?undefined:'Achievement: Level 1',ticker:i===8?'LVL3':i===22?undefined:'LVL1',decimals:i===22?undefined:0,iconUrl:i===22?'javascript:alert(1)':iconUrl,...(i===8?{sourceOperationId:'level-3-mint',sourceTransactionId:'b'.repeat(64)}:{})}));
 let data=rows,mode='ready',reads=0,copied='',copyMode='success';
 let burns=0,finishBurn:((success:boolean)=>void)|undefined;
 let resolveRead:((rows:BisAsset[])=>void)|undefined,finishCopy:(()=>void)|undefined;
@@ -28,7 +28,7 @@ const context=createContext({load:async()=>({account,generation:0}),save:async()
   check(request.quantity===data.find(row=>row.assetId===request.assetId)?.quantity,'exact selected holding burned');
   data=data.filter(row=>row.assetId!==request.assetId);
   return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:'c'.repeat(64)};
-});
+},undefined,{getNetwork:()=>account.network});
 const ui=createBisUi(context);ui.mount(host);
 const showList=async()=>{await context.ready();mode='ready';data=rows;copyMode='success';context.openAccountDialog();if(context.getState().accountAssets)context.closeAccount();context.openAccountAssets();await wait(()=>host.querySelectorAll('.bis-asset-row').length===24&&!host.querySelector('.bis-pending-dialog'));};
 document.getElementById('list')!.onclick=()=>void showList();
@@ -43,7 +43,7 @@ document.getElementById('run')!.onclick=async()=>{
     const list=host.querySelector<HTMLElement>('.bis-asset-list')!;check(list.scrollHeight>list.clientHeight,'list scrolls');
     check(list.previousElementSibling?.querySelector('h3')?.textContent==='Assets','Assets heading above list');
     button('Copy Assets').click();await wait(()=>button('Copy Assets').title==='Copied');
-    check(copied===rows.map(formatAssetDetail).join('\n\n'),'Copies all assets in list order with exact quantities');
+    check(copied===rows.map(asset=>formatAssetDetail(asset,'mutinynet')).join('\n\n'),'Copies all assets in list order with exact quantities');
     copyMode='fail';button('Copy Assets').click();await wait(()=>!!host.querySelector('[aria-label="All assets for manual copy"]'));
     check(await readReportPages(host.querySelector<HTMLTextAreaElement>('[aria-label="All assets for manual copy"]')!)===copied,'Asset list manual copy fallback');
     copyMode='success';button('Copy Assets').click();await wait(()=>!host.querySelector('[aria-label="All assets for manual copy"]'));
@@ -54,36 +54,37 @@ document.getElementById('run')!.onclick=async()=>{
     const detailField=host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')!;
     check(host.querySelectorAll('.bis-collection-detail textarea').length===1,'detail has one generic text box');
     check(getComputedStyle(detailField).overflowY==='scroll','asset detail text box always shows a vertical scrollbar');
-    check(await readReportPages(detailField)===formatAssetDetails(rows[8]),'generic asset details are shown in the text box');
+    check(await readReportPages(detailField)===formatAssetDetails(rows[8],'mutinynet'),'asset identity and details are shown in the text box');
+    check(detailField.value.includes(`Source transaction ID: ${'b'.repeat(64)}`)&&detailField.value.includes('Network: Mutinynet'),'known provenance and active network are shown');
     const detailCard=host.querySelector<HTMLElement>('.bis-card')!;
     check(detailCard.scrollHeight<=detailCard.clientHeight,'standard detail card has no outer scrolling');
     check(!host.querySelector('.bis-asset-summary'),'asset preview summary removed');
     const burnRect=button('Burn').getBoundingClientRect(), backBounds=button('Back').getBoundingClientRect();
     check(Math.abs(burnRect.width-backBounds.width)<1&&burnRect.bottom<=backBounds.top,'full-width Burn above Back');
     check(!host.querySelector('img'),'asset detail shows no icon');
-    check(!host.textContent?.includes(rows[8].assetId),'asset detail does not show the asset ID');
+    check(host.textContent?.includes(rows[8].assetId),'asset detail shows the full asset ID');
     check(host.querySelectorAll('button').length===5,'refresh/copy/explorer/burn/back actions');
     const originalOpen=window.open;
     let opened:unknown[]=[];
     try {
       window.open=(...args)=>{opened=args;return null;};
       button('Open On Explorer').click();
-      check(opened[0]===`https://explorer.signet.arkade.sh/asset/${rows[8].assetId}`&&opened[1]==='_blank'&&opened[2]==='noopener,noreferrer','explorer opens selected asset safely in a new tab');
+      check(opened[0]===`https://explorer.mutinynet.arkade.sh/asset/${rows[8].assetId}`&&opened[1]==='_blank'&&opened[2]==='noopener,noreferrer','explorer opens selected asset safely in a new tab');
     } finally {window.open=originalOpen;}
-    button('Copy Asset details').click();await tick();check(copied===formatAssetDetails(rows[8]),'generic asset details copied');
+    button('Copy Asset details').click();await tick();check(copied===formatAssetDetails(rows[8],'mutinynet'),'asset details copied');
     button('Back').click();await wait(()=>host.querySelectorAll('.bis-asset-row').length===24);await new Promise(requestAnimationFrame);
     check(host.querySelector('.bis-asset-list')!.scrollTop===offset,'Back retains scroll');await wait(()=>document.activeElement===host.querySelectorAll('.bis-asset-row')[8]);check(reads===before+1,'Back does not read');
-    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Asset details').click();await wait(()=>!!host.querySelector('[aria-label="Asset details for manual copy"]'));check(await readReportPages(host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details for manual copy"]')!)===formatAssetDetails(rows[0]),'manual fallback exact');
+    host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();copyMode='fail';button('Copy Asset details').click();await wait(()=>!!host.querySelector('[aria-label="Asset details for manual copy"]'));check(await readReportPages(host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details for manual copy"]')!)===formatAssetDetails(rows[0],'mutinynet'),'manual fallback exact');
     copyMode='pending';button('Copy Asset details').click();await tick();button('Back').click();await tick();host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();finishCopy?.();await tick();check(button('Copy Asset details').title==='Copy Asset details','late copy ignored');copyMode='success';
     mode='pending';void context.refreshAssets();await tick();check(host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')?.value==='','empty generic detail remains visible during refresh');check(button('Refresh Asset Detail').disabled,'loading disables refresh');
-    data=rows.map((r,i)=>i===1?{...r,quantity:'12345',decimals:2}:r);resolveRead?.(data);await wait(()=>host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')?.value===formatAssetDetails(data[1]));
+    data=rows.map((r,i)=>i===1?{...r,quantity:'12345',decimals:2}:r);resolveRead?.(data);await wait(()=>host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')?.value===formatAssetDetails(data[1],'mutinynet'));
     mode='fail';await context.refreshAssets();await tick();check(host.querySelector('h2')?.textContent==='Asset Detail','failure retains detail title');check(host.querySelector<HTMLTextAreaElement>('[aria-label="Asset details"]')?.value==='','failure clears detail text without removing the generic field');check(host.querySelector('.bis-pending-dialog')?.textContent?.includes('Assets could not be loaded'),'failure message');
     mode='ready';button('OK').click();await wait(()=>!host.querySelector('.bis-pending-dialog')&&host.querySelectorAll('.bis-asset-row').length===24);host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[1].click();await tick();
     data=rows.filter((_,i)=>i!==1);await context.refreshAssets();await wait(()=>host.querySelector('h2')?.textContent==='Assets');check(host.textContent?.includes('Asset is no longer'),'removed notice');await new Promise(requestAnimationFrame);check(document.activeElement===host.querySelector('h2'),'removed asset heading focus');
     data=[];await context.refreshAssets();await tick();check(!host.textContent?.includes('No assets found.'),'no empty message');
     const emptyList=host.querySelector<HTMLElement>('.bis-asset-list')!;check(emptyList && !emptyList.children.length && emptyList.clientHeight>0 && getComputedStyle(emptyList).overflowY==='scroll','empty asset list retains space and scrollbar');
     check(button('Copy Assets').disabled,'empty asset copy disabled');
-    data=[rows[22],{...rows[23],name:'<img src=x onerror=alert(1)>'}];await context.refreshAssets();await tick();check(host.textContent?.includes('1 base units'),'missing decimals base units');host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Copy Asset details').click();await tick();check(copied.includes('Decimals: Not provided'),'missing fields copied');check(!host.querySelector('img'),'asset detail never shows an icon');
+    data=[rows[22],{...rows[23],name:'<img src=x onerror=alert(1)>'}];await context.refreshAssets();await tick();check(host.textContent?.includes('1 base units'),'missing decimals base units');host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Copy Asset details').click();await tick();check(copied.includes('Decimals: Not provided')&&copied.includes('Source operation ID: Not available'),'missing fields and unavailable provenance copied');check(!host.querySelector('img'),'asset detail never shows an icon');
     button('Back').click();await tick();button('Back').click();await tick();button('Transactions').click();await wait(()=>!!host.querySelector('.bis-transaction-row'));check(host.querySelector('h2')?.textContent==='Transactions','Transactions heading');host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();await wait(()=>host.querySelector('h2')?.textContent==='Transaction Detail');button('Back').click();await tick();button('Back').click();await tick();
     await showList();const state=context.getState();await context.listAssets();check(context.getState()===state,'headless listing leaves runtime unchanged');
     host.style.width='280px';host.style.height='360px';await tick();host.querySelectorAll<HTMLButtonElement>('.bis-asset-row')[23].click();await tick();check(host.scrollWidth<=host.clientWidth,'narrow host has no horizontal overflow');
@@ -98,7 +99,7 @@ document.getElementById('run')!.onclick=async()=>{
     button('Burn').click();await wait(()=>!!host.querySelector('dialog[open]'));const ok=button('OK');ok.click();ok.click();await wait(()=>burns===beforeBurns+1);
     check(!host.querySelector('.bis-pending-dialog'),'burn progress has no dialog');check(getControls(context).toasts.getSnapshot()?.message==='Asset burn (Pending)','pending toast queued');check(button('Burn').disabled&&button('Back').disabled&&button('Refresh Asset Detail').disabled,'busy actions disabled');finishBurn?.(false);await wait(()=>host.textContent?.includes('Fixture burn unavailable.')===true);check(!!host.querySelector('.bis-pending-dialog'),'failed burn stays covered');button('OK').click();await wait(()=>!host.querySelector('.bis-pending-dialog'));host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();
     button('Burn').click();await wait(()=>!!host.querySelector('dialog[open]'));button('OK').click();await wait(()=>burns===beforeBurns+2);finishBurn?.(true);await wait(()=>host.querySelectorAll('.bis-asset-row').length===23);check(!host.textContent?.includes('Asset burned.')&&!host.querySelector('.bis-pending-dialog'),'success reveals refreshed list without completion banner');
-    result.textContent='PASS: Mutinynet account fixture; generic asset details text box, no preview, icon or asset ID, clipboard failure/race, refresh states, navigation/focus/scroll, narrow layout, confirmation Cancel/Escape, single burn after OK, busy state, failed burn and success refresh. Fixtures only; no live asset burned.';
+    result.textContent='PASS: Mutinynet account fixture; asset identity/provenance details, network-correct explorer, clipboard failure/race, refresh states, navigation/focus/scroll, narrow layout, confirmation Cancel/Escape, single burn after OK, busy state, failed burn and success refresh. Fixtures only; no live asset burned.';
   } catch(error) {result.textContent='FAIL: '+(error instanceof Error?error.message:'checks');}
 };
 window.addEventListener('pagehide',()=>{ui.unmount();context.dispose();if(originalClipboard)Object.defineProperty(navigator,'clipboard',originalClipboard);else Reflect.deleteProperty(navigator,'clipboard');});

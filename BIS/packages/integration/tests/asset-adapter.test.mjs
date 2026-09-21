@@ -148,6 +148,9 @@ test('real adapter and SDK issue preserve the external holding, exact amount, ic
     assetId: externalId, quantity: '1', name: request.name, ticker: request.ticker,
     decimals: request.decimals, iconUrl: request.iconUrl, metadata: request.metadata,
   });
+  const listedMint = assets.find(asset => asset.assetId === result.asset.assetId);
+  assert.equal(listedMint.sourceOperationId, request.operationId);
+  assert.equal(listedMint.sourceTransactionId, result.transactionId);
   assert.deepEqual(result.asset.metadata,{...request.metadata,bisSchemaVersion:'1'});
   assert.equal(assets.find(asset => asset.assetId === result.asset.assetId).quantity, '1');
   assert.notEqual(f.state.storages[0].walletRepository, f.state.storages[1].walletRepository);

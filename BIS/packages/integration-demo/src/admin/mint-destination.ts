@@ -3,6 +3,7 @@ import type { BisAssetDeliveryRequest, BisAssetDeliveryResult, BisMintAssetReque
 export type MintDestination = 'player' | 'game';
 export type MintWallet = {
   getState(): { profileId?: string; phase?: string; addresses?: { status?: string; arkadeAddress?: string } };
+  getPaymentRecipient?(): Promise<{ profileId: string; address: string }>;
   subscribe(listener: () => void): () => void;
   getPendingAssetMint(): Promise<BisPendingMintResult>;
   getPendingAssetDelivery?(): Promise<BisPendingAssetDeliveryResult>;
@@ -44,7 +45,28 @@ export async function prepareMintDestination(destination: MintDestination, sourc
   if (pending.profileId !== sourceProfileId) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
   const pendingDelivery = source.getPendingAssetDelivery ? await source.getPendingAssetDelivery() : undefined;
   if (pendingDelivery?.status === 'error') throw Error(pendingDelivery.message);
+  if (pendingDelivery?.status === 'success' && pendingDelivery.request && !pendingDelivery.mintRequest) {
+    throw Error('This Game Wallet has an incomplete Player Wallet delivery record. Reconcile it before minting again.');
+  }
   if (pendingDelivery?.status === 'success' && pendingDelivery.request && destination !== 'player') throw Error('This Game Wallet has an unresolved Player Wallet delivery. Select Player wallet to resume it.');
+  let destinationAddress: string | undefined;
+  if (destination === 'player' && !legacy) {
+    try {
+      const resolved = recipient?.getPaymentRecipient ? await recipient.getPaymentRecipient() : undefined;
+      if (resolved) {
+        if (resolved.profileId !== destinationProfileId || !resolved.address) throw Error('The Player Wallet receiving address is unavailable.');
+        destinationAddress = resolved.address;
+      } else {
+        const address = destinationWallet.getState().addresses;
+        if (!address || address.status !== 'ready' || !address.arkadeAddress) throw Error('The Player Wallet receiving address is unavailable.');
+        destinationAddress = address.arkadeAddress;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Player Wallet')) throw error;
+      throw Error('The Player Wallet receiving address is unavailable.');
+    }
+    if (!isCurrent()) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
+  }
   const recoveryRequest = pending.request ?? pendingDelivery?.mintRequest ?? null;
   let busy = false;
   return {
@@ -60,12 +82,11 @@ export async function prepareMintDestination(destination: MintDestination, sourc
         const result = await source.mintAsset(request);
         if (!isCurrent()) return {status: 'error', code: 'account-changed', message: 'The selected wallet changed. Close and reopen Mint Asset.'};
         if (result.status === 'error' || destination === 'game' || legacy) { report(result); return result; }
-        const address = destinationWallet.getState().addresses;
-        if (!address || address.status !== 'ready' || !address.arkadeAddress || !source.deliverAsset) {
+        if (!destinationAddress || !source.deliverAsset) {
           const unavailable = {status:'error', code:'unavailable', message:'The Player Wallet receiving address is unavailable.'} as const;
           report(unavailable); return unavailable;
         }
-        const delivery: BisAssetDeliveryRequest = {operationId:`${request.operationId}-delivery`,assetId:result.asset.assetId,quantity:result.asset.quantity,recipient:address.arkadeAddress};
+        const delivery: BisAssetDeliveryRequest = {operationId:`${request.operationId}-delivery`,assetId:result.asset.assetId,quantity:result.asset.quantity,recipient:destinationAddress};
         const delivered = await source.deliverAsset(delivery);
         if (delivered.status === 'error') {
           const error = {status:'error',code:delivered.code === 'outcome-unknown' ? 'outcome-unknown' : 'unavailable',message:delivered.message} as const;

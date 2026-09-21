@@ -1,7 +1,7 @@
 import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, type AssetDetails } from '@arkade-os/sdk';
 import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import type { TestNetwork } from '../core/test-network.ts';
-import { AssetError, checkMintRecord, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
+import { AssetError, checkMintRecord, readAssetRecords, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../core/assets.ts';
 import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult, type BurnInput } from '../core/burning.ts';
 import { eligibleUnreservedCoins, walletReservations } from '../core/wallet-reservations.ts';
 import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, validateAssetDelivery, writeAssetDeliveryRecord, type AssetDeliveryAsset, type AssetDeliveryRecord, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from '../core/asset-delivery.ts';
@@ -114,10 +114,18 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
 }
 export async function listWalletAssets(account: AccountSecret, signal: AbortSignal): Promise<BisAsset[]> {
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
-  const p = providers(deadline, undefined, undefined, account.network ?? 'signet');
+  const network = account.network ?? 'signet';
+  const p = providers(deadline, undefined, undefined, network);
   const identity = await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly();
   return withTemporaryWallet(ReadonlyWallet.create({ identity, arkProvider: p.arkProvider, indexerProvider: p.indexerProvider, storage: storage() }), deadline, async wallet => {
-    const owned = await readFreshAssets(wallet); p.assertFresh(); return owned.map(o => o.asset);
+    const owned = await readFreshAssets(wallet); p.assertFresh();
+    let records: ReturnType<typeof readAssetRecords> = [];
+    try { records = readAssetRecords(account.profileId, network); } catch { /* Local provenance is optional; chain ownership remains authoritative. */ }
+    return owned.map(({asset}) => {
+      const record = records.find(item => item.status === 'succeeded' && item.asset?.assetId === asset.assetId);
+      const transactionId = record?.transactionId && /^[a-f0-9]{64}$/i.test(record.transactionId) ? record.transactionId : undefined;
+      return record ? {...asset, sourceOperationId: record.request.operationId, ...(transactionId ? {sourceTransactionId: transactionId} : {})} : asset;
+    });
   }, 30000);
 }
 

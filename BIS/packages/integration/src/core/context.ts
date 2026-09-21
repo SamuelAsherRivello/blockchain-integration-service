@@ -368,7 +368,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     current = version;
     confirmedProfile = loaded.account?.profileId;
     generation = loaded.generation; failure = undefined; logoutTarget = undefined;
-    update({...((closeOnAbsence || logout) && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
+    update({...((closeOnAbsence || logout) && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,network:loaded.account?.network ?? state.network,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
     if (former && former!==loaded.account?.profileId) emit({type:'accountDisconnected',profileId:former}, current);
     if (!suppressConnectionEvent && previouslyHydrated&&loaded.account && former!==loaded.account.profileId) emit({type:'accountConnected',profileId:loaded.account.profileId},current);
     if (logout && !publishedLogouts.has(logout.id)) {
@@ -389,7 +389,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     const current=version, profileId=state.profileId, expectedGeneration=generation;
     const saved=await readStable(current);
     if(disposed||version!==current||!saved.account||saved.account.profileId!==profileId||saved.generation!==expectedGeneration)throw Error('The account changed. Review again.');
-    return saved.account;
+    return {...saved.account,network:saved.account.network ?? state.network ?? 'signet'};
   }
   async function readAssetSnapshot(signal: AbortSignal) {
     const account = await activeTransferAccount();
