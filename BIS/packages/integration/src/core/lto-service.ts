@@ -7,7 +7,7 @@ import { createContractStorage, type ContractDocument, type ContractRecovery } f
 import { beginContractOperation, contractResolved, endContract, finishContractOperation, presentContract, startLto, contractFailureMessages, type BisContract, type ContractRecord, type LtoRequest } from './contracts.ts';
 import { publishContractReservations, reserveContract } from './contract-reservations.ts';
 import { prepareLtoRecovery, reconcileLtoSpend, resumeLtoFinalization, submitLtoSpend } from '../arkade/lto-contract.ts';
-import { SIGNET_OPERATOR, operatorFor } from '../arkade/account.ts';
+import { operatorFor } from '../arkade/account.ts';
 import { isTestNetwork, type TestNetwork } from './test-network.ts';
 
 export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string; exclusivityKey?: string; gameId?: string; hostReference?: string; includeResolved?: boolean; includeOtherNetworks?: boolean }>;
@@ -72,8 +72,8 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     return {player:player.account,game};
   }
   const current = (playerId:string, gameId:string) => context.getState().profileId === playerId && gameWallet.getState().profileId === gameId;
-  async function locked<T>(profileId: string, work: () => Promise<T>): Promise<T> {
-    return withWalletMutation(()=>navigator.locks.request('bis-signet-contracts-v1',{ifAvailable:true},lock=>{
+  async function locked<T>(profileId: string, work: () => Promise<T>, network:TestNetwork='signet'): Promise<T> {
+    return withWalletMutation(()=>navigator.locks.request(`bis-${network}-contracts-v1`,{ifAvailable:true},lock=>{
       if (!lock) throw Error('Another contract operation is in progress.');
       return work();
     }),profileId);
@@ -126,7 +126,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           document=await save(document,record,recovery);
           notify(record); accepted=true; resolve({status:'pending',contract:presentContract(record,Date.now())});
           await execute(document,record,recovery,signer);
-        });
+        },signer.network ?? 'signet');
       })().catch(()=>{ if(!accepted)resolve({status:'unavailable'}); });
     });
   }
@@ -138,8 +138,9 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       await locked(game.profileId,async()=>{
         let document=await storage.load();
         publishContractReservations(document);
+        const network=game.network ?? 'signet';
         for (const original of document.ledger.contracts) {
-          if (original.scope.gameId!==game.profileId || original.scope.network!=='signet' || original.scope.operator!==SIGNET_OPERATOR || contractResolved(original)) continue;
+          if (original.scope.gameId!==game.profileId || original.scope.network!==network || original.scope.operator!==operatorFor(network) || contractResolved(original)) continue;
           let record=ended(original), recovery=document.recovery[record.id];
           // Holding both mutation locks proves no writer can still submit a prepared operation.
           // Every provider call first durably transitions to submitted, so prepared is safe to abandon.
@@ -156,9 +157,20 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
             const returned=await execute(document,record,recovery,game); document=returned.document;
           }
         }
-      });
+      },game.network ?? 'signet');
     } catch { /* Uncertainty retains both the slot and its reservation. The Contracts query stays available. */ }
     finally { ticking=false; }
+  }
+  async function prepareExclusiveReplacement(playerId:string, gameId:string, exclusivityKey:string, currentKey:string):Promise<boolean> {
+    const document=await storage.load();
+    const prior=document.ledger.contracts.filter(record=>!contractResolved(record)&&record.scope.playerId===playerId&&record.scope.gameId===gameId&&record.scope.exclusivityKey===exclusivityKey);
+    if(!prior.length)return true;
+    for(const record of prior)persistEnd(record,'session-ended');
+    await Promise.all([...attempts.entries()].filter(([key])=>key!==currentKey).map(([,attempt])=>attempt.catch(()=>undefined)));
+    await Promise.resolve();
+    await reconcile();
+    const after=await storage.load();
+    return !after.ledger.contracts.some(record=>!contractResolved(record)&&record.scope.playerId===playerId&&record.scope.gameId===gameId&&record.scope.exclusivityKey===exclusivityKey);
   }
   const controller = {
     checkContracts: async(filter: BisContractFilter = {}):Promise<BisContractsResult> => {
@@ -172,18 +184,18 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       if(attempts.has(key))return attempts.get(key)!;
       const attempt=(async():Promise<BisContractActionResult>=>{
         if(detached||options.creationEnabled===false||!playerId||!gameId||playerId===gameId||context.getState().phase!=='active'||gameWallet.getState().status!=='ready')return {status:'unavailable'};
-        const scope={network:'signet',operator:SIGNET_OPERATOR,playerId,gameId,exclusivityKey:request.exclusivityKey};
+        const network=context.getState().network ?? 'signet';
+        const scope={network,operator:operatorFor(network),playerId,gameId,exclusivityKey:request.exclusivityKey};
         started.set(request.sessionId,{scope,sessionId:request.sessionId});
         // A persisted attempt marker also prevents a late retry after lock/readiness failure or reload.
         const marker=`bis-lto-attempt-v1:${encodeURIComponent(key)}`;
         if(localStorage.getItem(marker)!==null)return {status:'unavailable'};
         localStorage.setItem(marker,'attempted');if(localStorage.getItem(marker)!=='attempted')return {status:'unavailable'};
+        if(!await prepareExclusiveReplacement(playerId,gameId,request.exclusivityKey,key))return {status:'unavailable'};
         return locked(gameId,async()=>{
           const {player,game}=await wallets();
-          if(!player||!game||player.profileId!==playerId||game.profileId!==gameId||!current(playerId,gameId))return {status:'unavailable'};
+          if(!player||!game||player.profileId!==playerId||game.profileId!==gameId||player.network!==game.network||player.network!==network||!current(playerId,gameId))return {status:'unavailable'};
           let document=await storage.load();
-          // End the prior offer immediately. Its asynchronous refund cannot create a late replacement.
-          for(const record of document.ledger.contracts)if(!contractResolved(record)&&record.scope.playerId===playerId&&record.scope.gameId===gameId&&record.scope.exclusivityKey===request.exclusivityKey)persistEnd(record,'session-ended');
           const allocated=startLto(document.ledger,{...request,scope,id:crypto.randomUUID(),operationId:crypto.randomUUID()},Date.now());
           if(!allocated.contract) { await storage.save({...document,ledger:allocated.ledger}); return {status:'unavailable'}; }
           const recovery=await dependencies.prepare(game,player);
@@ -193,7 +205,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           publishContractReservations(document);notify(record);
           const result=await execute(document,record,recovery,game);
           return {status:result.record.operation.submission==='confirmed'?'confirmed':result.record.operation.submission==='not-submitted'?'not-submitted':'pending',contract:presentContract(ended(result.record),Date.now())};
-        });
+        },network);
       })().catch(()=>({status:'unavailable' as const}));
       attempts.set(key,attempt);void attempt.finally(()=>{void reconcile();});return attempt;
     },
@@ -227,7 +239,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
   const cleanup=setInterval(()=>{
     if(!detached)return;
     void Promise.all([storage.load(),gameStorage.load()]).then(([document,game])=>{
-      const outstanding=document.ledger.contracts.some(record=>record.scope.gameId===detachedGameId&&record.scope.network==='signet'&&record.scope.operator===SIGNET_OPERATOR&&!contractResolved(record));
+      const outstanding=document.ledger.contracts.some(record=>record.scope.gameId===detachedGameId&&record.scope.network===((game?.network)??'signet')&&record.scope.operator===operatorFor((game?.network)??'signet')&&!contractResolved(record));
       // A replacement signer cannot resolve this worker's contracts. Keep their
       // durable records for a future service using the original game identity.
       if(!outstanding||game?.profileId!==detachedGameId){clearInterval(interval);clearInterval(cleanup);globalThis.document.removeEventListener('visibilitychange',visible);gameStorage.dispose();}

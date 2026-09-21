@@ -80,6 +80,7 @@ test('Mint Asset uses the shared shell and orders Quick fill, Preview, Form, act
 test('Mint Asset pairs Destination with Control Asset and previews a non-blank icon URL', async () => {
   const source = await readFile(new URL('MintAssetDialog.tsx', adminUrl), 'utf8');
   const css = await readFile(new URL('assets.css', adminUrl), 'utf8');
+  assert.match(source, /<label>Source<select aria-label="Source"[^>]*disabled[^>]*>\s*<option value="game">Game wallet<\/option>/s);
   const rowStart = source.indexOf('mint-control-row');
   const destination = source.indexOf('>Destination<', rowStart);
   const controlAsset = source.indexOf('>Control Asset<', rowStart);

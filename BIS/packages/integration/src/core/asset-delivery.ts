@@ -1,12 +1,15 @@
 export type BisAssetDeliveryRequest = Readonly<{operationId:string; assetId:string; quantity:string; recipient:string}>;
+import type { BisMintAssetRequest } from './assets.ts';
 export type BisAssetDeliveryResult = Readonly<{status:'delivered'|'already-delivered'; profileId:string; operationId:string; assetId:string; quantity:string; recipient:string; transactionId:string}>
   | Readonly<{status:'error'; code:'invalid-input'|'unavailable'|'outcome-unknown'|'account-changed'; message:string; profileId?:string; operationId?:string}>;
+export type BisPendingAssetDeliveryResult = Readonly<{status:'success'; profileId:string; request:BisAssetDeliveryRequest|null; mintRequest?:BisMintAssetRequest}> | Readonly<{status:'error'; code:'outcome-unknown'|'unavailable'; message:string; profileId?:string}>;
 export type AssetDeliveryInput = Readonly<{txid:string;vout:number}>;
 export type AssetDeliveryAsset = Readonly<{assetId:string;quantity:string}>;
-export type AssetDeliveryRecord = Readonly<{version:1;id:string;profileId:string;request:BisAssetDeliveryRequest;status:'pending'|'succeeded';inputs:readonly AssetDeliveryInput[];inputAssets:readonly AssetDeliveryAsset[];senderScript:string;recipientScript:string;sourceQuantity:string;transactionId?:string}>;
+import type { TestNetwork } from './test-network.ts';
+export type AssetDeliveryRecord = Readonly<{version:1;id:string;profileId:string;network?:TestNetwork;request:BisAssetDeliveryRequest;status:'pending'|'succeeded';inputs:readonly AssetDeliveryInput[];inputAssets:readonly AssetDeliveryAsset[];senderScript:string;recipientScript:string;sourceQuantity:string;transactionId?:string}>;
 
-const key=(profileId:string)=>`bis-signet-asset-delivery-v1:${encodeURIComponent(profileId)}`;
-const operationKey=(profileId:string,id:string)=>`${key(profileId)}:${id}`;
+const key=(profileId:string,network:TestNetwork='signet')=>`bis-${network}-asset-delivery-v1:${encodeURIComponent(profileId)}`;
+const operationKey=(profileId:string,id:string,network:TestNetwork='signet')=>`${key(profileId,network)}:${id}`;
 export class AssetDeliveryError extends Error {
   code:Extract<BisAssetDeliveryResult,{status:'error'}>['code'];
   constructor(code:AssetDeliveryError['code'],message:string){super(message);this.code=code;}
@@ -24,11 +27,11 @@ function validateAsset(asset:unknown):asset is AssetDeliveryAsset {
   return !!asset&&typeof asset==='object'&&typeof (asset as AssetDeliveryAsset).assetId==='string'&&/^[a-f0-9]{68}$/i.test((asset as AssetDeliveryAsset).assetId)
     &&typeof (asset as AssetDeliveryAsset).quantity==='string'&&/^[1-9][0-9]{0,19}$/.test((asset as AssetDeliveryAsset).quantity);
 }
-function validRecord(value:unknown,profileId:string,storageKey:string):value is AssetDeliveryRecord {
+function validRecord(value:unknown,profileId:string,storageKey:string,network:TestNetwork='signet'):value is AssetDeliveryRecord {
   if(!value||typeof value!=='object')return false;
   const record=value as AssetDeliveryRecord;
   try {validateAssetDelivery(record.request);}catch{return false;}
-  return record.version===1&&record.id===record.request.operationId&&record.profileId===profileId&&storageKey===operationKey(profileId,record.id)
+  return record.version===1&&record.id===record.request.operationId&&record.profileId===profileId&&(record.network??'signet')===network&&storageKey===operationKey(profileId,record.id,network)
     &&(record.status==='pending'||record.status==='succeeded')&&Array.isArray(record.inputs)&&record.inputs.length>0&&record.inputs.every(validateInput)
     &&Array.isArray(record.inputAssets)&&record.inputAssets.length>0&&record.inputAssets.every(validateAsset)&&new Set(record.inputAssets.map(asset=>asset.assetId)).size===record.inputAssets.length
     &&typeof record.senderScript==='string'&&/^5120[a-f0-9]{64}$/i.test(record.senderScript)
@@ -36,40 +39,40 @@ function validRecord(value:unknown,profileId:string,storageKey:string):value is 
     &&typeof record.sourceQuantity==='string'&&/^[1-9][0-9]{0,19}$/.test(record.sourceQuantity)&&BigInt(record.sourceQuantity)>=BigInt(record.request.quantity)
     &&(record.transactionId===undefined||/^[a-f0-9]{64}$/i.test(record.transactionId))&&!(record.status==='succeeded'&&!record.transactionId);
 }
-export function readAssetDeliveryRecords(profileId:string|undefined):AssetDeliveryRecord[] {
+export function readAssetDeliveryRecords(profileId:string|undefined,network:TestNetwork='signet'):AssetDeliveryRecord[] {
   if(!profileId)return [];
   try {
     const records:AssetDeliveryRecord[]=[];
     for(let index=0;index<localStorage.length;index++){
       const storageKey=localStorage.key(index);
-      if(!storageKey?.startsWith(`${key(profileId)}:`))continue;
+      if(!storageKey?.startsWith(`${key(profileId,network)}:`))continue;
       const record=JSON.parse(localStorage.getItem(storageKey)!);
-      if(!validRecord(record,profileId,storageKey)||records.some(item=>item.id===record.id))throw Error();
+      if(!validRecord(record,profileId,storageKey,network)||records.some(item=>item.id===record.id))throw Error();
       records.push(record);
     }
     return records.sort((a,b)=>a.id.localeCompare(b.id));
   }catch{throw new AssetDeliveryError('outcome-unknown','Item delivery confirmation is pending.');}
 }
-export function readAssetDeliveryRecord(profileId:string|undefined,operationId?:string):AssetDeliveryRecord|undefined {
-  const records=readAssetDeliveryRecords(profileId);
+export function readAssetDeliveryRecord(profileId:string|undefined,operationId?:string,network:TestNetwork='signet'):AssetDeliveryRecord|undefined {
+  const records=readAssetDeliveryRecords(profileId,network);
   return operationId===undefined?records.find(record=>record.status==='pending'):records.find(record=>record.id===operationId);
 }
 export function writeAssetDeliveryRecord(record:AssetDeliveryRecord):void {
-  const request=validateAssetDelivery(record.request),storageKey=operationKey(record.profileId,record.id);
-  if(record.id!==request.operationId||!validRecord({...record,request},record.profileId,storageKey))throw new AssetDeliveryError('invalid-input','Item delivery recovery data is invalid.');
-  const existing=readAssetDeliveryRecord(record.profileId,record.id);
+  const network=record.network ?? 'signet',request=validateAssetDelivery(record.request),storageKey=operationKey(record.profileId,record.id,network);
+  if(record.id!==request.operationId||!validRecord({...record,request,network},record.profileId,storageKey,network))throw new AssetDeliveryError('invalid-input','Item delivery recovery data is invalid.');
+  const existing=readAssetDeliveryRecord(record.profileId,record.id,network);
   if(existing&&JSON.stringify(existing.request)!==JSON.stringify(request))throw new AssetDeliveryError('invalid-input','The item delivery request changed.');
   if(existing?.status==='succeeded'&&record.status!=='succeeded')throw new AssetDeliveryError('outcome-unknown','The item delivery already has a confirmed result.');
   const raw=JSON.stringify({...record,request});
   try{localStorage.setItem(storageKey,raw);if(localStorage.getItem(storageKey)!==raw)throw Error();}
   catch{throw new AssetDeliveryError('unavailable','Item delivery status could not be saved.');}
 }
-export function assertNoPendingAssetDelivery(profileId:string|undefined):void {
-  if(readAssetDeliveryRecords(profileId).some(record=>record.status==='pending'))throw new AssetDeliveryError('outcome-unknown','An item delivery has an unknown outcome. Its exact asset and inputs remain reserved until resolved.');
+export function assertNoPendingAssetDelivery(profileId:string|undefined,network:TestNetwork='signet'):void {
+  if(readAssetDeliveryRecords(profileId,network).some(record=>record.status==='pending'))throw new AssetDeliveryError('outcome-unknown','An item delivery has an unknown outcome. Its exact asset and inputs remain reserved until resolved.');
 }
 
-export function completeAssetDelivery(profileId:string,operationId:string,transactionId:string):AssetDeliveryRecord {
-  const record=readAssetDeliveryRecord(profileId,operationId);
+export function completeAssetDelivery(profileId:string,operationId:string,transactionId:string,network:TestNetwork='signet'):AssetDeliveryRecord {
+  const record=readAssetDeliveryRecord(profileId,operationId,network);
   if(!record||record.profileId!==profileId||record.transactionId!==transactionId)throw new AssetDeliveryError('outcome-unknown','Item delivery recovery data changed. Do not submit another delivery.');
   if(record.status==='succeeded')return record;
   const next={...record,status:'succeeded' as const};

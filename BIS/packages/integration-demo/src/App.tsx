@@ -93,12 +93,12 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
   const logAsset = (label: string, result: unknown) => setConsoleLines([`${label}\n${JSON.stringify(result, null, 2)}`]);
   function openMint() { if (!assetBusy) setMintOpen(true); }
   const prepareMint = useCallback((destination: MintDestination) => {
-    const wallet = destination === 'player' ? session.current?.context : gameWalletRef.current;
-    const current = () => destination === 'player'
-      ? session.current?.context === wallet && session.current?.context.getState().phase === 'active'
-      : gameWalletRef.current === wallet;
-    return prepareMintDestination(destination, wallet, current, result => setConsoleLines([`Mint Asset\n${JSON.stringify(result, null, 2)}`])).catch(error => {
-      if (current()) setConsoleLines([`Mint Asset\n${JSON.stringify({destination, profileId:wallet?.getState().profileId, status:'error', message:error instanceof Error ? error.message : 'Destination unavailable.'}, null, 2)}`]);
+    const source = gameWalletRef.current;
+    const player = session.current?.context;
+    const wallet = destination === 'player' ? player : source;
+    const current = () => gameWalletRef.current === source && (!player || session.current?.context === player) && (destination === 'game' || player?.getState().phase === 'active');
+    return prepareMintDestination(destination, source, wallet, current, result => setConsoleLines([`Mint Asset\n${JSON.stringify(result, null, 2)}`])).catch(error => {
+      if (current()) setConsoleLines([`Mint Asset\n${JSON.stringify({source:'game',destination,profileId:source?.getState().profileId,status:'error',message:error instanceof Error ? error.message : 'Destination unavailable.'}, null, 2)}`]);
       throw error;
     });
   }, []);

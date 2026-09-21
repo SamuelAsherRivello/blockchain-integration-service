@@ -33,3 +33,13 @@ test('multi-send migration preserves original records and late completion target
  localStorage.setItem=()=>{throw Error('write failed');};assert.throws(()=>migrateWalletReservations('p'));
  assert.equal(readSendRecords('p').length,2);
 });
+
+test('send journals and reservations stay isolated between Signet and Mutinynet',()=>{
+ const data=new Map();
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return data.size;},key:i=>[...data.keys()][i]??null,getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)}});
+ const record=(id,network,coin)=>({version:1,id,profileId:'p',network,status:'pending',transactionId:id.repeat(64),quote:{id,profileId:'p',recipient:'tark1test',amountSats:500,feeSats:0,totalSats:500,maxSats:coin.value,expiresAt:2000,fingerprint:'e'.repeat(64)},inputs:[{txid:coin.txid,vout:coin.vout}],recipientScript:'5120'+'f'.repeat(64)});
+ writeSendRecord(record('a','signet',a));writeSendRecord(record('b','mutinynet',b));
+ assert.equal(readSendRecords('p','signet').length,1);assert.equal(readSendRecords('p','mutinynet').length,1);
+ assert.deepEqual(walletReservations('p','signet').map(operation=>operation.inputs?.[0].txid),[a.txid]);
+ assert.deepEqual(walletReservations('p','mutinynet').map(operation=>operation.inputs?.[0].txid),[b.txid]);
+});

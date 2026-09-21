@@ -19,21 +19,22 @@ export function paymentSender(row: BisTransaction, playerId: string): string | u
     } catch { /* Missing metadata never prevents a real receipt notification. */ }
   }
 }
-export function assertPlayerPaymentAvailable(profileId: string) {
-  eligibleUnreservedCoins([],walletReservations(profileId));
+export function assertPlayerPaymentAvailable(profileId: string,network:'signet'|'mutinynet'='signet') {
+  eligibleUnreservedCoins([],walletReservations(profileId,network));
 }
 const adapter = {quote: quoteSend, submit: submitSend, reconcile: reconcileSend};
 export function createGamePlayerPayments(dependencies = adapter) {
   return {
     async pay(account: AccountSecret, recipient: BisPlayerRecipient, amountSats:number, signal: AbortSignal, current: () => boolean) {
       return withWalletMutation(async () => {
-        assertPlayerPaymentAvailable(account.profileId);
-        if(readSendRecords(account.profileId).some(record=>record.status==='pending' && paymentSender({identifier:`ark:${record.transactionId}`,amountSats:record.quote.amountSats} as BisTransaction,recipient.profileId)===account.profileId))throw Error('This player payment is still pending verification.');
+        const network=account.network ?? 'signet';
+        assertPlayerPaymentAvailable(account.profileId,network);
+        if(readSendRecords(account.profileId,network).some(record=>record.status==='pending' && paymentSender({identifier:`ark:${record.transactionId}`,amountSats:record.quote.amountSats} as BisTransaction,recipient.profileId)===account.profileId))throw Error('This player payment is still pending verification.');
         if (!recipient.profileId || recipient.profileId === account.profileId || !Number.isSafeInteger(amountSats) || amountSats<=0 || !current()) throw Error('An active separate player and exact whole-sats payment are required.');
         const quote = await dependencies.quote(account, recipient.address, amountSats, signal, true);
         if (!current() || signal.aborted) throw Error('The player or game wallet changed.');
         const journal: SendJournal = {
-          read: readSendRecord,
+          read: (profileId) => readSendRecord(profileId,undefined,network),
           write(record) {
             const key = prefix + record.transactionId;
             const raw = JSON.stringify({senderId: account.profileId, playerId: recipient.profileId, amountSats});
@@ -43,14 +44,14 @@ export function createGamePlayerPayments(dependencies = adapter) {
             const owner = 'bis-game-wallet-send-owner:' + encodeURIComponent(account.profileId);
             localStorage.setItem(owner, '1');
             if (localStorage.getItem(owner) !== '1') throw Error('Payment recovery could not be saved.');
-            writeSendRecord(record);
-          }, complete: completeSend,
+            writeSendRecord({...record,network});
+          }, complete: (id,transactionId,profileId) => completeSend(id,transactionId,profileId,network),
         };
         return sendStatus(await dependencies.submit(account, quote, current, journal, true));
-      }, account.profileId);
+      }, account.profileId,account.network ?? 'signet');
     },
     async check(account: AccountSecret, signal: AbortSignal) {
-      return withWalletMutation(async () => sendStatus(await dependencies.reconcile(account, signal)), account.profileId);
+      return withWalletMutation(async () => sendStatus(await dependencies.reconcile(account, signal)), account.profileId,account.network ?? 'signet');
     },
   };
 }

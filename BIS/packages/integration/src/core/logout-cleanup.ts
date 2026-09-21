@@ -1,11 +1,13 @@
 import {assertNoPendingContinue,continuationPrefix,readContinuations} from './continuation.ts';
 import {readContractReservations} from './contract-reservations.ts';
 import {onboardingKey,readOnboardingRecord} from './onboarding-record.ts';
+import {testNetworks} from './test-network.ts';
 export const browserMutationLock = 'bis-signet-browser-mutation';
 export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
 type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
-const journalPrefixes = ['bis-signet-boarding-operation-v1', 'bis-signet-send-operation-v1', 'bis-signet-mints-v1', 'bis-signet-burn-operation-v1', 'bis-signet-asset-delivery-v1','bis-signet-onboarding-v1'];
-const cleanupPrefixes = [...journalPrefixes, 'bis-signet-wallet-operations-v2'];
+const burnPrefixes = testNetworks.map(network => `bis-${network.id}-burn-operation-v1`);
+const journalPrefixes = testNetworks.flatMap(network => [`bis-${network.id}-boarding-operation-v1`,`bis-${network.id}-send-operation-v1`,`bis-${network.id}-mints-v1`,`bis-${network.id}-asset-delivery-v1`,`bis-${network.id}-wallet-operations-v2`]).concat(burnPrefixes,'bis-signet-onboarding-v1');
+const cleanupPrefixes = [...journalPrefixes];
 function owns(key: string, storage: WebStorage) {
   if (key.startsWith(continuationPrefix)) {
     try { readContinuations(decodeURIComponent(key.slice(continuationPrefix.length)), storage); return false; }
@@ -18,17 +20,17 @@ function keys(storage: WebStorage) {
   return Array.from({length: storage.length}, (_, i) => storage.key(i)).filter((key): key is string => key !== null);
 }
 function gameBoarding(key: string, storage: WebStorage) {
-  const sharedPrefix = ['bis-signet-wallet-operations-v2:', 'bis-signet-continuations-v1:', 'bis-signet-burn-operation-v1:', 'bis-signet-asset-delivery-v1:'].find(prefix => key.startsWith(prefix));
+  const sharedPrefix = [...testNetworks.flatMap(network => [`bis-${network.id}-wallet-operations-v2:`,`bis-${network.id}-asset-delivery-v1:`,`bis-${network.id}-mints-v1:`,`bis-${network.id}-send-operation-v1:`,`bis-${network.id}-boarding-operation-v1:`]), 'bis-signet-continuations-v1:', ...burnPrefixes.map(prefix => `${prefix}:`)].find(prefix => key.startsWith(prefix));
   if (sharedPrefix) {
     const owner = key.slice(sharedPrefix.length).split(':')[0];
     return ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:', 'bis-game-wallet-delivery-owner:'].some(prefix => storage.getItem(prefix + owner) === '1');
   }
-  const mintPrefix='bis-signet-mints-v1:';
-  if(key.startsWith(mintPrefix)&&storage.getItem('bis-game-wallet-mint-owner:'+key.slice(mintPrefix.length))==='1')return true;
-  const sendPrefix = 'bis-signet-send-operation-v1:';
-  if (key.startsWith(sendPrefix) && storage.getItem('bis-game-wallet-send-owner:' + key.slice(sendPrefix.length).split(':operation:')[0]) === '1') return true;
-  const prefix = 'bis-signet-boarding-operation-v1:';
-  if (!key.startsWith(prefix)) return false;
+  const mintPrefix=testNetworks.map(network=>`bis-${network.id}-mints-v1:`).find(prefix=>key.startsWith(prefix));
+  if(mintPrefix&&storage.getItem('bis-game-wallet-mint-owner:'+key.slice(mintPrefix.length))==='1')return true;
+  const sendPrefix = testNetworks.map(network=>`bis-${network.id}-send-operation-v1:`).find(prefix=>key.startsWith(prefix));
+  if (sendPrefix && storage.getItem('bis-game-wallet-send-owner:' + key.slice(sendPrefix.length).split(':operation:')[0]) === '1') return true;
+  const prefix = testNetworks.map(network=>`bis-${network.id}-boarding-operation-v1:`).find(prefix=>key.startsWith(prefix));
+  if (!prefix) return false;
   const owner = key.slice(prefix.length).split(':operation:')[0];
   return storage.getItem('bis-game-wallet-boarding-owner:' + owner) === '1';
 }
@@ -44,12 +46,12 @@ export function pendingLogoutOperations(storage: WebStorage | undefined = global
     const raw = storage.getItem(key);
     if (raw === null) continue;
     const record = JSON.parse(raw);
-    if(profileId&&prefix!=='bis-signet-mints-v1'&&record?.profileId!==profileId)continue;
+    if(profileId&&!prefix.endsWith('-mints-v1')&&record?.profileId!==profileId)continue;
     if(prefix==='bis-signet-onboarding-v1'){
       if(onboardingKey(record)!==key||!readOnboardingRecord(record,storage))throw Error('Pending operations could not be counted.');
       if(record.status==='pending')pending.add(`${prefix}:${record.profileId}:${record.id}`);
-    } else if (prefix === 'bis-signet-mints-v1') {
-      if(profileId&&!key.startsWith(`bis-signet-mints-v1:${encodeURIComponent(profileId)}`))continue;
+    } else if (prefix.endsWith('-mints-v1')) {
+      if(profileId&&!key.startsWith(`${prefix}:${encodeURIComponent(profileId)}`))continue;
       if (!Array.isArray(record?.operations)) throw Error('Pending operations could not be counted.');
       for (const op of record.operations) {
         if (!['pending','succeeded'].includes(op?.status) || typeof op.request?.operationId !== 'string') throw Error('Pending operations could not be counted.');
@@ -75,11 +77,8 @@ export function clearBrowserProfilePreferences(profileId:string, storage:WebStor
   if(!storage)return;
   const encoded=encodeURIComponent(profileId);
   const profilePrefixes=[
-    `bis-signet-boarding-operation-v1:${encoded}`,
-    `bis-signet-send-operation-v1:${encoded}`,
-    `bis-signet-mints-v1:${encoded}`,
-    `bis-signet-burn-operation-v1:${encoded}`,
-    `bis-signet-asset-delivery-v1:${encoded}`,
+    ...testNetworks.flatMap(network=>[`bis-${network.id}-boarding-operation-v1:${encoded}`,`bis-${network.id}-send-operation-v1:${encoded}`,`bis-${network.id}-mints-v1:${encoded}`,`bis-${network.id}-asset-delivery-v1:${encoded}`,`bis-${network.id}-wallet-operations-v2:${encoded}`]),
+    ...burnPrefixes.map(prefix => `${prefix}:${encoded}`),
     `bis-signet-onboarding-v1:${encoded}`,
     `bis-signet-wallet-operations-v2:${encoded}`,
     `bis-signet-continuations-v1:${encoded}`,

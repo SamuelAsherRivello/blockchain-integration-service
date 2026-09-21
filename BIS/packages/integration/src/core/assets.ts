@@ -1,5 +1,6 @@
 export type BisAssetMetadataValue = string | number | boolean | null;
 export type BisAssetMetadata = Readonly<Record<string, BisAssetMetadataValue>>;
+import type { TestNetwork } from './test-network.ts';
 export type BisAsset = Readonly<{ assetId: string; name?: string; ticker?: string; quantity: string; decimals?: number; iconUrl?: string; metadata?: BisAssetMetadata }>;
 export type BisMintAssetRequest = Readonly<{ operationId: string; name: string; ticker: string; amount: string; decimals: number; iconUrl?: string; metadata?: BisAssetMetadata }>;
 export type BisAssetErrorCode = 'account-required' | 'invalid-input' | 'insufficient-funds' | 'unavailable' | 'outcome-unknown' | 'account-changed' | 'disposed' | 'unsupported-environment' | 'busy';
@@ -82,36 +83,36 @@ export function validateMint(input: BisMintAssetRequest): BisMintAssetRequest {
   const metadata = normalizeAssetMetadata(input.metadata);
   return Object.freeze({operationId: input.operationId, name: input.name, ticker: input.ticker, amount: input.amount, decimals: input.decimals, ...(input.iconUrl ? {iconUrl: input.iconUrl} : {}), ...(metadata ? {metadata} : {})});
 }
-export type AssetRecord = { request: BisMintAssetRequest; status: 'pending' | 'succeeded'; asset?: BisAsset; transactionId?: string };
-const recordKey = (profileId: string) => `bis-signet-mints-v1:${encodeURIComponent(profileId)}`;
-export function readAssetRecords(profileId: string): AssetRecord[] {
+export type AssetRecord = { request: BisMintAssetRequest; status: 'pending' | 'succeeded'; asset?: BisAsset; transactionId?: string; network?: TestNetwork };
+const recordKey = (profileId: string,network:TestNetwork='signet') => `bis-${network}-mints-v1:${encodeURIComponent(profileId)}`;
+export function readAssetRecords(profileId: string,network:TestNetwork='signet'): AssetRecord[] {
   try {
-    const raw = localStorage.getItem(recordKey(profileId));
+    const raw = localStorage.getItem(recordKey(profileId,network));
     if (raw === null) return [];
     const r = JSON.parse(raw);
     if (r.version !== 1 || !Array.isArray(r.operations)) throw Error();
     const ids = new Set();
     for (const op of r.operations) {
       validateMint(op.request);
-      if (ids.has(op.request.operationId) || !['pending', 'succeeded'].includes(op.status) || (op.status === 'succeeded' && (!op.asset || typeof op.asset.assetId !== 'string' || typeof op.asset.quantity !== 'string'))) throw Error();
+      if (ids.has(op.request.operationId) || (op.network??'signet')!==network || !['pending', 'succeeded'].includes(op.status) || (op.status === 'succeeded' && (!op.asset || typeof op.asset.assetId !== 'string' || typeof op.asset.quantity !== 'string'))) throw Error();
       ids.add(op.request.operationId);
     }
     return r.operations;
   } catch { throw new AssetError('outcome-unknown'); }
 }
-export function checkMintRecord(profileId: string, request: BisMintAssetRequest): AssetRecord | undefined {
-  const records = readAssetRecords(profileId);
+export function checkMintRecord(profileId: string, request: BisMintAssetRequest,network:TestNetwork='signet'): AssetRecord | undefined {
+  const records = readAssetRecords(profileId,network);
   const existing = records.find(r => r.request.operationId === request.operationId);
   if (existing && JSON.stringify(validateMint(existing.request)) !== JSON.stringify(validateMint(request))) throw new AssetError('invalid-input');
   if (records.some(r => r.status === 'pending' && r.request.operationId !== request.operationId)) throw new AssetError('outcome-unknown');
   return existing;
 }
 export function writeAssetRecord(profileId: string, record: AssetRecord) {
-  const records = readAssetRecords(profileId);
+  const network=record.network ?? 'signet',records = readAssetRecords(profileId,network);
   const i = records.findIndex(r => r.request.operationId === record.request.operationId);
   if (i >= 0) records[i] = record; else records.push(record);
   try {
-    const key = recordKey(profileId), value = JSON.stringify({version: 1, operations: records});
+    const key = recordKey(profileId,network), value = JSON.stringify({version: 1, operations: records.map(item=>({...item,network}))});
     localStorage.setItem(key, value);
     if (localStorage.getItem(key) !== value) throw Error();
   } catch { throw new AssetError('unavailable'); }

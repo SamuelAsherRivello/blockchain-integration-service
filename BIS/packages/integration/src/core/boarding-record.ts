@@ -2,9 +2,11 @@ import {readWalletRecord, walletRecordKey} from './wallet-record.ts';
 import { withBrowserMutation } from './logout-cleanup.ts';
 import type { BoardingQuote } from './boarding-quote.ts';
 import { validBoardingAssetChange, type BoardingAssetChange } from './boarding-assets.ts';
+import type { TestNetwork } from './test-network.ts';
 
 export type BoardingRecord = {
   version: 1; id: string; profileId: string;
+  network?: TestNetwork;
   status: 'pending' | 'succeeded' | 'not-submitted';
   phase?: 'prepared' | 'submitting' | 'registered';
   quote: BoardingQuote; inputs: {txid:string;vout:number}[];
@@ -58,7 +60,7 @@ function failureCode(error:unknown):BoardingFailure['code'] {
   } catch { /* Even an error accessor can throw. */ }
   return 'unknown';
 }
-const key = 'bis-signet-boarding-operation-v1';
+const key = (network:TestNetwork='signet') => `bis-${network}-boarding-operation-v1`;
 const txid = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
 export class BoardingBlockedError extends Error {}
 export class PendingTransferConfirmationError extends BoardingBlockedError {}
@@ -92,44 +94,44 @@ function validate(r: BoardingRecord): BoardingRecord {
   const failure=publicBoardingFailure(rawFailure);
   return failure?{...record,failure}:record;
 }
-export function readBoardingRecords(profileId: string | undefined): BoardingRecord[] {
+export function readBoardingRecords(profileId: string | undefined, network:TestNetwork='signet'): BoardingRecord[] {
   if(!profileId)return [];
   try {
-    const first=readWalletRecord(key,profileId,validate);
+    const journalKey=key(network), first=readWalletRecord(journalKey,profileId,validate);
     const records=first?[first]:[];
-    const prefix=`${walletRecordKey(key,profileId)}:operation:`;
+    const prefix=`${walletRecordKey(journalKey,profileId)}:operation:`;
     for(let i=0;i<localStorage.length;i++) {
       const entry=localStorage.key(i);
       if(!entry?.startsWith(prefix))continue;
       const record=validate(JSON.parse(localStorage.getItem(entry)!));
-      if(record.profileId!==profileId||entry!==prefix+encodeURIComponent(record.id)||records.some(r=>r.id===record.id))throw Error('Invalid transfer owner or ID.');
+      if(record.profileId!==profileId||((record.network??'signet')!==network)||entry!==prefix+encodeURIComponent(record.id)||records.some(r=>r.id===record.id))throw Error('Invalid transfer owner or ID.');
       records.push(record);
     }
     return records.sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
   }
   catch { throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.'); }
 }
-export function readBoardingRecord(profileId: string | undefined,id?:string): BoardingRecord | undefined {
-  const records=readBoardingRecords(profileId);
+export function readBoardingRecord(profileId: string | undefined,id?:string,network:TestNetwork='signet'): BoardingRecord | undefined {
+  const records=readBoardingRecords(profileId,network);
   return id===undefined?records.at(-1):records.find(r=>r.id===id);
 }
 export function writeBoardingRecord(record: BoardingRecord) {
   const raw=JSON.stringify(validate(record));
-  const first=readWalletRecord(key,record.profileId,validate);
-  const scopedKey=walletRecordKey(key,record.profileId)+(first&&first.id!==record.id?`:operation:${encodeURIComponent(record.id)}`:'');
+  const journalKey=key(record.network ?? 'signet'), first=readWalletRecord(journalKey,record.profileId,validate);
+  const scopedKey=walletRecordKey(journalKey,record.profileId)+(first&&first.id!==record.id?`:operation:${encodeURIComponent(record.id)}`:'');
   localStorage.setItem(scopedKey,raw);
   if (localStorage.getItem(scopedKey)!==raw) throw new BoardingBlockedError('Transfer state could not be saved.');
 }
 // Every caller performing reconciliation or clearing must hold this lock too.
-export function withWalletMutation<T>(work:()=>Promise<T>, profileId: string | undefined):Promise<T> {
+export function withWalletMutation<T>(work:()=>Promise<T>, profileId: string | undefined, network:'signet'|'mutinynet' = 'signet'):Promise<T> {
   if (!globalThis.navigator?.locks) return Promise.reject(Error('This browser cannot safely coordinate wallet transfers.'));
-  return withBrowserMutation(() => navigator.locks.request(`bis-signet-wallet-mutation:${encodeURIComponent(profileId ?? 'no-account')}`, {ifAvailable:true}, lock=> {
+  return withBrowserMutation(() => navigator.locks.request(`bis-${network}-wallet-mutation:${encodeURIComponent(profileId ?? 'no-account')}`, {ifAvailable:true}, lock=> {
     if(!lock)throw new BoardingBlockedError('Another wallet operation is in progress.');
     return work();
   }));
 }
-export function assertNoPendingBoarding(profileId: string | undefined) {
-  if(readBoardingRecords(profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('A transfer is unresolved. Open Account Transfer and check its status before clearing this account or using these funds.');
+export function assertNoPendingBoarding(profileId: string | undefined,network:TestNetwork='signet') {
+  if(readBoardingRecords(profileId,network).some(r=>r.status==='pending'))throw new BoardingBlockedError('A transfer is unresolved. Open Account Transfer and check its status before clearing this account or using these funds.');
 }
 export function updateBoardingRecord(id:string, patch:Partial<BoardingRecord>, profileId: string) {
   const record=readBoardingRecord(profileId,id);

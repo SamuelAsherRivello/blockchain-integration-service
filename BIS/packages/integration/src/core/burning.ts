@@ -1,9 +1,11 @@
+import type { TestNetwork } from './test-network.ts';
+
 export type BisBurnAssetRequest = Readonly<{operationId:string; assetId:string; quantity:string}>;
 export type BisBurnAssetResult = Readonly<{status:'burned'; assetId:string; quantity:string; transactionId:string}>
   | Readonly<{status:'error'; code:'invalid-input'|'unavailable'|'outcome-unknown'|'account-changed'; message:string}>;
 export type BurnInput = Readonly<{txid:string;vout:number}>;
-export type BurnRecord = {version:1; id:string; profileId:string; request:BisBurnAssetRequest; status:'pending'|'succeeded'; transactionId?:string; inputs?:readonly BurnInput[]};
-const key = (profileId:string) => `bis-signet-burn-operation-v1:${encodeURIComponent(profileId)}`;
+export type BurnRecord = {version:1; id:string; profileId:string; request:BisBurnAssetRequest; status:'pending'|'succeeded'; network?:TestNetwork; transactionId?:string; inputs?:readonly BurnInput[]};
+const key = (profileId:string, network:TestNetwork = 'signet') => `bis-${network}-burn-operation-v1:${encodeURIComponent(profileId)}`;
 export class BurnError extends Error {
   code: Extract<BisBurnAssetResult,{status:'error'}>['code'];
   constructor(code: BurnError['code'], message:string) {super(message);this.code=code;}
@@ -12,31 +14,31 @@ export function validateBurn(request:BisBurnAssetRequest): BisBurnAssetRequest {
   if (!request || typeof request.operationId!=='string' || typeof request.assetId!=='string' || typeof request.quantity!=='string' || !/^[\w-]{1,128}$/.test(request.operationId) || !/^[a-f0-9]{68}$/i.test(request.assetId) || !/^[1-9][0-9]{0,19}$/.test(request.quantity) || BigInt(request.quantity)>18446744073709551615n) throw new BurnError('invalid-input','The asset or quantity is invalid. Refresh Assets and try again.');
   return {operationId:request.operationId,assetId:request.assetId,quantity:request.quantity};
 }
-export function readBurnRecords(profileId:string|undefined): BurnRecord[] {
+export function readBurnRecords(profileId:string|undefined, network:TestNetwork = 'signet'): BurnRecord[] {
   if (!profileId) return [];
   try {
     const records:BurnRecord[]=[];
     for(let i=0;i<localStorage.length;i++) {
       const storageKey=localStorage.key(i);
-      if(!storageKey?.startsWith(`${key(profileId)}:`))continue;
+      if(!storageKey?.startsWith(`${key(profileId,network)}:`))continue;
       const record:BurnRecord=JSON.parse(localStorage.getItem(storageKey)!);
       validateBurn(record.request);
-      if(record.version!==1 || record.id!==record.request.operationId || record.profileId!==profileId || storageKey!==`${key(profileId)}:${record.id}` || !['pending','succeeded'].includes(record.status) || (record.transactionId!==undefined && !/^[a-f0-9]{64}$/i.test(record.transactionId)) || (record.status==='succeeded' && !record.transactionId) || (record.inputs!==undefined && (!Array.isArray(record.inputs) || !record.inputs.length || record.inputs.some(input=>!/^[a-f0-9]{64}$/i.test(input.txid)||!Number.isSafeInteger(input.vout)||input.vout<0))))throw Error();
+      if(record.version!==1 || record.id!==record.request.operationId || record.profileId!==profileId || (record.network!==undefined && record.network!==network) || storageKey!==`${key(profileId,network)}:${record.id}` || !['pending','succeeded'].includes(record.status) || (record.transactionId!==undefined && !/^[a-f0-9]{64}$/i.test(record.transactionId)) || (record.status==='succeeded' && !record.transactionId) || (record.inputs!==undefined && (!Array.isArray(record.inputs) || !record.inputs.length || record.inputs.some(input=>!/^[a-f0-9]{64}$/i.test(input.txid)||!Number.isSafeInteger(input.vout)||input.vout<0))))throw Error();
       records.push(record);
     }
     return records.sort((a,b)=>a.id.localeCompare(b.id));
   } catch {throw new BurnError('outcome-unknown','Burn state could not be read. Do not submit another burn.');}
 }
-export function readBurnRecord(profileId:string|undefined, operationId?:string): BurnRecord | undefined {
-  const records=readBurnRecords(profileId);
+export function readBurnRecord(profileId:string|undefined, operationId?:string, network:TestNetwork = 'signet'): BurnRecord | undefined {
+  const records=readBurnRecords(profileId, network);
   return operationId ? records.find(record=>record.id===operationId) : records.find(record=>record.status==='pending');
 }
 export function writeBurnRecord(record:BurnRecord) {
   const raw=JSON.stringify(record);
-  const storageKey=`${key(record.profileId)}:${record.id}`;
+  const storageKey=`${key(record.profileId,record.network ?? 'signet')}:${record.id}`;
   try {localStorage.setItem(storageKey,raw);if(localStorage.getItem(storageKey)!==raw)throw Error();}
   catch {throw new BurnError('unavailable','Burn status could not be saved.');}
 }
-export function assertNoPendingBurn(profileId:string|undefined) {
-  if(readBurnRecords(profileId).some(record=>record.status==='pending'))throw new BurnError('outcome-unknown','A burn has an unknown outcome. Its exact asset and inputs remain reserved until resolved.');
+export function assertNoPendingBurn(profileId:string|undefined, network:TestNetwork = 'signet') {
+  if(readBurnRecords(profileId,network).some(record=>record.status==='pending'))throw new BurnError('outcome-unknown','A burn has an unknown outcome. Its exact asset and inputs remain reserved until resolved.');
 }

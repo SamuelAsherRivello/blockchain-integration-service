@@ -313,8 +313,12 @@
 .bis-contract-fields { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px 12px; }
 .bis-contract-fields dd { margin: 0; overflow-wrap: anywhere; }
 .bis-item-list, .bis-item-list-detail { --bis-item-height: 72px; --bis-item-gap: 8px; }
+.bis-item-list { height: 456px; }
 .bis-item-list .bis-collection { flex: 0 0 auto; overflow: visible; }
-.bis-item-list .bis-collection-list { height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); min-height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); max-height: none; flex: none; gap: var(--bis-item-gap); }
+.bis-item-list .bis-collection-list { height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); min-height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); max-height: none; flex: none; gap: var(--bis-item-gap); overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: #8da6ae #e7eef0; }
+.bis-item-list .bis-collection-list::-webkit-scrollbar { display: block; width: 8px; }
+.bis-item-list .bis-collection-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 4.8px; }
+.bis-item-list .bis-collection-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 4.8px; border: 1.6px solid #e7eef0; }
 .bis-item-list-detail { height: calc(100% - 24px); }
 .bis-item-list-detail .bis-collection-detail { min-height: 0; display: flex; flex: 1 1 auto; max-height: none; overflow-y: scroll; }
 .bis-item-list .bis-collection-list > li { flex: none; }

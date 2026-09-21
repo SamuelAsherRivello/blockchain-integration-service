@@ -1,8 +1,10 @@
 import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk';
-import { SIGNET_OPERATOR } from './account.ts';
+import { operatorFor } from './account.ts';
+import type { TestNetwork } from '../core/test-network.ts';
 
 /** Arkade receipt/spend events only: no balance polling or onchain polling fallback. */
-export async function watchGameWalletEvents(address: string, signal: AbortSignal, changed: () => Promise<void>, provider = new RestIndexerProvider(SIGNET_OPERATOR)): Promise<void> {
+export async function watchGameWalletEvents(address: string, signal: AbortSignal, changed: () => Promise<void>, provider?: RestIndexerProvider, network:TestNetwork='signet'): Promise<void> {
+  provider ??= new RestIndexerProvider(operatorFor(network));
   signal.throwIfAborted();
   const script = Array.from(ArkAddress.decode(address).pkScript, byte => byte.toString(16).padStart(2, '0')).join('');
   const id = await provider.subscribeForScripts([script]);

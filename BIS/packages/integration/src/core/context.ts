@@ -376,12 +376,12 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       emit({type:'restartRequested',reason:'logout',logoutId:logout.id},current);
     }
   }
-  function withActiveWalletMutation<T>(work: () => Promise<T>): Promise<T> {
+  function withActiveWalletMutation<T>(work: () => Promise<T>, network:TestNetwork = 'signet'): Promise<T> {
     const current = version, profileId = state.profileId;
     return withWalletMutation(async () => {
       if (disposed || current !== version || profileId !== state.profileId) throw Error('The account changed.');
       return work();
-    }, profileId);
+    }, profileId, network);
   }
   async function activeTransferAccount() {
     assertAlive();
@@ -583,7 +583,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
         if (!recipient || (input.recipient !== undefined && input.recipient !== recipient)) throw Error('Configure a valid game wallet recipient before paying.');
         const bound = Object.freeze({...input, recipient});
         guardIndependentSpend();
-        if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw Error('An asset operation is unresolved.');
+        if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw Error('An asset operation is unresolved.');
         const result = await continuation.submit(account,{request:bound,profileId:account.profileId,status:'pending'},operation.signal,()=>!disposed && current===version && state.profileId===account.profileId && state.phase==='active');
         refreshAfterContinue(result,current);
         return result;
@@ -636,14 +636,14 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     },
     async getSendSpendable(preserveAssets=false) {
       guardIndependentSpend();const account=await activeTransferAccount(),current=version;
-      if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
+      if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
       const amount=await sends.funds(account,operation.signal,preserveAssets);
       if(disposed||current!==version)throw new SendError('The account changed.');return amount;
     },
     async quoteAccountSend(recipient,amountSats,preserveAssets=false) {
       issuedSend=undefined;issuedSendPreservesAssets=false;const request=++sendRevision;
       guardIndependentSpend();const account=await activeTransferAccount(),current=version;
-      if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
+      if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
       const quote=await sends.quote(account,recipient,amountSats,operation.signal,preserveAssets);
       if(disposed||current!==version||request!==sendRevision)throw new SendError('Send details changed. Review again.');
       issuedSendPreservesAssets=preserveAssets;issuedSend=Object.freeze({...quote});return issuedSend;
@@ -655,7 +655,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       return withActiveWalletMutation(async()=>{
         guardIndependentSpend();const account=await activeTransferAccount(),current=version;
         if(account.profileId!==quote.profileId)throw new SendError('The account changed.');
-        if(readAssetRecords(account.profileId).some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
+        if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
         const result=await sends.submit(account,quote,()=>!disposed&&current===version&&state.profileId===account.profileId&&state.phase==='active',undefined,preserveAssets);
         if(disposed||current!==version)throw new SendError('The account changed.');
         if(result.status==='succeeded')walletChanged(account.profileId);
@@ -678,16 +678,17 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       try {
         const request=validateBurn(input);
         if(!isCurrent())throw new BurnError('account-changed','An active account is required.');
+        const selectedAccount=await activeTransferAccount();
         return await withActiveWalletMutation(async()=>{
-          assertNoPendingSend(profileId);assertNoPendingBoarding(profileId);
-          if(readAssetRecords(profileId!).some(record=>record.status==='pending'))throw new BurnError('unavailable','An asset mint is unresolved.');
+          assertNoPendingSend(profileId,selectedAccount.network ?? 'signet');assertNoPendingBoarding(profileId,selectedAccount.network ?? 'signet');
+          if(readAssetRecords(profileId!,selectedAccount.network ?? 'signet').some(record=>record.status==='pending'))throw new BurnError('unavailable','An asset mint is unresolved.');
           const account=await activeTransferAccount();
           if(!isCurrent())throw new BurnError('account-changed','The account changed.');
           const result=await burn(account,request,operation.signal,isCurrent);
           if(!isCurrent())throw new BurnError('account-changed','The account changed during the burn.');
           if(result.status==='burned')walletChanged(account.profileId);
           return result;
-        });
+        }, selectedAccount.network ?? 'signet');
       } catch(error) {
         return {status:'error',code:error instanceof BurnError?error.code:'unavailable',message:error instanceof BurnError?error.message:'Burn unavailable. Check spendable funds and pending wallet operations, then try again.'};
       }
@@ -698,15 +699,16 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       try {
         const request=validateAssetDelivery(input);
         if(!isCurrent())throw new AssetDeliveryError('account-changed','An active account is required.');
+        const selectedAccount=await activeTransferAccount();
         return await withActiveWalletMutation(async()=>{
-          assertNoPendingSend(profileId);assertNoPendingBoarding(profileId);
-          if(readAssetRecords(profileId!).some(record=>record.status==='pending'))throw new AssetDeliveryError('unavailable','An asset mint is unresolved.');
+          assertNoPendingSend(profileId,selectedAccount.network ?? 'signet');assertNoPendingBoarding(profileId,selectedAccount.network ?? 'signet');
+          if(readAssetRecords(profileId!,selectedAccount.network ?? 'signet').some(record=>record.status==='pending'))throw new AssetDeliveryError('unavailable','An asset mint is unresolved.');
           const account=await activeTransferAccount();
           if(!isCurrent())throw new AssetDeliveryError('account-changed','The account changed.');
           const result=await deliverWalletAsset(account,request,operation.signal,isCurrent);
           if((result.status==='delivered'||result.status==='already-delivered')&&isCurrent())walletChanged(account.profileId);
           return result;
-        });
+        }, selectedAccount.network ?? 'signet');
       } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery unavailable.',profileId,operationId:input.operationId};}
     },
     async checkAssetDelivery(operationId) {
@@ -762,7 +764,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       try {
         const account = await activeTransferAccount();
         if (disposed || current !== version) return assetError('account-changed', profileId);
-        return {status: 'success', profileId: account.profileId, request: readAssetRecords(account.profileId).find(r => r.status === 'pending')?.request ?? null};
+        return {status: 'success', profileId: account.profileId, request: readAssetRecords(account.profileId,account.network ?? 'signet').find(r => r.status === 'pending')?.request ?? null};
       } catch { return assetError('outcome-unknown', profileId); }
     },
     getState:()=>state,

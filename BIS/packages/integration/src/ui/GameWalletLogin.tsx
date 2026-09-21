@@ -4,6 +4,7 @@ import { createBisGameWallet } from '../core/game-wallet.ts';
 import { RecoveryPhrasePanel } from './RecoveryPhrasePanel';
 import { RecoveryPhraseEntry } from './RecoveryPhraseEntry';
 import { usePendingNotice } from './PendingOperationDialog';
+import { CopyableValueField } from './CopyableValueField';
 
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 
@@ -16,7 +17,7 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
   const [loggingOut, setLoggingOut] = useState(false);
   const [message, setMessage] = useState('');
   const recoverySession = useMemo(() => ({}), [candidate?.profileId]);
-  usePendingNotice(loggingOut, 'Logging out...', undefined, () => {});
+  usePendingNotice(busy, loggingOut ? 'Logging out...' : 'Logging in...', message || undefined, () => setMessage(''));
 
   async function create() {
     if (busy) return;
@@ -56,6 +57,9 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
   </div>;
   if (state.profileId) return <div className="bis-actions">
     <p role="status">Game wallet configured.</p>
+    {state.status === 'ready' && state.addresses?.arkadeAddress && <div className="bis-addresses">
+      <CopyableValueField label="Arkade address" value={state.addresses.arkadeAddress} />
+    </div>}
     <button className="bis-button bis-danger" disabled={busy} onClick={() => void logout()}>Log Out Game Wallet</button>
     {state.message && <p role="alert">{state.message}</p>}
     <button className="bis-button bis-back" disabled={busy} onClick={onBack}>Back</button>

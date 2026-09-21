@@ -90,6 +90,16 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
       status: current.status, profileId: current.profileId,
       paymentStatus: controller.getPlayerPaymentBlockReason?.() ?? 'Ready',
       paymentBalanceSats: controller.getPlayerPaymentBalance?.() ?? 'Unavailable',
+      bitcoin: {
+        balanceSats: current.balance?.bitcoinSats ?? 'Unavailable',
+        address: current.addresses?.bitcoinAddress ?? 'Unavailable',
+      },
+      arkade: {
+        balanceSats: current.balance?.arkadeSats ?? 'Unavailable',
+        address: current.addresses?.arkadeAddress ?? 'Unavailable',
+      },
+      // Keep the explicit legacy fields while consumers migrate to the grouped
+      // funding details above.
       arkadeReceivingAddress: current.addresses?.arkadeAddress ?? 'Unavailable',
       bitcoinReceivingAddress: current.addresses?.bitcoinAddress ?? 'Unavailable',
       balance: current.balance ?? 'Unavailable',
@@ -108,7 +118,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
       <button aria-label="F2. Game Wallet (User-facing)" disabled={!controller || !playerReady} onClick={onOpenDeveloper}>↗</button>
     </StoryButton>
     <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
-        <button disabled={busy || !state.profileId} onClick={() => void boardingAction('check')}>Details</button>
+        <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
         {boardingState !== 'boarded' &&
           <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
     </StoryButton>

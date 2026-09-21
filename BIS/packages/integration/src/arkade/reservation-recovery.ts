@@ -1,6 +1,6 @@
 import {ArkAddress,RestIndexerProvider,Transaction} from '@arkade-os/sdk';
 import {loadAddresses} from './addresses.ts';
-import {SIGNET_OPERATOR,type AccountSecret} from './account.ts';
+import {operatorFor,type AccountSecret} from './account.ts';
 import {walletReservations,saveReconstructedReservation} from '../core/wallet-reservations.ts';
 import {withWalletMutation} from '../core/boarding-record.ts';
 const hex=(bytes:Uint8Array)=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
@@ -10,7 +10,7 @@ const decode=(raw:string)=>Transaction.fromRaw(Uint8Array.from(raw.match(/../g)?
 export async function reconstructWalletReservations(account:AccountSecret,signal:AbortSignal) {
   const missing=walletReservations(account.profileId).filter(r=>!r.inputs&&r.transactionId);
   if(!missing.length)return;
-  const provider=new RestIndexerProvider(SIGNET_OPERATOR);
+  const network=account.network ?? 'signet', provider=new RestIndexerProvider(operatorFor(network));
   const own=hex(ArkAddress.decode((await loadAddresses(account,signal)).arkadeAddress).pkScript);
   for(const operation of missing) {
     try {
@@ -33,7 +33,7 @@ export async function reconstructWalletReservations(account:AccountSecret,signal
       if(new Set(inputs.map(i=>`${i.txid}:${i.vout}`)).size!==inputs.length)continue;
       const {vtxos}=await provider.getVtxos({outpoints:inputs});signal.throwIfAborted();
       if(!inputs.every(input=>vtxos.some(v=>v.txid===input.txid&&v.vout===input.vout&&v.script===own)))continue;
-      await withWalletMutation(async()=>{signal.throwIfAborted();saveReconstructedReservation(account.profileId,operation.id,operation.transactionId!,inputs);},account.profileId);
+      await withWalletMutation(async()=>{signal.throwIfAborted();saveReconstructedReservation(account.profileId,operation.id,operation.transactionId!,inputs,network);},account.profileId,network);
     } catch { /* Unverifiable inputs retain the explicit spending hold. */ }
   }
 }

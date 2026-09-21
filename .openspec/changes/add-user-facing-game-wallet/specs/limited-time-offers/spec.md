@@ -18,9 +18,14 @@ The host SHALL be able to initiate funding through a public API without opening 
 ### Requirement: One unresolved offer per exclusivity key
 BIS SHALL enforce an account/network/operator/game-scoped host-supplied exclusivity key before funding within the local selected-game-wallet session. Funding-pending and unknown operations SHALL occupy the slot. Prior cleanup SHALL resolve funds before slot release; deleting or hiding a record SHALL NOT release it. Cleanup SHALL be contract-specific and idempotent. Same-origin contexts SHALL reconcile a shared local slot before competing funding; separate browser origins do not claim cross-origin coordination.
 
-#### Scenario: Previous refund unresolved
-- **WHEN** the host ends the old treasure offer and its refund cannot be immediately verified at the next Start
-- **THEN** the old slot remains occupied and that session creates no replacement, including after later cleanup completes
+#### Scenario: Start replaces a prior treasure attempt
+- **WHEN** the host starts a new treasure attempt while a prior offer is unresolved
+- **THEN** Start first persists the prior session end, waits for contract-specific reconciliation and supported refund cleanup, and creates the replacement only after the prior slot is resolved
+- **AND** if cleanup remains unresolved or uncertain, no replacement contract is created and the host receives a truthful unavailable outcome rather than bypassing the reservation
+
+#### Scenario: Repeated Start after cleanup
+- **WHEN** the host clicks Start again after the prior offer has been resolved
+- **THEN** exactly one fresh session and one fresh funding operation are created for the new session, with no reuse of the prior contract or operation
 
 #### Scenario: Concurrent same-origin contexts
 - **WHEN** two same-origin BIS contexts attempt offers for the same key and selected game wallet

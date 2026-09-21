@@ -14,7 +14,7 @@ function setup(overrides={}) {
   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks:testLocks()}});
   let envelope;
   const storage=createContractStorage({read:async()=>structuredClone(envelope),write:async(next,revision)=>{assert.equal(envelope?.revision??0,revision);envelope=structuredClone(next);}});
-  const player={profileId:'player',phrase:'test-only-placeholder'},game={profileId:'game',phrase:'test-only-placeholder'};
+  const player={profileId:'player',phrase:'test-only-placeholder',network:'signet'},game={profileId:'game',phrase:'test-only-placeholder',network:'signet'};
   const playerState={profileId:'player',phase:'active'},gameState={profileId:'game',status:'ready'};
   const calls=[],toasts=[];
   const context={getState:()=>playerState,showToast:text=>toasts.push(text),refreshBalance:async()=>{}},gameWallet={getState:()=>gameState,refresh:async()=>{}};
@@ -117,13 +117,23 @@ test('end during funding immediately persists forfeiture, then refunds late succ
   assert.equal(walletReservations('game').length,0);
   assert.ok(!s.toasts.some(text=>text.startsWith('Offer funding confirmed')));
 });
-test('older offer blocks the entire new session, including after its refund finishes',async()=>{
+test('new session waits for prior offer cleanup, then creates one replacement',async()=>{
   const s=setup();await s.service.start(s.request);await delay();
   const next={...s.request,sessionId:'next'};
-  assert.equal((await s.service.start(next)).status,'unavailable');
+  assert.equal((await s.service.start(next)).status,'confirmed');
   await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='refunded');
-  assert.equal((await s.service.start(next)).status,'unavailable');
-  assert.deepEqual(s.calls,['fund','refund']);
+  assert.equal((await s.service.start(next)).status,'confirmed');
+  assert.deepEqual(s.calls,['fund','refund','fund']);
+});
+
+test('claim emits one pending and one confirmed toast without creating a replacement',async()=>{
+  const s=setup(),funded=await s.service.start(s.request);await delay();
+  assert.equal((await s.service.claim(funded.contract.id)).status,'pending');
+  await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='claimed');
+  assert.deepEqual(s.calls,['fund','claim']);
+  assert.equal(s.toasts.filter(text=>text==='Contract claim pending').length,1);
+  assert.equal(s.toasts.filter(text=>text.startsWith('Contract claim confirmed')).length,1);
+  assert.equal((await s.storage.load()).ledger.contracts.length,1);
 });
 test('Claim returns pending after durable acceptance; unknown outcome prevents competing refund after logout',async()=>{
   const s=setup({unknown:'claim'});const funded=await s.service.start(s.request);await delay();

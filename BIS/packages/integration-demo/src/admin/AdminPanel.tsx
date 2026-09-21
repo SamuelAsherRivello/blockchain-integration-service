@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StoryAction } from './StoryAction';
 import { StorySection } from './StorySection';
 import { getContinuePriceSats, networkLabel, type TestNetwork } from '@bis/integration';
-const userStoriesUrl = './documentation/user-stories/';
+const userStoriesUrl = `${import.meta.env?.BASE_URL ?? '/'}documentation/user-stories/`;
 const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6, A7' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1, C2' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
 
 const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A4', category: 'Account', label: 'Account Dialog' }] as const;

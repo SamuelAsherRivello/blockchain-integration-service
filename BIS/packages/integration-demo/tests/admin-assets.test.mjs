@@ -72,6 +72,14 @@ test('F1 keeps the recovery phrase and reports an import failure beside the form
   assert.ok(submit.indexOf("setPhrase('')") > submit.indexOf('await controller.importWallet(input)'), 'F1 must not erase the phrase before import succeeds');
 });
 
+test('F3 Details exposes separate Bitcoin and Arkade funding details', async () => {
+  const source = await readFile(new URL('../src/admin/GameWalletPanel.tsx', import.meta.url), 'utf8');
+  const details = source.slice(source.indexOf('async function details()'), source.indexOf('return <StorySection'));
+  assert.match(details, /bitcoin:\s*\{[\s\S]*?balanceSats:\s*current\.balance\?\.bitcoinSats[\s\S]*?address:\s*current\.addresses\?\.bitcoinAddress/);
+  assert.match(details, /arkade:\s*\{[\s\S]*?balanceSats:\s*current\.balance\?\.arkadeSats[\s\S]*?address:\s*current\.addresses\?\.arkadeAddress/);
+  assert.match(source, /<button disabled=\{busy \|\| !state\.profileId\} onClick=\{\(\) => void details\(\)\}>Details<\/button>/);
+});
+
 test('Admin renders implemented asset stories and omits empty categories', async () => {
     const AdminPanel = await loadAdmin();
     const unexpected = () => { throw Error('Rendering must not invoke an action'); };

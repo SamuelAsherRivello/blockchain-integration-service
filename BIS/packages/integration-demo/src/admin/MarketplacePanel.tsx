@@ -16,7 +16,7 @@ export function MarketplacePanel({ controller, onLog }: {controller?: ReturnType
     try {
       const targetProfile = controller.getState().profileId;
       if (!targetProfile) throw Error();
-      const target = await prepareMintDestination('game', controller, () => controller.getState().profileId === targetProfile, result => onLog({operation:'H1. Marketplace mint', result}));
+      const target = await prepareMintDestination('game', controller, controller, () => controller.getState().profileId === targetProfile, result => onLog({operation:'H1. Marketplace mint', result}));
       const batch = await mintAndVerifyMarketplaceCatalog({mint:target.mint,listAssets:()=>controller.listAssets()}, target.isCurrent);
       if (batch.status === 'error') {
         onLog({operation:'H1. Marketplace mint', status:'error', message:`Catalog paused${batch.itemName ? ` at ${batch.itemName}` : ''}: ${batch.code}.`, result:batch});

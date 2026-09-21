@@ -23,6 +23,9 @@
 - [ ] 4.2 Ensure funding, claim, and refund each emit exactly one pending and one confirmed toast through the mounted BIS context, deduplicated by operation and phase; verify local LTO toast tests and Runtime Preview visibility.
 - [x] 4.3 Keep Start and ordinary gameplay nonblocking when player readiness, selected game wallet, or direct Arkade readiness is absent; verify Start creates a silent no-offer session, chest inspection stays safe, and no delayed setup changes the active run.
 - [x] 4.4 Update treasure-session integration to capture a game-wallet selection epoch at Start, retain signer stability for an active run, and start the next run with no old wallet G2 history; verify session tests for selection, replacement, logout, and unresolved prior work.
+- [x] 4.5 Serialize repeated Start through prior-session end, reconciliation, and supported refund cleanup before allocating a replacement contract; verify an unresolved or uncertain prior operation cannot create a competing offer and a resolved prior attempt permits exactly one fresh funding operation.
+- [x] 4.6 Make the G2 presentation reset its 90-second countdown only when the fresh replacement session is established; verify failed cleanup does not show a false fresh countdown and successful replacement visibly resets the timer.
+- [x] 4.7 Keep Claim strictly scoped to the current contract; verify it submits one claim, creates no new contract or funding operation, and reports accepted, unavailable, too-late, failed, and uncertain outcomes through toast and console feedback.
 
 ## 5. Consumer delivery and verification
 

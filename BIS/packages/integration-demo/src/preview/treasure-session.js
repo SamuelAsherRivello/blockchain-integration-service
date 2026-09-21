@@ -1,11 +1,19 @@
 // Host gameplay policy. BIS knows contracts; this module owns treasure/session semantics.
 export function createTreasureSession({ context, offers, gameWallet, now = Date.now, newId = () => crypto.randomUUID() }) {
-  let session, generation = 0, reading = false, acting = false;
+  let session, generation = 0, reading = false, acting = false, startChain = Promise.resolve(), startActive = false;
   const listeners = new Set();
   const publish = () => listeners.forEach(listener => listener());
   const matches = contract => session && contract.type === 'lto' && contract.purpose === 'treasureLTO' &&
     contract.sessionId === session.id && contract.hostReference === session.reference &&
     contract.scope.playerId === session.playerId && contract.scope.gameId === session.gameId;
+  function readinessReason(player, game) {
+    if (!player.profileId) return 'Connect a Player Wallet before starting an LTO.';
+    if (player.phase !== 'active') return 'The Player Wallet is not ready yet.';
+    if (!game.profileId) return 'Select a Game Wallet before starting an LTO.';
+    if (game.status !== 'ready') return game.message || 'The Game Wallet is not ready yet.';
+    if (game.profileId === player.profileId) return 'Select a separate Game Wallet from the Player Wallet.';
+    return undefined;
+  }
   function getState() {
     if (!session) return { status: 'no-offer', remainingSeconds: 0 };
     const remainingSeconds = Math.max(0, Math.ceil((session.expiresAt - now()) / 1000));
@@ -13,7 +21,7 @@ export function createTreasureSession({ context, offers, gameWallet, now = Date.
     if (session.offered && !remainingSeconds && !['claimed', 'rejected'].includes(status)) status = 'expired';
     if (session.playerId !== context.getState().profileId && status !== 'missing-player') status = 'no-offer';
     if (gameWallet.getState().selectionVersion !== session.gameVersion) status = 'no-offer';
-    return { status, remainingSeconds, sessionId: session.id, contractId: session.contractId };
+    return { status, remainingSeconds, sessionId: session.id, contractId: session.contractId, reason: session.reason };
   }
   function end() {
     generation++;
@@ -43,24 +51,49 @@ export function createTreasureSession({ context, offers, gameWallet, now = Date.
     snapshot() {return session?{...session}:undefined;},
     restore(saved) {
       if(session||!saved||typeof saved.id!=='string'||saved.reference!==`treasure:${saved.id}`||!Number.isSafeInteger(saved.expiresAt)||typeof saved.status!=='string')return false;
-      session={id:saved.id,reference:saved.reference,expiresAt:saved.expiresAt,status:saved.status,offered:saved.offered===true,
+      session={id:saved.id,reference:saved.reference,expiresAt:saved.expiresAt,status:saved.status,reason:typeof saved.reason==='string'?saved.reason:undefined,offered:saved.offered===true,
         playerId:typeof saved.playerId==='string'?saved.playerId:undefined,gameId:typeof saved.gameId==='string'?saved.gameId:undefined,contractId:typeof saved.contractId==='string'?saved.contractId:undefined};
       session.gameVersion=typeof saved.gameVersion==='number'?saved.gameVersion:gameWallet.getState().selectionVersion;
       generation++;publish();return true;
     },
     start() {
-      end(); const current = generation, startedAt = now();
-      const player = context.getState(), game = gameWallet.getState(), id = newId();
-      session = {id,reference:`treasure:${id}`,playerId:player.profileId,gameId:game.profileId,gameVersion:game.selectionVersion,expiresAt:startedAt+90000,offered:false,
-        status:!player.profileId?'missing-player':player.phase!=='active'||game.status!=='ready'||!game.profileId||game.profileId===player.profileId?'no-offer':'preparing'};
-      publish();
-      if (session.status !== 'preparing') return;
-      void offers.start({sessionId:id,hostReference:session.reference,purpose:'treasureLTO',exclusivityKey:'treasure',amountSats:1000,startedAt,expiresAt:session.expiresAt}).then(result => {
-        if(current!==generation || !session) return;
-        if(result.contract && matches(result.contract)) { session.contractId=result.contract.id; session.offered=true; }
-        if(result.status==='unavailable'||result.status==='not-submitted')session.status='no-offer';
-        publish(); void inspect();
-      }).catch(() => { if(current===generation && session) {session.status='unavailable';publish();} });
+      const run = async () => {
+        const previous = session;
+        generation++;
+        session = undefined;
+        publish();
+        if (previous) {
+          try { await offers.endSession(previous.id); }
+          catch { publish(); return; }
+        }
+        const current = generation, startedAt = now();
+        const player = context.getState(), game = gameWallet.getState(), id = newId();
+        const reason = readinessReason(player, game);
+        session = {id,reference:`treasure:${id}`,playerId:player.profileId,gameId:game.profileId,gameVersion:game.selectionVersion,expiresAt:startedAt+90000,offered:false,reason,
+          status:!player.profileId?'missing-player':reason?'no-offer':'preparing'};
+        publish();
+        if (session.status !== 'preparing') return;
+        try {
+          const result = await offers.start({sessionId:id,hostReference:session.reference,purpose:'treasureLTO',exclusivityKey:'treasure',amountSats:1000,startedAt,expiresAt:session.expiresAt});
+          if(current!==generation || !session) return result;
+          if(result.contract && matches(result.contract)) { session.contractId=result.contract.id; session.offered=true; }
+          if(result.status==='unavailable'||result.status==='not-submitted') { session.status='no-offer'; session.reason='No offer was created. Check that the Game Wallet is funded and ready.'; }
+          publish(); void inspect();
+          return result;
+        } catch {
+          if(current===generation && session) {session.status='unavailable';session.reason='The Game Wallet could not create the offer.';publish();}
+        }
+      };
+      if (!startActive) {
+        startActive = true;
+        const first = run();
+        startChain = first.then(() => undefined, () => undefined).finally(() => { startActive = false; });
+        return first;
+      }
+      startActive = true;
+      const next = startChain.then(run, run);
+      startChain = next.then(() => undefined, () => undefined).finally(() => { startActive = false; });
+      return next;
     },
     inspect, end,
     async act(kind) {

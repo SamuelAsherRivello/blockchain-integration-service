@@ -62,11 +62,21 @@ The local contract ledger remains available only for safe reconciliation of any 
 
 Alternative considered: migrate open G2 records to the new wallet or offer a recovery dialog. Rejected because either could submit a mismatched action, mix history across wallets, or reduce stability at the moment of a wallet change.
 
+### 6. Start is a serialized cleanup-and-replacement boundary
+
+The G2 developer Start control must not fire `endSession()` and a replacement `start()` concurrently. A Start request first ends the current treasure session and awaits its contract-specific reconciliation/refund path under the existing wallet mutation lock. Only a confirmed resolved prior slot permits allocation and funding of the new session. The host establishes and displays the new 90-second deadline when that fresh session is created, so an unavailable or uncertain cleanup cannot produce a false reset countdown.
+
+Claim remains an action on the current session's exact contract reference. It never calls the Start path, allocates a replacement contract, or resets the countdown. Accepted claim processing uses the existing LTO service notifications; rejected, unavailable, too-late, and uncertain outcomes also reach the mounted toast/console feedback path so a click cannot appear silent.
+
+Alternative considered: mark the prior record ended and immediately allocate the next contract. Rejected because the unresolved record still owns the exclusivity slot and may retain input reservations or an uncertain submission; hiding it would permit conflicting funding or a false replacement.
+
 ## Risks / Trade-offs
 
 - [A selected game wallet cannot be shared automatically with another origin] → F2 is present in every user-facing BIS host and explicitly owns standalone-game setup; same-origin Admin/Preview sharing remains automatic.
 - [Browser closure prevents timed automatic cleanup] → persist sanitized records before submission and reconcile at the next mounted context/start; never claim cleanup happened while closed.
 - [A wallet change leaves a real old contract on Arkade] → retain it only for bounded reconciliation while hiding it from the replacement wallet's G2 presentation and blocking cross-wallet actions.
+- [A repeated Start races cleanup against replacement funding] → serialize end/reconcile before allocation, preserve the old reservation until resolved, and reset the visible deadline only for the established replacement session.
+- [A Claim click appears silent] → publish operation and non-operation outcomes through both the existing toast layer and the Admin console without routing Claim through Start.
 - [F2 reuses recovery behavior] → reuse the established private UI/storage boundaries, add tests that public context events, logs, and Admin console values contain no recovery material.
 - [Removing service composition can regress current demo wiring] → cover local factory selection, no-network-service requests, toast delivery, and both preview and consumer browser flows before considering the migration complete.
 

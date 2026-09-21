@@ -1,6 +1,7 @@
 import {eligibleUnreservedCoins, walletReservations, migrateWalletReservations} from '../core/wallet-reservations.ts';
 import { ArkAddress, MnemonicIdentity, ReadonlyWallet, Wallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, Transaction, Extension, createAssetPacket, type ExtendedVirtualCoin } from '@arkade-os/sdk';
-import { SIGNET_OPERATOR, requireSignet, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { operatorFor, requireNetwork, withTemporaryWallet, type AccountSecret } from './account.ts';
+import type { TestNetwork } from '../core/test-network.ts';
 import { readFreshBalance } from './balance.ts';
 import { SendError, sendAmounts, assertSendQuote, readSendRecord, readSendRecords, writeSendRecord, completeSend, type BisSendQuote, type SendRecord } from '../core/sending.ts';
 
@@ -13,10 +14,10 @@ export function sendRecipient(raw:string,own:string) {
   return address;
  } catch {throw new SendError('Enter another Arkade test address for this operator.');}
 }
-function config(signal:AbortSignal) {
- const arkProvider=new RestArkProvider(SIGNET_OPERATOR), indexerProvider=new RestIndexerProvider(SIGNET_OPERATOR);
+function config(signal:AbortSignal,network:TestNetwork='signet') {
+ const operator=operatorFor(network), arkProvider=new RestArkProvider(operator), indexerProvider=new RestIndexerProvider(operator);
  const getInfo=arkProvider.getInfo.bind(arkProvider);
- arkProvider.getInfo=async()=>{signal.throwIfAborted();const info=await getInfo();requireSignet(info.network);return info;};
+ arkProvider.getInfo=async()=>{signal.throwIfAborted();const info=await getInfo();requireNetwork(info.network,network);return info;};
  let failed=false;const getVtxos=indexerProvider.getVtxos.bind(indexerProvider);
  indexerProvider.getVtxos=async(...args)=>{try {signal.throwIfAborted();return await getVtxos(...args);}catch(e){failed=true;throw e;}};
  return {options:{arkProvider,indexerProvider,settlementConfig:false as const,storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}},assertFresh(){signal.throwIfAborted();if(failed)throw new SendError('Live send data is unavailable.');}};
@@ -30,11 +31,11 @@ export function assetTotals(coins: readonly {assets?: readonly {assetId:string;a
  }
  return [...totals].sort(([a],[b])=>a.localeCompare(b)).map(([assetId,amount])=>({assetId,amount:String(amount)}));
 }
-async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:string,ignoreOperation?:string) {
- const info=await new RestArkProvider(SIGNET_OPERATOR).getInfo();requireSignet(info.network);
+async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:string,ignoreOperation?:string,network:TestNetwork='signet') {
+ const info=await new RestArkProvider(operatorFor(network)).getInfo();requireNetwork(info.network,network);
  if(info.fees.txFeeRate!=='0'||Object.values(info.fees.intentFee).some(v=>v!==''&&v!=='0'))throw new SendError('The operator fee schedule changed. Sending needs fee verification.');
  const candidates=(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false})).filter(c=>preserveAssets||!c.assets?.length);
- const reservations=profileId?walletReservations(profileId).filter(r=>r.id!==ignoreOperation):[];
+ const reservations=profileId?walletReservations(profileId,network).filter(r=>r.id!==ignoreOperation):[];
  const coins=eligibleUnreservedCoins(candidates,reservations).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
  const balance=await readFreshBalance(wallet);
  const total=coins.reduce((sum,c)=>sum+c.value,0);
@@ -44,9 +45,9 @@ async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:strin
  const blocking=reservations.filter(r=>r.inputs?.some(i=>outpoints.has(`${i.txid}:${i.vout}`)));
  return {info,coins,total,reservedSats:eligibleTotal-total,blocking,dust:Math.max(Number(wallet.dustAmount),Number(info.vtxoMinAmount),1)};
 }
-async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requested?:number,preserveAssets=false,ignoreOperation?:string) {
+async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requested?:number,preserveAssets=false,ignoreOperation?:string,network:TestNetwork='signet') {
  const own=await wallet.getAddress();const address=sendRecipient(recipient,own);
- const {info,coins,total,dust,reservedSats,blocking}=await funds(wallet,preserveAssets,profileId,ignoreOperation);
+ const {info,coins,total,dust,reservedSats,blocking}=await funds(wallet,preserveAssets,profileId,ignoreOperation,network);
  if(reservedSats>0&&(requested===undefined?total===0:Number.isSafeInteger(requested)&&requested>total&&requested<=total+reservedSats)) {
   const transfers=blocking.filter(r=>r.id.startsWith('transfer:'));
   const ids=transfers.map(r=>r.id.slice(9)).filter(id=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id));
@@ -62,11 +63,11 @@ async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requ
  return {quote,coins,recipientScript:hex(address.pkScript),changeScript:hex(ArkAddress.decode(own).pkScript)};
 }
 async function read<T>(account:AccountSecret,signal:AbortSignal,work:(wallet:ReadonlyWallet)=>Promise<T>):Promise<T> {
- const c=config(signal),identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
+ const network=account.network ?? 'signet', c=config(signal,network),identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
  return withTemporaryWallet(ReadonlyWallet.create({...c.options,identity}),signal,async wallet=>{const result=await work(wallet);c.assertFresh();return result;});
 }
-export const loadSendFunds=(account:AccountSecret,signal:AbortSignal,preserveAssets=false)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId)).total);
-export const quoteSend=(account:AccountSecret,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false,ignoreOperation?:string)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets,ignoreOperation)).quote);
+export const loadSendFunds=(account:AccountSecret,signal:AbortSignal,preserveAssets=false)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId,undefined,account.network ?? 'signet')).total);
+export const quoteSend=(account:AccountSecret,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false,ignoreOperation?:string)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets,ignoreOperation,account.network ?? 'signet')).quote);
 
 // Verify the entire direct-send shape, including the checkpoint indirection.
 // No signed bytes are returned or persisted by this boundary.
@@ -90,39 +91,40 @@ export function inspectSendTransaction(encoded:string,checkpoints:string[],quote
 export type SendJournal = {read(profileId:string):SendRecord|undefined; write(record:SendRecord):void; complete(id:string,transactionId:string,profileId:string):void};
 const defaultJournal:SendJournal={read:readSendRecord,write:writeSendRecord,complete:completeSend};
 export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurrent:()=>boolean,journal:SendJournal=defaultJournal,preserveAssets=false,ignoreOperation?:string):Promise<SendRecord> {
- const signal=AbortSignal.timeout(30000),c=config(signal);let open=true,record:SendRecord|undefined;
+ const signal=AbortSignal.timeout(30000),network=account.network ?? 'signet',c=config(signal,network),activeJournal=journal===defaultJournal?{read:(profileId:string,id?:string)=>readSendRecord(profileId,id,network),write:(record:SendRecord)=>writeSendRecord({...record,network}),complete:(id:string,transactionId:string,profileId:string)=>completeSend(id,transactionId,profileId,network)}:journal;let open=true,record:SendRecord|undefined;
  const submit=c.options.arkProvider.submitTx.bind(c.options.arkProvider);
  c.options.arkProvider.submitTx=async()=>{throw new SendError('Send preparation is incomplete.');};
  try {
   return await withTemporaryWallet(Wallet.create({...c.options,identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})}),signal,async wallet=>{
-   const fresh=await plan(wallet,account.profileId,quote.recipient,quote.amountSats,preserveAssets,ignoreOperation);c.assertFresh();assertSendQuote(quote,fresh.quote);
+   const fresh=await plan(wallet,account.profileId,quote.recipient,quote.amountSats,preserveAssets,ignoreOperation,network);c.assertFresh();assertSendQuote(quote,fresh.quote);
    c.options.arkProvider.submitTx=async(encoded,checkpoints)=>{
     c.assertFresh();if(!open||!isCurrent()||record||quote.expiresAt<=Date.now())throw new SendError('Send details changed. Review again.');
     const transactionId=inspectSendTransaction(encoded,checkpoints,quote,fresh.coins,fresh.recipientScript,fresh.changeScript);
-    const next:SendRecord={version:1,id:crypto.randomUUID(),profileId:account.profileId,status:'pending',transactionId,quote,inputs:fresh.coins.map(c=>({txid:c.txid,vout:c.vout})),recipientScript:fresh.recipientScript,...(assetTotals(fresh.coins).length?{change:{script:fresh.changeScript,sats:quote.maxSats-quote.totalSats,assets:assetTotals(fresh.coins)}}:{})};
-    journal.write(next);record=next;migrateWalletReservations(account.profileId); // Must complete before any network submission.
+    const next:SendRecord={version:1,id:crypto.randomUUID(),profileId:account.profileId,network,status:'pending',transactionId,quote,inputs:fresh.coins.map(c=>({txid:c.txid,vout:c.vout})),recipientScript:fresh.recipientScript,...(assetTotals(fresh.coins).length?{change:{script:fresh.changeScript,sats:quote.maxSats-quote.totalSats,assets:assetTotals(fresh.coins)}}:{})};
+    activeJournal.write(next);record=next;migrateWalletReservations(account.profileId); // Must complete before any network submission.
     return submit(encoded,checkpoints);
    };
    const transactionId=await wallet.send({recipients:[{address:quote.recipient,amount:quote.amountSats}],selectedVtxos:fresh.coins});
    if(!record||record.transactionId!==transactionId)throw new SendError('Send result needs verification.');
-   journal.complete(record.id,transactionId,account.profileId);return journal.read(account.profileId)!;
+   activeJournal.complete(record.id,transactionId,account.profileId);return activeJournal.read(account.profileId)!;
   },30000);
- } catch(e) {if(record)return journal.read(account.profileId)!;throw e instanceof SendError?e:new SendError('Send could not be prepared. Review again.');}
+ } catch(e) {if(record)return activeJournal.read(account.profileId)!;throw e instanceof SendError?e:new SendError('Send could not be prepared. Review again.');}
  finally {open=false;}
 }
 export async function reconcileSend(account:AccountSecret,signal:AbortSignal,journal:SendJournal=defaultJournal):Promise<SendRecord|undefined> {
  if(journal===defaultJournal) {
-  for(const item of readSendRecords(account.profileId).filter(r=>r.status==='pending')) {
-   await reconcileSend(account,signal,{read:()=>readSendRecord(account.profileId,item.id),write:writeSendRecord,complete:completeSend});
+  const network=account.network ?? 'signet';
+  for(const item of readSendRecords(account.profileId,network).filter(r=>r.status==='pending')) {
+   await reconcileSend(account,signal,{read:()=>readSendRecord(account.profileId,item.id,network),write:record=>writeSendRecord({...record,network}),complete:(id,tx,profile)=>completeSend(id,tx,profile,network)});
   }
-  const records=readSendRecords(account.profileId);
+  const records=readSendRecords(account.profileId,network);
   return records.find(r=>r.status==='pending')??records.at(-1);
  }
  const record=journal.read(account.profileId);if(!record||record.profileId!==account.profileId)return;
  if(record.status==='succeeded')return record;
  // The indexer exposes finalized VTXOs; an absent output is not proof of failure.
- const provider=new RestArkProvider(SIGNET_OPERATOR);requireSignet((await provider.getInfo()).network);signal.throwIfAborted();
- const {vtxos}=await new RestIndexerProvider(SIGNET_OPERATOR).getVtxos({outpoints:[{txid:record.transactionId,vout:0},...(record.change?[{txid:record.transactionId,vout:1}]:[])]});signal.throwIfAborted();
+ const network=account.network ?? 'signet',operator=operatorFor(network), provider=new RestArkProvider(operator);requireNetwork((await provider.getInfo()).network,network);signal.throwIfAborted();
+ const {vtxos}=await new RestIndexerProvider(operator).getVtxos({outpoints:[{txid:record.transactionId,vout:0},...(record.change?[{txid:record.transactionId,vout:1}]:[])]});signal.throwIfAborted();
  const receipt=vtxos.find(c=>c.txid===record.transactionId&&c.vout===0&&c.value===record.quote.amountSats&&c.script===record.recipientScript&&!c.assets?.length);
  const change=record.change;
  const preserved=!change||vtxos.some(c=>c.txid===record.transactionId&&c.vout===1&&c.value===change.sats&&c.script===change.script&&JSON.stringify(assetTotals([c]))===JSON.stringify(change.assets));

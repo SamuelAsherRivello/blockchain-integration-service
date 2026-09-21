@@ -1,11 +1,16 @@
 ## MODIFIED Requirements
 
 ### Requirement: Start-triggered session attempt
-Clicking the existing Start control SHALL begin gameplay and a 90-second elapsed-time deadline immediately, without a treasure button, offer information or debugging information on the start menu. Eligible sessions SHALL initiate background funding. Missing player readiness, missing selected game wallet, or unresolved previous treasure cleanup SHALL silently skip the offer for the session without stopping play or enabling it later. Pauses, tab switches and funding delays SHALL NOT extend the deadline.
+Clicking the existing Start control SHALL begin gameplay without a treasure button, offer information or debugging information on the start menu. The host SHALL serialize prior-session cleanup before creating a fresh eligible treasure session: it SHALL persist the prior end, reconcile and request supported cleanup, then create exactly one new contract attempt only after the prior slot is resolved. The fresh session SHALL establish a 90-second elapsed-time deadline and reset the visible countdown. Missing player readiness, missing selected game wallet, direct Arkade unavailability, or unresolved/uncertain prior cleanup SHALL leave the game playable without creating a replacement offer, and SHALL report a truthful outcome through the toast/console feedback path. Pauses, tab switches and funding delays SHALL NOT extend the deadline.
 
 #### Scenario: Normal Start
 - **WHEN** the player starts with ready wallets and no unresolved prior treasure offer
-- **THEN** gameplay starts immediately and funding/toasts run in the background against the original Start-time deadline
+- **THEN** gameplay starts immediately, one fresh contract attempt begins, the countdown resets to 90 seconds, and funding/toasts run in the background against that fresh deadline
+
+#### Scenario: Start while a prior offer exists
+- **WHEN** the developer clicks Start while a prior treasure contract is funding, funded, ending, or awaiting reconciliation
+- **THEN** the prior contract is cleaned up through the normal guarded path before a replacement is created, and the countdown resets only when the replacement session is established
+- **AND** a cleanup failure or uncertain outcome creates no replacement and does not display a false fresh countdown
 
 #### Scenario: Connect after starting
 - **WHEN** the player starts without a connected wallet and connects later
@@ -18,6 +23,17 @@ Clicking the existing Start control SHALL begin gameplay and a 90-second elapsed
 #### Scenario: Return to start menu
 - **WHEN** the current run returns to the start menu
 - **THEN** it ends the prior attempt and silently checks/reconciles relevant contracts and requests eligible cleanup, without displaying contract diagnostics
+
+#### Scenario: Developer Claim
+- **WHEN** the developer clicks Claim LTO with the current session's eligible contract
+- **THEN** exactly that contract is claimed, no new contract or funding operation is created, and pending/confirmed or truthful failure feedback is shown through the mounted toast path and console
+
+### Requirement: Developer demo controls
+The BIS G2 demonstration SHALL provide always-clickable Start LTO and Claim LTO buttons with a 90-second countdown on the same compact horizontal story row used by the other demonstrations. Each click SHALL immediately update the console and mounted BIS toast path, followed by its outcome and asynchronous status changes. Start SHALL use the serialized cleanup-before-replacement lifecycle; Claim SHALL act only on the current eligible contract and SHALL never create a new one. These controls SHALL use the same contract guards as the game and SHALL remain separate from the game's Start menu and collision dialogue.
+
+#### Scenario: Claim before an offer is ready
+- **WHEN** the developer clicks Claim LTO before Start or while funding is pending
+- **THEN** the console and toast report the current eligibility without creating a duplicate operation, a replacement contract, or fabricated success
 
 ### Requirement: Demonstration and consumer parity
 The BIS G1/G2 demo SHALL exercise production public APIs and may simulate host gameplay events only. Stealth & Steel SHALL consume the built BIS public package and integrate the same lifecycle through its game-owned session and chest UI. Both Runtime Preview and the consumer game SHALL use the locally selected F1/F2 game wallet directly through Arkade, without a BIS wallet-service endpoint or an Admin tab. Financial live acceptance and browser-visible consumer delivery SHALL be reported separately and neither SHALL be inferred solely from unit fixtures.

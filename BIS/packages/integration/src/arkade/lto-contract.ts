@@ -1,6 +1,7 @@
 import { MnemonicIdentity, DefaultVtxo, VtxoScript, CSVMultisigTapscript, RestArkProvider, RestIndexerProvider, signAndSubmitOffchainTx, claimWithPreimageIdentity, Extension, createAssetPacket } from '@arkade-os/sdk';
 import { hex } from '@scure/base';
-import { SIGNET_OPERATOR, requireSignet, type AccountSecret } from './account.ts';
+import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
+import type { TestNetwork } from '../core/test-network.ts';
 import { buildLtoScript } from './lto-script.ts';
 import { inspectSendTransaction, assetTotals } from './sending.ts';
 import { eligibleUnreservedCoins, walletReservations, type ReservedOperation } from '../core/wallet-reservations.ts';
@@ -35,14 +36,14 @@ export function verifyLtoReceipt(spend: ContractSpend, receipts: readonly Coin[]
     return inputs.every((coin):coin is Coin=>!!coin) && sameAssets(inputs,retained) && output(0,spend.destinationScript,spend.amountSats) && (!spend.change||output(1,spend.change.script,spend.change.value,retained));
   }catch{return false;}
 }
-async function terms() {
-  const ark = new RestArkProvider(SIGNET_OPERATOR), indexer = new RestIndexerProvider(SIGNET_OPERATOR);
-  const info = await ark.getInfo(); requireSignet(info.network);
+async function terms(network:TestNetwork='signet') {
+  const operator=operatorFor(network), ark = new RestArkProvider(operator), indexer = new RestIndexerProvider(operator);
+  const info = await ark.getInfo(); requireNetwork(info.network,network);
   if (info.fees.txFeeRate !== '0' || Object.values(info.fees.intentFee).some(value => value !== '' && value !== '0')) throw new ContractError('Contract fees changed. Creation and spending need fee verification.');
   return { ark, indexer, info, operatorKey: hex.decode(info.signerPubkey).slice(-32) };
 }
 export async function prepareLtoRecovery(game: AccountSecret, player: AccountSecret, suppliedPlayerKey?: Uint8Array): Promise<ContractRecovery> {
-  const { info, operatorKey } = await terms();
+  const { info, operatorKey } = await terms(game.network ?? 'signet');
   const gameKey = await MnemonicIdentity.fromMnemonic(game.phrase,{isMainnet:false}).xOnlyPublicKey();
   const playerKey = suppliedPlayerKey ?? await MnemonicIdentity.fromMnemonic(player.phrase,{isMainnet:false}).xOnlyPublicKey();
   const secret = crypto.getRandomValues(new Uint8Array(32));
@@ -66,8 +67,9 @@ export async function reconcileLtoSpend(record: ContractRecord, recovery: Contra
 
 /** Resume only the already signed, journaled transaction. Never create a competing spend. */
 export async function resumeLtoFinalization(record: ContractRecord, recovery: ContractRecovery) {
-  if(record.scope.operator!==SIGNET_OPERATOR||record.scope.network!=='signet'||!recovery.finalization||recovery.finalization.transactionId!==recovery.spend?.transactionId||!['submitted','unknown'].includes(record.operation.submission))return {record,recovery};
-  try {await new RestArkProvider(SIGNET_OPERATOR).finalizeTx(recovery.finalization.transactionId,[...recovery.finalization.checkpoints]);}catch{/* Read exact receipts even if finalize acknowledgement is unavailable. */}
+  if(record.scope.network!=='signet'&&record.scope.network!=='mutinynet')return {record,recovery};
+  if(record.scope.operator!==operatorFor(record.scope.network)||!recovery.finalization||recovery.finalization.transactionId!==recovery.spend?.transactionId||!['submitted','unknown'].includes(record.operation.submission))return {record,recovery};
+  try {await new RestArkProvider(operatorFor(record.scope.network)).finalizeTx(recovery.finalization.transactionId,[...recovery.finalization.checkpoints]);}catch{/* Read exact receipts even if finalize acknowledgement is unavailable. */}
   return reconcileLtoSpend(record,recovery);
 }
 
@@ -77,8 +79,9 @@ export async function submitLtoSpend(initial: ContractRecord, recovery: Contract
   let record = initial, material = recovery, providerCalled = false;
   const kind = record.operation.kind;
   try {
-    if (record.scope.operator !== SIGNET_OPERATOR || record.scope.network !== 'signet' || record.operation.submission !== 'prepared') throw new ContractError('Contract submission is unavailable.');
-    const { ark, indexer, info, operatorKey } = await terms();
+    const network=account.network ?? 'signet';
+    if (record.scope.operator !== operatorFor(network) || record.scope.network !== network || record.operation.submission !== 'prepared') throw new ContractError('Contract submission is unavailable.');
+    const { ark, indexer, info, operatorKey } = await terms(network);
     const identity = suppliedIdentity ?? MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false});
     if (hex.encode(operatorKey) !== material.operatorKey || hex.encode(await identity.xOnlyPublicKey()) !== (kind === 'claim' ? material.playerKey : material.gameKey)) throw new ContractError('Contract signing account changed.');
     const contract = buildLtoScript({ gameKey: hex.decode(material.gameKey), playerKey: hex.decode(material.playerKey), operatorKey, secretHash: await sha(hex.decode(material.secretHex)), exitDelay: BigInt(material.exitDelay) });
@@ -90,7 +93,7 @@ export async function submitLtoSpend(initial: ContractRecord, recovery: Contract
     let inputs;
     if (kind === 'fund') {
       const coins = (await indexer.getVtxos({scripts:[hex.encode(gameScript.pkScript)],spendableOnly:true})).vtxos;
-      inputs = selectLtoInputs(coins.filter(coin => coin.script === hex.encode(gameScript.pkScript)), record.amountSats, minimum, walletReservations(account.profileId).filter(operation => operation.id !== `contract:${record.id}`));
+      inputs = selectLtoInputs(coins.filter(coin => coin.script === hex.encode(gameScript.pkScript)), record.amountSats, minimum, walletReservations(account.profileId,network).filter(operation => operation.id !== `contract:${record.id}`));
     } else {
       if (!material.fundingOutput) throw new ContractError('Contract funding needs reconciliation.');
       const coins = (await indexer.getVtxos({outpoints:[material.fundingOutput]})).vtxos;

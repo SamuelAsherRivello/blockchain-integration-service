@@ -18,7 +18,7 @@ The BIS Marketplace SHALL be a standalone React/Vite browser application in the 
 
 ### Requirement: Public standalone marketplace entry
 
-The BIS Marketplace SHALL be independently serveable as a browser application and SHALL present a usable public landing page before any BIS account, wallet, balance, or ownership query is requested. Its published catalog SHALL contain the registered game-wallet public address, game ID, and item metadata, but SHALL NOT contain signing material, recovery material, or private transaction data. A visitor SHALL be able to browse the catalog and open an item detail view without logging in. The published GitHub Pages entry SHALL be available at `/blockchain-integration-service/marketplace/`, and its catalog and application resources SHALL resolve beneath that public path. Existing immutable artwork URLs under `/blockchain-integration-service/assets/` SHALL remain available so previously issued asset metadata continues to resolve.
+The BIS Marketplace SHALL be independently serveable as a browser application and SHALL present a usable public landing page before any BIS account, wallet, balance, or ownership query is requested. Its published catalog SHALL contain the registered game-wallet public address, game ID, and item metadata, but SHALL NOT contain signing material, recovery material, or private transaction data. A visitor SHALL be able to browse the catalog and open an item detail view without logging in. The published GitHub Pages entry SHALL be available at `/blockchain-integration-service/marketplace/`, and its catalog and application resources SHALL resolve beneath that public path. Existing immutable artwork URLs under `/blockchain-integration-service/assets/` SHALL remain available so previously issued asset metadata continues to resolve. On a desktop viewport, Marketplace SHALL use stable, untransformed page and overlay dimensions; its Account launcher SHALL be visibly inset from the lower-left of the Marketplace viewport, and an open Account flow SHALL cover and center within the complete Marketplace viewport.
 
 #### Scenario: Guest opens the marketplace
 
@@ -37,6 +37,12 @@ The BIS Marketplace SHALL be independently serveable as a browser application an
 - **WHEN** a visitor requests an already-issued Marketplace artwork URL beneath `https://samuelasherrivello.github.io/blockchain-integration-service/assets/`
 - **THEN** the corresponding immutable artwork remains available
 - **AND** moving the Marketplace application does not change the existing asset URL
+
+#### Scenario: Account launcher opens at desktop scale
+- **WHEN** a visitor views Marketplace at a desktop viewport and activates Account
+- **THEN** the closed Account control is fully visible in the lower-left Marketplace area
+- **AND** the opened Account backdrop covers the whole Marketplace viewport without an unshaded side region
+- **AND** the Account dialog is centered in that viewport
 
 ### Requirement: Public game-wallet inventory lookup
 
@@ -82,13 +88,20 @@ BIS Admin SHALL provide an H. Marketplace section that is available only when th
 
 ### Requirement: Truthful pre-trading detail
 
-Selecting a catalog card SHALL open its detail view with the asset identity, game effect, tier, and ownership/trading state available to the current visitor. Before the trading capability is available, Buy and Sell controls SHALL be visibly disabled; they SHALL NOT request login, create a transaction, or imply a price, sale, or listing.
+Selecting a catalog card SHALL open its detail view with the asset identity, game effect, tier, and ownership/trading state available to the current visitor. Asset ID, Ticker, Quantity, Speed, Offense, and Defense SHALL each appear as a labeled, contained read-only value field with an accessible Copy action named for its label. Each value SHALL remain selectable for manual copying, and the detail SHALL provide truthful feedback for successful or unsuccessful clipboard copying. Each field's label, value, and copy control SHALL use the same left-aligned type treatment. Decimals SHALL NOT be displayed. The detail SHALL be square and SHALL NOT present an internal scrollbar. Before the trading capability is available, Buy and Sell controls SHALL be visibly disabled in an upper-right action column; they SHALL NOT request login, create a transaction, or imply a price, sale, or listing. The detail SHALL NOT show bottom verification/status/footer copy.
 
 #### Scenario: Guest selects an item before trading exists
 
 - **WHEN** a logged-out visitor opens Dagger II before authenticated trading is delivered
-- **THEN** the detail view describes Dagger II and displays disabled Buy and Sell controls
+- **THEN** the detail view describes Dagger II, displays its labeled, copyable Asset ID, Ticker, Quantity, Speed, Offense, and Defense fields
+- **AND** it does not display Decimals, an internal detail scrollbar, or bottom verification/status/footer copy
+- **AND** it displays disabled Buy and Sell controls in the upper-right action column
 - **AND** the visitor can return to the public catalog without any account or wallet side effect
+
+#### Scenario: Guest copies an item detail value
+- **WHEN** a visitor selects Copy for an open catalog-item detail value
+- **THEN** the Marketplace copies that full displayed value when clipboard access succeeds and confirms that result
+- **AND** when clipboard access fails, the Marketplace keeps the full value selectable and explains that it can be copied manually
 
 ### Requirement: Approved catalog prices are published
 The nine-item catalog SHALL publish the same integer sat price used for purchase and sell-back: Shoes I/II/III at 1,000/2,000/3,000; Dagger I/II/III at 1,100/2,100/3,100; and Shield I/II/III at 1,200/2,200/3,200. The catalog SHALL NOT add a fee or buy/sell spread.

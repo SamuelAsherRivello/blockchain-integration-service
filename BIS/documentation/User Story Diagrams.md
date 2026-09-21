@@ -23,13 +23,13 @@
   - [E2. Open On Mempool.space](#e2-open-on-mempoolspace) ✓
 - [F. Game Wallet](#f-game-wallet)
   - [F1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) / Accept User Pay To Continue
-  - [F2. Game Wallet (User-facing)](#f2-game-wallet-user-facing)
-  - [F3. Board Game Wallet](#f3-board-game-wallet)
+  - [F2. Game Wallet (User-facing)](#f2-game-wallet-user-facing) ✓
+  - [F3. Board Game Wallet](#f3-board-game-wallet) ✓
 - [G. Contracts](#g-contracts)
-  - [G1. Contracts UI](#g1-contracts-ui)
-  - [G2. LTO Treasure Chest](#g2-lto-treasure-chest)
+  - [G1. Contracts UI](#g1-contracts-ui) ✓
+  - [G2. LTO Treasure Chest](#g2-lto-treasure-chest) ✓
 - [H. Spikes](#h-spikes)
-  - [H1. Arkade onboarding spike](#h1-arkade-onboarding-spike)
+  - [H1. Arkade onboarding spike](#h1-arkade-onboarding-spike) ✓
     - [Post-mortem and measured timing](#h1-post-mortem)
 - [X. Appendix](#x-appendix)
   - [X2. Lightning invoice receiving](#x2-lightning-invoice-receiving)
@@ -70,11 +70,11 @@ Reviewed against the current checkout and recorded acceptance evidence on 2026-0
 | X5a. Inspect and Copy Transfer Recovery Details ✓ | Transactions → Transaction Detail → Recovery details | ✓ Implemented and verified: one-click pending entry, Check Status, copy/manual fallback. Cancellation remains separate and blocked. |
 | X5b. Cancel Pending Transfer | Not implemented | Blocked on verified operator cancellation scope and terminal-outcome guarantees; no cancellation UI or live cancellation delivered. |
 | F1. Game Wallet (Admin-facing) | F. Game Wallet | Admin setup for the shared local game-wallet selection. |
-| F2. Game Wallet (User-facing) | Account Details / Balance / Game Wallet Login | Serverless setup for every BIS account host. |
-| F3. Board Game Wallet | F. Game Wallet / Board Game Wallet | Admin-only balance and boarding controls for the F1/F2 selection. |
+| F2. Game Wallet (User-facing) ✓ | Account Details / Balance / Game Wallet Login | Serverless setup for every BIS account host. |
+| F3. Board Game Wallet ✓ | F. Game Wallet / Board Game Wallet | Admin-only balance and boarding controls for the F1/F2 selection. |
 | G1. Contracts UI ✓ | Account Details / Contracts | Complete and user-accepted 2026-09-09; shared list/details and eligible actions. Specs synced; change archived. |
 | G2. LTO Treasure Chest ✓ | BIS G2 demo / Stealth & Steel Level01 | Complete locally and user-accepted 2026-09-09; 1,000-sat, 90-second chest with shared persistent game wallet. Specs synced; archived with verification limits retained. HTTPS service deployment remains outstanding. |
-| H1. Arkade onboarding spike | [Standalone spike](http://127.0.0.1:5174/spike1/) | ✓ Original six-step experiment complete and its specification synced. Robustness proposal in progress; two additional transfers recovered to spendable targets but still awaited final Bitcoin confirmation at the post-mortem snapshot. |
+| H1. Arkade onboarding spike ✓ | [Standalone spike](http://127.0.0.1:5174/spike1/) | Original six-step experiment and the documented four-run and three-run acceptance cohorts reached verified Step 6; 89 tests and both builds passed. Robustness follow-up tasks remain separately tracked, and this does not establish BIS production acceptance. |
 | X2a. Receive funds using addresses ✓ | Account / Account Dialog | Complete: address journey, dedicated demo, isolated error checks, and real-account demo/independent-host verification. X2b remains blocked. |
 | X2b. Receive funds using Lightning invoices | Not enabled | Blocked on a supported Arkade Signet receiving route and verified quote/recovery support. Live invoices, receipt processing, and related account-clearing guards are not implemented. |
 | X3a. Send funds | Account / Account Dialog | Arkade-to-Arkade entry, exact review and explicit submission implemented; live payment acceptance pending. X5 recovery is separate. |
@@ -405,7 +405,7 @@ Current BIS/Admin flow:
 [C1.02] Optional quick fill: Achievement: Level 1 / LVL1
 [C1.03] Optional quick fill: Achievement: Level 2 / LVL2
 [C1.04] Optional quick fill: Achievement: Level 3 / LVL3
-[C1.05] Select Destination: Player wallet / Game wallet (default); edit name, ticker, amount, decimals, icon URL; Control Asset = None
+[C1.05] Source: Game wallet (fixed); Select Destination: Player wallet / Game wallet (default); edit name, ticker, amount, decimals, icon URL; Control Asset = None
 [C1.06] Explicit Mint -> public mintAsset(request)
 [C1.07] No account / invalid / blocked -> Console error; no submission
 [C1.08] Confirmed issuance -> Console minted + asset ID; fresh holdings available through the listing API
@@ -413,8 +413,8 @@ Current BIS/Admin flow:
 ```
 
 - Presets only fill editable fields, with amount 1, decimals 0 and the matching hosted numbered trophy icon URL. The initial form still has a blank optional Icon URL. The game-specific names are Admin example data; BIS applies no accomplishment rules. The three 64 by 64 transparent numbered trophy PNGs use versioned GitHub Pages URLs; preserve their published paths and bytes for existing mint metadata. See [trophy assets and public URLs](../packages/integration-demo/public/assets/achievements/README.md).
-- Mint uses the selected destination wallet's spendable Signet funds and issues into that same wallet and no control asset. Operation-ID retries reconcile the original issuance; identical names on deliberate new operations are allowed.
-- A pending mint is scoped to its wallet. Select a destination before choosing Resume pending mint; resuming locks the original metadata and operation ID for reconciliation. Closing retains recovery access for either wallet. No implicit funding, boarding, or account dialog occurs.
+- Mint always uses the separately selected Game Wallet's eligible spendable Signet funds as its source and issues no control asset. Game Wallet remains the destination when selected; Player Wallet receives an exact-quantity Game-to-Player delivery when selected. Operation-ID retries reconcile issuance and delivery without duplicate submission; identical names on deliberate new operations are allowed.
+- A pending C1 operation is scoped to the Game Wallet source and selected destination. Select a destination before choosing Resume pending mint; resuming locks the original metadata, source, destination, and operation ID for reconciliation. Closing retains recovery access for unresolved issuance or delivery. No implicit funding, boarding, or account dialog occurs.
 - Completion was confirmed by the user on 2026-09-09. The archived mint-destination verification record preserves the historical distinction between isolated checks and live issuance evidence.
 
 ### C2. Reward Player With Trophy After Level Complete ✓
@@ -538,13 +538,13 @@ The **F1. Game Wallet (Admin-facing)** row shows **Login** initially and **Logou
 
 Game-wallet trophy issuance remains a separate deferred proposal; existing player self-minting is unchanged. See [F1 planning](../../.openspec/changes/add-admin-game-wallet-and-continue-payments/proposal.md).
 
-### F2. Game Wallet (User-facing)
+### F2. Game Wallet (User-facing) ✓
 
 **Status:** Serverless user-facing setup flow.
 
 F2 provides the Game Wallet Login page in Account Details → Balance. It can create or restore the separate game wallet, then offers Logout Game Wallet before a replacement can be created or restored. It does not display the wallet's balance, addresses, or board controls.
 
-### F3. Board Game Wallet
+### F3. Board Game Wallet ✓
 
 F3 remains Admin-only. It reads the wallet selected by F1 or F2, shows its balance beside the board controls, and provides the existing Details, quote, confirmation, and boarding-state workflow. It is not a player-payment route and is never displayed in a standalone consuming game.
 
@@ -552,7 +552,7 @@ F3 remains Admin-only. It reads the wallet selected by F1 or F2, shows its balan
 
 G1 and G2 retain their completed generic contract behavior, with the current serverless F1/F2/F3 game-wallet migration planned in the active OpenSpec change. Historical acceptance records describe the previous hosted topology and are retained only as evidence for that superseded slice. BIS owns reusable contract tracking and operations; the game owns gameplay and placement.
 
-### G1. Contracts UI
+### G1. Contracts UI ✓
 
 Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.
 
@@ -573,7 +573,7 @@ Status: complete for the delivered feature; user confirmed it works on 2026-09-0
 - No generic Burn action. "Burn" in the interview means end/refund the agreement, not destroy sats or delete an unresolved record. The cooperative early-cancellation path uses the shared refund controller. UI actions cannot bypass the actual contract paths.
 - The public query is `checkContracts()`: it reads saved contract state without signing; the service separately reconciles provider evidence. Cleanup is a separate idempotent operation. BIS understands generic LTOs; the game matches its exact saved contract/session reference and ignores unrelated LTOs and other contract types.
 
-### G2. LTO Treasure Chest
+### G2. LTO Treasure Chest ✓
 
 Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). LTO means Limited-Time Offer: a funded reward bound to a specific player, with a player claim path and a game refund path. The gameplay demonstration is a timed treasure chest in Stealth & Steel.
 
@@ -609,7 +609,7 @@ G1 and Assets/Transactions share **Item List** and **Item List Detail**. All lis
 
 ## H. Spikes
 
-### H1. Arkade onboarding spike
+### H1. Arkade onboarding spike ✓
 
 **User story:** As a BIS developer, I want an isolated, observable Signet onboarding experiment so I can verify funding, settlement, recovery and timing before bringing the behavior into the player-facing onboarding flow.
 

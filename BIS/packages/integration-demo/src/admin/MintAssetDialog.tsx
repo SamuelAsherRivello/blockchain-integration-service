@@ -66,7 +66,7 @@ export function MintAssetDialog({ prepare, onBusy, onClose }: {prepare(destinati
       if (next.status === 'error' && !target.request && !['outcome-unknown', 'account-changed', 'disposed'].includes(next.code)) setLocked(false);
     } finally { submitting.current = false; setPending(false); onBusy?.(false); }
   }
-  const consoleOutput = pending ? 'Minting asset…' : unavailable || (loading ? 'Checking destination…' : result?.status === 'error' ? result.message : done ? 'Asset minted. The result is in Admin Console.' : validation || `Mint to the ${destination === 'player' ? 'player' : 'game'} wallet with a fixed supply.`);
+  const consoleOutput = pending ? 'Minting asset…' : unavailable || (loading ? 'Checking destination…' : result?.status === 'error' ? result.message : done ? 'Asset minted. The result is in Admin Console.' : validation || `Mint to the ${destination === 'player' ? 'player' : 'game'} wallet from the Game Wallet with a fixed supply.`);
   return <AdminDialogFullscreen title="Mint Asset" className="mint-dialog" closeDisabled={pending} onClose={onClose}>
     <form className="mint-form" onSubmit={e => {e.preventDefault(); void submit();}}>
       <fieldset className="mint-presets" disabled={pending || locked || done || recoveryChoice}><legend>Quick fill</legend><button type="button" onClick={() => { setForm(createDefaultMintDraft()); setResult(undefined); }}>Clear</button>{achievementPresets.map(preset => <button type="button" key={preset.ticker} onClick={() => edit(preset)}>{preset.name}</button>)}</fieldset>
@@ -77,10 +77,13 @@ export function MintAssetDialog({ prepare, onBusy, onClose }: {prepare(destinati
       <section className="mint-section" aria-labelledby="mint-form-title">
         <h3 id="mint-form-title">Form</h3>
         <div className="mint-fields mint-control-row">
+          <label>Source<select aria-label="Source" value="game" disabled><option value="game">Game wallet</option></select></label>
           <label>Destination<select aria-label="Destination" autoFocus value={destination} disabled={pending || locked || done} onChange={e => selectDestination(e.target.value as MintDestination)}><option value="player">Player wallet</option><option value="game">Game wallet</option></select></label>
+        </div>
+        <div className="mint-fields mint-control-row">
           <label>Control Asset<input aria-label="Control Asset" readOnly value="None" disabled={pending || locked || done || recoveryChoice} /></label>
         </div>
-        <p className="mint-destination-help">The selected wallet funds and receives the mint.</p>
+        <p className="mint-destination-help">The Game Wallet funds every mint; the selected destination receives the asset.</p>
         {recoveryChoice && <p role="status">This wallet has an unresolved mint. <button type="button" className="mint-resume" onClick={() => {setForm(target!.request!);setLocked(true);}}>Resume pending mint</button></p>}
         <fieldset className="mint-fields" disabled={pending || locked || done || recoveryChoice}>
           <label>Name *<input required maxLength={128} value={form.name} onChange={e => edit({name:e.target.value})} /></label>

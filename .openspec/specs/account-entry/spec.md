@@ -7,7 +7,7 @@ Provide reusable account entry presentation and lifecycle behavior that game hos
 ## Requirements
 
 ### Requirement: Host-mounted production presentation
-The integration SHALL render into a supplied host container, initially empty, and SHALL offer an explicit request to display a production Account button. Production content SHALL be centered within that container. The entry button SHALL size to its content; dialogue action buttons SHALL share the same width and padding. Production UI SHALL not depend on demo code or styles.
+The integration SHALL render into a supplied host container, initially empty, and SHALL offer an explicit request to display a production Account button. Production content SHALL be centered within that container by default. A consuming host MAY apply host-local placement styling to the closed Account button, provided it does not transform or reduce the host overlay layer and an open Account dialogue remains centered within the complete host container. The entry button SHALL size to its content; dialogue action buttons SHALL share the same width and padding. Production UI SHALL not depend on demo code or styles.
 
 #### Scenario: Display entry control
 - **WHEN** a host mounts integration UI and requests Account button presentation
@@ -18,6 +18,11 @@ The integration SHALL render into a supplied host container, initially empty, an
 - **WHEN** a host mounts the production UI and calls the public context.openAccountDialog() method without requesting an Account button
 - **THEN** the same Account dialogue opens without requiring the BIS entry button
 - **AND** Back restores the previously empty production layer
+
+#### Scenario: Host positions its entry control
+- **WHEN** a consuming host applies a host-local Account button position
+- **THEN** the closed entry control appears at that visible host-local position
+- **AND** opening Account still covers and centers in the complete host container
 
 ### Requirement: No-profile account flow
 Opening Account without an active profile SHALL replace entry presentation with the production Account dialogue. It SHALL show the title "Account", followed by "You are not logged in.", enabled lightning-prefixed Create Account, enabled lightning-prefixed Restore Account, and enabled Back without a lightning icon. Create Account SHALL use a stronger primary style; Restore Account and Back SHALL use secondary styling. The dialogue SHALL omit decorative heading icons and coming-soon explanations. Opening it SHALL perform no account creation or restoration; loading an existing local account SHALL precede routing. The presence of other saved player identities without an active identity SHALL not alter this logged-out presentation or expose their existence. Back SHALL restore the preceding presentation without changing profile state.

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import source from '../../../documentation/User Story Diagrams.md?raw';
 import './documentation.css';
 
@@ -47,7 +48,7 @@ function Diagram({ code }: { code: string }) {
 function Documentation() {
   return <main>
     <a href="../../">← Back to demo</a>
-    {source.trim() ? <Markdown rehypePlugins={[headingAnchors]} components={{
+    {source.trim() ? <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[headingAnchors]} components={{
       pre: ({ children }) => <div className="code-block">{children}</div>,
       code: ({ className, children }) => className === 'language-mermaid'
         ? <Diagram code={String(children).trim()} />

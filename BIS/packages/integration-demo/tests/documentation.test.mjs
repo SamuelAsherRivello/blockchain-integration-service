@@ -38,7 +38,8 @@ test('documentation has a clean standalone route and no filesystem URL', async (
     await server.listen();
     const base = server.resolvedUrls.local[0];
     const admin = await (await fetch(new URL('src/admin/AdminPanel.tsx', base))).text();
-    assert.ok(!admin.includes('User%20Story%20Diagrams.md') && admin.includes('documentation/user-stories/'));
+    assert.match(admin, /href:\s*userStoriesUrl/);
+    assert.match(admin, /userStoriesUrl\s*=\s*.*documentation\/user-stories\//);
     const page = await (await fetch(new URL('documentation/user-stories/', base))).text();
     assert.match(page, /User Story Diagrams/);
     assert.match(page, /documentation\.tsx/);
@@ -51,7 +52,7 @@ test('documentation has a clean standalone route and no filesystem URL', async (
       assert.equal(documentation.status, 200);
       assert.match(await documentation.text(), /<title>User Story Diagrams/);
     }
-    const legacy = new URL('/@fs/' + resolve('BIS/documentation/User Story Diagrams.md').replaceAll('\\', '/'), base);
+    const legacy = new URL('/BIS/documentation/User Story Diagrams.md', base);
     const redirect = await fetch(legacy, { redirect: 'manual' });
     assert.equal(redirect.status, 302);
     assert.equal(redirect.headers.get('location'), '/documentation/user-stories/');

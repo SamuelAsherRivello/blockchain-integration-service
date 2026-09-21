@@ -13,6 +13,7 @@ function setup() {
 }
 test('Start fixes the 90-second deadline without waiting for funding or extending for pauses',async()=>{
   const s=setup();s.offers.start=()=>new Promise(()=>{});s.controller.start();
+  await tick();
   assert.equal(s.controller.getState().remainingSeconds,90);
   s.records.push(s.record({financial:'funding',canClaim:false}));await s.controller.inspect();
   assert.equal(s.controller.getState().status,'preparing');
@@ -21,7 +22,7 @@ test('Start fixes the 90-second deadline without waiting for funding or extendin
 });
 test('missing player or game at Start skips the entire session',async()=>{
   for(const role of ['player','game']){
-    const s=setup();s[role].profileId=undefined;s.controller.start();s[role].profileId=role;
+    const s=setup();s[role].profileId=undefined;s.controller.start();await tick();s[role].profileId=role;
     await s.controller.inspect();await tick();assert.equal(s.calls.length,0);
   }
 });
@@ -41,9 +42,18 @@ test('expiry remains inspectable after backend refund and a rejected reward neve
   assert.equal((await s.controller.act('reject')).status,'unavailable');assert.equal(s.calls.filter(c=>c[0]==='start').length,1);
 });
 test('late results from an ended session cannot alter a new session',async()=>{
-  const s=setup();let release;s.offers.start=()=>new Promise(resolve=>{release=resolve;});s.controller.start();const old=s.record();
+  const s=setup();let release;s.offers.start=()=>new Promise(resolve=>{release=resolve;});s.controller.start();await tick();const old=s.record();
   s.controller.end();s.player.profileId=undefined;s.controller.start();release({status:'confirmed',contract:old});await tick();
   assert.equal(s.controller.getState().status,'missing-player');assert.equal(s.controller.getState().contractId,undefined);
+});
+test('replacement Start waits for prior cleanup before beginning a fresh offer',async()=>{
+  const s=setup();s.controller.start();await tick();
+  let release;const originalEnd=s.offers.endSession;s.offers.endSession=id=>new Promise(resolve=>{s.calls.push(['end-start',id]);release=resolve;});
+  const replacement=s.controller.start();await tick();
+  assert.equal(s.calls.filter(call=>call[0]==='start').length,1);
+  release();await replacement;await tick();
+  assert.equal(s.calls.filter(call=>call[0]==='start').length,2);
+  s.offers.endSession=originalEnd;
 });
 test('unavailable reads stay distinct from empty and account replacement disables actions',async()=>{
   const s=setup();s.controller.start();await tick();s.records.push(s.record());await s.controller.inspect();

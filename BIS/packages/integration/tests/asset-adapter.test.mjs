@@ -48,7 +48,7 @@ function fixture(t, network = 'signet') {
   t.mock.method(RestIndexerProvider.prototype, 'getAssetDetails', async assetId => ({ assetId, metadata: state.holdings.get(assetId)?.metadata }));
   t.mock.method(RestArkProvider.prototype, 'submitTx', async () => {
     // Assert the real BIS provider wrapper commits intent before this boundary.
-    const pending = readAssetRecords(account.profileId).find(record => record.status === 'pending');
+    const pending = readAssetRecords(walletAccount.profileId, walletAccount.network).find(record => record.status === 'pending');
     assert.ok(pending, 'durable intent exists before network submission');
     state.submitted++;
     if (state.submitGate) await state.submitGate.promise;

@@ -7,12 +7,13 @@ import { eligibleUnreservedCoins, walletReservations } from '../core/wallet-rese
 import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, validateAssetDelivery, writeAssetDeliveryRecord, type AssetDeliveryAsset, type AssetDeliveryRecord, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from '../core/asset-delivery.ts';
 
 export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal) {
-  try {eligibleUnreservedCoins([],walletReservations(account.profileId));}
+  const network=account.network ?? 'signet';
+  try {eligibleUnreservedCoins([],walletReservations(account.profileId,network));}
   catch {return {canMint:false,reason:'Pending operation inputs could not be verified. Open wallet recovery details before minting.'};}
-  const p=providers(signal, undefined, undefined, account.network ?? 'signet');
+  const p=providers(signal, undefined, undefined, network);
   const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
   return withTemporaryWallet(ReadonlyWallet.create({identity,arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()}),signal,async wallet=>{
-    const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId));
+    const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId,network));
     const connection=wallet.getProviderConnectionState();p.assertFresh();
     if(connection.mode!=='online'||connection.source!=='live')throw new AssetError('unavailable');
     const availableSats=coins.reduce((sum,c)=>sum+c.value,0),minimumSats=Number(wallet.dustAmount);
@@ -67,7 +68,8 @@ function providers(signal: AbortSignal, beforeSubmit?: () => void, afterSubmit?:
 const storage = () => ({ walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() });
 // Caller holds the wallet mutation lock. A pending record is written before submission.
 export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetRequest, signal:AbortSignal, isCurrent:()=>boolean):Promise<Extract<BisBurnAssetResult,{status:'burned'}>> {
-  const request=validateBurn(input), prior=readBurnRecord(account.profileId, input.operationId);
+  const network=account.network ?? 'signet';
+  const request=validateBurn(input), prior=readBurnRecord(account.profileId, input.operationId, network);
   if(prior?.id===request.operationId) {
     if(JSON.stringify(prior.request)!==JSON.stringify(request))throw new BurnError('invalid-input','The burn request changed.');
     if(prior.status==='succeeded')return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:prior.transactionId!};
@@ -78,13 +80,13 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
   const p=providers(deadline,()=>{
     if(!open||!isCurrent())throw new BurnError('account-changed','The account changed.');
     if(!burnInputs.length)throw new BurnError('unavailable','The burn inputs could not be verified.');
-    writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending',inputs:burnInputs});
+    writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending',network,inputs:burnInputs});
     submitted=true;
   },transactionId=>{
     if(open&&!deadline.aborted&&/^[a-f0-9]{64}$/i.test(transactionId)) {
-      try {writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending',transactionId,inputs:burnInputs});} catch { /* Intent is already durable; let finalization continue. */ }
+      try {writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'pending',network,transactionId,inputs:burnInputs});} catch { /* Intent is already durable; let finalization continue. */ }
     }
-  });
+  },network);
   try {
     return await withTemporaryWallet(Wallet.create({identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}),arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()}),deadline,async wallet=>{
       const owned=await readFreshAssets(wallet);p.assertFresh();
@@ -92,7 +94,7 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
       if(!asset||asset.quantity!==request.quantity)throw new BurnError('invalid-input','The owned quantity changed. Refresh Assets and confirm again.');
       if(!isCurrent())throw new BurnError('account-changed','The account changed.');
       const spendable=wallet.getSpendableVtxos.bind(wallet);
-      wallet.getSpendableVtxos=async options=>eligibleUnreservedCoins(await spendable(options),walletReservations(account.profileId));
+      wallet.getSpendableVtxos=async options=>eligibleUnreservedCoins(await spendable(options),walletReservations(account.profileId,network));
       const submitOffchain=wallet.buildAndSubmitOffchainTx.bind(wallet);
       wallet.buildAndSubmitOffchainTx=async(inputs,outputs)=>{
         burnInputs=inputs.map(input=>({txid:input.txid,vout:input.vout}));
@@ -101,11 +103,12 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
       const transactionId=await wallet.assetManager.burn({assetId:request.assetId,amount:BigInt(request.quantity)});
       if(!open||deadline.aborted||!isCurrent())throw new BurnError('outcome-unknown','The burn outcome is unknown. Refresh Assets; do not retry the burn.');
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw Error('Invalid transaction ID');
-      writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'succeeded',transactionId,inputs:burnInputs});
+      writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'succeeded',network,transactionId,inputs:burnInputs});
       return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId};
     },30000);
   } catch(error) {
     if(submitted)throw new BurnError('outcome-unknown','The burn may have been submitted. Refresh Assets; do not retry the burn.');
+    if(error instanceof Error && error.message.startsWith('Operator network mismatch:'))throw new BurnError('unavailable','The selected wallet network could not be verified. Refresh the wallet and try again.');
     throw error;
   } finally {open=false;}
 }
@@ -128,8 +131,8 @@ function deliveryRecipient(recipient:string, own:string) {
 }
 
 /** Select only the sender's unreserved inputs that carry the exact asset. */
-export function selectExactAssetDeliveryInputs<T extends {txid:string;vout:number;assets?:readonly {assetId:string;amount:bigint}[]}>(coins:readonly T[],profileId:string,assetId:string,quantity:bigint):T[] {
-  const eligible=eligibleUnreservedCoins(coins,walletReservations(profileId)).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
+export function selectExactAssetDeliveryInputs<T extends {txid:string;vout:number;assets?:readonly {assetId:string;amount:bigint}[]}>(coins:readonly T[],profileId:string,assetId:string,quantity:bigint,network:TestNetwork='signet'):T[] {
+  const eligible=eligibleUnreservedCoins(coins,walletReservations(profileId,network)).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
   const selected:typeof eligible=[];let total=0n;
   for(const coin of eligible) {
     const amount=(coin.assets??[]).filter(asset=>asset.assetId===assetId).reduce((sum,asset)=>sum+asset.amount,0n);
@@ -174,20 +177,20 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
   let request:BisAssetDeliveryRequest;
   try {request=validateAssetDelivery(input);} catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'invalid-input',message:error instanceof Error?error.message:'Item delivery is invalid.',profileId:account.profileId,operationId:input?.operationId};}
   try {
-    const prior=readAssetDeliveryRecord(account.profileId,request.operationId);
+    const network=account.network ?? 'signet',prior=readAssetDeliveryRecord(account.profileId,request.operationId,network);
     if(prior) {
       if(JSON.stringify(prior.request)!==JSON.stringify(request))throw new AssetDeliveryError('invalid-input','The item delivery request changed.');
       if(prior.status==='succeeded')return deliveryResult(prior);
       return {status:'error',code:'outcome-unknown',message:'This item delivery is pending confirmation.',profileId:account.profileId,operationId:request.operationId};
     }
-    const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline);
+    const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline,undefined,undefined,network);
     return await withTemporaryWallet(Wallet.create({identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}),arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()}),deadline,async wallet=>{
       const own=await wallet.getAddress(),destination=deliveryRecipient(request.recipient,own);
       const spendable=await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false});p.assertFresh();
       const sourceQuantity=spendable.flatMap(coin=>coin.assets??[]).filter(asset=>asset.assetId===request.assetId).reduce((sum,asset)=>sum+asset.amount,0n);
-      const selected=selectExactAssetDeliveryInputs(spendable,account.profileId,request.assetId,BigInt(request.quantity));
+      const selected=selectExactAssetDeliveryInputs(spendable,account.profileId,request.assetId,BigInt(request.quantity),network);
       if(!isCurrent()||deadline.aborted)throw new AssetDeliveryError('account-changed','The delivery wallet changed.');
-      const record={version:1 as const,id:request.operationId,profileId:account.profileId,request,status:'pending' as const,inputs:selected.map(coin=>({txid:coin.txid,vout:coin.vout})),inputAssets:selectedAssetTotals(selected),senderScript:destination.senderScript,recipientScript:destination.recipientScript,sourceQuantity:String(sourceQuantity)};
+      const record={version:1 as const,id:request.operationId,profileId:account.profileId,network,request,status:'pending' as const,inputs:selected.map(coin=>({txid:coin.txid,vout:coin.vout})),inputAssets:selectedAssetTotals(selected),senderScript:destination.senderScript,recipientScript:destination.recipientScript,sourceQuantity:String(sourceQuantity)};
       writeAssetDeliveryRecord(record);
       const transactionId=await wallet.send({recipients:[{address:destination.address,amount:Number(wallet.dustAmount),assets:[{assetId:request.assetId,amount:BigInt(request.quantity)}]}],selectedVtxos:selected});
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw new AssetDeliveryError('outcome-unknown','Item delivery acknowledgement could not be verified.');
@@ -203,32 +206,32 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
 /** Reconcile only from current sender and recipient evidence; absence is never success. */
 export async function reconcileWalletAssetDelivery(account:AccountSecret,operationId:string,signal:AbortSignal):Promise<BisAssetDeliveryResult> {
   try {
-    const record=readAssetDeliveryRecord(account.profileId,operationId);
+    const network=account.network ?? 'signet',record=readAssetDeliveryRecord(account.profileId,operationId,network);
     if(!record)throw new AssetDeliveryError('invalid-input','The requested item delivery does not exist.');
     if(record.status==='succeeded')return deliveryResult(record);
     if(!record.transactionId)return {status:'error',code:'outcome-unknown',message:'Item delivery preparation is pending. Do not submit another delivery.',profileId:account.profileId,operationId};
-    const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline);
+    const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline,undefined,undefined,network);
     const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
     return await withTemporaryWallet(ReadonlyWallet.create({identity,arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()}),deadline,async wallet=>{
       const [source,{vtxos}]=await Promise.all([readFreshAssets(wallet),p.indexerProvider.getVtxos({scripts:[record.senderScript,record.recipientScript]})]);p.assertFresh();
       const sourceQuantity=source.filter(item=>item.asset.assetId===record.request.assetId).reduce((sum,item)=>sum+BigInt(item.asset.quantity),0n);
       if(!hasExactDeliveryEvidence(record,sourceQuantity,vtxos))return {status:'error',code:'outcome-unknown',message:'Item delivery is still awaiting fresh sender-change and recipient ownership evidence. Do not submit another delivery.',profileId:account.profileId,operationId};
-      return deliveryResult(completeAssetDelivery(account.profileId,operationId,record.transactionId!));
+      return deliveryResult(completeAssetDelivery(account.profileId,operationId,record.transactionId!,network));
     },30000);
   } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status is unavailable.',profileId:account.profileId,operationId};}
 }
 // Caller holds the mutation lock shared with transfers and account clearing.
 export async function mintWalletAsset(account: AccountSecret, request: BisMintAssetRequest, signal: AbortSignal, isCurrent: () => boolean): Promise<Exclude<BisMintAssetResult, {status:'error'}>> {
-  const record = checkMintRecord(account.profileId, request);
+  const network=account.network ?? 'signet', record = checkMintRecord(account.profileId, request,network);
   if (record?.status === 'succeeded') return { status: 'already-minted', profileId: account.profileId, operationId: request.operationId, asset: record.asset!, transactionId: record.transactionId };
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
   let submitted = false, open = true;
   let fundingCoins: readonly {txid:string;vout:number}[] = [];
   const p = providers(deadline, () => {
     if (!open || !isCurrent()) throw new AssetError('account-changed');
-    if (eligibleUnreservedCoins(fundingCoins,walletReservations(account.profileId)).length !== fundingCoins.length) throw new AssetError('unavailable');
-    checkMintRecord(account.profileId, request);
-    writeAssetRecord(account.profileId, { request, status: 'pending' });
+    if (eligibleUnreservedCoins(fundingCoins,walletReservations(account.profileId,account.network ?? 'signet')).length !== fundingCoins.length) throw new AssetError('unavailable');
+    checkMintRecord(account.profileId, request,network);
+    writeAssetRecord(account.profileId, { request, status: 'pending',network });
     submitted = true;
   }, transactionId => {
     // Once the caller exits, its wallet lock is gone. Leave late evidence for
@@ -236,10 +239,10 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
     if (!open || deadline.aborted) return;
     if (typeof transactionId !== 'string' || !/^[0-9a-f]{64}$/i.test(transactionId)) return;
     try {
-      const latest = checkMintRecord(account.profileId, request);
+      const latest = checkMintRecord(account.profileId, request,network);
       // Only enrich an existing pending intent. Never downgrade confirmed
       // ownership, or recreate a journal removed by account cleanup.
-      if (latest?.status === 'pending') writeAssetRecord(account.profileId, { ...latest, transactionId });
+      if (latest?.status === 'pending') writeAssetRecord(account.profileId, { ...latest, transactionId,network });
     } catch {
       // Durable intent already exists. A secondary journal write must not stop
       // SDK finalization of an accepted transaction; completion still persists.
@@ -250,8 +253,8 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
       const owned = await readFreshAssets(wallet); p.assertFresh();
       const existing = owned.find(o => o.operationId === request.operationId && o.asset.name === request.name && o.asset.ticker === request.ticker && o.asset.decimals === request.decimals && o.asset.quantity === assetBaseUnits(request.amount, request.decimals).toString() && (o.asset.iconUrl || '') === (request.iconUrl || ''));
       if (existing) {
-        const transactionId = checkMintRecord(account.profileId, request)?.transactionId;
-        writeAssetRecord(account.profileId, { request, status: 'succeeded', asset: existing.asset, ...(transactionId ? { transactionId } : {}) });
+        const transactionId = checkMintRecord(account.profileId, request,network)?.transactionId;
+        writeAssetRecord(account.profileId, { request, status: 'succeeded', asset: existing.asset, network, ...(transactionId ? { transactionId } : {}) });
         return { status: 'already-minted', profileId: account.profileId, operationId: request.operationId, asset: existing.asset, ...(transactionId ? { transactionId } : {}) };
       }
       if (record) throw new AssetError('outcome-unknown');
@@ -260,7 +263,7 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
       // the preflight balance, so its internal selection cannot spend reservations.
       const spendable = wallet.getSpendableVtxos.bind(wallet);
       wallet.getSpendableVtxos = async options => {
-        const coins = eligibleUnreservedCoins(await spendable({...options,withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId));
+        const coins = eligibleUnreservedCoins(await spendable({...options,withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId,account.network ?? 'signet'));
         p.assertFresh();fundingCoins=coins;
         return coins;
       };
@@ -274,7 +277,7 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
       const asset: BisAsset = {assetId: result.assetId, name: request.name, ticker: request.ticker, quantity: quantity.toString(), decimals: request.decimals, ...(request.iconUrl ? {iconUrl: request.iconUrl} : {}), ...(metadata ? {metadata} : {})};
       // SDK finalization continues after abort, but only an open caller still
       // holds the mutation lock needed to update this operation's journal.
-      if (open && !deadline.aborted && checkMintRecord(account.profileId, request)) writeAssetRecord(account.profileId, {request, status: 'succeeded', asset, transactionId: result.arkTxId});
+      if (open && !deadline.aborted && checkMintRecord(account.profileId, request,network)) writeAssetRecord(account.profileId, {request, status: 'succeeded', asset, network, transactionId: result.arkTxId});
       return { status: 'minted', profileId: account.profileId, operationId: request.operationId, asset, transactionId: result.arkTxId };
     }, 30000);
   } catch (e) {
