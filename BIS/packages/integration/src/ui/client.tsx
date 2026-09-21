@@ -134,6 +134,18 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
   const recoveryLoading = savedRecovery && (state.recoveryStatus === 'hidden' || state.recoveryStatus === 'loading');
   const failure = state.error || (!assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
   usePendingNotice(state.view !== 'empty' && (busy || (!assets && pageLoading) || recoveryLoading), phaseLabels[state.phase] ?? 'Loading...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
+  const handleBack = () => {
+    if (onboarding && developerReturn) {
+      // Leave the nested onboarding route explicitly before revealing the
+      // Developer view. This keeps the local presentation state and the
+      // shared account route in the same transition.
+      setDeveloperOpen(true);
+      setDeveloperReturn(false);
+      context.openAccountDetails();
+      return;
+    }
+    context.closeAccount();
+  };
   if (state.view === 'empty') return null;
   if (state.view === 'account' && (assets || contracts || activity)) return <div className="bis-layer bis-layer-open bis-layer-collection">
     {assets && state.network && <AccountAssets key={state.profileId} assets={state.assets} network={state.network} equipment={equipment} equipmentState={equipmentState} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
@@ -192,10 +204,7 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
             <div className="bis-entry-group"><FieldHeading label="Network" /><NetworkSelect value={state.network} onChange={context.selectNetwork} /></div>
             <div className="bis-entry-group"><FieldHeading label="Account" /><div className="bis-account-actions"><button className="bis-button bis-primary" disabled={!state.network} onClick={()=>void context.createAccount()}>⚡ Create Account</button><button className="bis-button" disabled={!state.network} onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button></div></div>
           </>}
-          {!(activity && transactionOpen) && <button ref={close} className="bis-button bis-back" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={()=>{
-            if (onboarding && developerReturn) { setDeveloperReturn(false); context.closeAccount(); setDeveloperOpen(true); }
-            else context.closeAccount();
-          }}>Back</button>}
+          {!(activity && transactionOpen) && <button ref={close} className="bis-button bis-back" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={handleBack}>Back</button>}
         </div>}
       </AccountCard>}
   </div>;
