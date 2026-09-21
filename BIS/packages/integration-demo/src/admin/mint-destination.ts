@@ -45,10 +45,6 @@ export async function prepareMintDestination(destination: MintDestination, sourc
   if (pending.profileId !== sourceProfileId) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
   const pendingDelivery = source.getPendingAssetDelivery ? await source.getPendingAssetDelivery() : undefined;
   if (pendingDelivery?.status === 'error') throw Error(pendingDelivery.message);
-  if (pendingDelivery?.status === 'success' && pendingDelivery.request && !pendingDelivery.mintRequest) {
-    throw Error('This Game Wallet has an incomplete Player Wallet delivery record. Reconcile it before minting again.');
-  }
-  if (pendingDelivery?.status === 'success' && pendingDelivery.request && destination !== 'player') throw Error('This Game Wallet has an unresolved Player Wallet delivery. Select Player wallet to resume it.');
   let destinationAddress: string | undefined;
   if (destination === 'player' && !legacy) {
     try {
@@ -67,7 +63,7 @@ export async function prepareMintDestination(destination: MintDestination, sourc
     }
     if (!isCurrent()) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
   }
-  const recoveryRequest = pending.request ?? pendingDelivery?.mintRequest ?? null;
+  const recoveryRequest = pending.request ?? null;
   let busy = false;
   return {
     destination, sourceProfileId, destinationProfileId, request: recoveryRequest, canMint:true, reason:undefined as string | undefined, isCurrent,

@@ -11,8 +11,8 @@ try {
   for(const [id,count] of [['rows-0',0],['rows-1',1],['rows-2',2],['rows-5',5]]) {
     await page.getByRole('button',{name:new RegExp(`^${count} row`) }).click();
     assert.equal(await page.locator('.bis-collection-item').count(),count*3,`${count} rows across three collections`);
-    const bounds=await page.locator('.bis-collection-list').evaluateAll(lists=>lists.map(list=>({height:list.getBoundingClientRect().height,overflow:getComputedStyle(list).overflowY,gutter:getComputedStyle(list).scrollbarGutter,cardHeight:list.closest('.bis-item-list').getBoundingClientRect().height,backVisible:(()=>{const card=list.closest('.bis-item-list').getBoundingClientRect(),back=list.closest('.bis-item-list').querySelector('.bis-back').getBoundingClientRect();return back.top>=card.top&&back.bottom<=card.bottom;})()})));
-    assert.ok(bounds.every(value=>Math.round(value.height)===276 && Math.round(value.cardHeight)===456 && value.overflow==='scroll' && value.gutter==='stable' && value.backVisible),`${id}: ${JSON.stringify(bounds)}`);
+    const bounds=await page.locator('.bis-collection-list').evaluateAll(lists=>lists.map(list=>({height:list.getBoundingClientRect().height,overflow:getComputedStyle(list).overflowY,gutter:getComputedStyle(list).scrollbarGutter,cardHeight:list.closest('.bis-item-list').getBoundingClientRect().height,backVisible:(()=>{const card=list.closest('.bis-item-list').getBoundingClientRect(),back=list.closest('.bis-item-list').querySelector('.bis-back').getBoundingClientRect();return back.top>=card.top&&back.bottom<=card.bottom;})(),footerGap:(()=>{const back=list.closest('.bis-item-list').querySelector('.bis-back').getBoundingClientRect();return back.top-list.getBoundingClientRect().bottom;})()})));
+    assert.ok(bounds.every(value=>Math.round(value.height)===276 && Math.round(value.cardHeight)===456 && value.overflow==='scroll' && value.gutter==='stable' && value.backVisible && value.footerGap>=12),`${id}: ${JSON.stringify(bounds)}`);
   }
   console.log('PASS: shared collection card, list viewport, scrollbar, and row geometry across empty, short, and long lists.');
 } finally { await browser.close(); }

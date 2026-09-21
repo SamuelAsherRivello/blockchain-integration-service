@@ -1,5 +1,5 @@
 import type { BisContext } from './context.ts';
-import type { createBisGameWallet } from './game-wallet.ts';
+import { createNetworkScopedGameWalletStorage, type createBisGameWallet } from './game-wallet.ts';
 import { createAccountStorage } from './account-storage.ts';
 import { createGameWalletStorage } from './game-wallet-storage.ts';
 import { withWalletMutation } from './boarding-record.ts';
@@ -17,6 +17,16 @@ export type BisLtoRequest = Omit<LtoRequest,'id'|'operationId'|'scope'> & Readon
 type Controller = { claim(id:string):Promise<BisContractActionResult>; reject(id:string):Promise<BisContractActionResult>; refund(id:string):Promise<BisContractActionResult>;checkContracts?(filter?:BisContractFilter):Promise<BisContractsResult> };
 const controllers = new WeakMap<BisContext,Controller>();
 export const contractController = (context: BisContext) => controllers.get(context);
+function createNetworkScopedPlayerStorage(selectedNetwork: () => TestNetwork | undefined): Pick<ReturnType<typeof createAccountStorage>, 'load'> {
+  const stores = new Map<TestNetwork, ReturnType<typeof createAccountStorage>>();
+  const current = () => {
+    const network = selectedNetwork() ?? 'signet';
+    let store = stores.get(network);
+    if (!store) { store = createAccountStorage(network); stores.set(network, store); }
+    return store;
+  };
+  return {load: () => current().load()};
+}
 const endKey = (record: Pick<ContractRecord,'scope'|'sessionId'>) => `bis-lto-ended-v1:${encodeURIComponent(JSON.stringify([record.scope.gameId,record.scope.playerId,record.scope.exclusivityKey,record.sessionId]))}`;
 function ended(record: ContractRecord): ContractRecord {
   const reason = localStorage.getItem(endKey(record));
@@ -54,7 +64,7 @@ export function inspectContractDocument(document:ContractDocument,profileId:stri
 export function createBisLto(options: { context: BisContext; gameWallet: ReturnType<typeof createBisGameWallet>; creationEnabled?: boolean }):ReturnType<typeof createLtoService> {
   // Runtime readiness and provider validation govern each attempt. Hosts may
   // explicitly disable new offers while keeping existing-contract recovery.
-  return createLtoService(options,{storage:createContractStorage(),playerStorage:createAccountStorage(),gameStorage:createGameWalletStorage(),prepare:prepareLtoRecovery,submit:submitLtoSpend,reconcile:reconcileLtoSpend,resume:resumeLtoFinalization,poll:true});
+  return createLtoService(options,{storage:createContractStorage(),playerStorage:createNetworkScopedPlayerStorage(() => options.context.getState().network),gameStorage:createNetworkScopedGameWalletStorage(() => options.gameWallet.getState().network ?? options.context.getState().network),prepare:prepareLtoRecovery,submit:submitLtoSpend,reconcile:reconcileLtoSpend,resume:resumeLtoFinalization,poll:true});
 }
 /** Internal adapter seam for offline lifecycle tests; not exported by the package. */
 export function createLtoService(options: {context:BisContext;gameWallet:ReturnType<typeof createBisGameWallet>;creationEnabled?:boolean}, dependencies: {

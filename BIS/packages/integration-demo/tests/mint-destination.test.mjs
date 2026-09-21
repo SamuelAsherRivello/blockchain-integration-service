@@ -91,6 +91,15 @@ test('pending recovery skips new-mint funding and preserves the operation',async
   await target.mint(target.request);
   assert.deepEqual(selected.calls,[request]);
 });
+test('unresolved Player Wallet delivery does not block a new Game Wallet mint',async()=>{
+  const selected=gameWallet('game');
+  selected.getPendingAssetDelivery=async()=>({status:'success',profileId:'game',request:{operationId:'old-delivery',assetId:'a'.repeat(68),quantity:'1',recipient:'tark1old-player'},mintRequest:{operationId:'old-mint',name:'old',ticker:'OLD',amount:'1',decimals:0}});
+  const target=await prepareMintDestination('game',selected,()=>true,()=>{});
+  assert.equal(target.request,null);
+  const result=await target.mint(request);
+  assert.equal(result.status,'minted');
+  assert.equal(selected.calls.length,1);
+});
 test('wallet replacement during lookup rejects stale preparation',async()=>{
   const selected=wallet('player');let release;
   selected.getPendingAssetMint=()=>new Promise(resolve=>{release=resolve;});

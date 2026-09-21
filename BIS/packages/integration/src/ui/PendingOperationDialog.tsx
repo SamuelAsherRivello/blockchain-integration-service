@@ -1,5 +1,7 @@
 import { useVisibleViewport } from './useVisibleViewport';
 import { useFitTextButtons } from './FitTextButton';
+import { CopyFieldLabel } from './CopyFieldLabel';
+import { useClipboardCopy } from './useClipboardCopy';
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 type NoticeInfo = {title:string;message:string;confirm?:()=>void};
@@ -67,6 +69,7 @@ export function PendingOperations({children, overlay, className}: {children: Rea
     if(open)(dialog.current?.querySelector('button') ?? dialog.current)?.focus({preventScroll:true});
   },[open,failed,current?.info?.title]);
   const title=useId(), description=useId();
+  const errorCopy=useClipboardCopy(()=>current?.error, current?.error);
   return <PendingContext.Provider value={register}>
     <div ref={runtime} className={`bis-runtime${className?` ${className}`:''}`}>
       <div ref={content} className="bis-runtime-content" inert={open} aria-hidden={open || undefined} aria-busy={!!pending}>{children}</div>
@@ -81,7 +84,10 @@ export function PendingOperations({children, overlay, className}: {children: Rea
       }}>
         <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info?description:undefined}>
           <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Error':current.info?.title??displayLabel}</h2>
-          {failed ? <><p id={description}>{current.error}</p><button className="bis-button" onClick={()=>current.dismiss()}>OK</button></>
+          {failed ? <><div className="bis-pending-error-field">
+              <CopyFieldLabel label="Message" copied={errorCopy.status === 'copied'} disabled={errorCopy.status === 'copying'} onCopy={()=>void errorCopy.copy()} />
+              <div id={description} className="bis-pending-error-value" role="textbox" aria-readonly="true" tabIndex={0}>{current.error}</div>
+            </div><button className="bis-button" onClick={()=>current.dismiss()}>OK</button></>
             : current.info ? <><p id={description}>{current.info.message}</p>{current.info.confirm ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.info.confirm}>Yes</button><button className="bis-button" onClick={current.dismiss}>Cancel</button></div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
             : <span className="bis-bolt bis-bolt-spin bis-lightning" aria-hidden="true">⚡</span>}
         </div>

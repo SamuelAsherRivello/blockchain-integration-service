@@ -45,6 +45,7 @@ async function inspect() {
   check(new Set(rows.map(row=>`${Math.round(row.getBoundingClientRect().width)}x${Math.round(row.getBoundingClientRect().height)}`)).size===1,'all item rows share width and height');
   check(rows.every(row=>Math.round(row.getBoundingClientRect().height)===72),'all item rows use 72px height');
   check(cards.every(card=>{const cardBox=card.getBoundingClientRect(),back=card.querySelector<HTMLButtonElement>('.bis-back')!.getBoundingClientRect();return back.top>=cardBox.top&&back.bottom<=cardBox.bottom;}),'Back buttons stay inside every collection card');
+  check(cards.every(card=>{const list=card.querySelector<HTMLElement>('.bis-collection-list')!.getBoundingClientRect(),back=card.querySelector<HTMLButtonElement>('.bis-back')!.getBoundingClientRect();return back.top-list.bottom>=12;}),'collection footer keeps vertical separation above the three-dot separator');
   check(host.scrollWidth<=host.clientWidth && host.scrollHeight<=host.clientHeight,'fixture has no outer overflow');
 }
 

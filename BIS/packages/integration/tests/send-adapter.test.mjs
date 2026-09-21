@@ -14,7 +14,9 @@ test('send preparation excludes pending transfer inputs and preserves the transf
  writeBoardingRecord(transfer);
  const point=Uint8Array.from(Buffer.from(publicPoints[0],'hex'));
  const own=new ArkAddress(point,point,'tark').encode(),recipient=new ArkAddress(point,Uint8Array.from(Buffer.from(publicPoints[1],'hex')),'tark').encode();
- t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'signet',fees:{txFeeRate:'0',intentFee:{}},vtxoMinAmount:1n,vtxoMaxAmount:0n}));
+ // A nonzero on-chain schedule must not block a direct Arkade send. The
+ // schedule is still part of the quote fingerprint and is checked on submit.
+ t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'signet',fees:{txFeeRate:'1',intentFee:{offchainInput:'1'}},vtxoMinAmount:1n,vtxoMaxAmount:0n}));
  t.mock.method(RestArkProvider.prototype,'submitTx',async()=>{throw Error('response lost');});
  const wallet={getAddress:async()=>own,getSpendableVtxos:async()=>[reserved,f.coin],getBalance:async()=>({available:5000,total:5000,boarding:{total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{}};
  t.mock.method(ReadonlyWallet,'create',async()=>wallet);

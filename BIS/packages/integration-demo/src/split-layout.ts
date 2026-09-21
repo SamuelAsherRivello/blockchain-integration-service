@@ -2,14 +2,14 @@ const splitStorageKey = 'bis.integration-demo.admin-split-percent';
 
 export function readSplitPercent(storage?: Pick<Storage, 'getItem'>): number {
   try {
-    const value = Number(storage?.getItem(splitStorageKey));
+    const value = Number((storage ?? globalThis.localStorage)?.getItem(splitStorageKey));
     if (Number.isFinite(value) && value > 0 && value < 100) return value;
   } catch { /* Storage may be blocked; keep the divider usable. */ }
   return 32;
 }
 
 export function saveSplitPercent(percent: number, storage?: Pick<Storage, 'setItem'>): void {
-  try { storage?.setItem(splitStorageKey, String(percent)); }
+  try { (storage ?? globalThis.localStorage)?.setItem(splitStorageKey, String(percent)); }
   catch { /* Resizing still works without persistence. */ }
 }
 

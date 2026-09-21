@@ -33,7 +33,9 @@ export function assetTotals(coins: readonly {assets?: readonly {assetId:string;a
 }
 async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:string,ignoreOperation?:string,network:TestNetwork='signet') {
  const info=await new RestArkProvider(operatorFor(network)).getInfo();requireNetwork(info.network,network);
- if(info.fees.txFeeRate!=='0'||Object.values(info.fees.intentFee).some(v=>v!==''&&v!=='0'))throw new SendError('The operator fee schedule changed. Sending needs fee verification.');
+ // Direct Arkade sends do not use the on-chain fee rate as a separate send
+ // charge. The complete fee schedule is included in the quote fingerprint and
+ // is re-read and compared by `submitSend` before anything is submitted.
  const candidates=(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false})).filter(c=>preserveAssets||!c.assets?.length);
  const reservations=profileId?walletReservations(profileId,network).filter(r=>r.id!==ignoreOperation):[];
  const coins=eligibleUnreservedCoins(candidates,reservations).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);

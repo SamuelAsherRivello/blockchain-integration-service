@@ -37,3 +37,23 @@ test('split preference round-trips and tolerates invalid or unavailable storage'
     assert.doesNotThrow(() => saveSplitPercent(45, blocked));
   } finally { await server.close(); }
 });
+
+test('split preference uses browser localStorage when no storage is passed', async () => {
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const values = new Map();
+  const originalStorage = globalThis.localStorage;
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) },
+  });
+  try {
+    const { readSplitPercent, saveSplitPercent } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/split-layout.ts');
+    assert.equal(readSplitPercent(), 32);
+    saveSplitPercent(54);
+    assert.equal(values.get('bis.integration-demo.admin-split-percent'), '54');
+    assert.equal(readSplitPercent(), 54);
+  } finally {
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: originalStorage });
+    await server.close();
+  }
+});
