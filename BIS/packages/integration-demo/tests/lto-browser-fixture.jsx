@@ -11,10 +11,10 @@ let mode='success',release,offset=0,offline=false,holdReads=false,profileId='pla
 const readWaiters=[];
 const clock=Date.now;Date.now=()=>clock()+offset;
 const events=[];const log=value=>{events.push(value);emit();};
-const storage=createContractStorage(),game={profileId:'game',phrase:'unfunded-fixture'};
+const storage=createContractStorage(),game={profileId:'game',phrase:'unfunded-fixture',network:'signet'};
 const context={getState:()=>({profileId,phase:'active'}),refreshBalance:async()=>{},showToast:message=>log({toast:message}),closeAccount:()=>{}};
 const gameWallet={getState:()=>({profileId:'game',status:'ready'}),refresh:async()=>{}};
-const dependencies={storage,playerStorage:{load:async()=>({account:{profileId:'player',phrase:'unfunded-fixture'}})},gameStorage:{load:async()=>game,dispose(){}},poll:false,
+const dependencies={storage,playerStorage:{load:async()=>({account:{profileId:'player',phrase:'unfunded-fixture',network:'signet'}})},gameStorage:{load:async()=>game,dispose(){}},poll:false,
  prepare:async()=>({secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'}),
  reconcile:async(record,recovery)=>({record,recovery}),resume:async(record,recovery)=>({record,recovery}),
  submit:async(record,recovery,account,commit,current)=>{

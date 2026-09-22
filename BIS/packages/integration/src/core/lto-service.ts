@@ -3,7 +3,7 @@ import { createNetworkScopedGameWalletStorage, type createBisGameWallet } from '
 import { createAccountStorage } from './account-storage.ts';
 import { createGameWalletStorage } from './game-wallet-storage.ts';
 import { withWalletMutation } from './boarding-record.ts';
-import { createContractStorage, type ContractDocument, type ContractRecovery } from './contract-storage.ts';
+import { createContractStorage, createNetworkScopedContractStorage, type ContractDocument, type ContractRecovery } from './contract-storage.ts';
 import { beginContractOperation, contractResolved, endContract, finishContractOperation, presentContract, startLto, contractFailureMessages, type BisContract, type ContractRecord, type LtoRequest } from './contracts.ts';
 import { publishContractReservations, reserveContract } from './contract-reservations.ts';
 import { prepareLtoRecovery, reconcileLtoSpend, resumeLtoFinalization, submitLtoSpend } from '../arkade/lto-contract.ts';
@@ -42,7 +42,7 @@ function persistEnd(record: Pick<ContractRecord,'scope'|'sessionId'>, reason: 'r
 export async function queryAccountContracts(profileId: string | undefined, filter: BisContractFilter = {}, network: TestNetwork = 'signet'): Promise<BisContractsResult> {
   if (!profileId) return {status:'ready',contracts:[]};
   try {
-    const document = await createContractStorage().load();
+    const document = await createNetworkScopedContractStorage(() => network).load();
     return inspectContractDocument(document,profileId,filter,network);
   } catch { return {status:'unavailable',contracts:[]}; }
 }
@@ -64,7 +64,7 @@ export function inspectContractDocument(document:ContractDocument,profileId:stri
 export function createBisLto(options: { context: BisContext; gameWallet: ReturnType<typeof createBisGameWallet>; creationEnabled?: boolean }):ReturnType<typeof createLtoService> {
   // Runtime readiness and provider validation govern each attempt. Hosts may
   // explicitly disable new offers while keeping existing-contract recovery.
-  return createLtoService(options,{storage:createContractStorage(),playerStorage:createNetworkScopedPlayerStorage(() => options.context.getState().network),gameStorage:createNetworkScopedGameWalletStorage(() => options.gameWallet.getState().network ?? options.context.getState().network),prepare:prepareLtoRecovery,submit:submitLtoSpend,reconcile:reconcileLtoSpend,resume:resumeLtoFinalization,poll:true});
+  return createLtoService(options,{storage:createNetworkScopedContractStorage(() => options.context.getState().network),playerStorage:createNetworkScopedPlayerStorage(() => options.context.getState().network),gameStorage:createNetworkScopedGameWalletStorage(() => options.gameWallet.getState().network ?? options.context.getState().network),prepare:prepareLtoRecovery,submit:submitLtoSpend,reconcile:reconcileLtoSpend,resume:resumeLtoFinalization,poll:true});
 }
 /** Internal adapter seam for offline lifecycle tests; not exported by the package. */
 export function createLtoService(options: {context:BisContext;gameWallet:ReturnType<typeof createBisGameWallet>;creationEnabled?:boolean}, dependencies: {
@@ -76,7 +76,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
   const attempts = new Map<string,Promise<BisContractActionResult>>();
   const started = new Map<string,Pick<ContractRecord,'scope'|'sessionId'>>();
   const notifications = new Set<string>();
-  let detached = false, reconciling: Promise<void>|undefined, reconcileQueued = false, detachedGameId:string|undefined;
+  let detached = false, reconciling: Promise<void>|undefined, reconcileQueued = false, detachedGameId:string|undefined, detachedPlayerId:string|undefined;
   async function wallets() {
     const [player,game] = await Promise.all([playerStorage.load(),gameStorage.load()]);
     return {player:player.account,game};
@@ -135,7 +135,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           const recovery={...document.recovery[id],spend:undefined,finalization:undefined};
           document=await save(document,record,recovery);
           notify(record); accepted=true; resolve({status:'pending',contract:presentContract(record,Date.now())});
-          await execute(document,record,recovery,{...signer,network:record.scope.network});
+          await execute(document,record,recovery,{...signer,network:record.scope.network as TestNetwork});
         },signer.network ?? context.getState().network ?? game.network ?? 'signet');
       })().catch(()=>{ if(!accepted)resolve({status:'unavailable'}); });
     });
@@ -257,7 +257,14 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       notifications.clear();
       await storage.reset();
     },
-    dispose({endSessions=true}={}) { if(detached)return;detachedGameId=gameWallet.getState().profileId;detached=true;if(endSessions)for(const record of started.values())persistEnd(record,'session-ended');if(controllers.get(context)===controller)controllers.delete(context);void reconcile(); },
+    dispose({endSessions=true}={}) {
+      if(detached)return;
+      detachedGameId=gameWallet.getState().profileId;detachedPlayerId=context.getState().profileId;detached=true;
+      if(endSessions)for(const record of started.values())persistEnd(record,'session-ended');
+      if(controllers.get(context)===controller)controllers.delete(context);
+      const markStored=async()=>{if(!endSessions||!detachedGameId||!detachedPlayerId)return;for(const record of (await storage.load()).ledger.contracts)if(record.scope.gameId===detachedGameId&&record.scope.playerId===detachedPlayerId&&!contractResolved(record))persistEnd(record,'session-ended');};
+      void markStored().then(()=>{reconciling=undefined;return reconcile();});
+    },
   };
   controllers.set(context,controller);
   if(!dependencies.poll)return controller;

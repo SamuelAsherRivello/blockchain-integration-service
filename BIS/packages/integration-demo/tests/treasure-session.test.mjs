@@ -34,6 +34,23 @@ test('chest ignores other purposes, sessions and references and only claims the 
   const actions=await Promise.all([s.controller.act('claim'),s.controller.act('claim')]);
   assert.equal(actions.filter(r=>r.status==='pending').length,1);assert.equal(s.calls.filter(c=>c[0]==='claim').length,1);
 });
+test('losing cooperating session cannot adopt or claim another session contract',async()=>{
+  let now=1000,sequence=0;
+  const player={profileId:'player',phase:'active'},game={profileId:'game',status:'ready'},calls=[],records=[];
+  const offers={start:async request=>{calls.push(['start',request]);return {status:request.sessionId==='session-1'?'pending':'unavailable'};},endSession:async id=>calls.push(['end',id]),
+    checkContracts:async()=>({status:'ready',contracts:records}),claim:async id=>{calls.push(['claim',id]);return {status:'pending'};},reject:async id=>{calls.push(['reject',id]);return {status:'pending'};}};
+  const first=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
+  const second=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
+  first.start();second.start();await tick();
+  records.push({id:'contract-one',type:'lto',purpose:'treasureLTO',sessionId:first.getState().sessionId,hostReference:`treasure:${first.getState().sessionId}`,scope:{playerId:'player',gameId:'game'},canClaim:true,financial:'funded',eligibility:'within-window'});
+  await first.inspect();await second.inspect();
+  assert.equal(first.getState().status,'active');
+  assert.equal(second.getState().status,'no-offer');
+  assert.equal(second.getState().contractId,undefined);
+  assert.equal((await second.act('claim')).status,'unavailable');
+  assert.equal(calls.filter(c=>c[0]==='claim').length,0);
+  first.dispose();second.dispose();
+});
 test('expiry remains inspectable after backend refund and a rejected reward never restarts',async()=>{
   const s=setup();s.controller.start();await tick();s.records.push(s.record());await s.controller.inspect();
   s.advance(91000);s.records[0]=s.record({financial:'refunded',eligibility:'resolved',canClaim:false});await s.controller.inspect();

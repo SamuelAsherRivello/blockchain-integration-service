@@ -26,7 +26,7 @@ function setup(overrides={}) {
       const transactionId=(record.operation.kind==='fund'?'b':'c').repeat(64);
       const material={...recovery,spend:{operationId:record.operation.id,transactionId,inputs:[recovery.fundingOutput??{txid:'a'.repeat(64),vout:0,value:1000}],destinationScript:'00',amountSats:1000}};
       record=markContractSubmission(record,record.operation.id,Date.now());await commit(record,material);
-      assert.ok(walletReservations('game').some(operation=>operation.id===`contract:${record.id}`),'reserved before completion');
+      assert.ok(walletReservations('game',record.scope.network).some(operation=>operation.id===`contract:${record.id}`),'reserved before completion');
       await overrides.wait?.(record.operation.kind);
       if(overrides.unknown===record.operation.kind){record=markContractSubmission(record,record.operation.id,Date.now(),true);await commit(record,material);return{record,recovery:material};}
       record=finishContractOperation(record,{operationId:record.operation.id,kind:record.operation.kind,outcome:'confirmed'});
@@ -50,10 +50,10 @@ test('disposed recovery worker refunds its offer and stops even when an unrelate
   const saved=await s.storage.load(),own=saved.ledger.contracts[0];
   const unrelated={...own,id:'other-operator',scope:{...own.scope,operator:'https://unrelated.invalid'}};
   await s.storage.save({...saved,ledger:{...saved.ledger,contracts:[own,unrelated],attempts:[...saved.ledger.attempts,{...saved.ledger.attempts[0],scope:unrelated.scope,contractId:unrelated.id}]},recovery:{...saved.recovery,[unrelated.id]:saved.recovery[own.id]}});
-  worker.dispose();await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
+  worker.dispose();await until(async()=>(await s.storage.load()).ledger.contracts.find(record=>record.id===own.id)?.financial==='refunded');
   timers[1]();await delay();
   assert.equal(storageDisposed,true);assert.equal(cleared.length,2);
-  assert.equal((await s.storage.load()).ledger.contracts[1].financial,'funded');assert.deepEqual(s.calls,['fund','refund']);
+  assert.equal((await s.storage.load()).ledger.contracts.find(record=>record.id===unrelated.id)?.financial,'funded');assert.deepEqual(s.calls,['fund','refund']);
 });
 
 test('game-role Refund reports its pending and confirmed feedback to the inspecting game account',async()=>{
