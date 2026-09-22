@@ -31,7 +31,7 @@ Player logout and Admin's existing player reset SHALL preserve the game wallet a
 - **THEN** Admin can observe that wallet without replacing or logging out the player
 
 ### Requirement: Inspect public addresses and fresh funds
-Admin SHALL show A.G.1. Game Wallet with buttons to its right under F. Game Wallet. Initially only Import SHALL appear. Once selected, Details and Logout SHALL replace Import. Details SHALL refresh and write only public wallet details, receiving addresses, balances, configured recipient and mismatch/read status into the Admin console. Logout SHALL persistently deselect without deleting retained identities or changing the player or payment recipient. The row SHALL show Balance: <payment-usable sats> sats immediately left of Details, including 0 when an unresolved wallet operation blocks spending even if the raw balance is positive. Loading and unavailable data SHALL remain distinguishable from a known zero. Details SHALL report A.G.1 Wallet Status, the payment eligibility and usable balance as well as the raw public balance. Arkade script-event notifications SHALL trigger fresh balance reads without recurring polling. Logout and wallet switching SHALL stop the previous subscription; disconnected live data SHALL be shown as unavailable. No separate Copy/Refresh buttons SHALL appear; B.G.2 provides the explicitly requested boarding action.
+Admin SHALL show A.G.1. Game Wallet with buttons to its right under F. Game Wallet. Initially only Import SHALL appear. Once selected, Details and Logout SHALL replace Import. Details SHALL refresh and write only public wallet details, receiving addresses, balances, configured recipient and mismatch/read status into the Admin console. Logout SHALL persistently deselect without deleting retained identities or changing the player or payment recipient. The row SHALL show Balance: <payment-usable sats> sats immediately left of Details, including 0 when an unresolved wallet operation blocks spending even if the raw balance is positive. Loading and unavailable data SHALL remain distinguishable from a known zero. Details SHALL report A.G.1 Wallet Status, the payment eligibility and usable balance as well as the raw public balance. Arkade script-event notifications SHALL trigger fresh balance reads without recurring polling. Logout and wallet switching SHALL stop the previous subscription; disconnected live data SHALL be shown as unavailable. No separate Copy/Refresh buttons SHALL appear; A.G.3 provides the explicitly requested boarding action.
 
 #### Scenario: Payment receipt is visible
 - **WHEN** an independent player pays the configured game wallet and Admin clicks Details after provider evidence is available
@@ -46,11 +46,11 @@ Admin SHALL show A.G.1. Game Wallet with buttons to its right under F. Game Wall
 - **WHEN** the operator inspects F. Game Wallet
 - **THEN** Details makes both receiving addresses available in the Admin console for manual copying, without submitting a wallet operation
 
-### Requirement: B.G.2 explicit boarding and live waiting state
-Admin SHALL provide B.G.2. Board Game Wallet with Details and Board Wallet. Details SHALL refresh and report B.G.2 Boarding Status in the Admin console without preparing or submitting a boarding payment. Board Wallet SHALL show a quote before a separate explicit confirmation submits it. Existing wallet mutation and recovery safeguards SHALL remain effective.
+### Requirement: A.G.3 explicit boarding and live waiting state
+Admin SHALL provide A.G.3. Board Game Wallet with Details and Board Wallet. Details SHALL refresh and report A.G.3 Boarding Status in the Admin console without preparing or submitting a boarding payment. Board Wallet SHALL show a quote before a separate explicit confirmation submits it. Existing wallet mutation and recovery safeguards SHALL remain effective.
 
 #### Scenario: Inspect boarding
-- **WHEN** the operator clicks B.G.2 Details
+- **WHEN** the operator clicks A.G.3 Details
 - **THEN** the console shows freshly checked boarding status without a new submission
 
 #### Scenario: Review then confirm
@@ -58,7 +58,7 @@ Admin SHALL provide B.G.2. Board Game Wallet with Details and Board Wallet. Deta
 - **THEN** the boarding quote is shown for a separate confirmation before submission
 
 ### Requirement: Live evidence controls boarding waiting indication
-B.G.2 Board Wallet SHALL be disabled with (Awaiting Confirmation) only when fresh incoming transaction data proves that this wallet's boarding transaction is unconfirmed, in addition to ordinary busy and account availability restrictions. Saved operation history SHALL only identify the wallet transaction to inspect; a persisted boarded flag SHALL NOT establish the waiting state. Confirmed, unrelated, unavailable or stale evidence SHALL NOT establish this waiting indication. Details SHALL remain available when only this waiting state blocks submission.
+A.G.3 Board Wallet SHALL be disabled with (Awaiting Confirmation) only when fresh incoming transaction data proves that this wallet's boarding transaction is unconfirmed, in addition to ordinary busy and account availability restrictions. Saved operation history SHALL only identify the wallet transaction to inspect; a persisted boarded flag SHALL NOT establish the waiting state. Confirmed, unrelated, unavailable or stale evidence SHALL NOT establish this waiting indication. Details SHALL remain available when only this waiting state blocks submission.
 
 #### Scenario: Matching live unconfirmed boarding
 - **WHEN** a fresh unconfirmed transaction matches the wallet's recorded boarding inputs and known commitment ID

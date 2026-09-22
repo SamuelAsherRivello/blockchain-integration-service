@@ -483,41 +483,41 @@ The user-story Markdown SHALL place F.P/G.1. Show Toast under D. UI and X.N.1/X.
 - **THEN** it resolves to exactly one corresponding appendix heading and F.P/G.1 refers to Show Toast
 
 ### Requirement: A.G.2 pay player demonstration
-Admin SHALL display B.G.2 `Send 1000 Sats (Game->Player)` under F. Game Wallet after A.G.2. Without an active logged-in Runtime Preview player account, B.G.2 SHALL be visibly greyed out and disabled for pointer and keyboard activation. Availability SHALL react to account changes and also require an eligible A.G.1 sender and no unresolved B.G.2 payment. Activating B.G.2 SHALL use the production payment API; receipt feedback SHALL appear in Runtime Preview through the shared toast UI.
+Admin SHALL display A.G.3 `Send 1000 Sats (Game->Player)` under F. Game Wallet after A.G.2. Without an active logged-in Runtime Preview player account, A.G.3 SHALL be visibly greyed out and disabled for pointer and keyboard activation. Availability SHALL react to account changes and also require an eligible A.G.1 sender and no unresolved A.G.3 payment. Activating A.G.3 SHALL use the production payment API; receipt feedback SHALL appear in Runtime Preview through the shared toast UI.
 
 #### Scenario: No preview player
 - **WHEN** Runtime Preview has no active player account
-- **THEN** B.G.2 remains visible, greyed out and disabled and cannot initiate a payment
+- **THEN** A.G.3 remains visible, greyed out and disabled and cannot initiate a payment
 
 #### Scenario: Player logs in or out
 - **WHEN** the player logs in with an eligible A.G.1 sender or logs out again
-- **THEN** B.G.2 respectively becomes enabled or immediately returns to disabled
+- **THEN** A.G.3 respectively becomes enabled or immediately returns to disabled
 
 #### Scenario: Pay and receive
-- **WHEN** the operator clicks enabled B.G.2 and the player receives the verified payment
+- **WHEN** the operator clicks enabled A.G.3 and the player receives the verified payment
 - **THEN** the preview shows the sender-specific receipt toast without opening a player Send dialog
 
 ### Requirement: A.G.2 documentation and acceptance evidence
-The user-story documentation SHALL include B.G.2's exact label, payment direction, disabled state and receipt message. Evidence SHALL distinguish isolated tests from live Signet verification and SHALL NOT claim live completion from mocked outcomes.
+The user-story documentation SHALL include A.G.3's exact label, payment direction, disabled state and receipt message. Evidence SHALL distinguish isolated tests from live Signet verification and SHALL NOT claim live completion from mocked outcomes.
 
 #### Scenario: Delivery verification
-- **WHEN** B.G.2 is reported complete
+- **WHEN** A.G.3 is reported complete
 - **THEN** evidence covers real-browser no-player disabling, account transitions, pending duplicate prevention and runtime toast rendering, plus actual two-wallet payment and receipt correlation
 - **AND** unavailable live checks remain explicitly pending
 
 ### Requirement: Explain A.G.2 unavailability
-B.G.2 SHALL append (Awaiting Balance) only for balance loading or shortage. Other blockers SHALL have an accessible explanation outside the payment button suffix. Awaiting Balance SHALL be used for a balance still loading or below the required amount, rather than masking an unresolved operation. Other reasons SHALL distinguish Awaiting Player, Awaiting Game Wallet, Select A Different Wallet, Sending, Checking Wallet, Awaiting Confirmation, Wallet Operation Unresolved and Wallet Unavailable as applicable.
+A.G.3 SHALL append (Awaiting Balance) only for balance loading or shortage. Other blockers SHALL have an accessible explanation outside the payment button suffix. Awaiting Balance SHALL be used for a balance still loading or below the required amount, rather than masking an unresolved operation. Other reasons SHALL distinguish Awaiting Player, Awaiting Game Wallet, Select A Different Wallet, Sending, Checking Wallet, Awaiting Confirmation, Wallet Operation Unresolved and Wallet Unavailable as applicable.
 
 #### Scenario: Funds locked by unresolved operation
 - **WHEN** the wallet has a positive raw balance but an unresolved operation prevents spending
-- **THEN** B.G.2 identifies the operation-related block and B.G.2 shows 0 payment-usable sats
+- **THEN** A.G.3 identifies the operation-related block and A.G.3 shows 0 payment-usable sats
 
 #### Scenario: Balance missing or insufficient
 - **WHEN** an otherwise eligible wallet is loading its balance or has fewer than 1000 usable sats
-- **THEN** B.G.2 appends (Awaiting Balance)
+- **THEN** A.G.3 appends (Awaiting Balance)
 
 ### Requirement: Compact Admin Account section
-A. Account SHALL display its section heading, then `Stories: A.P.1, A.P.2, A.P.3, A.P.4, E.P.1, A.P.5`, then exactly two buttons in order: A.P.1. Account Button and A.P.4. Account Dialog. The story summary SHALL remain separate from the button list and list implemented A-series stories in numeric order without changing documented pending verification status. Other story sections SHALL add summaries below their headings: B lists B.P.1, B.P.2; C lists C.G.1, C.P.1; D lists F.P/G.1, F.P/G.2; E lists X.N.1, X.N.2; F lists A.G.1, A.G.2, B.G.2. Each SHALL use the Stories: prefix and comma-separated IDs. Existing controls, order, styling, and behavior SHALL otherwise remain unchanged. User Stories documentation and Console SHALL NOT receive story summaries.
+A. Account SHALL display its section heading, then `Stories: A.P.1, A.P.2, A.P.3, A.P.4, E.P.1, A.P.5`, then exactly two buttons in order: A.P.1. Account Button and A.P.4. Account Dialog. The story summary SHALL remain separate from the button list and list implemented A-series stories in numeric order without changing documented pending verification status. Other story sections SHALL add summaries below their headings: B lists B.P.1, B.P.2; C lists C.G.1, C.P.1; D lists F.P/G.1, F.P/G.2; E lists X.N.1, X.N.2; F lists A.G.1, A.G.2, A.G.3. Each SHALL use the Stories: prefix and comma-separated IDs. Existing controls, order, styling, and behavior SHALL otherwise remain unchanged. User Stories documentation and Console SHALL NOT receive story summaries.
 
 #### Scenario: Account layout
 - **WHEN** Admin renders at wide or narrow panel widths
@@ -555,12 +555,12 @@ Each lettered Admin story section A-F SHALL fold independently and SHALL start e
 - **THEN** the chevron and matching title remain readable and expanded content remains in normal document flow
 
 ### Requirement: Admin payment direction labels
-B.P.1 SHALL append `(Player->Game)` to its existing quoted payment label without changing its BIS-owned continuation price. B.G.2 SHALL display `B.G.2. Send 100 Sats (Game->Player)` and its payment SHALL deliver exactly 100 sats to the player, with fees charged separately. Existing availability suffixes and guards SHALL remain applicable. Previously recorded payments SHALL retain their original amounts for recovery.
+B.P.1 SHALL append `(Player->Game)` to its existing quoted payment label without changing its BIS-owned continuation price. A.G.3 SHALL display `A.G.3. Send 100 Sats (Game->Player)` and its payment SHALL deliver exactly 100 sats to the player, with fees charged separately. Existing availability suffixes and guards SHALL remain applicable. Previously recorded payments SHALL retain their original amounts for recovery.
 
 #### Scenario: Inspect payment actions
-- **WHEN** Admin renders B.P.1 and B.G.2
+- **WHEN** Admin renders B.P.1 and A.G.3
 - **THEN** their labels show the respective payment directions
-- **AND** B.P.1 retains its existing amount while a new B.G.2 payment requests 100 sats
+- **AND** B.P.1 retains its existing amount while a new A.G.3 payment requests 100 sats
 
 ### Requirement: H Marketplace Admin stories
 Admin SHALL expose an H. Marketplace section with F.N.1 for minting or reconciling the nine-item catalog through the active Game Wallet and H2 labelled `Burn All Items for Marketplace`. H2 SHALL burn only freshly owned assets classified on-chain as Stealth & Steel items, preserve trophies and unrelated assets, report per-item progress truthfully, and keep unrelated Admin and Runtime Preview interaction available while an item is pending or unknown.

@@ -23,8 +23,8 @@ Implementation started through the authorized apply request. C.P.1 trophy issuan
 - [x] 3.3 Document browser import and public recipient deployment configuration; move former X1 to A.G.1 under F. Game Wallet with coherent current links, preserving other appendix numbering and historical change paths. Keep current minting behavior/status accurate.
 - [x] 3.4 Record acceptance evidence and unresolved live blockers, then validate this change strictly; leave any unverified task unchecked.
 
-## 4. B.G.2 and status follow-up
+## 4. A.G.3 and status follow-up
 
-- [x] 4.1 Add B.G.2 quote/confirmation and status-only Details with wallet-scoped recovery guards; see F3_VERIFICATION.md.
+- [x] 4.1 Add A.G.3 quote/confirmation and status-only Details with wallet-scoped recovery guards; see F3_VERIFICATION.md.
 - [x] 4.2 Base the waiting disablement on fresh matching unconfirmed transaction data, clear stale/unavailable results, and retain Details access; focused tests and typecheck passed.
-- [x] 4.3 Show payment-usable A.G.1 balance including zero and report A.G.1/B.G.2 status through the replacing Admin console.
+- [x] 4.3 Show payment-usable A.G.1 balance including zero and report A.G.1/A.G.3 status through the replacing Admin console.

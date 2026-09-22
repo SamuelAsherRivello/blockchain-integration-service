@@ -67,6 +67,17 @@ test('C.G.1 uses game wallet readiness and shows Awaiting Balance when unfunded'
  }
 });
 
+test('B.P.1 names the actual unavailable payment dependency', async () => {
+  const AdminPanel = await loadAdmin();
+  const playerWallet = renderToStaticMarkup(createElement(AdminPanel, { continueReason: 'Awaiting Player Wallet', continueAvailable: false, continueBusy: false, consoleOutput: '' }));
+  assert.match(playerWallet, /role="tooltip">Disabled\. Player account must be logged in\.<\/span>/);
+  const gameWallet = renderToStaticMarkup(createElement(AdminPanel, { continueReason: 'Awaiting Game Wallet', continueAvailable: false, continueBusy: false, consoleOutput: '' }));
+  assert.match(gameWallet, /role="tooltip">Disabled\. Game Wallet must be logged in and ready to receive the payment\.<\/span>/);
+  assert.match(gameWallet, /aria-describedby="admin-disabled-reason-b-p-1"/);
+  const busy = renderToStaticMarkup(createElement(AdminPanel, { continueAvailable: true, continueBusy: true, consoleOutput: '' }));
+  assert.doesNotMatch(busy, /admin-disabled-reason-b-p-1/);
+});
+
 test('A.G.1 keeps the recovery phrase and reports an import failure beside the form', async () => {
   const source = await readFile(new URL('../src/admin/GameWalletPanel.tsx', import.meta.url), 'utf8');
   const submit = source.slice(source.indexOf('<form onSubmit='), source.indexOf('</form>') + '</form>'.length);

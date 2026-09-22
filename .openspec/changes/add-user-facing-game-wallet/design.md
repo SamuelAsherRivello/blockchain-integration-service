@@ -8,7 +8,7 @@ The runtime Account UI currently owns player-wallet create/restore and has no ga
 
 **Goals:**
 
-- Make one local game-wallet selection a first-class BIS runtime dependency that can be used by Admin A.G.1, Account A.G.2, Admin B.G.2, and D.P.2.
+- Make one local game-wallet selection a first-class BIS runtime dependency that can be used by Admin A.G.1, Account A.G.2, Admin A.G.3, and D.P.2.
 - Let a standalone game use A.G.2 to set that selection, then use direct Arkade operations for real LTO funding, claim, and refund without a BIS app server.
 - Preserve separation between player and game wallets, privacy of recovery material, and interruption-free gameplay.
 - Make wallet changes stable by epoching D.P.2 presentation state and beginning the new selection only on a later run.
@@ -16,7 +16,7 @@ The runtime Account UI currently owns player-wallet create/restore and has no ga
 **Non-Goals:**
 
 - Sharing a wallet selection across browser origins, browser profiles, devices, or separately deployed sites.
-- Adding an end-user game-wallet balance, address, or boarding surface; those remain B.G.2 Admin concerns.
+- Adding an end-user game-wallet balance, address, or boarding surface; those remain A.G.3 Admin concerns.
 - Replacing Arkade operator connectivity, simulating contract results, or providing server-independent expiry cleanup while the browser is closed.
 - Preserving an alternate hosted-wallet runtime after the local-controller migration. The obsolete wallet-service package and its hosted adapters are removed as part of this change.
 
@@ -24,7 +24,7 @@ The runtime Account UI currently owns player-wallet create/restore and has no ga
 
 ### 1. One origin-scoped controller is explicitly composed into all BIS surfaces
 
-The host creates one `createBisGameWallet` instance without `serviceUrl`, scoped to its player-profile reader, then provides that same instance to the mounted BIS Account UI, A.G.1/B.G.2 Admin composition, and the LTO factory. The controller remains the sole writer to the existing encrypted game-wallet store and continues its same-origin storage subscription.
+The host creates one `createBisGameWallet` instance without `serviceUrl`, scoped to its player-profile reader, then provides that same instance to the mounted BIS Account UI, A.G.1/A.G.3 Admin composition, and the LTO factory. The controller remains the sole writer to the existing encrypted game-wallet store and continues its same-origin storage subscription.
 
 The public UI composition gains an optional game-wallet capability rather than teaching the player `BisContext` to own a second identity. This keeps player-account state and events free from game wallet identities while allowing Account UI to observe and mutate the game-wallet controller. The game-facing LTO API remains free of Arkade-specific types; its host contract stays sessions, IDs, results, and subscriptions.
 
@@ -34,13 +34,13 @@ Alternative considered: create a second A.G.2-only storage record and synchroniz
 
 Add a dedicated Account subview reached from Balance immediately after `Get Recovery Phrase`. Its unselected state offers Create Game Wallet and Restore Game Wallet. It reuses private phrase validation, masked entry, recovery disclosure, and explicit Continue commitment behavior from player onboarding, but uses the game-wallet controller only. Its selected state exposes only `Log Out Game Wallet`; logout returns to the same unselected subview without remounting the app.
 
-The A.G.2 rendering model receives only controller state and mutation methods. It does not receive the Admin B.G.2 actions, payment recipient, or balance/addresses, so those cannot surface accidentally through the user-facing page.
+The A.G.2 rendering model receives only controller state and mutation methods. It does not receive the Admin A.G.3 actions, payment recipient, or balance/addresses, so those cannot surface accidentally through the user-facing page.
 
 Alternative considered: reuse the existing player Account create/restore pages with a mode flag. Rejected because a mode flag would couple player lifecycle/public events to the game signer and makes it easy to expose player-specific information in A.G.2. Shared lower-level phrase widgets and account derivation remain reusable.
 
 ### 3. Rename by responsibility, retaining A.G.1/A.G.2 data compatibility
 
-The integration demo Admin labels A.G.1 as `Game Wallet` and B.G.2 as `Board Game Wallet`; the old Admin board story number is retired. A.G.1 import/logout and A.G.2 create/restore/select call the same controller. B.G.2 reads that controller but retains Admin-only public details, funds, and boarding UI.
+The integration demo Admin labels A.G.1 as `Game Wallet` and A.G.3 as `Board Game Wallet`; the old Admin board story number is retired. A.G.1 import/logout and A.G.2 create/restore/select call the same controller. A.G.3 reads that controller but retains Admin-only public details, funds, and boarding UI.
 
 Existing stored wallet identities are preserved by the controller; the compatibility work changes labels and composition rather than creating or exporting a new secret format. An Admin and Runtime Preview share immediately only if they are the same browser origin, as required by browser storage.
 
@@ -48,7 +48,7 @@ Alternative considered: have A.G.1 write a file or static package config for con
 
 ### 4. D.P.2 always chooses the local LTO path
 
-Remove `serviceUrl` and the hosted-controller branch from the A.G.1/B.G.2 Admin demo, Runtime Preview, and Stealth & Steel BIS integration. `createBisLto` uses the already available local contract persistence, reservation, reconciliation, and direct Arkade spend adapters. It emits its own pending/confirmed funding, claim, and refund notifications through `context.showToast`; the mounted BIS UI is the single renderer. Once all callers and tests use that path, remove the wallet-service package and service-only code.
+Remove `serviceUrl` and the hosted-controller branch from the A.G.1/A.G.3 Admin demo, Runtime Preview, and Stealth & Steel BIS integration. `createBisLto` uses the already available local contract persistence, reservation, reconciliation, and direct Arkade spend adapters. It emits its own pending/confirmed funding, claim, and refund notifications through `context.showToast`; the mounted BIS UI is the single renderer. Once all callers and tests use that path, remove the wallet-service package and service-only code.
 
 No game-owned request, hosted event polling, or `/__bis/wallet` fallback remains in the D.P.2 path. The host starts a normal game session first, then invokes the public local LTO request in the background. Missing player or game-wallet readiness returns unavailable/no offer and is intentionally not elevated into an interruption or separate game warning.
 
@@ -83,7 +83,7 @@ Alternative considered: mark the prior record ended and immediately allocate the
 ## Migration Plan
 
 1. Extend the local controller/composition API and add A.G.2 while preserving existing encrypted game-wallet records and A.G.1 import behavior.
-2. Change integration-demo and Stealth & Steel composition to omit `serviceUrl`; wire the one local controller to A.G.2, A.G.1/B.G.2, and D.P.2.
+2. Change integration-demo and Stealth & Steel composition to omit `serviceUrl`; wire the one local controller to A.G.2, A.G.1/A.G.3, and D.P.2.
 3. Add controller, UI, LTO, and treasure-session tests, then build BIS and consume the generated package in Stealth & Steel.
 4. Browser-verify Runtime Preview and Stealth & Steel with no BIS wallet service running: A.G.2 setup/logout, normal play without a game wallet, and a funded local D.P.2 flow with pending/confirmed toasts.
 5. Remove the wallet-service package, hosted adapters, root service script, service-only tests, and obsolete documentation/configuration after the local route has been verified.

@@ -1211,12 +1211,16 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
   };
   const createSelected=(signal:AbortSignal)=>{const value=selected();if(!value)throw Error('Choose a test network first.');return createAccount(signal,value);};
   const restoreSelected=(phrase:string,signal:AbortSignal)=>{const value=selected();if(!value)throw Error('Choose a test network first.');return restoreAccount(phrase,signal,value);};
-  return createContext(storage, createSelected, undefined, restoreSelected, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, {
+  const contextOptions: BisContextOptions = {
     ...options,
     requireNetworkSelection:true,
     getNetwork:selected,
     selectNetwork:value=>session.select(value),
-  });
+  };
+  // Hosts provide the Game Wallet recipient through a live getter. Spreading
+  // `options` above would otherwise snapshot its initial (usually empty) value.
+  Object.defineProperty(contextOptions,'continueRecipient',{enumerable:true,get:()=>options.continueRecipient});
+  return createContext(storage, createSelected, undefined, restoreSelected, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, contextOptions);
 }
 export function createBisAdminContext(context: BisContext) {
   const internal=getControls(context);internal.assertAlive();

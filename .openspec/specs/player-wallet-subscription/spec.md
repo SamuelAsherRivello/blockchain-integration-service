@@ -36,7 +36,7 @@ BIS SHALL preserve manual Refresh, bounded initial Activity loading with one ret
 - **THEN** the observer recovers without duplicate subscriptions or replaying already observed payment toasts
 
 ### Requirement: One visible loading cycle per local payment
-A successful local payment and its follow-up wallet observations SHALL produce only one foreground Balance loading cycle. A newly observed incoming Arkade receipt, including B.G.2, while Balance is visible SHALL also start one foreground balance read covered by the existing Pending Operation Dialog, clearing old displayed amounts until fresh data is prepared. The dialog SHALL represent the bounded balance read, not an indefinite wait for network settlement. Repeated observations and later settlement of the same receipt SHALL update balances silently after that cycle. Independent wallet changes SHALL still update the balance, and failed reconciliation SHALL clear amounts into the existing unavailable state. Foreground read failures SHALL retain the existing retry and Pending Operation Dialog error contract. Manual Refresh SHALL retain its explicit loading behavior. Historical baseline snapshots and unchanged reconciliation SHALL NOT trigger additional foreground loading. Hidden Balance pages SHALL NOT open automatically.
+A successful local payment and its follow-up wallet observations SHALL produce only one foreground Balance loading cycle. A newly observed incoming Arkade receipt, including A.G.3, while Balance is visible SHALL also start one foreground balance read covered by the existing Pending Operation Dialog, clearing old displayed amounts until fresh data is prepared. The dialog SHALL represent the bounded balance read, not an indefinite wait for network settlement. Repeated observations and later settlement of the same receipt SHALL update balances silently after that cycle. Independent wallet changes SHALL still update the balance, and failed reconciliation SHALL clear amounts into the existing unavailable state. Foreground read failures SHALL retain the existing retry and Pending Operation Dialog error contract. Manual Refresh SHALL retain its explicit loading behavior. Historical baseline snapshots and unchanged reconciliation SHALL NOT trigger additional foreground loading. Hidden Balance pages SHALL NOT open automatically.
 
 #### Scenario: Delayed snapshot after pay 1000
 - **WHEN** B.P.1 pays 1,000 sats with Balance open and the observer snapshot arrives after the payment-triggered refresh completes
@@ -46,8 +46,8 @@ A successful local payment and its follow-up wallet observations SHALL produce o
 - **WHEN** another wallet change arrives while the payment is being reconciled
 - **THEN** the displayed balance reflects the latest successful read without suppressing that change
 
-#### Scenario: B.G.2 receipt with Balance open
-- **WHEN** a new B.G.2 Arkade receipt is observed after the session baseline with Balance open
+#### Scenario: A.G.3 receipt with Balance open
+- **WHEN** a new A.G.3 Arkade receipt is observed after the session baseline with Balance open
 - **THEN** Balance immediately shows its Pending Operation Dialog through the fresh read and preparation, then reveals fresh Arkade and total balances
 - **AND** the pending toast remains visible through the shared toast presentation
 - **AND** duplicate observations and settlement of that receipt do not reopen the loading dialog

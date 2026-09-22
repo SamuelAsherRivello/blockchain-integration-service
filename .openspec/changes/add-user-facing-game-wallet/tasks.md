@@ -8,14 +8,14 @@
 
 - [x] 2.1 Add `Game Wallet Login` directly below `Get Recovery Phrase` in Account Details > Balance for every mounted BIS host, including when no player wallet is active; verify rendered UI tests and a Runtime Preview walkthrough.
 - [x] 2.2 Implement the A.G.2 Create Game Wallet / Restore Game Wallet flows using the existing private creation and restoration primitives, explicit recovery disclosure/Continue commitment, and game-wallet-only mutations; verify valid create/restore, invalid input, abandonment, and player-wallet isolation tests.
-- [x] 2.3 Implement the selected A.G.2 state with `Log Out Game Wallet`, then immediately show Create / Restore choices without an app refresh; verify UI tests and browser interaction preserve the player wallet and do not reveal balances, addresses, or B.G.2 controls.
+- [x] 2.3 Implement the selected A.G.2 state with `Log Out Game Wallet`, then immediately show Create / Restore choices without an app refresh; verify UI tests and browser interaction preserve the player wallet and do not reveal balances, addresses, or A.G.3 controls.
 - [x] 2.4 Subscribe A.G.2 and game consumers to game-wallet selection changes, deferring effect to the next fresh D.P.2 run and clearing old player-facing D.P.2 presentation state; verify a replacement during an active run cannot submit or display old offers under the new selection.
 
-## 3. A.G.1/B.G.2 Admin migration
+## 3. A.G.1/A.G.3 Admin migration
 
 - [x] 3.1 Recompose the integration-demo Admin, Runtime Preview, and D.P.2 panel around one `createBisGameWallet` instance without `serviceUrl`; verify the local factory is used and no D.P.2 path requests `/__bis/wallet` or a wallet-service URL.
-- [x] 3.2 Rename and arrange Admin controls as A.G.1. Game Wallet (Admin-facing) and B.G.2. Board Game Wallet, with A.G.1/A.G.2 sharing selection and B.G.2 remaining Admin-only; verify Admin component tests and same-origin Admin-to-Preview synchronization.
-- [x] 3.3 Preserve B.G.2 details, balance, quote, confirmation, and live boarding behavior for the wallet selected by A.G.1 or A.G.2; verify existing boarding coverage plus a focused test for an A.G.2-selected wallet.
+- [x] 3.2 Rename and arrange Admin controls as A.G.1. Game Wallet (Admin-facing) and A.G.3. Board Game Wallet, with A.G.1/A.G.2 sharing selection and A.G.3 remaining Admin-only; verify Admin component tests and same-origin Admin-to-Preview synchronization.
+- [x] 3.3 Preserve A.G.3 details, balance, quote, confirmation, and live boarding behavior for the wallet selected by A.G.1 or A.G.2; verify existing boarding coverage plus a focused test for an A.G.2-selected wallet.
 
 ## 4. Serverless D.P.2 contract lifecycle
 
@@ -30,7 +30,7 @@
 ## 5. Consumer delivery and verification
 
 - [x] 5.1 Build the BIS package and update Stealth & Steel to consume it, composing a local A.G.2-capable game wallet into its mounted BIS UI and treasure session without a service URL; verify its package resolution and unit tests use the built version.
-- [x] 5.2 Run `npm test` and `npm run build` in the BIS repository, resolving failures without weakening the A.G.1/A.G.2/B.G.2 or direct-Arkade contracts; verify both commands succeed.
-- [ ] 5.3 Browser-verify the BIS Runtime Preview with no wallet service running: A.G.2 create/restore/logout, A.G.1/A.G.2 same-origin synchronization, B.G.2 Admin-only visibility, normal play with no game wallet, and visible D.P.2 pending/confirmed toasts for a supported funded flow.
+- [x] 5.2 Run `npm test` and `npm run build` in the BIS repository, resolving failures without weakening the A.G.1/A.G.2/A.G.3 or direct-Arkade contracts; verify both commands succeed.
+- [ ] 5.3 Browser-verify the BIS Runtime Preview with no wallet service running: A.G.2 create/restore/logout, A.G.1/A.G.2 same-origin synchronization, A.G.3 Admin-only visibility, normal play with no game wallet, and visible D.P.2 pending/confirmed toasts for a supported funded flow.
 - [ ] 5.4 Browser-verify Stealth & Steel with no BIS wallet service running: A.G.2 is the only game-wallet setup route, Start remains playable without it, and an eligible fresh D.P.2 run shows the chest lifecycle and pending/confirmed toasts without interrupting gameplay.
 - [x] 5.5 After all callers use the local controller, remove `BIS/packages/wallet-service`, the root `wallet:service` script, hosted wallet/LTO adapters, service-only tests, and obsolete documentation/configuration. Verify no active source, package script, or consumer imports the removed service.

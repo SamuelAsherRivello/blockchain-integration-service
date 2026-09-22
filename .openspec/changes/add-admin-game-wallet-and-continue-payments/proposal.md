@@ -6,7 +6,7 @@ Admin currently operates on the Runtime Preview player's wallet, and Continue pa
 
 ## What Changes
 
-- Milestone 1: import an existing game wallet directly in Admin and retain it separately in encrypted browser storage; provide payment-usable balance (including 0) and fresh public status through Details under F. Game Wallet. Use one recovery-phrase field to import or select retained wallets, restore the last selection on reload, and provide B.G.2 Board Game Wallet with status-only Details, quote/confirmation, and live-evidence waiting disablement.
+- Milestone 1: import an existing game wallet directly in Admin and retain it separately in encrypted browser storage; provide payment-usable balance (including 0) and fresh public status through Details under F. Game Wallet. Use one recovery-phrase field to import or select retained wallets, restore the last selection on reload, and provide A.G.3 Board Game Wallet with status-only Details, quote/confirmation, and live-evidence waiting disablement.
 - Milestone 2: route new Continue payments to a public game-wallet address supplied through host build configuration, including the separately deployed Stealth game. Receipt requires no Admin browser or signing server.
 - Preserve player login, pending-payment recovery, asset-preserving sends and session-bound continuation effects.
 - **BREAKING**: new Continue submissions require a configured recipient and no longer generate sink wallets. Previously submitted sink payments remain recoverable.

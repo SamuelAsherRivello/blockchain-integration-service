@@ -8,6 +8,11 @@ const sortStoryIds = (left: string, right: string) => left.localeCompare(right, 
 const categories = [{ name: 'Accounts', title: 'A. Accounts', storyIds: ['A.G.1', 'A.G.2', 'A.G.3', 'A.P.1', 'A.P.2', 'A.P.3', 'A.P.4', 'A.P.5'] }, { name: 'Payments/Transfers', title: 'B. Payments', storyIds: ['B.G.1', 'B.P.1', 'B.P.2', 'B.P.3', 'B.P.4', 'B.P.5', 'B.P.6', 'B.P.7', 'B.P.8'] }, { name: 'Assets', title: 'C. Assets', storyIds: ['C.G.1', 'C.G.2', 'C.G.3', 'C.G.4', 'C.P.1'] }, { name: 'Contracts', title: 'D. Contracts', storyIds: ['D.G.1', 'D.P.1', 'D.P.2'] }, { name: 'Transactions', title: 'E. Transactions', storyIds: ['E.P.1', 'E.P.2', 'E.P.3'] }, { name: 'Integrations', title: 'F. Integrations', storyIds: ['F.P.1'] }];
 
 const stories = [{ id: 'A.P.1', category: 'Accounts', label: 'Account Button' }, { id: 'A.P.4', category: 'Accounts', label: 'Account Dialog' }] as const;
+function continueDisabledReason(reason: string | undefined) {
+  if (reason === 'Awaiting Player Wallet') return 'Disabled. Player account must be logged in.';
+  if (reason === 'Awaiting Game Wallet') return 'Disabled. Game Wallet must be logged in and ready to receive the payment.';
+  return reason ? `Disabled. ${reason}.` : 'Disabled. Payment availability is still being checked.';
+}
 export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, gameWalletBoard, contracts, marketplace, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false, network }: {
   continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; gameWalletBoard?: ReactNode; contracts?:ReactNode; marketplace?: ReactNode; continueAvailable?: boolean;
   onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
@@ -38,7 +43,7 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
             <button type="button" aria-label="F.P.1. Show With Icon" disabled={!canShowToast} onClick={onShowToastWithIcon}>Show With Icon</button>
           </StoryButton>
         </>}
-        {category.name === 'Payments/Transfers' && <><StoryAction id="B.P.1" label={`"Pay ${getContinuePriceSats()} Sats To Continue" (Player->Game)`} disabled={continueBusy || !continueAvailable} onClick={onContinue} /><StoryAction id="B.P.8" label="Open Onboarding" disabled={!playerActive || !onOpenOnboarding} onClick={onOpenOnboarding} /></>}
+        {category.name === 'Payments/Transfers' && <><StoryAction id="B.P.1" label={`"Pay ${getContinuePriceSats()} Sats To Continue" (Player->Game)`} disabled={continueBusy || !continueAvailable} disabledReason={!continueBusy && !continueAvailable ? continueDisabledReason(continueReason) : undefined} onClick={onContinue} /><StoryAction id="B.P.8" label="Open Onboarding" disabled={!playerActive || !onOpenOnboarding} onClick={onOpenOnboarding} /></>}
         {category.name === 'Assets' && <>{!marketplace && <StoryAction id="C.G.1" label={mintAvailable ? "Mint Asset & Send" : `Mint Asset & Send (${mintReason ?? 'Awaiting Balance'})`} disabled={!mintAvailable || assetBusy} onClick={onMint} />} {marketplace}</>}
         {category.name === 'Transactions' && <StoryAction id="E.P.1" label="View Activity" disabled={!playerActive} onClick={() => onSelect('E.P.1')} />}
         {stories.filter(story => story.category === category.name).map(story =>

@@ -127,10 +127,10 @@ Built-in toast messages SHALL capitalize the first word of each sentence and use
 - **THEN** the message is preserved exactly and no category prefix is inserted
 
 ### Requirement: Consistent producer classification
-Pending and checking notifications SHALL use info. Verified receipts and completed transfers, continue payments and trophy awards SHALL use success. Login requirements, unavailable readiness and missing game-recipient configuration SHALL use warning. Failed operations, including dynamic continue failure messages, SHALL use error. F.P.1 SHALL remain info. Assigning a type SHALL NOT create new notifications, infer an outcome, change B.G.2 balance timing or replace acknowledgment-required dialogs.
+Pending and checking notifications SHALL use info. Verified receipts and completed transfers, continue payments and trophy awards SHALL use success. Login requirements, unavailable readiness and missing game-recipient configuration SHALL use warning. Failed operations, including dynamic continue failure messages, SHALL use error. F.P.1 SHALL remain info. Assigning a type SHALL NOT create new notifications, infer an outcome, change A.G.3 balance timing or replace acknowledgment-required dialogs.
 
-#### Scenario: B.G.2 progression
-- **WHEN** B.G.2 produces its existing pending and verified receipt notifications
+#### Scenario: A.G.3 progression
+- **WHEN** A.G.3 produces its existing pending and verified receipt notifications
 - **THEN** they use info and success respectively with unchanged ordering, verification and deduplication
 
 #### Scenario: Failure and readiness
