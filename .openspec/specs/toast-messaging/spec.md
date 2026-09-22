@@ -72,7 +72,7 @@ Notifications SHALL be isolated to their originating BIS context and SHALL NOT b
 
 ### Requirement: Notification and acknowledgment boundary
 
-Toasts SHALL carry brief noncritical notifications. Errors requiring acknowledgment SHALL retain their existing dialogs and OK actions. Confirmations and uncertain-outcome recovery information SHALL retain their current behavior. Pending operation presentation SHALL retain its current behavior except for the explicitly specified asset-burning toast flow. D1 SHALL NOT automatically translate existing wallet outcomes or inline clipboard indicators into notifications. Notification callers SHALL supply safe user-facing text without including secrets or raw wallet diagnostic payloads.
+Toasts SHALL carry brief noncritical notifications. Errors requiring acknowledgment SHALL retain their existing dialogs and OK actions. Confirmations and uncertain-outcome recovery information SHALL retain their current behavior. Pending operation presentation SHALL retain its current behavior except for the explicitly specified asset-burning toast flow. F.P.1 SHALL NOT automatically translate existing wallet outcomes or inline clipboard indicators into notifications. Notification callers SHALL supply safe user-facing text without including secrets or raw wallet diagnostic payloads.
 
 #### Scenario: Acknowledgment-required error
 - **WHEN** an operation fails with an existing acknowledgment-required error
@@ -127,10 +127,10 @@ Built-in toast messages SHALL capitalize the first word of each sentence and use
 - **THEN** the message is preserved exactly and no category prefix is inserted
 
 ### Requirement: Consistent producer classification
-Pending and checking notifications SHALL use info. Verified receipts and completed transfers, continue payments and trophy awards SHALL use success. Login requirements, unavailable readiness and missing game-recipient configuration SHALL use warning. Failed operations, including dynamic continue failure messages, SHALL use error. D1 and D2 SHALL remain info. Assigning a type SHALL NOT create new notifications, infer an outcome, change F3 balance timing or replace acknowledgment-required dialogs.
+Pending and checking notifications SHALL use info. Verified receipts and completed transfers, continue payments and trophy awards SHALL use success. Login requirements, unavailable readiness and missing game-recipient configuration SHALL use warning. Failed operations, including dynamic continue failure messages, SHALL use error. F.P.1 SHALL remain info. Assigning a type SHALL NOT create new notifications, infer an outcome, change B.G.2 balance timing or replace acknowledgment-required dialogs.
 
-#### Scenario: F3 progression
-- **WHEN** F3 produces its existing pending and verified receipt notifications
+#### Scenario: B.G.2 progression
+- **WHEN** B.G.2 produces its existing pending and verified receipt notifications
 - **THEN** they use info and success respectively with unchanged ordering, verification and deduplication
 
 #### Scenario: Failure and readiness

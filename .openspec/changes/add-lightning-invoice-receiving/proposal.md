@@ -12,7 +12,7 @@ Receive currently exposes Arkade and Bitcoin addresses but no clearly separated 
 - Capture the confirmed amount prompt, Clear/Submit, payer-amount fee semantics, same-page invoice display, temporary hide/reuse, expiration/Renew, and Paid/disabled-Copy behavior. The first Submit displays payer amount, fee, and net receipt in the same prompt; the second Submit generates the invoice.
 - Reset Receive presentation on leaving while keeping pending receipts recoverable, processing outside Receive, resuming after restart, and showing pending/confirmed receipts in Activity.
 - Keep invoice controls unavailable until a supported Signet receiving route, compatible dependencies, and recovery behavior are verified. Implementing an unavailable presentation is not completion of the live receiving feature.
-- Include the production Admin demonstration and D2 story synchronization as implementation work. Existing A/B/C stories and the separate D3 all-send-types scope remain intact.
+- Include the production Admin demonstration and B.P.4 story synchronization as implementation work. Existing A/B/C stories and the separate B.P.5 all-send-types scope remain intact.
 - Exclude sending, paid continuation, new payment formats for Arkade/Bitcoin, reusable Lightning addresses, mainnet, a custom server, and guaranteed processing with the browser closed.
 
 ## Capabilities
@@ -24,11 +24,11 @@ Receive currently exposes Arkade and Bitcoin addresses but no clearly separated 
 ### Modified Capabilities
 
 - `account-logout`: Block account clearing while an invoice remains payable or receipt processing is unresolved.
-- `story-driven-demo`: Add a truthful production receiving demonstration and synchronized D2 documentation, without treating unavailable functionality or test fixtures as verified payments.
+- `story-driven-demo`: Add a truthful production receiving demonstration and synchronized B.P.4 documentation, without treating unavailable functionality or test fixtures as verified payments.
 
 ## Impact
 
-Implementation will affect integration UI/Core/Arkade internals, account-owned recovery storage, the existing Activity presentation, and the demo catalog/documentation. Public state must remain provider-neutral and secret-free. The active A5 change owns the existing Activity baseline and must be reconciled before extending it; its unrelated pending verification is not resolved here.
+Implementation will affect integration UI/Core/Arkade internals, account-owned recovery storage, the existing Activity presentation, and the demo catalog/documentation. Public state must remain provider-neutral and secret-free. The active E.P.1 change owns the existing Activity baseline and must be reconciled before extending it; its unrelated pending verification is not resolved here.
 
 The installed SDK is pinned to 0.4.67 and no swap dependency is installed. Official documentation checked on 2026-09-04 retires Boltz and describes the replacement receive route as unserved. No endpoint, package upgrade, dependency addition, or network change is approved by this proposal. Feasibility investigation must identify a supported Signet route before live implementation proceeds.
 

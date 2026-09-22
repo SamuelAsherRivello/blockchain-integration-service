@@ -5,7 +5,7 @@ import {writeAssetRecord} from '../src/core/assets.ts';
 import {testLocks} from './locks-fixture.mjs';
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-test('F3 enables at 1000 sats and remains unavailable below 1000',async()=>{
+test('B.G.2 enables at 1000 sats and remains unavailable below 1000',async()=>{
   for(const amount of [999,1000]) {
     const f=fixture();
     f.dependencies.balance=async()=>({availableSats:amount,totalSats:amount,bitcoinSats:0,arkadeSats:amount});
@@ -15,7 +15,7 @@ test('F3 enables at 1000 sats and remains unavailable below 1000',async()=>{
   }
 });
 
-test('C1 checks and mints with the selected game identity, never the player identity',async()=>{
+test('C.G.1 checks and mints with the selected game identity, never the player identity',async()=>{
  const values=new Map();
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)}});
  Object.defineProperty(navigator,'locks',{configurable:true,value:testLocks()});
@@ -30,7 +30,7 @@ test('C1 checks and mints with the selected game identity, never the player iden
  assert.deepEqual(calls,[['balance','game'],['mint','game']]);
  assert.equal(values.get('bis-game-wallet-mint-owner:game'),'1');c.dispose();
 });
-test('C1 pending mint lookup follows the selected game wallet network',async()=>{
+test('C.G.1 pending mint lookup follows the selected game wallet network',async()=>{
  const values=new Map();
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),key:i=>[...values.keys()][i]??null,get length(){return values.size;}}});
  const f=fixture();
@@ -42,7 +42,7 @@ test('C1 pending mint lookup follows the selected game wallet network',async()=>
  assert.deepEqual((await c.getPendingAssetMint()).request,request);
  c.dispose();
 });
-test('F2 reports unresolved boarding rather than awaiting balance and recovers when cleared',async()=>{
+test('A.G.2 reports unresolved boarding rather than awaiting balance and recovers when cleared',async()=>{
   const f=fixture();let blocked=true;
   const c=createBisGameWallet({playerProfileId:()=> 'player'},f.dependencies,undefined,undefined,()=>{if(blocked)throw Error('A transfer is unresolved. Open Account Transfer and check its status before clearing this account or using these funds.');});
   await tick();await c.importWallet('sender');
@@ -83,7 +83,7 @@ test('import retains wallets, reselects without duplicates and restores last sel
   assert.equal(c.getState().message,'This recovery phrase belongs to the player wallet. Restore or create a separate game wallet.');
   c.dispose();const reloaded=f.create();await tick();assert.equal(reloaded.getState().profileId,'a');reloaded.dispose();
 });
-test('F2 create requires explicit selection and publishes a new non-secret selection version',async()=>{
+test('A.G.2 create requires explicit selection and publishes a new non-secret selection version',async()=>{
   const f=fixture();f.dependencies.create=async()=>({phrase:'created game wallet',profileId:'created-game'});
   const c=f.create();await tick();const before=c.getState().selectionVersion;
   const candidate=await c.createWallet();

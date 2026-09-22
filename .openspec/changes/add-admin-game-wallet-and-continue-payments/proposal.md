@@ -1,4 +1,4 @@
-# F1 — Admin game wallet and Pay to Continue
+# A.G.1 — Admin game wallet and Pay to Continue
 
 ## Why
 
@@ -6,7 +6,7 @@ Admin currently operates on the Runtime Preview player's wallet, and Continue pa
 
 ## What Changes
 
-- Milestone 1: import an existing game wallet directly in Admin and retain it separately in encrypted browser storage; provide payment-usable balance (including 0) and fresh public status through Details under F. Game Wallet. Use one recovery-phrase field to import or select retained wallets, restore the last selection on reload, and provide F3 Board Game Wallet with status-only Details, quote/confirmation, and live-evidence waiting disablement.
+- Milestone 1: import an existing game wallet directly in Admin and retain it separately in encrypted browser storage; provide payment-usable balance (including 0) and fresh public status through Details under F. Game Wallet. Use one recovery-phrase field to import or select retained wallets, restore the last selection on reload, and provide B.G.2 Board Game Wallet with status-only Details, quote/confirmation, and live-evidence waiting disablement.
 - Milestone 2: route new Continue payments to a public game-wallet address supplied through host build configuration, including the separately deployed Stealth game. Receipt requires no Admin browser or signing server.
 - Preserve player login, pending-payment recovery, asset-preserving sends and session-bound continuation effects.
 - **BREAKING**: new Continue submissions require a configured recipient and no longer generate sink wallets. Previously submitted sink payments remain recoverable.
@@ -23,6 +23,6 @@ Admin currently operates on the Runtime Preview player's wallet, and Continue pa
 
 ## Impact
 
-BIS account storage/lifecycle, public context and continuation interfaces, demo Admin composition, and the Stealth host integration/build configuration are affected. Planning is centralized here; the named `babylon-lite-stealth-grid` repository is the downstream consumer. No custom server, GitHub signing secret, new dependency or minting change is included. Credentials are entered in the target browser, never chat, build environment or repository. Public addresses may be committed. F1 replaces the former X1 milestone label and belongs under F. Game Wallet. Preserve historical change paths; X2 remains the separate deferred trophy proposal, with its existing appendix naming collision explicitly deferred.
+BIS account storage/lifecycle, public context and continuation interfaces, demo Admin composition, and the Stealth host integration/build configuration are affected. Planning is centralized here; the named `babylon-lite-stealth-grid` repository is the downstream consumer. No custom server, GitHub signing secret, new dependency or minting change is included. Credentials are entered in the target browser, never chat, build environment or repository. Public addresses may be committed. A.G.1 replaces the former X1 milestone label and belongs under F. Game Wallet. Preserve historical change paths; X2 remains the separate deferred trophy proposal, with its existing appendix naming collision explicitly deferred.
 
 Design defaults: existing mnemonic restoration format, event-driven balance refresh and status-only Details, and retention of all imported game wallets with phrase-based selection and no dropdown. Live two-wallet verification remains implementation work, not an established capability.

@@ -1,48 +1,93 @@
 # User Story Diagrams
 
-## Table of contents
+## Proposed renumbered catalog
 
-- [A. Account](#a-account)
-  - [A1. Open Account](#a1-open-the-game-then-account) ✓
-  - [A2. Create Account](#a2-create-a-new-disposable-test-account)
-  - [A3. Restore Account](#a3-restore-an-account-from-this-experience) ✓
-  - [A4. Account Balance](#a4-open-account-with-an-active-profile) ✓
-  - [A5. View Activity](#a5-inspect-activity) ✓
-  - [A6. Log Out](#a6-log-out-and-return-to-ordinary-gameplay) ✓
-- [B. Pay-to-play](#b-pay-to-play)
-  - [B1. MVP Request Continue](#b1-mvp-request-continue) ✓
-  - [B2. Game death screen and continuation integration](#b2-game-death-screen-and-continuation-integration) ✓
-- [C. Assets](#c-assets)
-  - [C1. Mint Asset](#c1-mint-asset) ✓
-  - [C2. Reward Player With Trophy After Level Complete](#c2-reward-player-with-trophy-after-level-complete) ✓
-- [D. UI](#d-ui)
-  - [D1. Show Toast](#d1-show-toast) ✓
-  - [D2. Show Toast With Icon](#d2-show-toast-with-icon) ✓
-- [E. Admin Tools](#e-admin-tools)
-  - [E1. Open Signet Faucet(s)](#e1-fund-signet-sats) ✓
-  - [E2. Open On Mempool.space](#e2-open-on-mempoolspace) ✓
-- [F. Game Wallet](#f-game-wallet)
-  - [F1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) / Accept User Pay To Continue
-  - [F2. Game Wallet (User-facing)](#f2-game-wallet-user-facing) ✓
-  - [F3. Board Game Wallet](#f3-board-game-wallet) ✓
-- [G. Contracts](#g-contracts)
-  - [G1. Contracts UI](#g1-contracts-ui) ✓
-  - [G2. LTO Treasure Chest](#g2-lto-treasure-chest) ✓
-- [H. Spikes](#h-spikes)
-  - [H1. Arkade onboarding spike](#h1-arkade-onboarding-spike) ✓
-    - [Post-mortem and measured timing](#h1-post-mortem)
-- [X. Appendix](#x-appendix)
-  - [X2. Lightning invoice receiving](#x2-lightning-invoice-receiving)
-    - [X2a. Receive funds using addresses — complete](#x2a-receive-funds-using-addresses) ✓
-    - [X2b. Receive funds using Lightning invoices — blocked](#x2b-receive-funds-using-lightning-invoices)
-  - [X3. Sending funds](#x3-sending-funds)
-  - [X4. Make deposited Bitcoin available](#x4-make-deposited-bitcoin-available)
-  - [X5. Cancel Pending Transfer](#x5-cancel-pending-transfer)
-    - [X5a. Inspect and Copy Transfer Recovery Details](#x5a-inspect-and-copy-transfer-recovery-details) ✓
-    - [X5b. Cancel Pending Transfer](#x5b-cancel-pending-transfer)
-  - [X6. USD relative sats pricing?](#x6-usd-relative-sats-pricing)
-  - [X7. Reliable onboarding and transfer recovery](#x7-reliable-onboarding-and-transfer-recovery)
-  - [X8. Add security to game wallet](#x8-add-security-to-game-wallet)
+The canonical catalog below is now the proposed ordering. `P` means Player Wallet, `G` means Game Wallet, `P/G` means shared wallet behavior, and `N` means neutral/Admin or spike work. Numbers restart at 1 within each lane and do not skip.
+
+```text
+A. Accounts
+   A.P.1  Open Account
+   A.P.2  Create Account
+   A.P.3  Restore Account
+   A.P.4  Account Balance and Details
+   A.P.5  Log Out
+   A.G.1  Admin Game Wallet
+   A.G.2  User-facing Game Wallet
+   A.G.3  Game-Wallet Security
+   A.G.4  Reliable Game-Wallet Onboarding
+          and Transfer Recovery
+
+B. Payments/Transfers
+   B.P.1  Pay to Continue
+   B.P.2  Continue After Game Death
+   B.P.3  Receive Funds by Address
+   B.P.4  Receive Funds With Lightning Invoice
+   B.P.5  Send Funds to an Address
+   B.P.6  Pay a Lightning Invoice
+   B.P.7  Account Transfer
+   B.P.8  Open Onboarding
+   B.G.1  Receive Player Continuation Payment
+   B.G.2  Board Game Wallet
+
+C. Assets
+   C.P.1  Reward Player With Trophy
+   C.G.1  Mint Asset
+   C.G.2  Mint Marketplace Items
+   C.G.3  Burn Marketplace Items
+   C.G.4  List Marketplace Items
+
+D. Contracts
+   D.P.1  Contracts UI
+   D.P.2  Treasure Chest Player Flow
+   D.G.1  Treasure Chest Game-Wallet Funding
+
+E. Transactions
+   E.P.1  View Activity
+   E.P.2  Inspect Transfer Recovery Details
+   E.P.3  Cancel Pending Transfer
+
+F. Integrations
+   F.P.1  UI Toast
+
+X. Appendix
+   X.N.1  Arkade Onboarding Spike
+   X.N.2  USD-relative Sats Pricing
+```
+
+The catalog above is authoritative; the sections below provide the current domain-organized diagrams and implementation status.
+
+### Catalog navigation
+
+- [A.P.1 Open Account](#ap1-open-the-game-then-account)
+- [A.P.2 Create Account](#ap2-create-a-new-disposable-test-account)
+- [A.P.3 Restore Account](#ap3-restore-an-account-from-this-experience)
+- [A.P.4 Account Balance and Details](#ap4-open-account-with-an-active-profile)
+- [A.P.5 Log Out](#ap5-log-out-and-return-to-ordinary-gameplay)
+- [A.G.1 Admin Game Wallet](#f1-admin-game-wallet-and-pay-to-continue)
+- [A.G.2 User-facing Game Wallet](#ag2-game-wallet-user-facing)
+- [A.G.3 Game-Wallet Security](#ag3-add-security-to-game-wallet)
+- [A.G.4 Reliable Game-Wallet Onboarding and Transfer Recovery](#ag4-reliable-onboarding-and-transfer-recovery)
+- [B.P.1 Pay to Continue](#bp1-mvp-request-continue)
+- [B.P.2 Continue After Game Death](#bp2-game-death-screen-and-continuation-integration)
+- [B.P.3 Receive Funds by Address](#bp3-receive-funds-using-addresses)
+- [B.P.4 Receive Funds With Lightning Invoice](#bp4-receive-funds-using-lightning-invoices)
+- [B.P.5 Send Funds to an Address](#bp5-send-funds-to-an-address)
+- [B.P.6 Pay a Lightning Invoice](#bp6-pay-a-lightning-invoice)
+- [B.P.7 Account Transfer](#bp7-make-deposited-bitcoin-available)
+- [B.P.8 Open Onboarding](#bp8-open-onboarding)
+- [C.P.1 Reward Player With Trophy](#cp1-reward-player-with-trophy-after-level-complete)
+- [C.G.1 Mint Asset](#cg1-mint-asset)
+- [C.G.2 Mint Marketplace Items](#cg2-marketplace-mint)
+- [C.G.3 Burn Marketplace Items](#cg3-marketplace-burn)
+- [C.G.4 List Marketplace Items](#cg4-marketplace-listing)
+- [D.P.1 Contracts UI](#dp1-contracts-ui)
+- [D.P.2 Treasure Chest Player Flow](#dp2-lto-treasure-chest)
+- [E.P.1 View Activity](#ep1-inspect-activity)
+- [E.P.2 Inspect Transfer Recovery Details](#ep2-inspect-and-copy-transfer-recovery-details)
+- [E.P.3 Cancel Pending Transfer](#ep3-cancel-pending-transfer)
+- [F.P.1 UI Toast](#fp1-ui-toast)
+- [X.N.1 Arkade Onboarding Spike](#xn1-arkade-onboarding-spike)
+- [X.N.2 USD-relative Sats Pricing](#xn2-usd-relative-sats-pricing)
 
 ## Current implementation
 
@@ -53,243 +98,244 @@ Reviewed against the current checkout and recorded acceptance evidence on 2026-0
 
 | Story | Admin UI demonstration | Status |
 | --- | --- | --- |
-| A1. Open Account ✓ | Account / Account Button | Complete: no-profile Account button, Account dialogue, and Back. Active-profile opening belongs to A4. |
-| A2. Create Account | Account / Account Dialog | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
-| A3. Restore Account ✓ | Account / Account Dialog | Account-access restoration implemented; see A3 verification evidence. |
-| A4. Account Balance ✓ | Account / Account Dialog | Complete, confirmed by the user on 2026-09-09. |
-| A5. View Activity ✓ | Account / Account Dialog | Complete, confirmed by the user on 2026-09-09. |
-| A6. Log Out ✓ | Account / Account Dialog | Complete, confirmed by the user on 2026-09-09. |
-| C1. Mint Asset ✓ | Mint Asset & Send | Complete, confirmed by the user on 2026-09-09; generic mint/list APIs and destination selection are delivered. |
-| B1. MVP Request Continue ✓ | Implemented and verified | Live 1,000-sat sink payment verified; all three assets preserved in player change. |
-| B2. Game death screen and continuation integration ✓ | Implemented; game loss screen | Shared BIS price, payment/toast callback and fresh player respawn; isolated browser verification recorded in `add-b2-game-pay-to-continue`. |
-| C2. Reward Player With Trophy After Level Complete ✓ | Implemented; Admin and game | Two-level completion flow, optional player-funded trophy collection and image toast; isolated verification recorded in `reward-player-with-trophy-after-level-complete`. |
-| D1. Show Toast ✓ | UI / Show Toast | Implemented: FIFO text notifications, optional left image, duration overrides, reduced motion, and lifecycle cleanup; browser evidence in the toast change. |
-| D2. Show Toast With Icon ✓ | UI / Show Toast With Icon | Sample notification using the existing trophy artwork on the left and the same shared toast queue. |
-| E1. Open Signet Faucet(s) ✓, E2. Open On Mempool.space ✓ | Admin Tools / Open Signet Faucet(s) / Open On Mempool.space | Existing actions grouped and numbered; original handlers and account/busy guards preserved. |
-| X4. Account Transfer | Account / Account Dialog | ✓ Both directions, Max, quotes, explicit confirmation, and unresolved-operation guards implemented. A registered transfer remains unresolved; remaining recovery coverage and live completion verification are pending. |
-| X5a. Inspect and Copy Transfer Recovery Details ✓ | Transactions → Transaction Detail → Recovery details | ✓ Implemented and verified: one-click pending entry, Check Status, copy/manual fallback. Cancellation remains separate and blocked. |
-| X5b. Cancel Pending Transfer | Not implemented | Blocked on verified operator cancellation scope and terminal-outcome guarantees; no cancellation UI or live cancellation delivered. |
-| F1. Game Wallet (Admin-facing) | F. Game Wallet | Admin setup for the shared local game-wallet selection. |
-| F2. Game Wallet (User-facing) ✓ | Account Details / Balance / Game Wallet Login | Serverless setup for every BIS account host. |
-| F3. Board Game Wallet ✓ | F. Game Wallet / Board Game Wallet | Admin-only balance and boarding controls for the F1/F2 selection. |
-| G1. Contracts UI ✓ | Account Details / Contracts | Complete and user-accepted 2026-09-09; shared list/details and eligible actions. Specs synced; change archived. |
-| G2. LTO Treasure Chest ✓ | BIS G2 demo / Stealth & Steel Level01 | Complete locally and user-accepted 2026-09-09; 1,000-sat, 90-second chest with shared persistent game wallet. Specs synced; archived with verification limits retained. HTTPS service deployment remains outstanding. |
-| H1. Arkade onboarding spike ✓ | [Standalone spike](http://127.0.0.1:5174/spike1/) | Original six-step experiment and the documented four-run and three-run acceptance cohorts reached verified Step 6; 89 tests and both builds passed. Robustness follow-up tasks remain separately tracked, and this does not establish BIS production acceptance. |
-| X2a. Receive funds using addresses ✓ | Account / Account Dialog | Complete: address journey, dedicated demo, isolated error checks, and real-account demo/independent-host verification. X2b remains blocked. |
-| X2b. Receive funds using Lightning invoices | Not enabled | Blocked on a supported Arkade Signet receiving route and verified quote/recovery support. Live invoices, receipt processing, and related account-clearing guards are not implemented. |
-| X3a. Send funds | Account / Account Dialog | Arkade-to-Arkade entry, exact review and explicit submission implemented; live payment acceptance pending. X5 recovery is separate. |
+| A.P.1 Open Account ✓ | Account / Account Button | Complete: no-profile Account button, Account dialogue, and Back. Active-profile opening belongs to A.P.4. |
+| A.P.2 Create Account | Account / Account Dialog | Implemented; creation and reload/browser-restart persistence verified. Manual real-storage reset verification pending. |
+| A.P.3 Restore Account ✓ | Account / Account Dialog | Account-access restoration implemented; see the A.P.3 verification evidence. |
+| A.P.4 Account Balance ✓ | Account / Account Dialog | Complete, confirmed by the user on 2026-09-09. |
+| A.P.5 Log Out ✓ | Account / Account Dialog | Complete, confirmed by the user on 2026-09-09. |
+| C.G.1 Mint Asset ✓ | Mint Asset & Send | Complete, confirmed by the user on 2026-09-09; generic mint/list APIs and destination selection are delivered. |
+| C.G.2 Mint Marketplace Items | C. Assets / Game Wallet | Mints the nine-item Stealth & Steel catalog through the active Game Wallet and reports verified progress in Console. |
+| C.G.3 Burn Marketplace Items | C. Assets / Game Wallet | Burns only freshly classified marketplace items through the active Game Wallet and preserves trophies and unrelated assets. |
+| C.G.4 List Marketplace Items | C. Assets / Game Wallet | Lists freshly classified marketplace items from the active Game Wallet in Console. |
+| B.P.1 Pay to Continue ✓ | Implemented and verified | Live 1,000-sat sink payment verified; all three assets preserved in player change. |
+| B.P.2 Continue After Game Death ✓ | Implemented; game loss screen | Shared BIS price, payment/toast callback and fresh player respawn; isolated browser verification recorded in `add-b2-game-pay-to-continue`. |
+| C.P.1 Reward Player With Trophy ✓ | Implemented; Admin and game | Two-level completion flow, optional player-funded trophy collection and image toast; isolated verification recorded in `reward-player-with-trophy-after-level-complete`. |
+| F.P.1 UI Toast ✓ | UI / Toast | Implemented: FIFO text notifications, optional left image, duration overrides, reduced motion, and lifecycle cleanup; Admin exposes Show and Show With Icon subbuttons. |
+| B.P.7 Account Transfer | Account / Account Dialog | Both directions, Max, quotes, explicit confirmation, and unresolved-operation guards implemented. A registered transfer remains unresolved; remaining recovery coverage and live completion verification are pending. |
+| E.P.1 View Activity ✓ | Account / Transactions | Production account activity view is available from Admin E.P.1 and opens the active account's Transactions screen with refresh, history and transaction detail navigation. |
+| E.P.2 Inspect Transfer Recovery Details ✓ | Transactions → Transaction Detail → Recovery details | Implemented and verified: one-click pending entry, Check Status, copy/manual fallback. Cancellation remains separate and blocked. |
+| E.P.3 Cancel Pending Transfer | Not implemented | Blocked on verified operator cancellation scope and terminal-outcome guarantees; no cancellation UI or live cancellation delivered. |
+| A.G.1 Admin Game Wallet | A. Accounts / Game Wallet | Admin setup for the shared local game-wallet selection. |
+| A.G.2 User-facing Game Wallet ✓ | Account Details / Balance / Game Wallet Login | Serverless setup for every BIS account host. |
+| B.G.2 Board Game Wallet ✓ | Payments/Transfers / Game Wallet | Admin-only balance and boarding controls for the selected game wallet. |
+| D.P.1 Contracts UI ✓ | Account Details / Contracts | Complete and user-accepted 2026-09-09; shared list/details and eligible actions. Specs synced; change archived. |
+| D.P.2 / D.G.1 Treasure Chest ✓ | BIS contract demo / Stealth & Steel Level01 | Complete locally and user-accepted 2026-09-09; 1,000-sat, 90-second chest with shared persistent game wallet. Specs synced; archived with verification limits retained. HTTPS service deployment remains outstanding. |
+| X.N.1 Arkade Onboarding Spike ✓ | [Standalone spike](http://127.0.0.1:5174/spike1/) | Original six-step experiment and the documented four-run and three-run acceptance cohorts reached verified Step 6; 89 tests and both builds passed. Robustness follow-up tasks remain separately tracked, and this does not establish BIS production acceptance. |
+| B.P.3 Receive Funds by Address ✓ | Account / Account Dialog | Complete: address journey, dedicated demo, isolated error checks, and real-account demo/independent-host verification. B.P.4 remains blocked. |
+| B.P.4 Receive Funds With Lightning Invoice | Not enabled | Blocked on a supported Arkade Signet receiving route and verified quote/recovery support. Live invoices, receipt processing, and related account-clearing guards are not implemented. |
+| B.P.5 Send Funds to an Address | Account / Account Dialog | Arkade-to-Arkade entry, exact review and explicit submission implemented; live payment acceptance pending. E.P.2 recovery is separate. |
 
 The demo starts empty, including after refresh. Account Button renders the production entry button; Create Account opens the production dialogue directly. Logged-out Account offers enabled Create Account, enabled Restore Account, and Back. Completed accounts are remembered across browser restarts. Logged-in Account shows the title Account with Account Details, Log Out, and Back. Account Details shows the identity, Signet, available/total balances, Refresh, and Back to Account; it has no Log Out button. Reset Client clears BIS-owned account storage and transient state; its real stored-data verification remains manual.
 
-Stories are sized to be completed independently. A1 covers entry; A2 owns creation and the minimal active dialogue, A3 restoration, and A4 the lean balance dialog. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
+Stories are sized to be completed independently. A.P.1 covers entry; A.P.2 owns creation and the minimal active dialogue, A.P.3 restoration, and A.P.4 the lean balance dialog. Each feature updates its diagram and Admin UI demonstration together. Build one small story, try it together, and refine it through hands-on feedback.
 
 ## Reading these diagrams
 
 Based on [the original brief](BGS_PROJECT_BRIEF.md), especially sections 4, 5, 7, 8, and 14, and [confirmed design decisions](design-discussion.md).
 
-These diagrams include implemented and planned user journeys. Use the current implementation table and each story’s status for delivery evidence; unmarked stories may be partly implemented. A2 real stored-data reset verification and the separately listed financial acceptance gates remain pending. A4, A5, and A6 are complete. API names and events below come from the brief's proposed contract; additional behavior is marked as proposed or unresolved.
+These diagrams include implemented and planned user journeys. Use the current implementation table and each story’s status for delivery evidence; unmarked stories may be partly implemented. A.P.2 real stored-data reset verification and the separately listed financial acceptance gates remain pending. A.P.4, E.P.1, and A.P.5 are complete. API names and events below come from the brief's proposed contract; additional behavior is marked as proposed or unresolved.
 
 Diagram key: `Game` = the separate Babylon.js game; `UI`, `Core`, and `Arkade` = internal layers of `BIS/packages/integration`. UI uses React + TypeScript; Core owns workflows/state/events; Arkade wraps `@arkade-os/sdk` and public Signet infrastructure. The demo app substitutes for the game host, using the same public integration surface.
 
 Diagrams use plain ASCII and omit the lightning icon; actual player-facing account/action buttons retain the brief's lightning prefix. Developer technology labels are not button text. All wallet activity is Signet-only, with no project-operated application server.
 
-Step references use the story ID and a step number, such as `[A2.09]`. Each labeled action, state, or branch can be referenced independently; connector lines and explanatory annotations are not numbered. Keep existing IDs when revising a diagram; assign new steps the next unused number.
+Step references use the story ID and a step number, such as `[A.P.2.09]`. Each labeled action, state, or branch can be referenced independently; connector lines and explanatory annotations are not numbered. Keep existing IDs when revising a diagram; assign new steps the next unused number.
 
-## A. Account
+## A. Accounts
 
 Create or restore a test identity, inspect its state, and leave the connected session. An account is optional; ordinary gameplay is always available.
 
-### A1. Open the game, then Account ✓
+### A.P.1. Open the game, then Account ✓
 
 Status: complete. Precondition: no active profile. The host decides where to place the BIS Account button; the demo provides a centered container.
 
 ```text
-[A1.01] Host mounts BIS UI (initially empty)
+[A.P.1.01] Host mounts BIS UI (initially empty)
   |
-[A1.02] Host requests Account button presentation
+[A.P.1.02] Host requests Account button presentation
   |  Demo: Admin > Account > Account Button
   v
-[A1.03] Player clicks Account
+[A.P.1.03] Player clicks Account
   |
   v
-[A1.04] BIS: context.openAccountDialog()
+[A.P.1.04] BIS: context.openAccountDialog()
   |
   v
-[A1.05] Account dialogue
+[A.P.1.05] Account dialogue
   Title: Account
   State: You are not logged in.
   |
-  +--> [A1.06] Create Account  [enabled; A2]
-  +--> [A1.07] Restore Account [enabled; A3]
-  +--> [A1.08] Back --> Account button, profile unchanged
+  +--> [A.P.1.06] Create Account  [enabled; A.P.2]
+  +--> [A.P.1.07] Restore Account [enabled; A.P.3]
+  +--> [A.P.1.08] Back --> Account button, profile unchanged
 ```
 
 - Create Account is enabled and primary; Restore Account is enabled and secondary; Back is enabled and secondary. All three action buttons have equal width and padding. Only Create/Restore carry lightning icons. Disabled actions have the prohibited cursor and perform no operation.
-- No decorative title icon, coming-soon explanation, Escape handling, backdrop dismissal, wallet initialization, or network operation is part of A1.
+- No decorative title icon, coming-soon explanation, Escape handling, backdrop dismissal, wallet initialization, or network operation is part of A.P.1.
 - The production context owns state. The mounted production UI renders the dialogue and restores focus to Account after Back. The game owns its own menus and gameplay policy.
 - Admin observes public state and disables the story action while the dialogue is open. Reset Client clears selection, runtime state, and BIS-owned saved account material, returning to the Game Viewport placeholder. Preview scaling preserves the active flow.
-- Opening Account with an active profile now uses the shared A4 balance dialog; A2 originally supplied its minimal account-access endpoint. Creating and restoring profiles are A2 and A3.
+- Opening Account with an active profile now uses the shared A.P.4 balance dialog; A.P.2 originally supplied its minimal account-access endpoint. Creating and restoring profiles are A.P.2 and A.P.3.
 
-### A2. Create a new disposable test account
+### A.P.2. Create a new disposable test account
 
 Status: implemented, with manual real-storage Reset Client verification pending. Confirmed scope is captured in [add-a2-account-creation](../../.openspec/changes/archive/2026-09-03-add-a2-account-creation/proposal.md); the change task list records outstanding verification. Game and Runtime Preview share production persistence behavior. Story IDs identify scope, not development order.
 
 ```text
-[A2.11] Host opens the production Account dialogue
+[A.P.2.11] Host opens the production Account dialogue
   |
-  +--> [A2.12] Saved active account --> shared Account dialogue (A2.14 / A4)
+  +--> [A.P.2.12] Saved active account --> shared Account dialogue (A.P.2.14 / A.P.4)
   |
-  +--> [A2.13] No saved account --> Account: You are not logged in.
+  +--> [A.P.2.13] No saved account --> Account: You are not logged in.
   |      Create Account / enabled Restore Account / Back
   v
-[A2.01] Player: Create Account
+[A.P.2.01] Player: Create Account
   |
   v
-[A2.02] UI: test-only explanation + lightning loader
+[A.P.2.02] UI: test-only explanation + lightning loader
   |
   v
-[A2.03] Core: start account-creation workflow
+[A.P.2.03] Core: start account-creation workflow
   |
   v
-[A2.04] Arkade: create real in-browser Signet wallet via SDK
+[A.P.2.04] Arkade: create real in-browser Signet wallet via SDK
   |
-  +--> [A2.05] Failure --> UI: explain / retry / return to game
+  +--> [A.P.2.05] Failure --> UI: explain / retry / return to game
   |
   v
-[A2.06] UI: immediately show recovery phrase + test-only warning
+[A.P.2.06] UI: immediately show recovery phrase + test-only warning
   |
-  +--> [A2.21] Copy to Clipboard --> all 12 words, single-space-separated text
+  +--> [A.P.2.21] Copy to Clipboard --> all 12 words, single-space-separated text
   |      Success feedback, or retry/manual copy on failure
   |
-  +--> [A2.07] Player saves phrase privately outside the app
+  +--> [A.P.2.07] Player saves phrase privately outside the app
   |
-  +--> [A2.08] Player skips saving for a disposable session
-  |
-  v
-[A2.09] Player: Continue
+  +--> [A.P.2.08] Player skips saving for a disposable session
   |
   v
-[A2.10] Save account, activate profile --> accountConnected --> Game
+[A.P.2.09] Player: Continue
   |
   v
-[A2.14] Account dialogue
+[A.P.2.10] Save account, activate profile --> accountConnected --> Game
+  |
+  v
+[A.P.2.14] Account dialogue
   Title: Account
   State: You are now logged in as Account ID: <first 4 characters>…<last 4 characters>.
   |
-  +--> [A2.15] Log Out [opens A6 confirmation]
-  +--> [A2.16] Back --> preceding host presentation
+  +--> [A.P.2.15] Log Out [opens A.P.5 confirmation]
+  +--> [A.P.2.16] Back --> preceding host presentation
 
-[A2.17] Refresh/close before Continue commits --> next entry starts at A2.13
-[A2.18] Refresh/reopen after commit --> retain account; next entry uses A2.12
-[A2.19] Admin Reset Client --> clear saved/transient account and selection
+[A.P.2.17] Refresh/close before Continue commits --> next entry starts at A.P.2.13
+[A.P.2.18] Refresh/reopen after commit --> retain account; next entry uses A.P.2.12
+[A.P.2.19] Admin Reset Client --> clear saved/transient account and selection
   |
   v
-[A2.20] Empty Game Viewport; next A2 entry starts at A2.13
+[A.P.2.20] Empty Game Viewport; next A.P.2 entry starts at A.P.2.13
 ```
 
-- Copy to Clipboard appears above Continue and copies only on an explicit click. A3 Paste from Clipboard consumes the same plain, space-separated phrase.
+- Copy to Clipboard appears above Continue and copies only on an explicit click. A.P.3 Paste from Clipboard consumes the same plain, space-separated phrase.
 - Game receives account state, not recovery material or Arkade-specific types. Creating an account does not itself mean the wallet is funded or a payment succeeded.
 - Service: UI explains and displays recovery; Core orchestrates activation; Arkade owns SDK identity/wallet setup and any required connectivity. SDK 0.4.67 creation has been verified against the live Signet operator with explicit transient repositories.
-- Confirmed: persist the completed account on this browser across refreshes and restarts until Log Out (A6), Admin Reset Client, or loss of browser data. Do not resume an unfinished creation after reopening. The admin selection resets on refresh; the viewport stays empty until a story is selected.
-- Confirmed: the minimal logged-in dialogue hides Create/Restore and shows enabled Log Out plus working Back. A4 owns the lean balance dialog; A6 owns functional logout. Admin Reset Client is the first-run reset available in this slice, replacing the previous preserve-persisted-data behavior when A2 is implemented.
+- Confirmed: persist the completed account on this browser across refreshes and restarts until Log Out (A.P.5), Admin Reset Client, or loss of browser data. Do not resume an unfinished creation after reopening. The admin selection resets on refresh; the viewport stays empty until a story is selected.
+- Confirmed: the minimal logged-in dialogue hides Create/Restore and shows enabled Log Out plus working Back. A.P.4 owns the lean balance dialog; A.P.5 owns functional logout. Admin Reset Client is the first-run reset available in this slice, replacing the previous preserve-persisted-data behavior when A.P.2 is implemented.
 - Implemented default: Continue is immediately available without a mandatory backup checkbox or phrase verification, consistent with optional external saving. The linked design records the implemented storage protection, SDK evidence, and failure behavior.
 - Security: warn never to enter or reuse a real-funds recovery phrase. Keep recovery material out of game callbacks, logs, analytics, demo event history, and verification captures. Account creation does not imply funding or network availability.
 
-### A3. Restore an account from this experience ✓
+### A.P.3. Restore an account from this experience ✓
 
-Status: implemented for account access only. Verification is recorded in [A3_VERIFICATION.md](../../.openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md).
+Status: implemented for account access only. Verification is recorded in [A.P.3_VERIFICATION.md](../../.openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md).
 
 ```text
-[A3.01] Player: Restore Account
+[A.P.3.01] Player: Restore Account
   |
   v
-[A3.02] UI: warning + 12 numbered word fields
+[A.P.3.02] UI: warning + 12 numbered word fields
         One * per character; one Show checkbox; Paste from Clipboard
   |
   v
-[A3.03] Validate English BIP39 words + complete checksum
+[A.P.3.03] Validate English BIP39 words + complete checksum
   |
-  +--> [A3.04] Invalid: red word / phrase error; Restore disabled
-  |
-  v
-[A3.05] Core --> Arkade: restore same identity + connect to Signet
-  |
-  +--> [A3.06] Unavailable: operation error + OK; close Restore page
+  +--> [A.P.3.04] Invalid: red word / phrase error; Restore disabled
   |
   v
-[A3.07] Save account access in existing encrypted persistence
+[A.P.3.05] Core --> Arkade: restore same identity + connect to Signet
+  |
+  +--> [A.P.3.06] Unavailable: operation error + OK; close Restore page
   |
   v
-[A3.08] Same profile active --> accountConnected --> Game
+[A.P.3.07] Save account access in existing encrypted persistence
   |
   v
-[A3.09] Account dialogue: You are now logged in as Account ID: <first 4 characters>…<last 4 characters>. / Log Out / Back
+[A.P.3.08] Same profile active --> accountConnected --> Game
+  |
+  v
+[A.P.3.09] Account dialogue: You are now logged in as Account ID: <first 4 characters>…<last 4 characters>. / Log Out / Back
 ```
 
 - Show starts unchecked. Manual typing remains available while hidden. Paste unchecks Show before filling all twelve fields. Wrong word count leaves existing words unchanged with an error; clipboard denial allows manual entry.
 - Empty words are neutral, valid words green, and invalid words red. All-green words with an invalid checksum show a phrase-level error and keep Restore disabled.
 - A successful Signet connection is required before persistence/activation. Success returns directly to Account without Continue. Network failure retains the phrase temporarily for Retry; Back clears it. Save failures reconcile before retry, and stale work cannot overwrite another account.
 - Restoration preserves the same profile ID and survives reload/browser restart. The supported phrase format is the experience's twelve English words; validity does not prove where a phrase originated. Never enter a real-funds phrase.
-- Wallet balances, achievements, other account menu features, and gameplay checkpoints are outside A3. The former wallet/asset loading at A3.07 is deferred.
+- Wallet balances, achievements, other account menu features, and gameplay checkpoints are outside A.P.3. Wallet and asset loading at A.P.3.07 is deferred.
 
-### A4. Open Account with an active profile ✓
+### A.P.4. Open Account with an active profile ✓
 
-Status: complete, confirmed by the user on 2026-09-09. Earlier funded-balance acceptance is closed on that confirmation. See [A4 verification](../../.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md). A2/A3 enter this shared dialog after account activation; their account-access behavior remains separate.
+Status: complete, confirmed by the user on 2026-09-09. Earlier funded-balance acceptance is closed on that confirmation. See [A.P.4 verification](../../.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md). A.P.2/A.P.3 enter this shared dialog after account activation; their account-access behavior remains separate.
 
 ```text
-[A4.01] Player: Gear --> Account
+[A.P.4.01] Player: Gear --> Account
                    |
-[A4.02] Game --> Core: openAccountDialog()
+[A.P.4.02] Game --> Core: openAccountDialog()
                    |
-[A4.03] UI: Account menu --> Account Details
+[A.P.4.03] UI: Account menu --> Account Details
   |
-  +--> [A4.04] Details: existing Account ID / Network: Signet
-  +--> [A4.05] Available balance / Total balance (sats)
+  +--> [A.P.4.04] Details: existing Account ID / Network: Signet
+  +--> [A.P.4.05] Available balance / Total balance (sats)
   |             Refresh --> Pending Operation Dialog --> ready / error + OK
-  +--> [A4.06] DEFERRED: Assets inspection
-  +--> [A4.07] DEFERRED: activity/history ----> A5
-  +--> [A4.08] Log Out ----------------------> A6
-  +--> [A4.09] Back: Details --> Account --> Game
+  +--> [A.P.4.06] DEFERRED: Assets inspection
+  +--> [A.P.4.07] DEFERRED: activity/history ----> E.P.1
+  +--> [A.P.4.08] Log Out ----------------------> A.P.5
+  +--> [A.P.4.09] Back: Details --> Account --> Game
 
-[A4.10] Core --> fresh bounded Arkade wallet read --> UI
+[A.P.4.10] Core --> fresh bounded Arkade wallet read --> UI
 ```
 
-- A4.06 and A4.07 retain their IDs as deferred branches; no placeholder buttons appear. Receiving/funding details and custom asset rendering are separate future features.
+- A.P.4.06 and A.P.4.07 retain their IDs as deferred branches; no placeholder buttons appear. Receiving/funding details and custom asset rendering are separate future features.
 - Load on each Account Details entry and Refresh; no continuous UI updates. Available balance is prominent, total secondary. Neither failures nor unknown values become zero.
 - Starting a read clears prior amounts. Failure retries once under the Pending Operation Dialog, then shows an error and OK that closes Account Details. No balance is persisted or reused after closing/reloading; no stale values or update timestamps are shown.
 - Account ID is locally verified identity; Signet is configured network, not a connection indicator. Balance failure does not log out the account or block Back; Log Out remains on the Account menu. Missing/unreadable keys follow account-access errors.
 - Leaving, logout confirmation, reset, account replacement, and disposal invalidate pending balance work. Cancelling logout returns to Account without a balance read; reopening Account Details starts a new read. Temporary SDK resources are disposed after the bounded request.
 
-### A5. Inspect Activity ✓
+### E.P.1. Inspect Activity ✓
 
-Complete, confirmed by the user on 2026-09-09: production SDK history, transaction rows/detail, Copy-all, automatic updates, and account-scoped cleanup. Earlier live-transition acceptance is closed on that confirmation; see [A5 verification](../../.openspec/changes/archive/2026-09-08-add-a5-inspect-activity/A5_VERIFICATION.md).
+Complete, confirmed by the user on 2026-09-09: production SDK history, transaction rows/detail, Copy-all, automatic updates, and account-scoped cleanup. Earlier live-transition acceptance is closed on that confirmation; see [E.P.1 verification](../../.openspec/changes/archive/2026-09-08-add-a5-inspect-activity/A5_VERIFICATION.md).
 
 ```text
-[A5.01] Player: Account --> Accounts Details --> Transactions (below Balance)
+[E.P.1.01] Player: Account --> Accounts Details --> Transactions (below Balance)
                        |
-[A5.02] UI --> Core: openAccountActivity() / refreshActivity()
+[E.P.1.02] UI --> Core: openAccountActivity() / refreshActivity()
            |
-           +--> [A5.03] Account-scoped saved operations supplement history
+           +--> [E.P.1.03] Account-scoped saved operations supplement history
            |           Explicit local status; deduplicate known references
            |
-           +--> [A5.04] Arkade SDK: full available history + coin status
+           +--> [E.P.1.04] Arkade SDK: full available history + coin status
                        Notifications + periodic reconciliation while open
                        |
-[A5.05] UI: Transactions rows in history order
+[E.P.1.05] UI: Transactions rows in history order
         Three lines: operation/amount, network, shortened identifier
         Copy Transactions icon --> every record, one full line each
         Click row --> Transaction Detail / Copy selected report
         Detail Back --> list; retain selection
                        |
-                  [A5.06] Back to Accounts Details; clear activity and stop watching
+                  [E.P.1.06] Back to Accounts Details; clear activity and stop watching
 ```
 
 - All SDK-supplied incoming/outgoing history is retained, including spent records. Undated pending rows come first, followed by dated rows newest first and other undated rows in SDK order. No fabricated timestamps, output indexes, receipt, or settlement.
 - Copy-all preserves full identifiers, supported status and exact asset quantities. Clipboard failure exposes the complete selectable export; empty/loading lists disable copying. Detail Copy remains specific to the selected transaction.
 - Transactions and Transaction Detail retain native compact 384px height capped by the host. The list and full detail report scroll internally with persistent scrollbars. Account ID and its Copy action appear only on Accounts Details. An empty successful list retains its heading, disabled copy icon, space and scrollbar without an empty-state message. Foreground reads use the shared Pending Operation Dialog and 75 seconds per attempt with one retry. Available partial records are explicitly labeled when full history cannot refresh.
-- Account changes, Back, logout/reset and disposal invalidate callbacks and stop monitoring. SDK reads perform no funding, sending or settlement. Saved operations are not proof of network completion; completeness is limited to history the SDK supplies. A4 balances, asset inspection, X2 receiving, X3 sending and X4/X5 transfer/recovery remain separate capabilities.
+- Account changes, Back, logout/reset and disposal invalidate callbacks and stop monitoring. SDK reads perform no funding, sending or settlement. Saved operations are not proof of network completion; completeness is limited to history the SDK supplies. A.P.4 balances, asset inspection, B.P.3/B.P.4 receiving, B.P.5/B.P.6 sending and B.P.7/E.P.2/E.P.3 transfer recovery remain separate capabilities.
 
-### A6. Log out and return to ordinary gameplay ✓
+### A.P.5. Log out and return to ordinary gameplay ✓
 
 **Status:** Complete, confirmed by the user on 2026-09-09. Earlier manual logout acceptance is closed on that confirmation.
 
@@ -297,94 +343,94 @@ Complete, confirmed by the user on 2026-09-09: production SDK history, transacti
 
 
 ```text
-[A6.01] Player: Account --> Log Out
+[A.P.5.01] Player: Account --> Log Out
                        |
                        v
-[A6.10] UI: backup confirmation; checkbox initially unchecked
+[A.P.5.10] UI: backup confirmation; checkbox initially unchecked
            |
            +--> Back --> Account; account remains active and saved
            |
-           +--> [A6.11] Check "I have backed up my wallet"
+           +--> [A.P.5.11] Check "I have backed up my wallet"
                        --> enable Log Out --> Player confirms
                        |
                        v
-[A6.02] Core: validate the confirmed account and storage generation
+[A.P.5.02] Core: validate the confirmed account and storage generation
            |
-           +--> [A6.03] Future pending-payment policy (deferred)
+           +--> [A.P.5.03] Future pending-payment policy (deferred)
            |
-           +--> [A6.04] Safe to log out
+           +--> [A.P.5.04] Safe to log out
                        |
                        v
-            [A6.05] Clear remembered account material; end active service session
+            [A.P.5.05] Clear remembered account material; end active service session
                  |     |
-                 |     +--> [A6.12] Failure/unconfirmed --> operation error + OK; close page
+                 |     +--> [A.P.5.12] Failure/unconfirmed --> operation error + OK; close page
                  |                                          |
                  |                         reconcile <------+
                  v
-            [A6.06] Arkade: release session resources as needed
+            [A.P.5.06] Arkade: release session resources as needed
                        |
                        v
-[A6.07] Core: no active profile --> notify Game
+[A.P.5.07] Core: no active profile --> notify Game
                        |
                        v
-[A6.08] UI: Create Account / Account Dialog
-[A6.09] Game: ordinary gameplay remains available
+[A.P.5.08] UI: Create Account / Account Dialog
+[A.P.5.09] Game: ordinary gameplay remains available
 ```
 
-- Implemented with manual real-storage verification pending. See [A6 verification](../../.openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md). Game observes the non-secret `accountDisconnected` event after confirmed active-to-absent state; normal gameplay remains usable.
+- Implemented with manual real-storage verification pending. See [A.P.5 verification](../../.openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md). Game observes the non-secret `accountDisconnected` event after confirmed active-to-absent state; normal gameplay remains usable.
 - Service: Core owns session transition and pending-work policy; UI explains consequences; Arkade handles SDK-specific lifecycle cleanup. Logout is not an on-chain transaction and does not erase wallet assets.
-- Confirmed scope: use the supplied Arkade Reset wallet screenshots as the behavioral reference for a backup confirmation, with our heading "Account Log Out" and action "Log Out". Ask "Did you back up your wallet?" and warn that clearing the account from this browser cannot be undone locally; restoring access requires the saved recovery phrase. This confirmation is permanent A6 behavior, independent of A3 restoration availability.
+- Confirmed scope: use the supplied Arkade Reset wallet screenshots as the behavioral reference for a backup confirmation, with our heading "Account Log Out" and action "Log Out". Ask "Did you back up your wallet?" and warn that clearing the account from this browser cannot be undone locally; restoring access requires the saved recovery phrase. This confirmation is permanent A.P.5 behavior, independent of A.P.3 restoration availability.
 - The "I have backed up my wallet" checkbox starts unchecked every time the confirmation opens. Log Out is disabled until checked and becomes disabled again if unchecked. Checking the box alone does not log out; the player must press Log Out. Back cancels without clearing account material or ending the session.
 - The Admin Log Out demonstration opens the real Account dialogue, recognizing a saved account or showing the chooser if none exists. Successful logout preserves selection and shows Create Account / Account Dialog (Restore is enabled). Back restores the preceding host presentation.
 - Failures show an operation error with OK closing the confirmation page. No success is reported until storage clearing is confirmed; retries reconcile ambiguous completion and never clear a replacement account using an old confirmation. Other live contexts reconcile confirmed logout. Arkade wallets are already disposed after creation, so this slice has no additional network cleanup.
-- A6 offers no recovery-phrase access. Pending-payment handling is deferred until payments exist. Game-specific mid-run policy is also deferred; the brief's connected-run eligibility rule is unchanged.
+- A.P.5 offers no recovery-phrase access. Pending-payment handling is deferred until payments exist. Game-specific mid-run policy is also deferred; the brief's connected-run eligibility rule is unchanged.
 
-## B. Pay-to-play
+## B. Payments/Transfers
 
-The first deliverable was B1: a complete minimal continuation request demonstrated through Admin and Console. B2 connects it to the game death screen. Restarting ordinary gameplay remains free.
+The first deliverable was B.P.1: a complete minimal continuation request demonstrated through Admin and Console. B.P.2 connects it to the game death screen. Restarting ordinary gameplay remains free.
 
-### B1. MVP Request Continue ✓
+### B.P.1. MVP Request Continue ✓
 
-**Status:** Historical B1 sink-payment verification passed, preserving all three assets in player change. F1 changes new requests to a configured recipient; its live verification remains pending. See [B1 verification](../../.openspec/changes/archive/2026-09-04-add-b-pay-to-continue-mvp/VERIFICATION.md).
+**Status:** Historical B.P.1 sink-payment verification passed, preserving all three assets in player change. A.G.1 changes new requests to a configured recipient; its live verification remains pending. See [B.P.1 verification](../../.openspec/changes/archive/2026-09-04-add-b-pay-to-continue-mvp/VERIFICATION.md).
 
 ```text
-[B1.01] Admin: "Pay 1000 Sats To Continue" (Player->Game), BIS-owned 1000-sat price
+[B.P.1.01] Admin: "Pay 1000 Sats To Continue" (Player->Game), BIS-owned 1000-sat price
   |
   v
-[B1.02] Public API: validate amount, account and operation identity
+[B.P.1.02] Public API: validate amount, account and operation identity
   |
   +--> Invalid / unavailable / insufficient funds --> Console error; no submission
   |
   v
-[B1.03] Submit configured game-wallet payment once
+[B.P.1.03] Submit configured game-wallet payment once
   |
   +--> Confirmed success --> Console result and Runtime Preview success toast
   +--> Confirmed failure --> Console error
   +--> Unknown / pending --> Console pending; retain request for reconciliation
 ```
 
-- One initiating call; no separate consume call, stored continuation entitlement, or second confirmation overlay. B2's follow-up connects the shared controller to Admin B1: pending checks run automatically, and confirmed success shows `User paid 1000 sats to continue` in Runtime Preview. Production Admin submits real requests, never simulated transaction success.
+- One initiating call; no separate consume call, stored continuation entitlement, or second confirmation overlay. B.P.2's follow-up connects the shared controller to Admin B.P.1: pending checks run automatically, and confirmed success shows `User paid 1000 sats to continue` in Runtime Preview. Production Admin submits real requests, never simulated transaction success.
 - Demo default is **1,000 sats**. API accepts numeric whole-sat amounts from **1,000 through 10,000 inclusive** and throws before submission for invalid values.
 - Add a code comment that this local validation is not fail-safe or cheat-resistant. The accepted server-free demo does not establish trusted price enforcement.
-- Core owns request identity, account association, status and recovery; the adapter owns verified payment to the configured game recipient. Invalid input, insufficient funds, confirmed failures, pending tracking, reload reconciliation, and duplicate protection all belong to B1.
+- Core owns request identity, account association, status and recovery; the adapter owns verified payment to the configured game recipient. Invalid input, insufficient funds, confirmed failures, pending tracking, reload reconciliation, and duplicate protection all belong to B.P.1.
 - Repeating the same request must not pay twice. A timeout is not proof of failure. Results retain the original context so a future host can ignore obsolete runs; BIS does not revive a player itself.
-- Historical B1 used a generated sink recipient. F1 replaces this for new requests with the configured game wallet, while retaining historical recovery. No automatic funding or refund is promised.
-- F1 configures the game-wallet recipient; X6's USD-relative pricing remains deferred.
+- Historical B.P.1 used a generated sink recipient. A.G.1 replaces this for new requests with the configured game wallet, while retaining historical recovery. No automatic funding or refund is promised.
+- A.G.1 configures the game-wallet recipient; X.N.2's USD-relative pricing remains deferred.
 
-<!-- B1 pricing validation is not fail-safe: client-controlled checks do not establish trusted price enforcement. Carry this explanation into API validation comments. -->
+<!-- B.P.1 pricing validation is not fail-safe: client-controlled checks do not establish trusted price enforcement. Carry this explanation into API validation comments. -->
 
-### B2. Game death screen and continuation integration ✓
+### B.P.2. Game death screen and continuation integration ✓
 
-**Status:** Implemented and verified with the real game and isolated payment fixtures. No new live Signet payment was made for B2. See [B2 verification](../../.openspec/changes/archive/2026-09-07-add-b2-game-pay-to-continue/verification.md).
+**Status:** Implemented and verified with the real game and isolated payment fixtures. No new live Signet payment was made for B.P.2. See [B.P.2 verification](../../.openspec/changes/archive/2026-09-07-add-b2-game-pay-to-continue/verification.md).
 
 The game shows a lightning icon followed by `Pay 1000 Sats To Continue`, then `Restart Game` below. BIS supplies the hardcoded 1000-sat price through a public API; the game dynamically inserts it. Pay stays visible and greyed out whenever the player is not logged in. All shared game menu labels shrink when needed to fit, accounting for the icon.
 
-Clicking Pay disables both actions until confirmed success or definitive failure. Pending/read errors retain the lock. On success BIS shows exactly `User paid 1000 sats to continue` through the toast system and delivers one callback for the original account/loss context. The game replaces the defeated player using the same row/column spawn function as level start, preserving position and loadout with full health and fresh rendering/input. It instantly removes enemies in that cell and the eight neighbors, then resumes. Other world state is preserved. Failure restores the choices. Closing/reloading abandons the current run; old payment results never revive a replacement session. No checkpoint restoration, extra confirmation overlay or automatic refund is added. The shared `Restart Game` wording follows the user's C2 instruction to use it on death too.
+Clicking Pay disables both actions until confirmed success or definitive failure. Pending/read errors retain the lock. On success BIS shows exactly `User paid 1000 sats to continue` through the toast system and delivers one callback for the original account/loss context. The game replaces the defeated player using the same row/column spawn function as level start, preserving position and loadout with full health and fresh rendering/input. It instantly removes enemies in that cell and the eight neighbors, then resumes. Other world state is preserved. Failure restores the choices. Closing/reloading abandons the current run; old payment results never revive a replacement session. No checkpoint restoration, extra confirmation overlay or automatic refund is added. The shared `Restart Game` wording follows the user's C.P.1 instruction to use it on death too.
 
 ```text
-[B2.01] Player dies --> Game death screen
+[B.P.2.01] Player dies --> Game death screen
   +--> Restart Game --> Free new run
-  +--> Pay 1000 Sats To Continue --> Disable both actions --> B1 request
+  +--> Pay 1000 Sats To Continue --> Disable both actions --> B.P.1 request
        +--> Pending --> Keep disabled and reconcile
        +--> Failure --> Restore choices
        +--> Success --> Toast + callback --> Full health + clear 3x3 enemies --> Resume
@@ -392,32 +438,32 @@ Clicking Pay disables both actions until confirmed success or definitive failure
 
 ## C. Assets
 
-The completed asset stories are C1. Mint Asset and C2. Reward Player With Trophy After Level Complete. Normal game progress does not depend on collecting a trophy.
+The completed asset stories are C.G.1. Mint Asset and C.P.1. Reward Player With Trophy After Level Complete. Normal game progress does not depend on collecting a trophy.
 
-### C1. Mint Asset ✓
+### C.G.1. Mint Asset ✓
 
 **Status:** Complete, confirmed by the user on 2026-09-09. OpenSpec mint and destination changes are archived with completed task lists.
 
 Current BIS/Admin flow:
 
 ```text
-[C1.01] Admin: Mint Asset -> Admin-owned modal
-[C1.02] Optional quick fill: Achievement: Level 1 / LVL1
-[C1.03] Optional quick fill: Achievement: Level 2 / LVL2
-[C1.04] Optional quick fill: Achievement: Level 3 / LVL3
-[C1.05] Source: Game wallet (fixed); Select Destination: Player wallet / Game wallet (default); edit name, ticker, amount, decimals, icon URL; Control Asset = None
-[C1.06] Explicit Mint -> public mintAsset(request)
-[C1.07] No account / invalid / blocked -> Console error; no submission
-[C1.08] Confirmed issuance -> Console minted + asset ID; fresh holdings available through the listing API
-[C1.09] Close idle form -> Admin; Runtime Preview unchanged
+[C.G.1.01] Admin: Mint Asset -> Admin-owned modal
+[C.G.1.02] Optional quick fill: Achievement: Level 1 / LVL1
+[C.G.1.03] Optional quick fill: Achievement: Level 2 / LVL2
+[C.G.1.04] Optional quick fill: Achievement: Level 3 / LVL3
+[C.G.1.05] Source: Game wallet (fixed); Select Destination: Player wallet / Game wallet (default); edit name, ticker, amount, decimals, icon URL; Control Asset = None
+[C.G.1.06] Explicit Mint -> public mintAsset(request)
+[C.G.1.07] No account / invalid / blocked -> Console error; no submission
+[C.G.1.08] Confirmed issuance -> Console minted + asset ID; fresh holdings available through the listing API
+[C.G.1.09] Close idle form -> Admin; Runtime Preview unchanged
 ```
 
 - Presets only fill editable fields, with amount 1, decimals 0 and the matching hosted numbered trophy icon URL. The initial form still has a blank optional Icon URL. The game-specific names are Admin example data; BIS applies no accomplishment rules. The three 64 by 64 transparent numbered trophy PNGs use versioned GitHub Pages URLs; preserve their published paths and bytes for existing mint metadata. See [trophy assets and public URLs](../packages/integration-demo/public/assets/achievements/README.md).
 - Mint always uses the separately selected Game Wallet's eligible spendable Signet funds as its source and issues no control asset. Game Wallet remains the destination when selected; Player Wallet receives an exact-quantity Game-to-Player delivery when selected. Operation-ID retries reconcile issuance and delivery without duplicate submission; identical names on deliberate new operations are allowed.
-- A pending C1 operation is scoped to the Game Wallet source and selected destination. Select a destination before choosing Resume pending mint; resuming locks the original metadata, source, destination, and operation ID for reconciliation. Closing retains recovery access for unresolved issuance or delivery. No implicit funding, boarding, or account dialog occurs.
+- A pending C.G.1 operation is scoped to the Game Wallet source and selected destination. Select a destination before choosing Resume pending mint; resuming locks the original metadata, source, destination, and operation ID for reconciliation. Closing retains recovery access for unresolved issuance or delivery. No implicit funding, boarding, or account dialog occurs.
 - Completion was confirmed by the user on 2026-09-09. The archived mint-destination verification record preserves the historical distinction between isolated checks and live issuance evidence.
 
-### C2. Reward Player With Trophy After Level Complete ✓
+### C.P.1. Reward Player With Trophy After Level Complete ✓
 
 **Status:** Complete, confirmed by the user on 2026-09-09, and archived in [reward-player-with-trophy-after-level-complete](../../.openspec/changes/archive/2026-09-07-reward-player-with-trophy-after-level-complete/proposal.md). See [verification](../../.openspec/changes/archive/2026-09-07-reward-player-with-trophy-after-level-complete/verification.md). Admin simulates two completed levels; the game loads actual packaged levels. Wallet acceptance uses isolated fixtures; live Signet issuance was not performed.
 
@@ -436,33 +482,33 @@ Buttons, in order:
 When the trophy is owned, the existing completion body ends with **You already own this trophy.** There is no separate ownership label or status text box. Other collection status messages also use the existing body.
 
 ```text
-[C2.01] Game: level completed; show gold summary and three buttons
+[C.P.1.01] Game: level completed; show gold summary and three buttons
   |
-[C2.02] Read active player's trophy ownership
+[C.P.1.02] Read active player's trophy ownership
   +--> Already owns related trophy: Collect Level 1 Trophy greyed out
   +--> Guest / ownership unavailable: collection disabled, navigation available
   +--> Eligible and unowned
          |
-       [C2.03] Player clicks Collect Level 1 Trophy
+       [C.P.1.03] Player clicks Collect Level 1 Trophy
          |
-       [C2.04] BIS: mint through player's own wallet; prevent repeat submission
+       [C.P.1.04] BIS: mint through player's own wallet; prevent repeat submission
          +--> Failed / uncertain: truthful status; reconcile before another mint
          +--> Confirmed success
                 |
-              [C2.05] Show result toast; grey out trophy button
+              [C.P.1.05] Show result toast; grey out trophy button
   |
-[C2.06] Completion menu remains open; no automatic navigation
+[C.P.1.06] Completion menu remains open; no automatic navigation
   +--> Continue To Next Level
   +--> Restart Game
 ```
 
-**Scope:** C2 uses existing generic public mint/list APIs. The game owns completion and trophy eligibility. D1 supplies the shared toast presentation, including the awarded asset image via its optional image URL. [F1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) / Accept User Pay To Continue will introduce the game-controlled wallet later as a separate feature; it is not part of C2.
+**Scope:** C.P.1 uses existing generic public mint/list APIs. The game owns completion and trophy eligibility. F.P.1 supplies the shared toast presentation, including the awarded asset image via its optional image URL. [A.G.1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) / Accept User Pay To Continue will introduce the game-controlled wallet later as a separate feature; it is not part of C.P.1.
 
 **Collection policy:** Positive holdings with the preset's exact name, ticker and decimals count, including existing Admin trophies and older icon versions. This demo policy does not prove trusted issuance. Burning/transferring the trophy permits collection after a later completion. Ownership is checked again before minting. Missing trophy configuration disables collection without blocking progression. All menu actions lock during a bounded mint attempt. Definitive errors require an in-menu acknowledgment; uncertainty restores navigation and offers **Check Trophy Status** using the same operation ID. Account changes or abandoned menus invalidate late UI results. No automatic new issuance or success on timeout.
 
-## D. UI
+## F. Integrations — Notifications
 
-### D1. Show Toast ✓
+### F.P.1. UI Toast ✓
 
 **Status:** Implemented in `add-d7-toast-messaging`; see [toast verification](../../.openspec/changes/archive/2026-09-08-add-d7-toast-messaging/VERIFICATION.md).
 
@@ -475,121 +521,107 @@ As a player, I receive brief BIS notifications at the top of the runtime viewpor
 - Messages queue in arrival order and display one at a time. Repeated identical messages remain separate notifications.
 - Errors requiring acknowledgment retain their existing dialogs and OK actions.
 
-**Demonstration:** D. UI in Admin contains D1 Show Toast. Clicking it sends `This is a test message from BIS.` through the shared BIS notification API and shows the text-only toast in the 9:16 Runtime Preview. It works without an account and while Account is open. Repeated clicks exercise the queue. The independent `tests/toast-host.html` fixture also offers Trophy image preview using the existing Level 1 trophy artwork without awarding an asset.
+**Demonstration:** F. Integrations in Admin contains `F.P.1 UI Toast [Show] [Show With Icon]`. Show sends `This is a test message from BIS.` through the shared BIS notification API and displays a text-only toast in the 9:16 Runtime Preview. Show With Icon uses the existing Level 1 trophy artwork. Both work without an account and while Account is open. Repeated clicks exercise the queue. The independent `tests/toast-host.html` fixture also offers Trophy image preview without awarding an asset.
 
 ```mermaid
 flowchart TD
-  D1_1[Admin: D1 Show Toast] --> D1_2[BIS receives test text]
-  D1_2 --> D1_3[Queue in arrival order]
-  D1_3 --> D1_4[When idle, slide next toast down]
-  D1_4 --> D1_5[Hold fully visible: default 3 seconds]
-  D1_5 --> D1_6[Slide up completely out of view]
-  D1_6 --> D1_7{More messages?}
-  D1_7 -->|Yes| D1_4
-  D1_7 -->|No| D1_8[Idle]
+  FP1_1[Admin: F.P.1 UI Toast: Show or Show With Icon] --> FP1_2[BIS receives test text]
+  FP1_2 --> FP1_3[Queue in arrival order]
+  FP1_3 --> FP1_4[When idle, slide next toast down]
+  FP1_4 --> FP1_5[Hold fully visible: default 3 seconds]
+  FP1_5 --> FP1_6[Slide up completely out of view]
+  FP1_6 --> FP1_7{More messages?}
+  FP1_7 -->|Yes| FP1_4
+  FP1_7 -->|No| FP1_8[Idle]
 ```
 
-**API:** `context.showToast(message, { durationMs, imageUrl })`, with the options object and both fields optional. For a confirmed trophy result, use `context.showToast('Trophy collected.', { imageUrl: result.asset.iconUrl })`. The C2 host owns confirmation of the award; this API only displays its message.
+**API:** `context.showToast(message, { durationMs, imageUrl })`, with the options object and both fields optional. For a confirmed trophy result, use `context.showToast('Trophy collected.', { imageUrl: result.asset.iconUrl })`. The C.P.1 host owns confirmation of the award; this API only displays its message.
 
 **Presentation:** Shared context-local API and BIS UI; plain text, polite announcements, unchanged keyboard focus, pointer pass-through, and reduced-motion support. Notifications are temporary and confined to the runtime viewport. Optional artwork is prepared before entry, with a 3-second deadline and text-only fallback on failure. Preparation never consumes the full visible hold. The image stays proportional in a 48px thumbnail on the left.
 
-**Acceptance:** The actual Admin action and independent host were browser-checked for slide timing, duration override, repeated clicks, narrow/scaled presentation, focus, live-region updates, reduced motion, and cleanup. Trophy artwork, broken/stalled-image fallback, and scrolling into the mobile preview were checked too. Physical mobile devices and a spoken screen-reader session were not tested. D1 does not initiate wallet work or convert existing operation errors, confirmations, or clipboard indicators into toasts.
+**Acceptance:** The actual Admin action and independent host were browser-checked for slide timing, duration override, repeated clicks, narrow/scaled presentation, focus, live-region updates, reduced motion, and cleanup. Trophy artwork, broken/stalled-image fallback, and scrolling into the mobile preview were checked too. Physical mobile devices and a spoken screen-reader session were not tested. F.P.1 does not initiate wallet work or convert existing operation errors, confirmations, or clipboard indicators into toasts.
 
-### D2. Show Toast With Icon ✓
-
-**Status: Implemented.** Admin's **Show Toast With Icon** button sends `This is a test message from BIS.` with the existing Level 1 trophy artwork on the left, using `context.showToast(message, { imageUrl })`. It uses the same timing and FIFO queue as D1 and works with Account open or closed. This sample previews the artwork without awarding a trophy.
-
-```text
-[D2.01] Admin: Show Toast With Icon
-[D2.02] Shared BIS toast queue: text + trophy image URL
-[D2.03] Slide down, show image left of text, hold, slide up
-```
-
-## E. Admin Tools
+## X. Appendix — Admin tools
 
 
-### E1. Open Signet Faucet(s) ✓
+### C.G.2. Marketplace Mint
 
-**Status:** Existing Admin action now numbered E1 under E. Admin Tools; label, handler routing, and availability guards verified.
+The Game Wallet marketplace mint operation uses the active Game Wallet and reports catalog progress through the Console. It does not change Player Wallet or Game Wallet ownership rules.
 
-As a developer, I click **E1. Open Signet Faucet(s)** to open [Bitcoin Signet Faucet](https://bitcoinsignetfaucet.com/), [Signet Faucet](https://signetfaucet.com/), and [signet.2nd.dev](https://signet.2nd.dev/) in three new tabs. The action also retrieves the active account’s funding address and attempts to copy it to the clipboard. Allow pop-ups for the demo if the browser blocks additional tabs. Funding remains a user action on the faucet; opening it does not prove receipt of funds.
+### C.G.3. Marketplace Burn
 
-**Availability:** Requires an active account and is disabled while the shared funding/explorer action is busy.
+The Game Wallet marketplace burn operation selects only freshly classified marketplace items and preserves trophies and unrelated assets. Unknown outcomes remain recoverable.
 
-### E2. Open On Mempool.space ✓
+### C.G.4. Marketplace Listing
 
-**Status:** Existing Admin action now labeled E2. Open On Mempool.space under E. Admin Tools; label, handler routing, and availability guards verified.
+The Game Wallet marketplace listing operation reads fresh inventory and reports only classified marketplace equipment.
 
-As a developer, I click **E2. Open On Mempool.space** to view the active account's funding address on the Signet explorer in a new tab. The existing action retrieves the funding address and opens its Mempool.space page without submitting a payment.
+## A. Accounts — Game Wallet
 
-**Availability:** Requires an active account and is disabled while the shared funding/explorer action is busy.
-
-## F. Game Wallet
-
-### F1. Admin game wallet / Accept User Pay To Continue
+### A.G.1. Admin game wallet / Accept User Pay To Continue
 
 **Status:** Implementation in progress; live two-wallet payment verification pending.
 
 Admin has an independent game wallet, imported through one recovery-phrase field. Importing another wallet retains earlier wallets; re-entering a phrase selects that wallet again. Reload restores the last selection. Player logout and reset leave game-wallet storage intact.
 
-**Serverless game wallet implementation — 2026-09-10:** F1 (Admin-facing) and F2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS local storage. F2 is available from Account Details → Balance below Get Recovery Phrase and is the setup path for any consuming game with no Admin. It creates/restores or logs out the game wallet only; F3 remains the Admin-only board controls. G2 uses the selected local wallet for direct Arkade operations, so no BIS wallet-service endpoint is configured or deployed.
+**Serverless game wallet implementation — 2026-09-10:** A.G.1 (Admin-facing) and A.G.2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS local storage. A.G.2 is available from Account Details → Balance below Get Recovery Phrase and is the setup path for any consuming game with no Admin. It creates/restores or logs out the game wallet only; B.G.2 remains the Admin-only board controls. D.P.2 uses the selected local wallet for direct Arkade operations, so no BIS wallet-service endpoint is configured or deployed.
 
-The **F1. Game Wallet (Admin-facing)** row shows **Login** initially and **Logout** after import. F1 and F2 read and write the same selected record. Logout deselects the wallet across reloads without deleting saved identities.
+The **A.G.1. Game Wallet (Admin-facing)** row shows **Login** initially and **Logout** after import. A.G.1 and A.G.2 read and write the same selected record. Logout deselects the wallet across reloads without deleting saved identities.
 
-Game-wallet trophy issuance remains a separate deferred proposal; existing player self-minting is unchanged. See [F1 planning](../../.openspec/changes/add-admin-game-wallet-and-continue-payments/proposal.md).
+Game-wallet trophy issuance remains a separate deferred proposal; existing player self-minting is unchanged. See [A.G.1 planning](../../.openspec/changes/add-admin-game-wallet-and-continue-payments/proposal.md).
 
-### F2. Game Wallet (User-facing) ✓
+### A.G.2. Game Wallet (User-facing) ✓
 
 **Status:** Serverless user-facing setup flow.
 
-F2 provides the Game Wallet Login page in Account Details → Balance. It can create or restore the separate game wallet, then offers Logout Game Wallet before a replacement can be created or restored. It does not display the wallet's balance, addresses, or board controls.
+A.G.2 provides the Game Wallet Login page in Account Details → Balance. It can create or restore the separate game wallet, then offers Logout Game Wallet before a replacement can be created or restored. It does not display the wallet's balance, addresses, or board controls.
 
-### F3. Board Game Wallet ✓
+### B.G.2. Board Game Wallet ✓
 
-F3 remains Admin-only. It reads the wallet selected by F1 or F2, shows its balance beside the board controls, and provides the existing Details, quote, confirmation, and boarding-state workflow. It is not a player-payment route and is never displayed in a standalone consuming game.
+B.G.2 remains Admin-only. It reads the wallet selected by A.G.1 or A.G.2, shows its balance beside the board controls, and provides the existing Details, quote, confirmation, and boarding-state workflow. It is not a player-payment route and is never displayed in a standalone consuming game.
 
-## G. Contracts
+## D. Contracts
 
-G1 and G2 retain their completed generic contract behavior, with the current serverless F1/F2/F3 game-wallet migration planned in the active OpenSpec change. Historical acceptance records describe the previous hosted topology and are retained only as evidence for that superseded slice. BIS owns reusable contract tracking and operations; the game owns gameplay and placement.
+D.P.1 and D.P.2 retain their completed generic contract behavior, with the current serverless A.G.1/A.G.2/B.G.2 game-wallet migration planned in the active OpenSpec change. Historical acceptance records describe the previous hosted topology and are retained only as evidence for that superseded slice. BIS owns reusable contract tracking and operations; the game owns gameplay and placement.
 
-### G1. Contracts UI ✓
+### D.P.1. Contracts UI ✓
 
 Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.
 
 ```text
-[G1.01] Account Details --> Contracts
-[G1.02] Load account-scoped unresolved contracts
-[G1.03] Empty --> "No active contracts"
-[G1.04] Entry --> Limited-Time Offer / 1,000 sats / status
-[G1.05] Select entry --> Contract Details --> Back to list
-[G1.06] Verified claim or refund --> remove from active list
+[D.P.1.01] Account Details --> Contracts
+[D.P.1.02] Load account-scoped unresolved contracts
+[D.P.1.03] Empty --> "No active contracts"
+[D.P.1.04] Entry --> Limited-Time Offer / 1,000 sats / status
+[D.P.1.05] Select entry --> Contract Details --> Back to list
+[D.P.1.06] Verified claim or refund --> remove from active list
 ```
 
 - Details show contract type, reward, status, game wallet, player wallet, claim deadline, evidence freshness and related transaction IDs. Distinguish gameplay eligibility from actual financial resolution.
-- The list supports multiple contract types and entries. G2 separately limits each player to one unresolved treasure offer; zero or one is expected for this first demo.
+- The list supports multiple contract types and entries. D.P.2 separately limits each player to one unresolved treasure offer; zero or one is expected for this first demo.
 - Displayed states include: Funding, Ready, Active, Claim pending, Refund pending, and Needs attention. Expired offers remain visible until their funds are resolved; elapsed time alone is not proof of refund.
 - Claimed/refunded offers leave the active list only after verified resolution. Related financial activity remains in Transactions. Reload or returning to the menu must retain enough state to reconcile unresolved operations without duplicate submission.
 - Actions: role-eligible Claim/Reject in player Contract Details and Refund for the game wallet, using the same generic production operations as the game. The BIS demo may simulate host gameplay events; the game start menu contains no debugging controls or offer information.
 - No generic Burn action. "Burn" in the interview means end/refund the agreement, not destroy sats or delete an unresolved record. The cooperative early-cancellation path uses the shared refund controller. UI actions cannot bypass the actual contract paths.
 - The public query is `checkContracts()`: it reads saved contract state without signing; the service separately reconciles provider evidence. Cleanup is a separate idempotent operation. BIS understands generic LTOs; the game matches its exact saved contract/session reference and ignores unrelated LTOs and other contract types.
 
-### G2. LTO Treasure Chest ✓
+### D.P.2. LTO Treasure Chest ✓
 
 Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). LTO means Limited-Time Offer: a funded reward bound to a specific player, with a player claim path and a game refund path. The gameplay demonstration is a timed treasure chest in Stealth & Steel.
 
 ```text
-[G2.01] Enter start menu --> silently check contracts / eligible cleanup
-[G2.02] Click Start --> begin game and 90-second elapsed-time deadline
-[G2.03] Wallets ready + prior offer resolved --> fund offer in background
-[G2.04] Prerequisite missing / old offer unresolved --> skip this session
-[G2.05] BIS funding pending / confirmed --> non-blocking toasts
-[G2.06] Chest exists at authored spawner position regardless of backend
-[G2.07] Collision --> pause; game opens Treasure Chest; checkContracts
-[G2.08] Matching active offer --> Claim / Reject
-[G2.09] Action accepted --> pending toast; close prompt; resume game
-[G2.10] Verified result --> confirmed toast without interrupting gameplay
-[G2.11] Expired --> disabled Claim / Reject; Back; eligible refund cleanup
-[G2.12] Session end --> end/refund original offer; reconcile uncertainty
+[D.P.2.01] Enter start menu --> silently check contracts / eligible cleanup
+[D.P.2.02] Click Start --> begin game and 90-second elapsed-time deadline
+[D.P.2.03] Wallets ready + prior offer resolved --> fund offer in background
+[D.P.2.04] Prerequisite missing / old offer unresolved --> skip this session
+[D.P.2.05] BIS funding pending / confirmed --> non-blocking toasts
+[D.P.2.06] Chest exists at authored spawner position regardless of backend
+[D.P.2.07] Collision --> pause; game opens Treasure Chest; checkContracts
+[D.P.2.08] Matching active offer --> Claim / Reject
+[D.P.2.09] Action accepted --> pending toast; close prompt; resume game
+[D.P.2.10] Verified result --> confirmed toast without interrupting gameplay
+[D.P.2.11] Expired --> disabled Claim / Reject; Back; eligible refund cleanup
+[D.P.2.12] Session end --> end/refund original offer; reconcile uncertainty
 ```
 
 - The start menu has no treasure buttons, offer text or debugging information. The existing Start click initiates the attempt automatically. Readiness requires a connected usable player wallet (zero balance is allowed), a usable game signer and enough eligible game funds. No ready player at Start means no offer until a later session, even if the player connects during gameplay.
@@ -603,37 +635,37 @@ Status: complete for the delivered feature; user confirmed it works on 2026-09-0
 - Target client-side code using the existing Arkade operator, with no custom backend, project-operated arkd, delegate server, or service worker. Refund execution is not automatic while the browser is closed; resume reconciliation on reopening. Client-controlled gameplay checks are accepted for this Signet learning demo and are not a claim of cheat resistance.
 - Verify real Signet funding, claim, prompt cooperative cancellation, expiry/refund and restart recovery separately from simulated gameplay events. The game bridge initializes a local game-wallet controller; provision it through Account Details → Balance → Game Wallet Login. A public receiving address alone cannot sign. Keep signer setup outside the start menu and never hardcode secrets. Detailed acceptance and cross-project tasks are in the canonical change.
 
-The BIS G2 Admin demonstration has two always-clickable subbuttons, **Start LTO** and **Claim LTO**, with a 90-second time-left counter. Start simulates a new session; Claim simulates its treasure action. Missing, pending, expired and confirmed outcomes go to the existing console. These controls use the public API and cannot bypass readiness, expiry, exclusivity or explicit host disable. The actual game owns collision and its Treasure Chest dialogue.
+The BIS D.P.2 Admin demonstration has two always-clickable subbuttons, **Start LTO** and **Claim LTO**, with a 90-second time-left counter. Start simulates a new session; Claim simulates its treasure action. Missing, pending, expired and confirmed outcomes go to the existing console. These controls use the public API and cannot bypass readiness, expiry, exclusivity or explicit host disable. The actual game owns collision and its Treasure Chest dialogue.
 
-G1 and Assets/Transactions share **Item List** and **Item List Detail**. All lists reserve 276px, including empty lists. Account Details uses equal-width Assets, Contracts and Transaction buttons in one row.
+D.P.1 and Assets/Transactions share **Item List** and **Item List Detail**. All lists reserve 276px, including empty lists. Account Details uses equal-width Assets, Contracts and Transaction buttons in one row.
 
-## H. Spikes
+## X. Appendix — Arkade onboarding
 
-### H1. Arkade onboarding spike ✓
+### X.N.1. Arkade onboarding spike ✓
 
 **User story:** As a BIS developer, I want an isolated, observable Signet onboarding experiment so I can verify funding, settlement, recovery and timing before bringing the behavior into the player-facing onboarding flow.
 
-**Status:** The original six-step spike is implemented, has recorded live completions, and is synced into the [standalone boarding specification](../../.openspec/specs/standalone-boarding-spike/spec.md). The [robustness change](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/proposal.md) was synced into the [resilience specification](../../.openspec/specs/standalone-spike-resilience/spec.md) and archived at the user's request on 2026-09-09 after four accepted runs and three additional runs reached Step 6. Its [verification report](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/verification.md) records 89 passing tests, exact live outputs and timings. The [15 unfinished tasks](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/tasks.md) remain unchecked, including full fault/lifecycle coverage, detailed timing instrumentation and controlled benchmarks. This experiment provides evidence for [X7](#x7-reliable-onboarding-and-transfer-recovery); it does not establish BIS production acceptance.
+**Status:** The original six-step spike is implemented, has recorded live completions, and is synced into the [standalone boarding specification](../../.openspec/specs/standalone-boarding-spike/spec.md). The [robustness change](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/proposal.md) was synced into the [resilience specification](../../.openspec/specs/standalone-spike-resilience/spec.md) and archived at the user's request on 2026-09-09 after four accepted runs and three additional runs reached Step 6. Its [verification report](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/verification.md) records 89 passing tests, exact live outputs and timings. The [15 unfinished tasks](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/tasks.md) remain unchecked, including full fault/lifecycle coverage, detailed timing instrumentation and controlled benchmarks. This experiment provides evidence for [A.G.4](#ag4-reliable-onboarding-and-transfer-recovery); it does not establish BIS production acceptance.
 
 **Demo:** [Open Spike #1](http://127.0.0.1:5174/spike1/) with the local integration demo running, or use [the standalone server](http://127.0.0.1:5186/spike1/). Each active window has its own account, operation, timing history and populated public `btcAddress` URL. Ports 5174 and 5186 have separate browser storage. See the [spike README](../packages/balance-onboard-spike-standalone/README.md) for startup commands and prior acceptance evidence.
 
 ```text
-[H1.01] CPU: Create account (Auto or Manual seed phrase; confirmed Restart)
-[H1.02] USER: Open faucet and fund the displayed Bitcoin address
-[H1.03] CPU: Observe deposit and wait for confirmed eligible Bitcoin
-[H1.04] CPU: Freeze the selected percentage and original inputs; prepare onboarding
-[H1.05] CPU: Board original Bitcoin, then return the non-target Bitcoin remainder
-[H1.06] CPU: Verify exact spendable Arkade target and confirmed Bitcoin commitments
+[X.N.1.01] CPU: Create account (Auto or Manual seed phrase; confirmed Restart)
+[X.N.1.02] USER: Open faucet and fund the displayed Bitcoin address
+[X.N.1.03] CPU: Observe deposit and wait for confirmed eligible Bitcoin
+[X.N.1.04] CPU: Freeze the selected percentage and original inputs; prepare onboarding
+[X.N.1.05] CPU: Board original Bitcoin, then return the non-target Bitcoin remainder
+[X.N.1.06] CPU: Verify exact spendable Arkade target and confirmed Bitcoin commitments
              --> Step 6 complete
 
-[H1.07] Error / reload --> retain account and original inputs; reconcile existing legs
+[X.N.1.07] Error / reload --> retain account and original inputs; reconcile existing legs
              --> safe SDK recovery after cleanup and retry delay
              --> validation or storage blocker: show the affected step and remedy
 ```
 
 At the default 50%, the spike boards the entire captured input total and returns the remainder in a second settlement. Full boarding may use one leg. Later deposits do not alter a started transfer. Funding is explicit; eligible onboarding and recovery continue automatically. Restart always remains available with confirmation and archives the previous encrypted account/operation; it does not cancel a submitted transfer. No recovery secrets belong in this document.
 
-#### H1 post-mortem
+#### X.N.1 post-mortem
 
 **Date and evidence cutoff:** 2026-09-09, approximately 15:15 Asia/Tbilisi (11:15 UTC). Outcomes and per-step durations below were read from the running windows. The previous independent explorer check also reported both new return commitments as unconfirmed. This is a dated snapshot; the windows continue polling afterward.
 
@@ -671,7 +703,7 @@ Per-step values must not be summed into an asserted end-to-end result: uninstrum
 4. **Progress looked broken after recovery.** Old diagnostics remained visible beside current status, and Step 6 said it was verifying funds even when the final target was already spendable. Each step now has recovery status/remedy text; historical errors are labeled as history. Step 6 explicitly distinguishes verified spendability from the remaining Bitcoin-confirmation wait.
 5. **The estimate understates long confirmation waits.** At cutoff, A still showed an estimated total of 22m 40s–22m 50s and B 26m 22s–26m 32s. These are estimates, not observed completion times or remaining-time promises. With no completed run in that window, the estimator combines completed step averages with fallback ranges; Step 6 still has a 5–15-second fallback despite requiring Bitcoin confirmation. Its unfinished duration is excluded from the average, so the estimate does not grow with this long wait. Correcting that fallback and adding explicit external-wait/milestone statistics remain follow-up work.
 
-**Findings for BIS:** The observed operator rejected a single intent mixing Bitcoin boarding inputs and Bitcoin outputs (`INVALID_INTENT_PROOF (23)`); full boarding followed by a separate Bitcoin return worked in the tested zero-fee case. An SDK upgrade alone did not resolve that transaction-shape constraint. Registration, batch finalization, spendable receipts and Bitcoin confirmation are separate milestones. The spike deliberately retains its two-confirmation Step 6 predicate. X7's confirmed direction is to finish player onboarding once the exact final Arkade target is spendable and released from holds, while Bitcoin confirmation continues independently. This can remove a visible confirmation wait from the player journey; its precise time saving has not yet been measured.
+**Findings for BIS:** The observed operator rejected a single intent mixing Bitcoin boarding inputs and Bitcoin outputs (`INVALID_INTENT_PROOF (23)`); full boarding followed by a separate Bitcoin return worked in the tested zero-fee case. An SDK upgrade alone did not resolve that transaction-shape constraint. Registration, batch finalization, spendable receipts and Bitcoin confirmation are separate milestones. The spike deliberately retains its two-confirmation Step 6 predicate. A.G.4's confirmed direction is to finish player onboarding once the exact final Arkade target is spendable and released from holds, while Bitcoin confirmation continues independently. This can remove a visible confirmation wait from the player journey; its precise time saving has not yet been measured.
 
 **Verification and remaining work:** 84 isolated standalone tests passed, both standalone/demo production builds passed, and both spike changes passed strict OpenSpec validation. Regression tests were first observed failing and then passing for stale-provider submission, premature storage quarantine release, misleading Step 6 status, and late wallet disposal. Existing tests cover exact input/receipt matching, two-leg recovery, lost acknowledgements, retry floors and simultaneous-window isolation. These checks support the implemented fixes; they do not establish 100% live success. Four new comparable funded runs, the complete failure/hang matrix, and measured before/after client-latency results are still outstanding. No measured speedup is claimed for this pass.
 
@@ -682,7 +714,7 @@ Per-step values must not be summed into an asserted end-to-end result: uninstrum
 - Recovery A: [Bitcoin return, unconfirmed at cutoff](https://mempool.signet.arkade.sh/tx/b6d6f1c643dfcf2db5fc4a01a4217367f869bc9a5f90ba7c4cd43f3d7d1f2218).
 - Recovery B: [Bitcoin return, unconfirmed at cutoff](https://mempool.signet.arkade.sh/tx/7d455e56c06fcf086a619b38c27d4b4e535c0f470cdc08a34c918435095c3b06).
 
-#### H1 four-run acceptance follow-up
+#### X.N.1 four-run acceptance follow-up
 
 On 2026-09-09, the user started four more 50% runs and defined the acceptance gate: **if all four reach verified Step 6, consider the spike a success; otherwise study and fix the failures.** This supersedes deliberately adding reload/offline interruptions to these particular acceptance runs. Other unfinished robustness tasks remain separately tracked.
 
@@ -723,7 +755,7 @@ Times are the UI's rounded current-run measurements. The total averages approxim
 
 Regression evidence: the earlier-batch failure test failed before the fix and passed afterward; all **87 tests** and both production builds passed. The test also verifies that a failure of the selected batch still reaches recovery. The public transaction evidence and redacted cohort timeline are in local `output/reports/robust-fixes-for-spike/`. No seed phrases or signing material are included. Further timing claims require fresh comparable runs on the fixed version; this cohort's full duration must retain the time spent failing before the fix.
 
-#### H1 three-run robustness follow-up
+#### X.N.1 three-run robustness follow-up
 
 On 2026-09-09 the user started three more 50% runs and requested monitoring through Step 6 plus further robustness fixes. These are separate from the completed four-run cohort above.
 
@@ -743,51 +775,51 @@ Recovered boarding was acknowledged at 12:03:48 UTC and the return at 12:04:24 U
 
 The earlier cohort's Step 5 measured 26m 58s including seven recovery failures and investigation; these three measured 2m 25s including one agent-caused development interruption. The **24m 33s lower Step 5 duration** is an observed cohort difference, not a controlled performance benchmark: both groups shared batches within their group, experienced different operator conditions, and the earlier group included live debugging. No clean uninterrupted three-run claim is made. A complementary test confirms that matching batch progress still renews the watchdog after pre-registration stream priming. Final verification: **89 tests passed**, both production builds passed, and all three original funded accounts completed without resets or extra funding.
 
-## X. Appendix
+## X. Appendix — Remaining deferred work
 
-The remaining appendix stories preserve their existing numbering and historical change paths. The former X1 wallet story is now F1. Lightning X2a/X2b numbering remains unchanged; the separately proposed trophy milestone's X2 naming collision remains deferred.
+The remaining Appendix stories use the current numbering. Game-wallet account behavior is organized under A.G.1-A.G.4, Lightning receiving under B.P.3/B.P.4, and the trophy milestone under C.P.1.
 
-### X2. Lightning invoice receiving
+### B. Payments/Transfers receiving details
 
-This appendix entry was formerly D2; its document links now use X2. X2a is delivered independently in [add-d2a-address-receiving](../../.openspec/changes/archive/2026-09-04-add-d2a-address-receiving/proposal.md). The earlier combined receiving change retains historical work and unfinished X2b live requirements; X2a completion does not complete its remaining tasks.
+This detail is organized under B.P.3 and B.P.4. B.P.3 is delivered independently in [add-d2a-address-receiving](../../.openspec/changes/archive/2026-09-04-add-d2a-address-receiving/proposal.md). The earlier combined receiving change retains unfinished B.P.4 live requirements; B.P.3 completion does not complete its remaining tasks.
 
-#### X2a. Receive funds using addresses ✓
+#### B.P.3. Receive funds using addresses ✓
 
 **User story:** As a player, I want to open Receive and copy my Arkade or Bitcoin receiving address, so someone can fund my account using a currently supported address without confusing the payment types.
 
-**Status:** Complete for address-based receiving. Account / Account Dialog opens production Receive for an active account, or the normal chooser when logged out. Address copying, errors/retry, navigation, keyboard access, and portrait layout are verified; see [X2a evidence](../../.openspec/changes/archive/2026-09-04-add-d2a-address-receiving/verification.md). No invoice creation or payment completion is claimed.
+**Status:** Complete for address-based receiving. Account / Account Dialog opens production Receive for an active account, or the normal chooser when logged out. Address copying, errors/retry, navigation, keyboard access, and portrait layout are verified; see [B.P.3 evidence](../../.openspec/changes/archive/2026-09-04-add-d2a-address-receiving/verification.md). No invoice creation or payment completion is claimed.
 
 **Atomic outcome:** One usable, truthful Receive page from entry through copying an address and returning to Account. Include the production UI, its public state, the Admin demonstration, documentation, and verification as one deliverable.
 
 ```text
-[X2a.01] Player: Account --> Receive
+[B.P.3.01] Player: Account --> Receive
   |
   v
-[X2a.02] Load Arkade and Bitcoin addresses
+[B.P.3.02] Load Arkade and Bitcoin addresses
   |
   +--> Unavailable --> clear explanation + manual Refresh
   |
   v
-[X2a.03] Copy either address --> copy feedback / truthful error
+[B.P.3.03] Copy either address --> copy feedback / truthful error
   |
   v
-[X2a.04] Back --> Account; re-entry starts default Receive presentation
+[B.P.3.04] Back --> Account; re-entry starts default Receive presentation
 ```
 
 **Acceptance criteria:**
 
 - Show separate, labeled Arkade and Bitcoin address fields with independent Copy controls; preserve loading, failure, manual Refresh, and clipboard-error behavior.
-- Show only address receiving for now. Hide the entire Lightning invoice section, including its field, Copy control, No Invoice / With Invoice buttons, and unavailable explanation. Reintroduction is gated by X2b below.
+- Show only address receiving for now. Hide the entire Lightning invoice section, including its field, Copy control, No Invoice / With Invoice buttons, and unavailable explanation. Reintroduction is gated by B.P.4 below.
 - Back and ordinary navigation work. Returning starts at the default presentation; invoice availability does not change either address.
 - Include an Admin receiving demonstration using the production public API/UI. Without an account, use the ordinary account chooser; never automatically create an account, request funds, or fabricate a receipt.
 - Keep the user-story documentation and demonstration status accurate. Verify address loading/copy/error/Refresh, navigation, keyboard access, and readable 9:16 layout in both the demo and an independent host; keep automated tests, typecheck, and build passing.
 - Existing SDK Activity remains unchanged. This story does not claim new transaction processing, Bitcoin-to-Arkade conversion, or live Lightning receipt verification.
 
-**Out of scope:** Invoice amount/fee review, invoice creation, invoice lifecycle, receipt recovery, Lightning Activity reconciliation, and invoice-specific Log Out/Reset protection belong together in X2b. Sending remains X3; Bitcoin/Arkade account transfer remains X4. Do not add speculative provider infrastructure merely to make X2a larger.
+**Out of scope:** Invoice amount/fee review, invoice creation, invoice lifecycle, receipt recovery, Lightning Activity reconciliation, and invoice-specific Log Out/Reset protection belong together in B.P.4. Sending remains B.P.5/B.P.6; Bitcoin/Arkade account transfer remains B.P.7. Do not add speculative provider infrastructure merely to make B.P.3 larger.
 
-**Completion boundary:** X2a is independently deliverable while X2b remains blocked. Its standalone change reuses earlier presentation work and adds its own acceptance evidence; mixed live tasks in the earlier change remain unchecked.
+**Completion boundary:** B.P.3 is independently deliverable while B.P.4 remains blocked. Its standalone change reuses earlier presentation work and adds its own acceptance evidence; mixed live tasks in the earlier change remain unchecked.
 
-#### X2b. Receive funds using Lightning invoices
+#### B.P.4. Receive funds using Lightning invoices
 
 **User story:** As a player, I want to create and copy a Lightning invoice for a chosen amount, so someone can fund my account and I can see whether the receipt completed.
 
@@ -799,80 +831,80 @@ This appendix entry was formerly D2; its document links now use X2. X2a is deliv
 
 **Atomic outcome:** Complete a real invoice receipt safely, from amount review through confirmed account receipt and Activity, including account-state protection. Do not ship invoice generation separately from recovery and Log Out/Reset guards.
 
-The original X2.01–X2.13 step IDs below are retained as legacy references for the live flow; X2a owns the already-usable entry/address portion. The following invoice flow is future behavior only.
+The following B.P.4 step sequence describes future invoice-receiving behavior; B.P.3 owns the already-usable entry/address portion.
 
 ```text
-[X2.01] Player: Account --> Receive
+[B.P.4.01] Player: Account --> Receive
   |
   v
-[X2.02] Arkade / Bitcoin addresses + separate Lightning section
+[B.P.4.02] Arkade / Bitcoin addresses + separate Lightning section
   |
-  +--> [X2.03] Unsupported service --> Currently unavailable
-  |
-  v
-[X2.04] Default: No Invoice, amount 0, invoice Copy disabled
+  +--> [B.P.4.03] Unsupported service --> Currently unavailable
   |
   v
-[X2.05] With Invoice --> amount prompt: Clear / Submit
+[B.P.4.04] Default: No Invoice, amount 0, invoice Copy disabled
   |
   v
-[X2.06] First Submit --> review payer amount, fee, net receipt
+[B.P.4.05] With Invoice --> amount prompt: Clear / Submit
   |
   v
-[X2.07] Second Submit --> generate actual invoice
-  |
-  +--> [X2.08] Error --> explanation; no usable invoice
+[B.P.4.06] First Submit --> review payer amount, fee, net receipt
   |
   v
-[X2.09] Receive: invoice + Copy + With Invoice: <amount> sats
+[B.P.4.07] Second Submit --> generate actual invoice
   |
-  +--> [X2.10] No Invoice / With Invoice --> hide / reuse same valid invoice
+  +--> [B.P.4.08] Error --> explanation; no usable invoice
   |
-  +--> [X2.11] Expired --> Copy disabled; explicit Renew
+  v
+[B.P.4.09] Receive: invoice + Copy + With Invoice: <amount> sats
   |
-  +--> [X2.12] Receipt confirmed --> Paid; Copy disabled
+  +--> [B.P.4.10] No Invoice / With Invoice --> hide / reuse same valid invoice
   |
-  +--> [X2.13] Leave --> reset presentation; retain receipt processing
+  +--> [B.P.4.11] Expired --> Copy disabled; explicit Renew
+  |
+  +--> [B.P.4.12] Receipt confirmed --> Paid; Copy disabled
+  |
+  +--> [B.P.4.13] Leave --> reset presentation; retain receipt processing
 ```
 
 - The amount is what the payer pays; fees and net receipt are reviewed in the same prompt before generation. Clear returns the amount to 0. Changed terms require renewed review. No separate result dialog or Generate button.
 - Hiding an invoice does not cancel it. Within the same visit, toggling back reuses the same unpaid, unexpired invoice. Renew retains the payer amount and requires review if fees change. Paid retains the displayed amount and selection.
 - Returning to Receive starts at No Invoice/0 with no displayed invoice. Pending processing continues outside Receive while the account is active and resumes after restart; processing with the browser closed is not guaranteed. Activity shows real pending/confirmed receipts without counting one receipt twice.
-- Log Out and Reset are blocked while invoices remain payable or receipt processing is unresolved. Ordinary navigation remains available. Receiving leaves Arkade/Bitcoin addresses unchanged and does not include sending, paid continuation, or X4 boarding settlement.
+- Log Out and Reset are blocked while invoices remain payable or receipt processing is unresolved. Ordinary navigation remains available. Receiving leaves Arkade/Bitcoin addresses unchanged and does not include sending, paid continuation, or B.P.7 boarding settlement.
 
-### X3. Sending funds
+### B. Payments/Transfers — Sending details
 
 **User story:** As a player, I want to send funds from my account using the supported payment types, so I can pay a recipient from the Account flow.
 
-**Status:** X3a is the active Arkade-to-Arkade send delivery. X3b invoice sending remains deferred. X5 pending-transfer recovery is a separate proposal/story, not a prerequisite for implementing or testing X3a. X2 receiving and X4 same-account transfer remain separate.
+**Status:** B.P.5 is the active Arkade-to-Arkade send delivery. B.P.6 invoice sending remains deferred. E.P.2/E.P.3 transfer recovery is a separate proposal/story, not a prerequisite for implementing or testing B.P.5. B.P.3/B.P.4 receiving and B.P.7 same-account transfer remain separate.
 
-#### X3a. Send funds to an address
+#### B.P.5. Send funds to an address
 
 **User story:** As a player, I want to send available Arkade test sats to another Arkade address after reviewing the recipient, exact amount, fees and total deducted.
 
-**Status:** Implemented with automated/browser verification; live payment acceptance remains pending. Proposal: [add-d3a-address-sending](../../.openspec/changes/archive/2026-09-08-add-d3a-address-sending/proposal.md). Recipient/Paste, live spendable funds, sats amount/Max, separate Review Send and explicit confirmation. Bitcoin destinations/source selectors, Lightning, QR and fiat controls are omitted. The existing pending account remains locked; isolated implementation tests and a separately selected clean account do not depend on X5 recovery. See [verification](../../.openspec/changes/archive/2026-09-08-add-d3a-address-sending/VERIFICATION.md).
+**Status:** Implemented with automated/browser verification; live payment acceptance remains pending. Proposal: [add-d3a-address-sending](../../.openspec/changes/archive/2026-09-08-add-d3a-address-sending/proposal.md). Recipient/Paste, live spendable funds, sats amount/Max, separate Review Send and explicit confirmation. Bitcoin destinations/source selectors, Lightning, QR and fiat controls are omitted. The existing pending account remains locked; isolated implementation tests and a separately selected clean account do not depend on E.P.2/E.P.3 recovery. See [verification](../../.openspec/changes/archive/2026-09-08-add-d3a-address-sending/VERIFICATION.md).
 
 ```text
-[X3a.01] Account / Account Dialog --> enter another Arkade address (or Paste)
-[X3a.02] Enter whole sats / Max --> Review Send (no payment yet)
-[X3a.03] Review exact recipient, amount, fee and total --> Back preserves draft
-[X3a.04] Confirm Send --> validate current review; save transaction identity; submit once
-[X3a.05] Finalized --> show transaction ID; fresh balances and Activity available
-[X3a.06] Unknown outcome --> preserve record; Check Status; no blind retry
+[B.P.5.01] Account / Account Dialog --> enter another Arkade address (or Paste)
+[B.P.5.02] Enter whole sats / Max --> Review Send (no payment yet)
+[B.P.5.03] Review exact recipient, amount, fee and total --> Back preserves draft
+[B.P.5.04] Confirm Send --> validate current review; save transaction identity; submit once
+[B.P.5.05] Finalized --> show transaction ID; fresh balances and Activity available
+[B.P.5.06] Unknown outcome --> preserve record; Check Status; no blind retry
 ```
 
 
-#### X3b. Pay a Lightning invoice
+#### B.P.6. Pay a Lightning invoice
 
 **User story:** As a player, I want to pay a recipient's Lightning invoice from my account after reviewing its amount and fees.
 
-**Status:** Deferred and explicitly unstarted at the user's request. Separate from X3a and from X2b invoice receiving. No implementation tasks, enabled controls, dependency installation or live invoice payments are authorized by X3a. Future work requires its own proposal and Signet sending/quote/recovery verification; the receiving-route blocker alone does not establish outbound availability.
+**Status:** Deferred and explicitly unstarted at the user's request. Separate from B.P.5 and from B.P.4 invoice receiving. No implementation tasks, enabled controls, dependency installation or live invoice payments are authorized by B.P.5. Future work requires its own proposal and Signet sending/quote/recovery verification; the receiving-route blocker alone does not establish outbound availability.
 
-Source: [Account Send and Receive decisions](design-discussion.md#account-send-and-receive) and the [X2 proposal's separate all-send-types scope](../../.openspec/changes/add-lightning-invoice-receiving/proposal.md).
+Source: [Account Send and Receive decisions](design-discussion.md#account-send-and-receive) and the [B.P.6 proposal's separate all-send-types scope](../../.openspec/changes/add-lightning-invoice-receiving/proposal.md).
 
-### X4. Make deposited Bitcoin available
+### B.P.7. Make deposited Bitcoin available
 
-**Display name: Account Transfer.** This appendix entry was formerly D4; its document links now use X4.
+**Display name: Account Transfer.** This story is organized under B.P.7.
 
 **User story:** As a player, I want to see my total split into Bitcoin and Arkade balances and choose an amount and direction to transfer within my account.
 
@@ -956,57 +988,65 @@ Amounts are illustrative, not a live fee quote or a successful transfer. Reverse
 
 #### Transfer lifecycle
 
-**Confirmed delivery order:** Both directions share tested recovery safeguards and independently verified eligibility/quotes. Since the current account holds Arkade funds and no Bitcoin boarding funds, live verification can start Arkade --> Bitcoin, then Bitcoin --> Arkade after confirmation. Verify both actual transfers, fresh balances and Activity before marking X4 complete. Resume separate achievement feasibility afterward. Never automatically move funds for testing or silently increase a partial request to Max.
+**Confirmed delivery order:** Both directions share tested recovery safeguards and independently verified eligibility/quotes. Since the current account holds Arkade funds and no Bitcoin boarding funds, live verification can start Arkade --> Bitcoin, then Bitcoin --> Arkade after confirmation. Verify both actual transfers, fresh balances and Activity before marking B.P.7 complete. Resume separate achievement feasibility afterward. Never automatically move funds for testing or silently increase a partial request to Max.
 
 ```text
-[X4.01] Account Details / Refresh
-[X4.02] Read Bitcoin, Arkade, Total and eligibility
-[X4.03] Unconfirmed source --> waiting explanation
-[X4.04] Ineligible / unavailable --> explanation
-[X4.05] Bitcoin <-> Arkade button above Recovery Phrase
-[X4.06] Account Transfer: choose direction and amount
-[X4.07] Review Transfer: fee, net and projected balances
-[X4.08] Back --> amount entry --> Account Details
-[X4.09] Confirm Transfer
-[X4.10] Lock operation; revalidate account, inputs and fee
-[X4.11] Changed / unsupported --> fresh review or explanation
-[X4.12] Submit reviewed transfer in selected direction
-[X4.13] Pending / interrupted --> reconcile; no blind retry
-[X4.14] Verified failure --> safe retry via fresh review
-[X4.15] Uncertain --> Check Status / return to game
-[X4.16] Verified completion --> refresh balances and Activity
-[X4.17] Read succeeds --> Account Details with actual balances
-[X4.18] Read fails --> transfer complete; balance unavailable
+[B.P.7.01] Account Details / Refresh
+[B.P.7.02] Read Bitcoin, Arkade, Total and eligibility
+[B.P.7.03] Unconfirmed source --> waiting explanation
+[B.P.7.04] Ineligible / unavailable --> explanation
+[B.P.7.05] Bitcoin <-> Arkade button above Recovery Phrase
+[B.P.7.06] Account Transfer: choose direction and amount
+[B.P.7.07] Review Transfer: fee, net and projected balances
+[B.P.7.08] Back --> amount entry --> Account Details
+[B.P.7.09] Confirm Transfer
+[B.P.7.10] Lock operation; revalidate account, inputs and fee
+[B.P.7.11] Changed / unsupported --> fresh review or explanation
+[B.P.7.12] Submit reviewed transfer in selected direction
+[B.P.7.13] Pending / interrupted --> reconcile; no blind retry
+[B.P.7.14] Verified failure --> safe retry via fresh review
+[B.P.7.15] Uncertain --> Check Status / return to game
+[B.P.7.16] Verified completion --> refresh balances and Activity
+[B.P.7.17] Read succeeds --> Account Details with actual balances
+[B.P.7.18] Read fails --> transfer complete; balance unavailable
 ```
 
 Prevent duplicate submissions and retain non-secret reconciliation records across reload. Ordinary navigation remains possible; Log Out and Admin Reset remain blocked while unresolved. Closing the browser does not imply cancellation or guaranteed background processing. Do not replace real balances with review projections. A successful transfer with a failed balance refresh is not a failed transfer.
 
-X4's Admin demonstration must use this production flow. Live transfer verification, fee calculation, partial amounts, reverse-direction destination/recovery, and account isolation remain pending. Achievement issuance remains a separate action and feasibility gate; F1 and appendix X2-X3 remain separate.
+B.P.7's Admin demonstration must use this production flow. Live transfer verification, fee calculation, partial amounts, reverse-direction destination/recovery, and account isolation remain pending. Achievement issuance remains a separate action and feasibility gate; A.G.1 and B.P.3-B.P.6 remain separate.
 
-Cancellation recovery is tracked separately in [X5. Cancel Pending Transfer](#x5-cancel-pending-transfer); the original implementation identity is unchanged and document links use X4.
+Cancellation recovery is tracked separately in [E. Transactions — Transfer recovery](#e-transactions--transfer-recovery); E.P.3 owns Cancel Pending Transfer, while the original implementation identity remains unchanged and document links use B.P.7.
 
-### X5. Cancel Pending Transfer
+### B.P.8. Open onboarding
 
-X5 is split into two independently deliverable stories and proposals. X5a provides a read-only recovery handoff now; X5b owns actual cancellation and remains feasibility-blocked. This appendix entry was formerly D5; its document links now use X5.
+**Display name: Open Onboarding.** This story is organized under B.P.8 in Player Payments/Transfers.
 
-#### X5a. Inspect and Copy Transfer Recovery Details ✓
+**User story:** As a player, I want to open my wallet onboarding flow from Payments/Transfers so I can review onboarding readiness and progress.
+
+**Status:** Implemented. Admin B.P.8 opens the active Player Wallet onboarding flow without initiating a payment, transfer, or funding action. The standalone Arkade onboarding spike remains documented separately under X.N.1.
+
+### E. Transactions — Transfer recovery
+
+E.P.2 and E.P.3 are independently deliverable stories. E.P.2 provides a read-only recovery handoff now; E.P.3 owns actual cancellation and remains feasibility-blocked. This section records the Transactions-domain recovery flows.
+
+#### E.P.2. Inspect and Copy Transfer Recovery Details ✓
 
 **User story:** As a player with an unresolved transfer, I want to inspect and copy its public recovery details so I can ask trusted operator support to investigate without exposing my recovery material.
 
 **Status:** Implemented and verified with unit tests and an isolated real-browser fixture. [Proposal](../../.openspec/changes/archive/2026-09-04-add-transfer-recovery-report/proposal.md). No cancellation SDK capability is needed and no live transaction is required for this story's acceptance.
 
 ```text
-[X5a.01] Account Transfer one-line pending notice --> Transactions --> click pending transaction
-[X5a.02] Read known public IDs, direction, amount, phase and verification availability
-[X5a.03] Copy recovery details --> copy exactly the displayed report
-[X5a.04] Clipboard denied --> select text and copy manually
-[X5a.05] Check Status --> update snapshot; failed checks mark verification unavailable
-[X5a.06] Verified resolution --> remove pending recovery report
+[E.P.2.01] Account Transfer one-line pending notice --> Transactions --> click pending transaction
+[E.P.2.02] Read known public IDs, direction, amount, phase and verification availability
+[E.P.2.03] Copy recovery details --> copy exactly the displayed report
+[E.P.2.04] Clipboard denied --> select text and copy manually
+[E.P.2.05] Check Status --> update snapshot; failed checks mark verification unavailable
+[E.P.2.06] Verified resolution --> remove pending recovery report
 ```
 
 **Acceptance criteria:** Report fields are allowlisted, unknown values stay unknown, and no secrets, raw errors, balances or addresses are included. Copying is explicit and sends nothing to the operator. The report asks for batch/commitment outcome or authoritative terminal evidence excluding later settlement. All wallet guards remain unchanged; copying is not cancellation or proof of failure. Stale copy completion cannot show success for a changed report. The report remains manually selectable when clipboard access fails.
 
-#### X5b. Cancel Pending Transfer
+#### E.P.3. Cancel Pending Transfer
 
 **User story:** As a player with an unresolved same-account transfer, I want to explicitly cancel it when supported so I can safely use my account again without risking a duplicate transfer.
 
@@ -1015,16 +1055,16 @@ X5 is split into two independently deliverable stories and proposals. X5a provid
 **Intended flow after feasibility passes:**
 
 ```text
-[X5.01] X4 unresolved transfer --> inspect cancellation eligibility
-[X5.02] Unsupported / active / unattributable --> keep guards; explain recovery limits
-[X5.03] Cancel Pending Transfer --> review direction, sats and public IDs
-[X5.04] Back --> original transfer status; no cancellation
-[X5.05] Confirm Cancellation --> revalidate account and exact operation
-[X5.06] Persist cancellation request boundary --> request cancellation once
-[X5.07] Unverified / interrupted --> Check Status; no automatic retry
-[X5.08] Verified cancellation --> save terminal outcome; release transfer guard
-[X5.09] Transfer completed instead --> existing completion verification
-[X5.10] Refresh balances and Activity; any new action needs its normal confirmation
+[E.P.3.01] B.P.7 unresolved transfer --> inspect cancellation eligibility
+[E.P.3.02] Unsupported / active / unattributable --> keep guards; explain recovery limits
+[E.P.3.03] Cancel Pending Transfer --> review direction, sats and public IDs
+[E.P.3.04] Back --> original transfer status; no cancellation
+[E.P.3.05] Confirm Cancellation --> revalidate account and exact operation
+[E.P.3.06] Persist cancellation request boundary --> request cancellation once
+[E.P.3.07] Unverified / interrupted --> Check Status; no automatic retry
+[E.P.3.08] Verified cancellation --> save terminal outcome; release transfer guard
+[E.P.3.09] Transfer completed instead --> existing completion verification
+[E.P.3.10] Refresh balances and Activity; any new action needs its normal confirmation
 ```
 
 **Acceptance criteria:**
@@ -1033,12 +1073,12 @@ X5 is split into two independently deliverable stories and proposals. X5a provid
 - Opening, Back, navigation, account restoration and Check Status never sign or cancel. Only Confirm Cancellation authorizes the cancellation request.
 - Unknown outcomes survive restart and keep new wallet mutations, Log Out and Reset blocked. Missing history, elapsed time, unspent inputs and an ambiguous acknowledgement are not cancellation proof.
 - Verified cancellation preserves the original public operation record and appears in Transactions and Copy Transactions. No refund, blockchain transaction or timestamp is invented.
-- A later transfer requires a fresh quote and explicit confirmation. Resolving X5 does not automatically log out, reset, mint or transfer funds.
+- A later transfer requires a fresh quote and explicit confirmation. Resolving E.P.3 does not automatically log out, reset, mint or transfer funds.
 - Real Signet cancellation requires separate explicit user confirmation and evidence of terminal resolution; fixtures do not count as live acceptance.
 
-**Boundary:** X5b and its `cancel-pending-transfer` proposal are independent of X5a read-only reporting and X3a new sending; cancellation feasibility is not a development prerequisite for either. It does not introduce a separate Admin shortcut or bypass; the planned recovery entry is Transactions transaction details. The appendix uses the X5 umbrella and lettered sub-stories; historical implementation identities remain unchanged.
+**Boundary:** E.P.3 and its `cancel-pending-transfer` proposal are independent of E.P.2 read-only reporting and B.P.5 new sending; cancellation feasibility is not a development prerequisite for either. It does not introduce a separate Admin shortcut or bypass; the planned recovery entry is Transactions transaction details.
 
-### X6. USD relative sats pricing?
+### X.N.2. USD relative sats pricing?
 
 **Status:** Open question for future discussion; outside the current B pay-to-play step. No pricing or display change is approved yet.
 
@@ -1052,14 +1092,14 @@ X5 is split into two independently deliverable stories and proposals. X5a provid
 
 
 
-F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Other eligibility blockers retain their safeguards and appear separately from the button suffix. F2 uses live transaction evidence for boarding status.
+B.G.2 appends **(Awaiting Balance)** for loading or insufficient payment funds. Other eligibility blockers retain their safeguards and appear separately from the button suffix. A.G.2 uses live transaction evidence for boarding status.
 
 
-### X7. Reliable onboarding and transfer recovery
+### A.G.4. Reliable onboarding and transfer recovery
 
 **User story:** As a player, I want BIS to start onboarding automatically once my account is funded, explain its progress and recover safely, so my intended Arkade funds become usable without manual transfer steps or unnecessary waits.
 
-**Status:** Implemented with deterministic and browser verification; fresh Signet settlement/payment acceptance remains open. See [verification and recovery limits](../../.openspec/changes/add-automatic-bis-onboarding/verification.md), [automatic onboarding proposal](../../.openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../.openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../.openspec/changes/add-automatic-bis-onboarding/tasks.md). This planning replaces the earlier X7 manual-review recommendation with the user's confirmed automatic 50% onboarding decisions. X4 manual transfers and X5 cancellation/recovery retain their separate contracts.
+**Status:** Implemented with deterministic and browser verification; fresh Signet settlement/payment acceptance remains open. See [verification and recovery limits](../../.openspec/changes/add-automatic-bis-onboarding/verification.md), [automatic onboarding proposal](../../.openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../.openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../.openspec/changes/add-automatic-bis-onboarding/tasks.md). This section defines A.G.4 automatic 50% onboarding decisions. B.P.7 manual transfers and E.P.3 cancellation/recovery retain their separate contracts.
 
 **Evidence and current BIS gaps:**
 
@@ -1081,14 +1121,14 @@ F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Oth
 **Implemented flow:**
 
 ```text
-[X7.01] Active account --> reconcile existing onboarding; assess fresh funding
-[X7.02] Start? --> USER funds current boarding address through faucet
-[X7.03] Pending --> CPU shows each incoming transaction and waits for eligibility
-[X7.04] CPU freezes 50% target and exact inputs --> submits boarding leg
-[X7.05] CPU verifies linked receipts --> automatically submits Bitcoin-return leg
-[X7.06] CPU verifies final target spendability and releases its holds --> Complete
-[X7.07] Bitcoin confirmation continues independently; normal spending is available
-[X7.08] Interruption / reopen --> reconcile exact legs; safely continue unsubmitted work
+[A.G.4.01] Active account --> reconcile existing onboarding; assess fresh funding
+[A.G.4.02] Start? --> USER funds current boarding address through faucet
+[A.G.4.03] Pending --> CPU shows each incoming transaction and waits for eligibility
+[A.G.4.04] CPU freezes 50% target and exact inputs --> submits boarding leg
+[A.G.4.05] CPU verifies linked receipts --> automatically submits Bitcoin-return leg
+[A.G.4.06] CPU verifies final target spendability and releases its holds --> Complete
+[A.G.4.07] Bitcoin confirmation continues independently; normal spending is available
+[A.G.4.08] Interruption / reopen --> reconcile exact legs; safely continue unsubmitted work
 ```
 
 **Acceptance criteria:**
@@ -1101,13 +1141,13 @@ F3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Oth
 - Account changes immediately remove old data; delayed reads, signing events and clipboard results cannot affect a replacement account. Multiple tabs cannot submit the same leg twice.
 - Final target release and shared payment availability occur without waiting for Bitcoin confirmation. Unrelated reservations remain protected, and subsequent spending does not undo historical onboarding completion.
 - Timing is guidance only. Any measured averages exclude partial, late-start, interrupted or unmeasured samples; elapsed time never proves financial completion.
-- Delivery requires fresh BIS Signet evidence for both legs, exact final receipts and a normal successful spend. Spike success, registration, builds and unit tests alone do not close X7.
+- Delivery requires fresh BIS Signet evidence for both legs, exact final receipts and a normal successful spend. Spike success, registration, builds and unit tests alone do not close A.G.4.
 
 **Planning defaults:** One-time setup per account rather than repeated rebalancing. A previously funded account with freshly verified unreserved spendable Arkade funds and no unresolved onboarding operation is already ready, without invented transfer history. This version supports the observed zero-fee route; configurable percentages and arbitrary-fee routing are outside this proposal.
 
-**Related work:** Coordinate with `add-bitcoin-boarding-settlement`, `fix-arkade-withdrawal-settlement-and-recovery`, `preserve-b1-funds-during-withdrawals`, and `fix-asset-bearing-arkade-withdrawals`. Existing manual-operation acceptance and X5b cancellation feasibility remain separate. The spike's destructive reset and recovery-secret controls are not proposed as BIS production UI.
+**Related work:** Coordinate with `add-bitcoin-boarding-settlement`, `fix-arkade-withdrawal-settlement-and-recovery`, `preserve-b1-funds-during-withdrawals`, and `fix-asset-bearing-arkade-withdrawals`. Existing manual-operation acceptance and E.P.3 cancellation feasibility remain separate. The spike's destructive reset and recovery-secret controls are not proposed as BIS production UI.
 
-### X8. Add security to game wallet
+### A.G.3. Add security to game wallet
 
 **Status:** Deferred. Rethink game-wallet security after the shared Admin-managed wallet workflow is implemented. This is a separate follow-up, not a claim that the current wallet setup or a future hosted service is production-ready.
 

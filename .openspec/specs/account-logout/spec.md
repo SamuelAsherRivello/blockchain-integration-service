@@ -4,12 +4,12 @@
 
 Allow players to deliberately end their local account session after acknowledging their backup, with reliable clearing and observable completion.
 
-**Story status:** A6 ✓ — complete, confirmed by the user on 2026-09-09.
+**Story status:** A.P.5 ✓ — complete, confirmed by the user on 2026-09-09.
 
 ## Requirements
 
 ### Requirement: Backup confirmation
-The active account's Log Out action SHALL open a confirmation titled "Account Log Out", asking "Did you back up your wallet?" and explaining that the saved account will be cleared from this browser, cannot be recovered locally by undoing logout, and requires the saved recovery phrase to restore. It SHALL contain "I have backed up my wallet", initially unchecked on every opening, a final Log Out action enabled only while checked, and Back. A6 SHALL NOT display recovery material or offer recovery-phrase access. The confirmation SHALL remain part of logout after A3 becomes available.
+The active account's Log Out action SHALL open a confirmation titled "Account Log Out", asking "Did you back up your wallet?" and explaining that the saved account will be cleared from this browser, cannot be recovered locally by undoing logout, and requires the saved recovery phrase to restore. It SHALL contain "I have backed up my wallet", initially unchecked on every opening, a final Log Out action enabled only while checked, and Back. A.P.5 SHALL NOT display recovery material or offer recovery-phrase access. The confirmation SHALL remain part of logout after A.P.3 becomes available.
 
 #### Scenario: Explicit acknowledgement
 - **WHEN** the confirmation opens, the player checks the checkbox, then unchecks it

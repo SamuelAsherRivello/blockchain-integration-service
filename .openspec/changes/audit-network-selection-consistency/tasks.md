@@ -7,7 +7,7 @@
 ## 2. Account and asset operation routing
 
 - [ ] 2.1 Migrate boarding, withdrawal, send, funding, and reservation-recovery adapters to the active account network, including network-specific address validation and explorer routes; verify Mutinynet uses no Signet provider and wrong-network evidence cannot submit or reconcile.
-- [ ] 2.2 Complete network propagation across asset mint/list/burn/delivery/reconciliation/live observation paths and their operation journals; verify the C1 regression, cross-network stale completion, and network-specific user-facing validation text.
+- [ ] 2.2 Complete network propagation across asset mint/list/burn/delivery/reconciliation/live observation paths and their operation journals; verify the C.G.1 regression, cross-network stale completion, and network-specific user-facing validation text.
 - [ ] 2.3 Update Player context operation guards to retain network generation through read, quote, submit, and recovery callbacks; verify a network switch suppresses delayed prior-network publication and durable writes.
 
 ## 3. Admin Game Wallet and contract routing

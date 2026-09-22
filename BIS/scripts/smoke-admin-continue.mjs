@@ -1,4 +1,4 @@
-// Real Admin and production BIS UI with the existing isolated B1 adapter fixture.
+// Real Admin and production BIS UI with the existing isolated B.P.1 adapter fixture.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -8,8 +8,8 @@ try {
  const page=await browser.newPage({viewport:{width:1400,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  page.setDefaultTimeout(10000);
  await page.goto(process.argv[2] ?? 'http://127.0.0.1:5186/tests/continue-host.html');
- const pay=page.getByRole('button',{name:'B1 "Pay 1000 Sats To Continue"',exact:true});await pay.waitFor();
- await page.getByRole('button',{name:'E1 Fund Signet Sats',exact:true}).waitFor();
+ const pay=page.getByRole('button',{name:'B.P.1 "Pay 1000 Sats To Continue"',exact:true});await pay.waitFor();
+ await page.getByRole('button',{name:'X.N.1 Fund Signet Sats',exact:true}).waitFor();
  await page.waitForFunction(()=>!Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.includes('Fund Signet Sats'))?.disabled);
  await page.selectOption('#outcome','pending');await pay.click();
  await page.waitForFunction(()=>document.querySelector('#calls')?.textContent==='Submissions: 1');
@@ -31,5 +31,5 @@ try {
  await page.goto(new URL('/tests/continue-host.html?guest',page.url()).href);
  await pay.waitFor();assert.equal(await pay.isDisabled(),true);
  assert.equal(await page.locator('#calls').innerText(),'Submissions: 0');
- assert.deepEqual(errors,[]);console.log('PASS B1 processing, success and failure toasts in Runtime Preview; guest payment disabled; isolated adapter, no live payment.');
+ assert.deepEqual(errors,[]);console.log('PASS B.P.1 processing, success and failure toasts in Runtime Preview; guest payment disabled; isolated adapter, no live payment.');
 } finally {await browser.close();}

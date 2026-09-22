@@ -70,7 +70,7 @@ Detail Refresh SHALL retain selection and navigation context underneath the cove
 - **THEN** the prepared detail shows the exact new quantity or the prepared list is revealed with appropriate focus and scroll
 
 ### Requirement: Account isolation and API compatibility
-Asset presentation SHALL belong to the active account and current presentation session. Leaving the asset flow, switching or clearing accounts, reset, unmount, and disposal SHALL clear presentation values and invalidate delayed reads and copy feedback. Existing public asset listing SHALL remain UI-independent and SHALL NOT navigate or update runtime asset presentation as a side effect. C1 Mint Asset and Asset listing SHALL retain their existing Admin behavior. Inspection SHALL NOT submit transactions or require unrelated pending wallet operations to complete.
+Asset presentation SHALL belong to the active account and current presentation session. Leaving the asset flow, switching or clearing accounts, reset, unmount, and disposal SHALL clear presentation values and invalidate delayed reads and copy feedback. Existing public asset listing SHALL remain UI-independent and SHALL NOT navigate or update runtime asset presentation as a side effect. C.G.1 Mint Asset and Asset listing SHALL retain their existing Admin behavior. Inspection SHALL NOT submit transactions or require unrelated pending wallet operations to complete.
 
 #### Scenario: Leave and reenter during loading
 - **WHEN** a player leaves a pending asset read and enters Assets again, or another account becomes active

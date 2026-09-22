@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Account lifecycle remains origin-local and independent of gameplay
-The game SHALL support the existing A1–A6 Account lifecycle on its own browser origin. It SHALL preserve saved account access across ordinary reload and menu visits, honor existing logout cleanup guards and request host-owned restart after confirmed cleanup, and allow ordinary gameplay without an account or wallet connectivity. It SHALL NOT copy browser wallet storage between the BIS demo and game or expose recovery material through host state, events, diagnostics or test reports. Ordinary Account dismissal or host disposal SHALL NOT clear saved account storage.
+The game SHALL support the existing A.P.1–A.P.5 Account lifecycle on its own browser origin. It SHALL preserve saved account access across ordinary reload and menu visits, honor existing logout cleanup guards and request host-owned restart after confirmed cleanup, and allow ordinary gameplay without an account or wallet connectivity. It SHALL NOT copy browser wallet storage between the BIS demo and game or expose recovery material through host state, events, diagnostics or test reports. Ordinary Account dismissal or host disposal SHALL NOT clear saved account storage.
 
 #### Scenario: Create and return after reload
 - **WHEN** a user explicitly creates a disposable Signet account, completes the production recovery step and reloads the same game origin

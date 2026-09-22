@@ -21,7 +21,7 @@
 ## 4. Clear network-specific UI and funding guidance
 
 - [ ] 4.1 Add the first-use Signet/Mutinynet selector to Player Account and Game Wallet entry paths, and replace fixed Signet headers/warnings with the selected network label; verify browser-host checks show no diagnostic starts before selection and no mainnet option.
-- [ ] 4.2 Update Account restore/create, Game Wallet recovery, Admin F1/F2/F3, balance/activity/assets/contracts, and send review surfaces to keep one selected-network context visible; verify narrow 9:16, keyboard, and role/network-rejection coverage.
+- [ ] 4.2 Update Account restore/create, Game Wallet recovery, Admin A.G.1/A.G.2/B.G.2, balance/activity/assets/contracts, and send review surfaces to keep one selected-network context visible; verify narrow 9:16, keyboard, and role/network-rejection coverage.
 - [ ] 4.3 Render selected-network onboarding guidance from the registry, including Mutinynet's copyable user-run `mutinynet-cli onchain <boarding-address> [sats]` command, GitHub device-login explanation, and live manual faucet fallback; verify the command uses the current address and BIS neither invokes the CLI nor stores a token.
 
 ## 5. Documentation and end-to-end verification

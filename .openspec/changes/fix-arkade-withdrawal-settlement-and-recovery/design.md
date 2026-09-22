@@ -63,15 +63,15 @@ Only after that gate passes, offer the existing explicit cancellation review for
 
 ### 4. Resolve reservations from evidence and refresh the existing wallet observer
 
-Project reservation release from the verified operation state and publish one wallet invalidation so existing balance, assets, Activity and B1 paths refresh together. Preserve genuine reservations during uncertainty. Report reserved amount and the pending operation when they explain an otherwise funded payment rejection; do not call that a zero total balance.
+Project reservation release from the verified operation state and publish one wallet invalidation so existing balance, assets, Activity and B.P.1 paths refresh together. Preserve genuine reservations during uncertainty. Report reserved amount and the pending operation when they explain an otherwise funded payment rejection; do not call that a zero total balance.
 
-The immediate B1 attempt during a sole-input pending swap may correctly wait/fail with that explanation. Successful settlement or proven cancellation must make a subsequent payment work without logout or manual journal clearing. Continuous B1 spending during settlement would require independent inputs and remains a separate coin-layout change.
+The immediate B.P.1 attempt during a sole-input pending swap may correctly wait/fail with that explanation. Successful settlement or proven cancellation must make a subsequent payment work without logout or manual journal clearing. Continuous B.P.1 spending during settlement would require independent inputs and remains a separate coin-layout change.
 
 ### 5. Acceptance is financial completion, not instrumentation
 
 Extend the exact sequence test into two layers: real SDK batch-handler settlement/recovery tests, and explicit live Signet acceptance. Keep the pending-input test as a characterization of legitimate reservation; add a separate post-resolution successful-payment assertion instead of forcing it to spend the same reserved input.
 
-Cover plain sats and asset-bearing withdrawals, stream loss, malformed tree/recipient/asset proposals, disconnect, account replacement, page reload, lost registration/cancellation response, shared commitments and cancellation racing completion. Live acceptance requires one confirmed 1,000-sat Bitcoin receipt, exact owned Arkade asset change, updated reservation state and successful B1 afterwards. Recovery acceptance also requires an existing interrupted operation to reach a verified outcome; if unavailable, keep that gate open.
+Cover plain sats and asset-bearing withdrawals, stream loss, malformed tree/recipient/asset proposals, disconnect, account replacement, page reload, lost registration/cancellation response, shared commitments and cancellation racing completion. Live acceptance requires one confirmed 1,000-sat Bitcoin receipt, exact owned Arkade asset change, updated reservation state and successful B.P.1 afterwards. Recovery acceptance also requires an existing interrupted operation to reach a verified outcome; if unavailable, keep that gate open.
 
 ## Risks / Trade-offs
 
@@ -88,7 +88,7 @@ Cover plain sats and asset-bearing withdrawals, stream loss, malformed tree/reci
 1. Add compatible diagnostics and recovery metadata readers; preserve every current journal. Reconcile overlapping requirements with `cancel-pending-transfer`, `fix-asset-bearing-arkade-withdrawals` and `add-bitcoin-boarding-settlement` without marking their open live gates complete.
 2. Reproduce and repair the settlement defect, then verify the recovery capability contract and implement its supported branch. Keep unavailable branches explicit.
 3. Build and run an identified stable Admin artifact. Live actions occur only after separate explicit confirmation; this planning workflow performs none.
-4. Verify the receipt, retained assets, post-resolution B1 and legacy-operation recovery. Record public evidence and exact build/operator versions.
+4. Verify the receipt, retained assets, post-resolution B.P.1 and legacy-operation recovery. Record public evidence and exact build/operator versions.
 5. If delivery fails, disable new withdrawal submission on the affected build while preserving read-only recovery and journals. Use an additive forward correction; do not downgrade state readers or erase pending records.
 
 ## Open Questions

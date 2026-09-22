@@ -1,6 +1,6 @@
-# F1 implementation tasks
+# A.G.1 implementation tasks
 
-Implementation started through the authorized apply request. X2 trophy issuance is excluded. See F1_VERIFICATION.md for evidence and remaining live checks.
+Implementation started through the authorized apply request. C.P.1 trophy issuance is excluded. See F1_VERIFICATION.md for A.G.1 evidence and remaining live checks.
 
 ## 1. Milestone 1 — Independent Admin game wallet
 
@@ -20,11 +20,11 @@ Implementation started through the authorized apply request. X2 trophy issuance 
 
 - [ ] 3.1 Verify a real Signet payment from distinct player to game wallet: record public before/after balances and transaction evidence, refresh Admin to observe receipt, and repeat with Admin closed during payment. Do not claim completion from mocked outcomes.
 - [ ] 3.2 Run applicable account/continuation regressions, typecheck and builds; inspect published build inputs/output for absence of signing credentials and verify both wallets remain isolated across reloads.
-- [x] 3.3 Document browser import and public recipient deployment configuration; move former X1 to F1 under F. Game Wallet with coherent current links, preserving other appendix numbering and historical change paths. Keep current minting behavior/status accurate.
+- [x] 3.3 Document browser import and public recipient deployment configuration; move former X1 to A.G.1 under F. Game Wallet with coherent current links, preserving other appendix numbering and historical change paths. Keep current minting behavior/status accurate.
 - [x] 3.4 Record acceptance evidence and unresolved live blockers, then validate this change strictly; leave any unverified task unchecked.
 
-## 4. F3 and status follow-up
+## 4. B.G.2 and status follow-up
 
-- [x] 4.1 Add F3 quote/confirmation and status-only Details with wallet-scoped recovery guards; see F3_VERIFICATION.md.
+- [x] 4.1 Add B.G.2 quote/confirmation and status-only Details with wallet-scoped recovery guards; see F3_VERIFICATION.md.
 - [x] 4.2 Base the waiting disablement on fresh matching unconfirmed transaction data, clear stale/unavailable results, and retain Details access; focused tests and typecheck passed.
-- [x] 4.3 Show payment-usable F1 balance including zero and report F1/F3 status through the replacing Admin console.
+- [x] 4.3 Show payment-usable A.G.1 balance including zero and report A.G.1/B.G.2 status through the replacing Admin console.

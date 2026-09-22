@@ -28,7 +28,7 @@ Reset Client SHALL clear transient state and integration-owned persisted account
 ## ADDED Requirements
 
 ### Requirement: Invoice receiving demonstration and story synchronization
-The demo SHALL expose the implemented receiving presentation through the production account flow, without automatically creating an account, an invoice, or a payment. Runtime Preview SHALL use the same public integration API and UI as an independent host. Its documentation SHALL describe D2 as receiving, retain D3 as the separate all-send-types feature, preserve existing story and step IDs, and distinguish the unavailable presentation from verified live invoice receiving. This extends the catalog only with actually implemented demonstrations and SHALL NOT remove unrelated existing demonstrations.
+The demo SHALL expose the implemented receiving presentation through the production account flow, without automatically creating an account, an invoice, or a payment. Runtime Preview SHALL use the same public integration API and UI as an independent host. Its documentation SHALL describe B.P.4 as receiving, retain B.P.5 as the separate all-send-types feature, preserve existing story and step IDs, and distinguish the unavailable presentation from verified live invoice receiving. This extends the catalog only with actually implemented demonstrations and SHALL NOT remove unrelated existing demonstrations.
 
 #### Scenario: Unavailable receiving demonstration
 - **WHEN** the demo demonstrates Receive without a verified Signet invoice-receiving route
@@ -42,4 +42,4 @@ The demo SHALL expose the implemented receiving presentation through the product
 #### Scenario: Delivery evidence
 - **WHEN** live invoice receiving is reported complete
 - **THEN** evidence covers fee review, actual Signet generation and receipt, expiry/Renew, toggling, navigation reset, restart recovery, Activity reconciliation, failure handling, and production-host/demo parity
-- **AND** isolated fixtures are not substituted for live payment evidence and unrelated A5 verification remains separately tracked
+- **AND** isolated fixtures are not substituted for live payment evidence and unrelated E.P.1 verification remains separately tracked

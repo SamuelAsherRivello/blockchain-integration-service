@@ -17,7 +17,7 @@ test('every immutable marketplace URL has a valid checked-in PNG', async () => {
   }
 });
 
-test('C1 presets identify themselves as Stealth & Steel trophies', () => {
+test('C.G.1 presets identify themselves as Stealth & Steel trophies', () => {
   assert.deepEqual(achievementPresets.map(preset => preset.metadata), [1, 2, 3].map(level => ({
     bisGameId: 'stealth-and-steel',
     bisAssetType: 'trophy',

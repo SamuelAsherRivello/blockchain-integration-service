@@ -72,11 +72,11 @@ Every marketplace item SHALL carry verified chain metadata identifying Stealth &
 - **WHEN** an asset is a trophy, belongs to another game, or lacks the required item metadata
 - **THEN** Marketplace does not offer it as a purchasable or sellable Stealth & Steel item
 
-### Requirement: H1 mints the nine-item marketplace catalog
-The Admin H1 workflow SHALL mint to the active Game Wallet one distinct chain asset for every Shoes, Dagger, and Shield tier I, II, and III combination. Each minted item SHALL contain the required chain classification, approved price, and a C1-style versioned public icon URL. H1 SHALL require the active Game Wallet signer and SHALL NOT mint through the Player Wallet.
+### Requirement: F.N.1 mints the nine-item marketplace catalog
+The Admin F.N.1 workflow SHALL mint to the active Game Wallet one distinct chain asset for every Shoes, Dagger, and Shield tier I, II, and III combination. Each minted item SHALL contain the required chain classification, approved price, and a C.G.1-style versioned public icon URL. F.N.1 SHALL require the active Game Wallet signer and SHALL NOT mint through the Player Wallet.
 
-#### Scenario: Administrator runs H1 with the active game wallet
-- **WHEN** H1 completes successfully for an eligible active Game Wallet
+#### Scenario: Administrator runs F.N.1 with the active game wallet
+- **WHEN** F.N.1 completes successfully for an eligible active Game Wallet
 - **THEN** that wallet freshly owns all nine correctly classified catalog items
 - **AND** every item carries its approved family, tier, price, and public runtime icon URL
 
@@ -107,18 +107,18 @@ The Marketplace SHALL not create player listings, bids, recipient fields, player
 - **AND** no player listing or bid control is available
 
 ### Requirement: Marketplace batch operations isolate per-item transient state
-Marketplace H1 minting and H2 burning SHALL track transient busy, unavailable, pending, and unknown outcomes per catalog item and operation identity. A result for one item SHALL NOT permanently cache a batch-wide unavailable state after its attempt settles. Re-running H1 or H2 SHALL reconcile durable records for previously attempted items and continue evaluating every other eligible item, while preserving duplicate-submission protection for exact unresolved operations.
+Marketplace F.N.1 minting and H2 burning SHALL track transient busy, unavailable, pending, and unknown outcomes per catalog item and operation identity. A result for one item SHALL NOT permanently cache a batch-wide unavailable state after its attempt settles. Re-running F.N.1 or H2 SHALL reconcile durable records for previously attempted items and continue evaluating every other eligible item, while preserving duplicate-submission protection for exact unresolved operations.
 
-#### Scenario: H1 item preflight fails
+#### Scenario: F.N.1 item preflight fails
 - **WHEN** one catalog item cannot be minted before submission because current wallet readiness or spendability is unavailable
 - **THEN** the batch records that item's safe result without treating all later items as permanently unavailable
-- **AND** a later H1 run re-evaluates that item from current wallet state
+- **AND** a later F.N.1 run re-evaluates that item from current wallet state
 
 #### Scenario: H2 item unknown does not stop unrelated items
 - **WHEN** one item burn becomes pending or unknown and another eligible item has provably disjoint inputs
 - **THEN** H2 continues to inspect and process the other item without retrying the unknown burn
 
 #### Scenario: Batch retry uses durable identity
-- **WHEN** H1 or H2 is invoked again after a previous batch partially completed
+- **WHEN** F.N.1 or H2 is invoked again after a previous batch partially completed
 - **THEN** completed or unresolved exact operations are identified from durable records
 - **AND** transient in-memory caches from the prior invocation do not suppress fresh checks for untouched items

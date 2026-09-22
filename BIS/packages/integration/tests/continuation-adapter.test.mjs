@@ -35,7 +35,7 @@ test('configured recipient needs no saved identity; exact 1000 sat payment persi
 test('lost response preserves a durable pending transaction',async t=>{const f=fixture(t,{lose:true});assert.equal((await f.run()).status,'pending');assert.equal(f.submits(),1);});
 test('insufficient funds fails before network submission',async t=>{const f=fixture(t,{affordable:false});const r=await f.run();assert.equal(r.status,'failed');assert.match(r.message,/Insufficient eligible spendable funds: 500 sats available; 1,000 sats required/);assert.equal(f.submits(),0);});
 
-for(const phase of ['prepared','registered'])test(`B1 reconciles a ${phase} withdrawal reservation without logout`,async t=>{
+for(const phase of ['prepared','registered'])test(`B.P.1 reconciles a ${phase} withdrawal reservation without logout`,async t=>{
  const f=fixture(t);
  Object.defineProperty(navigator,'locks',{configurable:true,value:testLocks()});
  const account={profileId:'p',phrase:'abandon '.repeat(11)+'about'};
@@ -60,20 +60,20 @@ for(const phase of ['prepared','registered'])test(`B1 reconciles a ${phase} with
 test('account change before submission fails without spending',async t=>{const f=fixture(t,{current:false});assert.equal((await f.run()).status,'failed');assert.equal(f.submits(),0);});
 test('storage failure prevents wallet creation and submission',async t=>{const f=fixture(t,{storageFailure:true});await assert.rejects(f.run());assert.equal(f.submits(),0);assert.equal(f.disposed(),0);});
 
-test('B1 spends sats from the asset-bearing wallet output while preserving all three assets in change',async t=>{
+test('B.P.1 spends sats from the asset-bearing wallet output while preserving all three assets in change',async t=>{
  const f=fixture(t,{withAssets:true});const result=await f.run();assert.equal(result.status,'succeeded');assert.equal(f.submits(),1);
  const record=readContinuations('p')[0];assert.equal(record.send.change.sats,288715);assert.equal(record.send.change.assets.length,3);
 });
-test('B1 rejects prepared asset redirection to recipient before network submission',async t=>{
+test('B.P.1 rejects prepared asset redirection to recipient before network submission',async t=>{
  const f=fixture(t,{withAssets:true,corruptAssets:true});assert.equal((await f.run()).status,'failed');assert.equal(f.submits(),0);
 });
 
-test('B1 rejects asset omission and changed quantities before submission',async t=>{
+test('B.P.1 rejects asset omission and changed quantities before submission',async t=>{
  for(const options of [{missingAsset:true},{wrongQuantity:true}])await t.test(JSON.stringify(options),async child=>{
   const f=fixture(child,{withAssets:true,...options});assert.equal((await f.run()).status,'failed');assert.equal(f.submits(),0);
  });
 });
-test('B1 keeps enough change to hold assets instead of spending the complete output',async t=>{
+test('B.P.1 keeps enough change to hold assets instead of spending the complete output',async t=>{
  const f=fixture(t,{withAssets:true,coinValue:1000});const result=await f.run();assert.equal(result.status,'failed');assert.match(result.message,/preserve your assets/);assert.equal(f.submits(),0);
 });
 

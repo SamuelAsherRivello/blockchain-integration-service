@@ -36,7 +36,7 @@ Gameplay and gameplay input SHALL remain paused while Settings or Account owns t
 - **THEN** Account controls and Back remain reachable, inactive modal/game controls cannot receive actions, and the scene remains visibly paused
 
 ### Requirement: Account lifecycle remains origin-local and independent of gameplay
-The game SHALL support the existing A1–A6 Account lifecycle on its own browser origin. It SHALL preserve saved account access across ordinary reload and menu visits, honor existing logout cleanup guards and request host-owned restart after confirmed cleanup, and allow ordinary gameplay without an account or wallet connectivity. It SHALL NOT copy browser wallet storage between the BIS demo and game or expose recovery material through host state, events, diagnostics or test reports. Ordinary Account dismissal or host disposal SHALL NOT clear saved account storage.
+The game SHALL support the existing A.P.1–A.P.5 Account lifecycle on its own browser origin. It SHALL preserve saved account access across ordinary reload and menu visits, honor existing logout cleanup guards and request host-owned restart after confirmed cleanup, and allow ordinary gameplay without an account or wallet connectivity. It SHALL NOT copy browser wallet storage between the BIS demo and game or expose recovery material through host state, events, diagnostics or test reports. Ordinary Account dismissal or host disposal SHALL NOT clear saved account storage.
 
 #### Scenario: Create and return after reload
 - **WHEN** a user explicitly creates a disposable Signet account, completes the production recovery step and reloads the same game origin
@@ -69,11 +69,11 @@ The smoke delivery SHALL identify the exact BIS package artifact and both projec
 - **THEN** at most one live Account session belongs to that host and disposed work cannot reopen UI or affect the replacement host
 
 ### Requirement: Smoke evidence distinguishes Account acceptance from deferred financial scope
-The runbook SHALL begin with BIS baseline verification and proceed to the actual game. It SHALL document working server commands, browser origins and required SSH forwards. The acceptance record SHALL cover A1 entry, A2 creation/persistence, A3 restoration, A4 balance/refresh, A5 transactions/detail/copy and A6 logout, with explicit observed outcomes and live-versus-fixture attribution. Empty, unavailable, blocked and unperformed cases SHALL NOT be recorded as successful populated/live financial verification. Additional Account destinations SHALL receive navigation checks without requiring financial submissions. Pay-to-continue, revival and achievement gameplay hooks SHALL remain outside this change.
+The runbook SHALL begin with BIS baseline verification and proceed to the actual game. It SHALL document working server commands, browser origins and required SSH forwards. The acceptance record SHALL cover A.P.1 entry, A.P.2 creation/persistence, A.P.3 restoration, A.P.4 balance/refresh, E.P.1 transactions/detail/copy and A.P.5 logout, with explicit observed outcomes and live-versus-fixture attribution. Empty, unavailable, blocked and unperformed cases SHALL NOT be recorded as successful populated/live financial verification. Additional Account destinations SHALL receive navigation checks without requiring financial submissions. Pay-to-continue, revival and achievement gameplay hooks SHALL remain outside this change.
 
 #### Scenario: Account smoke is complete
 - **WHEN** the run is reported as passing
-- **THEN** game-origin evidence includes the real disposable account create/reload/logout/restore lifecycle, A1–A6 navigation and reads, guest gameplay, focus/pause and development/production package checks
+- **THEN** game-origin evidence includes the real disposable account create/reload/logout/restore lifecycle, A.P.1–A.P.5 navigation and reads, guest gameplay, focus/pause and development/production package checks
 - **AND** populated-data fixture checks and any unobserved live history/funded-balance cases are explicitly distinguished
 
 #### Scenario: Service or test data prevents a case

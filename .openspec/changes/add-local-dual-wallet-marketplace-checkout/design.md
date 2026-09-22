@@ -1,6 +1,6 @@
 ## Context
 
-See [proposal.md](proposal.md) for motivation. The Marketplace already obtains anonymous live inventory from a registered Game Wallet address and classifies equipment from chain metadata. `catalog.json` currently duplicates per-item records and the Admin development server mutates that file after H1. The Marketplace detail always reads the unavailable atomic-exchange gate.
+See [proposal.md](proposal.md) for motivation. The Marketplace already obtains anonymous live inventory from a registered Game Wallet address and classifies equipment from chain metadata. `catalog.json` currently duplicates per-item records and the Admin development server mutates that file after F.N.1. The Marketplace detail always reads the unavailable atomic-exchange gate.
 
 The integration package already has durable, input-reserving journals for sends, mints, burns, and the partial `asset-delivery` foundation. Player and Game Wallet controllers create their signers locally from their own persisted account state. The generic send implementation deliberately preserves all assets in sender change; it cannot deliver a selected item. No remote service is permitted.
 
@@ -26,7 +26,7 @@ The integration package already has durable, input-reserving journals for sends,
 
 `catalog.json` remains the stable public URL but becomes a versioned publisher configuration containing only `gameId` and `gameWalletAddress`. The Marketplace uses the address to query the Signet indexer, then takes item identity, price, effect, artwork, and availability from fresh chain data. Keeping this small static trust anchor avoids a server and prevents arbitrary wallet addresses from impersonating the official seller.
 
-The Admin H1 workflow will mint and verify inventory only. It will no longer POST a per-item catalog update to the local Vite middleware. Requiring a GitHub Pages release merely to add an item was rejected because it duplicates chain inventory and does not meet the desired live-listing behavior.
+The Admin F.N.1 workflow will mint and verify inventory only. It will no longer POST a per-item catalog update to the local Vite middleware. Requiring a GitHub Pages release merely to add an item was rejected because it duplicates chain inventory and does not meet the desired live-listing behavior.
 
 ### Add exact asset delivery beside generic sending
 

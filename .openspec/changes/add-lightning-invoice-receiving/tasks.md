@@ -1,6 +1,6 @@
 ## 1. Baseline and unavailable presentation
 
-- [x] 1.1 Inspect the current account, storage, Activity/A5, demo, and story-document baseline; record affected modules and verification commands without changing unrelated work.
+- [x] 1.1 Inspect the current account, storage, Activity/E.P.1, demo, and story-document baseline; record affected modules and verification commands without changing unrelated work.
 - [x] 1.2 Add tests for unavailable receiving capability, default selection, unchanged addresses, disabled invoice controls, and usable Back; verify they fail for missing behavior before implementation.
 - [x] 1.3 Implement provider-neutral unavailable state and the separated Lightning invoice section using production UI; verify the tests pass and the 9:16 preview retains readable addresses and controls.
 
@@ -27,9 +27,9 @@
 
 ## 5. Activity and demo integration
 
-- [ ] 5.1 Extend A5 Activity with reconciled pending/confirmed receive records and available payer/fee/net details; verify duplicate provider/wallet observations merge and unpaid invoices are not fake pending transactions.
+- [ ] 5.1 Extend E.P.1 Activity with reconciled pending/confirmed receive records and available payer/fee/net details; verify duplicate provider/wallet observations merge and unpaid invoices are not fake pending transactions.
 - [ ] 5.2 Connect the receiving demonstration through the public production flow without auto-creating accounts or payments; verify independent-host and demo parity and protected Admin Reset behavior.
-- [ ] 5.3 Synchronize D2 receiving documentation and implementation status while preserving existing A/B/C story IDs and separate D3 all-send-types scope; verify the document diff marks unavailable versus live behavior accurately and does not close unrelated A5 verification.
+- [ ] 5.3 Synchronize B.P.4 receiving documentation and implementation status while preserving existing A/B/C story IDs and separate B.P.5 all-send-types scope; verify the document diff marks unavailable versus live behavior accurately and does not close unrelated E.P.1 verification.
 
 ## 6. Cross-cutting verification and delivery evidence
 

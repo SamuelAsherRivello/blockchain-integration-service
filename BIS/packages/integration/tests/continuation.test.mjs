@@ -39,7 +39,7 @@ test('pay 1000 and a delayed observer snapshot show only one Balance loading cyc
  } finally {s.context.dispose();}
 });
 
-for (const path of ['submit','retry','status']) test(`B1 ${path} success refreshes the visible Arkade balance without manual refresh`,async()=>{
+for (const path of ['submit','retry','status']) test(`B.P.1 ${path} success refreshes the visible Arkade balance without manual refresh`,async()=>{
  let sats=2000;
  const s=setup({readBalance:async()=>({availableSats:sats,totalSats:sats,bitcoinSats:0,arkadeSats:sats}),
   submit:async(a,r)=>{const saved={...r,status:path==='submit'?'succeeded':'pending',send:receipt(path==='submit'?'succeeded':'pending')};writeContinuation(saved);if(path==='submit')sats=1000;return continueResult(saved);},
@@ -55,7 +55,7 @@ for (const path of ['submit','retry','status']) test(`B1 ${path} success refresh
  } finally {s.context.dispose();}
 });
 
-test('an admin wallet imported after player startup supplies the live B1 recipient',async()=>{
+test('an admin wallet imported after player startup supplies the live B.P.1 recipient',async()=>{
  let recipient;
  const s=setup({options:{get continueRecipient(){return recipient;}}});
  await s.context.ready();assert.equal(s.context.getContinueRecipient(),undefined);
@@ -66,11 +66,11 @@ test('an admin wallet imported after player startup supplies the live B1 recipie
  assert.equal(s.calls(),1);s.context.dispose();
 });
 
-test('B1 reaches independent input selection while a known unrelated transfer remains pending',async()=>{
+test('B.P.1 reaches independent input selection while a known unrelated transfer remains pending',async()=>{
  const s=setup();await s.context.ready();
  const pending={version:1,id:'unrelated',profileId:'p',status:'pending',phase:'registered',intentId:'intent',inputs:[{txid:'f'.repeat(64),vout:0}],bitcoinAddress:'tb1-test',quote:{profileId:'p',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:2000,bitcoinAfterSats:1000,arkadeAfterSats:1000,totalAfterSats:2000,expiresAt:2000,fingerprint:'c'.repeat(64)}};
  writeBoardingRecord(pending);
- assert.equal((await s.context.getContinueAvailability()).canPay,true,'A withdrawal must not disable B1 before a payment attempt');
+ assert.equal((await s.context.getContinueAvailability()).canPay,true,'A withdrawal must not disable B.P.1 before a payment attempt');
  assert.equal((await s.context.requestContinue(request)).status,'succeeded');
  assert.deepEqual(readBoardingRecord('p','unrelated'),pending);s.context.dispose();
 });

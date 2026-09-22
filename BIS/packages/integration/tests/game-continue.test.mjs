@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createBisContinue,getContinuePriceSats} from '../src/core/game-continue.ts';
 import {BoardingBlockedError} from '../src/core/boarding-record.ts';
 
-test('B1 reports an unresolved transfer after confirming no payment was submitted', async () => {
+test('B.P.1 reports an unresolved transfer after confirming no payment was submitted', async () => {
  const message='A transfer is unresolved. Open Account Transfer and check its status before clearing this account or using these funds.';
  const controller=createBisContinue({
   getState:()=>({hasProfile:true,phase:'active',profileId:'p'}),subscribe:()=>()=>{},showToast(){},

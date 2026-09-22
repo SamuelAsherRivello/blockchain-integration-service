@@ -3,7 +3,7 @@
 ## Purpose
 Provide generic UI-independent asset minting and ownership queries for hosts, with exact quantities, safe retries, and no game-specific rules.
 
-**Story status:** C1. Mint Asset ✓ — complete, confirmed by the user on 2026-09-09. Historical verification records retain their original coverage and limitations.
+**Story status:** C.G.1. Mint Asset ✓ — complete, confirmed by the user on 2026-09-09. Historical verification records retain their original coverage and limitations.
 
 ## Requirements
 
@@ -105,7 +105,7 @@ Asset operations SHALL expose no recovery material, signing keys, raw SDK except
 The generic asset mint and listing boundaries SHALL support JSON-safe chain asset metadata without assigning game meaning inside the generic API. For each marketplace item, the round-tripped metadata SHALL preserve its game ID, asset type, stable catalog ID, equipment family, tier, integer sat price, and absolute HTTPS icon URL. Listing SHALL expose available metadata as untrusted JSON-safe public data and SHALL continue returning generic assets whose optional marketplace fields are absent.
 
 #### Scenario: Mint and list a marketplace item
-- **WHEN** H1 mints a valid Stealth & Steel item through the generic asset boundary and a fresh list succeeds
+- **WHEN** F.N.1 mints a valid Stealth & Steel item through the generic asset boundary and a fresh list succeeds
 - **THEN** the listed asset contains the same game, item type, catalog identity, family, tier, price, and icon URL stored on-chain
 - **AND** recognition can occur without a browser-local catalog-to-asset-ID mapping
 

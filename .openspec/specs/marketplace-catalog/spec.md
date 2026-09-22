@@ -112,7 +112,7 @@ The nine-item catalog SHALL publish the same integer sat price used for purchase
 - **AND** the displayed price matches the item's verified chain metadata
 
 ### Requirement: Catalog artwork comes from chain asset URLs
-Every equipment image rendered by the Marketplace SHALL request at runtime the absolute HTTPS icon URL carried by the corresponding chain asset. H1 SHALL use immutable C1-style versioned public PNG URLs so already minted metadata remains usable after later artwork revisions. A static bundled catalog-to-image mapping SHALL NOT determine the rendered item icon.
+Every equipment image rendered by the Marketplace SHALL request at runtime the absolute HTTPS icon URL carried by the corresponding chain asset. F.N.1 SHALL use immutable C.G.1-style versioned public PNG URLs so already minted metadata remains usable after later artwork revisions. A static bundled catalog-to-image mapping SHALL NOT determine the rendered item icon.
 
 #### Scenario: Render an issued catalog item
 - **WHEN** Marketplace renders an issued item with verified chain metadata

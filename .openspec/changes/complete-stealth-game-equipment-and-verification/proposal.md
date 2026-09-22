@@ -8,7 +8,7 @@ The BIS Marketplace and equipment-selection foundation is complete, but the Stea
 - Make the Items window show the exact instruction `Select 1 of each item type to activate it for gameplay`, present each owned item as a square reference-matched tile, reserve visible 3-by-3 capacity without scrollbars, and make selected tiles unmistakable without adding visible text.
 - Snapshot freshly verified Shoes, Dagger, and Shield selections on player spawn and apply the approved tier effects without changing guest baseline play.
 - Render the three ordered chain-URL item slots beneath Gold in the game HUD.
-- Complete focused, package-consumer, browser, and Signet verification for the game and completed Marketplace/BIS experiences, leaving the active Game Wallet's H1 catalog inventory available for manual testing.
+- Complete focused, package-consumer, browser, and Signet verification for the game and completed Marketplace/BIS experiences, leaving the active Game Wallet's F.N.1 catalog inventory available for manual testing.
 
 ## Capabilities
 

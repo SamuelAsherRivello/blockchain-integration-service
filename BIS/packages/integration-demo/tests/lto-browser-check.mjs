@@ -31,5 +31,5 @@ try{
   assert.equal((await entries(other)).filter(e=>e.submission).length,0);
   await context.close();
  }
- assert.deepEqual(errors,[]);console.log('PASS: G2 pending contract-read recovery and cooperating browser tabs. No live funds or external requests.');
+ assert.deepEqual(errors,[]);console.log('PASS: D.P.2 pending contract-read recovery and cooperating browser tabs. No live funds or external requests.');
 }finally{await browser.close();}

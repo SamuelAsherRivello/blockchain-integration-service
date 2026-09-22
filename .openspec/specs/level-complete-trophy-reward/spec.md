@@ -4,7 +4,7 @@
 
 Let players optionally collect self-funded level trophies while retaining completion menus, truthful wallet outcomes, and independent game progression.
 
-**Story status:** C2. Reward Player With Trophy After Level Complete ✓ — complete, confirmed by the user on 2026-09-09. Historical verification records retain their original coverage and limitations.
+**Story status:** C.P.1. Reward Player With Trophy After Level Complete ✓ — complete, confirmed by the user on 2026-09-09. Historical verification records retain their original coverage and limitations.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ Hosts SHALL disable collection for guests, unknown ownership, already-owned trop
 - **THEN** an explanation is shown and progression remains available without creating an account or funding automatically
 
 ### Requirement: Safe in-place collection
-The completion menu SHALL remain visible and SHALL NOT dismiss through backdrop or Escape. Its actions SHALL be disabled during a bounded collection attempt. Confirmed success SHALL disable collection and show `Level N Trophy collected!` with the returned trophy image using D1. Definitive failures SHALL require acknowledgment without leaving the menu. Uncertain results SHALL retain the original request, disable new issuance, offer explicit status reconciliation, and restore navigation. Account changes and disposal SHALL suppress stale presentation.
+The completion menu SHALL remain visible and SHALL NOT dismiss through backdrop or Escape. Its actions SHALL be disabled during a bounded collection attempt. Confirmed success SHALL disable collection and show `Level N Trophy collected!` with the returned trophy image using F.P.1. Definitive failures SHALL require acknowledgment without leaving the menu. Uncertain results SHALL retain the original request, disable new issuance, offer explicit status reconciliation, and restore navigation. Account changes and disposal SHALL suppress stale presentation.
 
 #### Scenario: Successful collection
 - **WHEN** explicit collection returns a confirmed minted or reconciled result for the active account

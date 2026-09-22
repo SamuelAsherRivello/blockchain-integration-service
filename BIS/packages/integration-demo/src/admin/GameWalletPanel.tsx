@@ -1,5 +1,4 @@
 import { StoryButton } from './StoryButton';
-import { StorySection } from './StorySection';
 import { useEffect, useState } from 'react';
 import { BalanceTooltip, createBisGameWallet, formatBalanceSats, type BisGameWalletState } from '@bis/integration';
 
@@ -55,7 +54,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
     try {
       if (action === 'check') {
         const status = await controller.checkBoarding();
-        onDetails({operation:'F3 Boarding Status', ...status});
+        onDetails({operation:'B.G.2 Boarding Status', ...status});
         await controller.refresh();
         return;
       }
@@ -82,11 +81,11 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
   }
   async function details() {
     if (!controller) return;
-    onDetails({operation:'F3 Wallet Status', status:'loading'});
+    onDetails({operation:'B.G.2 Wallet Status', status:'loading'});
     await controller.refresh();
     const current = controller.getState();
     onDetails({
-      operation:'F3 Wallet Status',
+      operation:'B.G.2 Wallet Status',
       status: current.status, profileId: current.profileId,
       paymentStatus: controller.getPlayerPaymentBlockReason?.() ?? 'Ready',
       paymentBalanceSats: controller.getPlayerPaymentBalance?.() ?? 'Unavailable',
@@ -107,23 +106,20 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
       ...(current.message ? {readStatus:current.message} : {}),
     });
   }
-  return <StorySection title="F. Game Wallet" className="game-wallet-panel">
-
-    <p className="story-summary">Stories: F1, F2, F3</p>
-    <StoryButton label="F1. Game Wallet (Admin-facing)">
+  return <div className="game-wallet-panel">
+    <StoryButton label="B.G.2. Board Game Wallet" sublabel={<>{state.balance && <span className="bis-balance-tooltip" data-bis-balance-tooltip="B.G.2 Board Game Wallet balance" tabIndex={0}>
+      <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>
+      <span className="bis-balance-tooltip-panel" role="tooltip"><BalanceTooltip title="B.G.2 Board Game Wallet balance" balance={formatBalanceSats(state.balance.availableSats)} available={formatBalanceSats(state.balance.availableSats)} /></span>
+    </span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}> 
+      <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
+      {boardingState !== 'boarded' && <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
+    </StoryButton>
+    <StoryButton label="A.G.1. Game Wallet (Admin-facing)">
         {state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
           : <button disabled={busy || !playerReady} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
     </StoryButton>
-    <StoryButton label="F2. Game Wallet (User-facing)">
-      <button aria-label="F2. Game Wallet (User-facing)" disabled={!controller || !playerReady} onClick={onOpenDeveloper}>↗</button>
-    </StoryButton>
-    <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span className="bis-balance-tooltip" data-bis-balance-tooltip="F3 Board Game Wallet balance" tabIndex={0}>
-      <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>
-      <span className="bis-balance-tooltip-panel" role="tooltip"><BalanceTooltip title="F3 Board Game Wallet balance" balance={formatBalanceSats(state.balance.availableSats)} available={formatBalanceSats(state.balance.availableSats)} /></span>
-    </span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
-        <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
-        {boardingState !== 'boarded' &&
-          <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
+    <StoryButton label="A.G.2. Game Wallet (User-facing)">
+      <button aria-label="A.G.2. Game Wallet (User-facing)" disabled={!controller || !playerReady} onClick={onOpenDeveloper}>↗</button>
     </StoryButton>
     {!playerReady && <p role="status">Connect a Player Wallet to use the Game Wallet on that same network.</p>}
     {entry && playerReady && !state.profileId && <form onSubmit={async event => {
@@ -143,7 +139,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
       {importing && <p role="status">Importing game wallet…</p>}
       {importMessage && <p role="alert">{importMessage}</p>}
     </form>}
-  </StorySection>;
+  </div>;
 }
 
 

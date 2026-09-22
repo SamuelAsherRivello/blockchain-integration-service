@@ -21,7 +21,7 @@ Withdrawal repair SHALL require an actual confirmed Bitcoin receipt and exact ow
 - **AND** the same account can pay 1,000 sats afterward from sufficient fresh eligible funds without logout
 
 #### Scenario: Pending same-input payment
-- **WHEN** the player attempts B1 before the sole input's withdrawal has resolved
+- **WHEN** the player attempts B.P.1 before the sole input's withdrawal has resolved
 - **THEN** that payment cannot reuse the reserved input or claim success
 - **AND** its result explains the reservation rather than describing the positive total balance as zero
 

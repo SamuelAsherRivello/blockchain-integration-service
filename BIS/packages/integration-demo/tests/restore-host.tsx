@@ -66,7 +66,7 @@ document.getElementById('live')!.onclick=async()=>{
     check(!c.getState().hasProfile,'Use a fresh browser profile; existing account is preserved');
     candidate=await createAccount(new AbortController().signal);
     const expected=candidate.profileId;let events=0;c.onEvent(e=>{if(e.type==='accountConnected'&&e.profileId===expected)events++;});
-    // A2 adapter-created identity, never displayed or committed before restoration.
+    // A.P.2 adapter-created identity, never displayed or committed before restoration.
     Object.defineProperty(navigator,'clipboard',{configurable:true,value:{readText:async()=>candidate!.phrase}});
     c.openRestoreAccount();await tick();action('Paste from Clipboard').click();await tick();action('⚡ Restore').click();
     await waitFor(()=>['active','restore-error'].includes(c.getState().phase));await tick();

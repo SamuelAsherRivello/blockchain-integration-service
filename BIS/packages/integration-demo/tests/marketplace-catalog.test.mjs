@@ -56,21 +56,21 @@ test('Admin does not contain a development-only static Marketplace catalog publi
   assert.doesNotMatch(catalogSource, /PublishedMarketplaceCatalog|createVerifiedMarketplaceCatalog|isVerifiedMarketplaceCatalog/);
 });
 
-test('H1, H2, and H3 report Marketplace progress and results only through the Admin Console', async () => {
+test('C.G.2, C.G.3, and C.G.4 report Marketplace progress and results only through the Admin Console', async () => {
   const panel = await readFile(new URL('../src/admin/MarketplacePanel.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(panel, /useState\(false\);\s*const \[message, setMessage\]/);
   assert.doesNotMatch(panel, /\{message && <p role="status">\{message\}<\/p>\}/);
   assert.doesNotMatch(panel, /busy \? 'Working…'/);
-  assert.match(panel, /onLog\(\{operation:'H1\. Marketplace mint'/);
+  assert.match(panel, /onLog\(\{operation:'C.G.2\. Marketplace mint'/);
   assert.match(panel, /status:'pending', message:'Preparing catalog issuance…'/);
   assert.match(panel, /Minting \$\{progress\.itemName\}/);
   assert.match(panel, /Verifying fresh marketplace inventory/);
   assert.match(panel, /status:'verified', message:'Nine verified catalog items are now available from this Game Wallet’s live inventory\.'/);
-  assert.match(panel, /onLog\(\{operation:'H2\. Burn All Items for Marketplace'/);
+  assert.match(panel, /onLog\(\{operation:'C.G.3\. Burn All Items for Marketplace'/);
   assert.match(panel, /Refreshing marketplace inventory after/);
   assert.match(panel, /Burning \$\{label\}/);
   assert.match(panel, /status:batch\.status, message:batch\.status==='error'\?'Marketplace item burn is unavailable\.':`\$\{batch\.burned\} item\(s\) burned;/);
-  assert.match(panel, /H3\. List All Items For Marketplace/);
+  assert.match(panel, /C.G.4\. List All Items For Marketplace/);
   assert.match(panel, /Reading fresh game-wallet assets/);
   assert.match(panel, /Classifying \$\{progress\.total\} asset\(s\)/);
   assert.match(panel, /status:result\.status,message:result\.status==='success'\?`\$\{result\.items\.length\} marketplace item\(s\) found\.`:result\.message/);

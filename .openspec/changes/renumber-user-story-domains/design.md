@@ -8,7 +8,7 @@ The current story catalog and Admin navigator use historical A-H/X labels, while
 
 **Goals:**
 
-- Establish one authoritative six-domain and lane taxonomy for documentation and Admin navigation.
+- Establish one authoritative seven-domain and lane taxonomy for documentation and Admin navigation.
 - Make Player Wallet versus Game Wallet responsibility visible without changing wallet behavior.
 - Renumber story references from scratch while preserving historical traceability.
 - Keep implementation status and the implemented-only Admin control rule truthful.
@@ -21,9 +21,9 @@ The current story catalog and Admin navigator use historical A-H/X labels, while
 
 ## Decisions
 
-### Use six stable product domains
+### Use seven stable product domains
 
-Use A Accounts, B Payments/Transfers, C Assets, D Contracts, E Transactions, F Integrations, and X Appendix. X Appendix contains remaining deferred and cross-cutting material; F Integrations contains shared UI and onboarding integration work. These describe durable product responsibilities rather than development chronology and consolidate the previous fragmented Admin, UI, Game Economy, Security, and Spike categories.
+Use A Accounts, B Payments/Transfers, C Assets, D Contracts, E Transactions, F Integrations, and X Appendix. X Appendix contains remaining deferred, neutral, marketplace, and cross-cutting material; F Integrations contains shared UI behavior. These describe durable product responsibilities rather than development chronology and consolidate the previous fragmented Admin, UI, Game Economy, Security, and Spike categories.
 
 ### Use explicit wallet lanes
 

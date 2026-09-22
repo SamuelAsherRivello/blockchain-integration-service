@@ -8,7 +8,7 @@ test('receipt message types distinguish progress from verified success',()=>{
  assert.deepEqual(events.map(e=>e.messageType),['info','success']);
  assert.equal(events[1].message,'Unknown user sent you 1000 sats (Confirmed)');
 });
-test('F3 settled receipt has an explicit confirmation and reports a new receipt only once',()=>{
+test('B.G.2 settled receipt has an explicit confirmation and reports a new receipt only once',()=>{
  const messages=[],n=createPaymentNotifications(m=>messages.push(m),()=> 'ABCD0123456789');
  n.observe([]);
  assert.equal(n.observe([row('f3','Pending offchain')]).newArkadeReceipt,true);

@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md for motivation and the delta specs for the approved interactions. Receive already displays Arkade and Bitcoin addresses. Core owns account state; Arkade internals own SDK integration; the demo consumes public production surfaces. A5 owns the existing Activity baseline and still has separate live-verification work.
+See proposal.md for motivation and the delta specs for the approved interactions. Receive already displays Arkade and Bitcoin addresses. Core owns account state; Arkade internals own SDK integration; the demo consumes public production surfaces. E.P.1 owns the existing Activity baseline and still has separate live-verification work.
 
 The installed SDK is 0.4.67 without a swap dependency. Official documentation checked on 2026-09-04 describes the [retired Boltz integration](https://docs.arkadeos.com/contracts/lightning-swaps) and an [unserved replacement receiving route](https://docs.arkadeos.com/intents/integrate/lightning#receive-a-payment). A supported live Signet implementation is not established. This design therefore separates an honest unavailable presentation from gated live delivery.
 
@@ -46,7 +46,7 @@ Alternative: rely on the wallet phrase or warn before clearing. Rejected because
 
 Reconcile provider status and wallet receipt before retrying any claim. Persist progress so restart and duplicate notifications cannot create duplicate work. Use provider-supported idempotency/recovery semantics as a live gate rather than assuming exactly-once network delivery. Use available notifications plus bounded reconciliation, with account-generation and disposal checks.
 
-Merge operation observations with A5 wallet history by verified transaction/payment identifiers and account operation linkage. Show pending/confirmed receive transactions once, with payer amount, fee, and net receipt distinguished where available. An unpaid invoice alone is not a pending transaction. Never expose recovery secrets through the public API or Activity.
+Merge operation observations with E.P.1 wallet history by verified transaction/payment identifiers and account operation linkage. Show pending/confirmed receive transactions once, with payer amount, fee, and net receipt distinguished where available. An unpaid invoice alone is not a pending transaction. Never expose recovery secrets through the public API or Activity.
 
 Alternative: append every provider event as an Activity row. Rejected because it duplicates logical receipts and misstates settlement.
 
@@ -56,7 +56,7 @@ Alternative: append every provider event as an Activity row. Rejected because it
 - Browser closes before completion → Persist recovery state and resume on next account load; verify provider recovery deadlines before enabling creation.
 - Network ambiguity or outage → Retain recovery and clearing block until reconciled; communicate the block without freezing navigation.
 - Simultaneous tabs or response loss → Serialize creation/clearing, persist intent, and reconcile before retry; test crash and race boundaries.
-- Duplicate Activity evidence → Reconcile with the active A5 baseline and preserve its unrelated verification status.
+- Duplicate Activity evidence → Reconcile with the active E.P.1 baseline and preserve its unrelated verification status.
 - Secret-bearing provider state → Encrypt recovery material and expose only explicitly mapped public fields.
 
 ## Migration Plan

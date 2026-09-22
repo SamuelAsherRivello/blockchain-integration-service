@@ -162,7 +162,7 @@ The completed prefix SHALL be green, the single current stage SHALL be yellow an
 - **THEN** stages 1 through 4 are green and Complete and Spendable funds ready is yellow and Pending
 
 #### Scenario: Existing Arkade balance presentation
-- **WHEN** a fresh balance for the active account reports a positive Arkade amount and Onboarding is opened from Account Details or Admin E3
+- **WHEN** a fresh balance for the active account reports a positive Arkade amount and Onboarding is opened from Account Details or Admin B.P.8
 - **THEN** all five stages are green and Complete, no stage is Pending, and the page does not ask the player to fund the account
 - **AND** any separate unresolved operation remains protected and recoverable without a new submission or reservation release
 

@@ -153,7 +153,7 @@ function AssetUiHost() {
       <section className="fixture-inspection" aria-label="Fixture observations">
         <h2>Public callback observations</h2>
         <p id="fixture-counts" role="status">Mint calls: {requests.length}; list calls: {listCalls}; held: {String(held)}; synthetic issuances: {minted.current.size}</p>
-        <p>Close an unresolved dialog and use C1 Mint Asset again to reopen its exact request. Use Escape and Tab directly to inspect native focus behavior.</p>
+        <p>Close an unresolved dialog and use C.G.1 Mint Asset again to reopen its exact request. Use Escape and Tab directly to inspect native focus behavior.</p>
         <h3>Mint requests</h3><pre id="mint-requests">{JSON.stringify(requests, null, 2)}</pre>
         <h3>Public results</h3><pre id="public-results">{JSON.stringify(results, null, 2)}</pre>
       </section>

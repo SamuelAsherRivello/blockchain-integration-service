@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react';
 import { StoryAction } from './StoryAction';
+import { StoryButton } from './StoryButton';
 import { StorySection } from './StorySection';
-import { getContinuePriceSats, networkLabel, type TestNetwork } from '@bis/integration';
+import { getContinuePriceSats, type TestNetwork } from '@bis/integration';
 const userStoriesUrl = `${import.meta.env?.BASE_URL ?? '/'}documentation/user-stories/`;
-const categories = [{ name: 'Account', title: 'A. Account', stories: 'A1, A2, A3, A4, A5, A6, A7' }, { name: 'Pay-to-play', title: 'B. Pay-to-play', stories: 'B1, B2' }, { name: 'Assets', title: 'C. Assets', stories: 'C1, C2' }, { name: 'UI', title: 'D. UI', stories: 'D1, D2' }];
+const categories = [{ name: 'Accounts', title: 'A. Accounts', stories: 'A.P.1, A.P.2, A.P.3, A.P.4, A.P.5, A.G.1, A.G.2, B.G.2' }, { name: 'Payments/Transfers', title: 'B. Payments', stories: 'B.P.1, B.P.2, B.P.3, B.P.4, B.P.5, B.P.6, B.P.7, B.P.8, B.G.1, B.G.2' }, { name: 'Assets', title: 'C. Assets', stories: 'C.P.1, C.G.1, C.G.2, C.G.3, C.G.4' }, { name: 'Contracts', title: 'D. Contracts', stories: 'D.P.1, D.P.2, D.G.1' }, { name: 'Transactions', title: 'E. Transactions', stories: 'E.P.1, E.P.2, E.P.3' }, { name: 'Integrations', title: 'F. Integrations', stories: 'F.P.1' }];
 
-const stories = [{ id: 'A1', category: 'Account', label: 'Account Button' }, { id: 'A4', category: 'Account', label: 'Account Dialog' }] as const;
-export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, contracts, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false, network }: {
-  continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; contracts?:ReactNode; continueAvailable?: boolean;
+const stories = [{ id: 'A.P.1', category: 'Accounts', label: 'Account Button' }, { id: 'A.P.4', category: 'Accounts', label: 'Account Dialog' }] as const;
+export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, contracts, marketplace, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false, network }: {
+  continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; contracts?:ReactNode; marketplace?: ReactNode; continueAvailable?: boolean;
   onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
   onContinue?():void; continueBusy?:boolean;
   selected: string | null; accountOpen: boolean; canReset: boolean; onSelect(id: string): void; onReset(): void;
@@ -29,27 +30,24 @@ export function AdminPanel({ continueReason, mintAvailable = false, mintReason, 
     <nav aria-label="User stories">
       {categories.map(category => <StorySection key={category.name} title={category.title}>
         <p className="story-summary">Stories: {category.stories}</p>
-        {category.name === 'UI' && <>
-          <StoryAction id="D1" label="Show Toast" disabled={!canShowToast} onClick={onShowToast} />
-          <StoryAction id="D2" label="Show Toast With Icon" disabled={!canShowToast} onClick={onShowToastWithIcon} />
+        {category.name === 'Contracts' && contracts}
+        {category.name === 'Integrations' && <>
+          <StoryButton label="F.P.1. UI Toast">
+            <button type="button" aria-label="F.P.1. Show" disabled={!canShowToast} onClick={onShowToast}>Show</button>
+            <button type="button" aria-label="F.P.1. Show With Icon" disabled={!canShowToast} onClick={onShowToastWithIcon}>Show With Icon</button>
+          </StoryButton>
         </>}
-        {category.name === 'Pay-to-play' && <><StoryAction id="B1" label={`"Pay ${getContinuePriceSats()} Sats To Continue" (Player->Game)`} disabled={continueBusy || !continueAvailable} onClick={onContinue} />{!continueAvailable && continueReason && <p role="status">{continueReason}</p>}</>}
-        {category.name === 'Assets' && <>
-          <StoryAction id="C1" label={mintAvailable ? "Mint Asset & Send" : `Mint Asset & Send (${mintReason ?? 'Awaiting Balance'})`} disabled={!mintAvailable || assetBusy} onClick={onMint} />
-        </>}
+        {category.name === 'Payments/Transfers' && <><StoryAction id="B.P.8" label="Open Onboarding" disabled={!playerActive || !onOpenOnboarding} onClick={onOpenOnboarding} /><StoryAction id="B.P.1" label={`"Pay ${getContinuePriceSats()} Sats To Continue" (Player->Game)`} disabled={continueBusy || !continueAvailable} onClick={onContinue} />{!continueAvailable && continueReason && <p role="status">{continueReason}</p>}</>}
+        {category.name === 'Assets' && <>{!marketplace && <StoryAction id="C.G.1" label={mintAvailable ? "Mint Asset & Send" : `Mint Asset & Send (${mintReason ?? 'Awaiting Balance'})`} disabled={!mintAvailable || assetBusy} onClick={onMint} />} {marketplace}</>}
+        {category.name === 'Transactions' && <StoryAction id="E.P.1" label="View Activity" disabled={!playerActive} onClick={() => onSelect('E.P.1')} />}
         {stories.filter(story => story.category === category.name).map(story =>
           <StoryAction key={story.id} id={story.id} label={story.label} selected={selected === story.id} disabled={accountOpen} onClick={() => onSelect(story.id)} />)}
-        {category.name === 'Account' && <StoryAction id="A7" label={`Account Wallet: ${networkLabel(network ?? 'signet')}`} disabled />}
+        {category.name === 'Accounts' && gameWallet}
       </StorySection>)}
     </nav>
-    <StorySection title="E. Admin Tools">
-      <p className="story-summary">Stories: E1, E2, E3</p>
-      <StoryAction id="E1" label={`Open ${networkLabel(network)} Faucet(s)`} disabled={!canFund || funding} onClick={onFund} />
-      <StoryAction id="E2" label="Open On Mempool.space" disabled={!canFund || funding} onClick={onExplorer} />
-      <StoryAction id="E3" label="Open Onboarding" disabled={!playerActive || !onOpenOnboarding} onClick={onOpenOnboarding} />
+    <StorySection title="X. Appendix">
+      <p className="story-summary">Stories: X.N.2</p>
     </StorySection>
-    {gameWallet}
-    {contracts}
     </section>
     <section aria-labelledby="console-title">
       <h2 id="console-title" className="admin-section-title">Console</h2>

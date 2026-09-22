@@ -5,12 +5,12 @@ Verified completion or terminal cancellation SHALL durably release only the reso
 
 #### Scenario: Payment after verified resolution
 - **WHEN** a withdrawal or its cancellation is durably verified and the original account has enough fresh eligible sats
-- **THEN** B1 can pay without logout or manually clearing browser state
+- **THEN** B.P.1 can pay without logout or manually clearing browser state
 - **AND** unrelated operation reservations remain protected
 
 #### Scenario: Positive balance entirely reserved
-- **WHEN** a pending withdrawal reserves all currently eligible inputs and B1 cannot fund 1,000 sats
-- **THEN** B1 explains the pending reservation and points to that operation's status
+- **WHEN** a pending withdrawal reserves all currently eligible inputs and B.P.1 cannot fund 1,000 sats
+- **THEN** B.P.1 explains the pending reservation and points to that operation's status
 - **AND** the app does not replace total balance with zero or submit a conflicting payment
 
 #### Scenario: Explicit logout clears local records without cancelling transactions

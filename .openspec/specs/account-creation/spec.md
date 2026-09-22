@@ -21,10 +21,10 @@ A logged-out player SHALL explicitly start creation. The integration SHALL creat
 ### Requirement: Continue commits the account
 The player SHALL be able to save the phrase externally or proceed without saving. Continue SHALL NOT require a backup checkbox or phrase verification. Successful durable saving SHALL precede activation and an accountConnected event carrying only a safe profile identifier. Saving SHALL be idempotent for repeated Continue actions. Account creation SHALL NOT imply funding, payment success, or network availability. Before durable saving or activation, BIS SHALL verify that the candidate public profile ID is not the currently selected Game Wallet. If it is selected as the Game Wallet, BIS SHALL reject Continue with a clear non-secret role-conflict error, retain the candidate recovery screen, leave the Player Wallet and Game Wallet selections unchanged, and emit no accountConnected event.
 
-#### Scenario: Complete A2.09 and A2.10
+#### Scenario: Complete A.P.2.09 and A.P.2.10
 - **WHEN** the player selects Continue and saving succeeds
 - **THEN** the account becomes active and the Account dialogue shows the logged-in message with shortened public Account ID and a line break after "as", as specified by account-entry
-- **AND** it contains enabled lightning-prefixed Log Out opening the A6 backup confirmation and enabled Back, with Create Account and Restore Account hidden
+- **AND** it contains enabled lightning-prefixed Log Out opening the A.P.5 backup confirmation and enabled Back, with Create Account and Restore Account hidden
 
 #### Scenario: Candidate conflicts with Game Wallet
 - **WHEN** a newly created Player Wallet's public profile ID matches the selected Game Wallet when the player selects Continue
@@ -72,7 +72,7 @@ Creation SHALL be covered by Creating... in the Pending Operation Dialog. Failur
 - **THEN** OK closes the failed source page without claiming activation or blocking ordinary gameplay
 
 ### Requirement: One-click recovery phrase copy
-The recovery screen SHALL show Copy to Clipboard immediately above Continue. An explicit click SHALL copy the complete phrase as plain text, with single spaces between words and no numbering or extra formatting. Success SHALL be announced only after the clipboard write succeeds. Failure SHALL show a safe retry/manual-copy message and SHALL NOT block Continue or activate the account. The application SHALL NOT read the clipboard as part of this action. A3 restoration SHALL accept this whitespace-separated phrase format through its Paste from Clipboard action.
+The recovery screen SHALL show Copy to Clipboard immediately above Continue. An explicit click SHALL copy the complete phrase as plain text, with single spaces between words and no numbering or extra formatting. Success SHALL be announced only after the clipboard write succeeds. Failure SHALL show a safe retry/manual-copy message and SHALL NOT block Continue or activate the account. The application SHALL NOT read the clipboard as part of this action. A.P.3 restoration SHALL accept this whitespace-separated phrase format through its Paste from Clipboard action.
 
 #### Scenario: Copy recovery phrase
 - **WHEN** the player clicks Copy to Clipboard and the clipboard write succeeds

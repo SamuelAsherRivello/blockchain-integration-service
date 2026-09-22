@@ -594,7 +594,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     async getContinueAvailability() {
       // Availability means the player can attempt payment. A withdrawal can
       // temporarily reserve the current inputs; only submission should quote
-      // fresh funds and report that failure, rather than disabling B1.
+      // fresh funds and report that failure, rather than disabling B.P.1.
       if(disposed||!state.hasProfile||state.phase!=='active'||!state.profileId)return {canPay:false,reason:'Awaiting Player Wallet'};
       if(!context.getContinueRecipient?.())return {canPay:false,reason:'Awaiting Game Wallet'};
       return {canPay:true};

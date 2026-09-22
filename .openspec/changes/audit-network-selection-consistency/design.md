@@ -23,7 +23,7 @@ Create one internal factory that receives `AccountSecret` plus an abort signal, 
 
 The existing registry remains the source of labels, URLs, and address/network rules. Adapter-local defaults are retained only at backward-compatible pure-formatting APIs; live wallet reads and mutations receive an explicit account/session network.
 
-Alternative considered: patch each fixed URL independently. Rejected because the C1 defect demonstrated that a single missed argument routes a funded wallet to the wrong operator.
+Alternative considered: patch each fixed URL independently. Rejected because the C.G.1 defect demonstrated that a single missed argument routes a funded wallet to the wrong operator.
 
 ### 2. Make operations and observers carry a network scope
 

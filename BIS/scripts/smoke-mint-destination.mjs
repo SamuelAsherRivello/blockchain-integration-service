@@ -92,9 +92,9 @@ try {
   assert.equal(retries.length,2);assert.deepEqual(retries[0],retries[1]);
 
   await page.goto(base);
-  await page.getByRole('button',{name:/B1/}).waitFor();
-  assert.match(await page.getByRole('button',{name:/B1/}).innerText(),/\(Player->Game\)$/);
-  assert.match(await page.getByRole('button',{name:/F3\. Send/}).innerText(),/^F3\. Send 1000 Sats \(Game->Player\)/);
+  await page.getByRole('button',{name:/B.P.1/}).waitFor();
+  assert.match(await page.getByRole('button',{name:/B.P.1/}).innerText(),/\(Player->Game\)$/);
+  assert.match(await page.getByRole('button',{name:/B.G.2\. Send/}).innerText(),/^B.G.2\. Send 1000 Sats \(Game->Player\)/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: destination routing, keyboard/mobile, wallet availability, pending recovery, account replacement, retry identity, focus restoration and B1/F3 labels. Isolated wallet callbacks; no live mints.');
+  console.log('PASS: destination routing, keyboard/mobile, wallet availability, pending recovery, account replacement, retry identity, focus restoration and B.P.1/B.G.2 labels. Isolated wallet callbacks; no live mints.');
 } finally {await browser.close();}

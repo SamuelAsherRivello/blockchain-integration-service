@@ -5,7 +5,7 @@ try {
  const page=await browser.newPage(),errors=[];
  page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:5186/tests/continue-host.html?wallet-import');
- const pay=page.getByRole('button',{name:'B1 "Pay 1000 Sats To Continue"',exact:true});
+ const pay=page.getByRole('button',{name:'B.P.1 "Pay 1000 Sats To Continue"',exact:true});
  const panel=page.locator('.game-wallet-panel');
  await panel.getByRole('button',{name:'Import',exact:true}).click();
  assert.equal(await pay.isDisabled(),true);
@@ -23,5 +23,5 @@ try {
  await panel.getByRole('button',{name:'Import',exact:true}).waitFor();
  assert.equal(await pay.isDisabled(),true);
  assert.deepEqual(errors,[]);
- console.log('PASS wallet import enables B1, payment binds the imported recipient, reload restores it, logout disables B1. No live funds.');
+ console.log('PASS wallet import enables B.P.1, payment binds the imported recipient, reload restores it, logout disables B.P.1. No live funds.');
 } finally {await browser.close();}

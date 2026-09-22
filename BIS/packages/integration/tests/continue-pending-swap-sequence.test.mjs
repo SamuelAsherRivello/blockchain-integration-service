@@ -106,7 +106,7 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
   assert.match(last.message,/Transactions/);
   assert.doesNotMatch(last.message,/Insufficient eligible spendable funds/);
   assert.equal(payments,2,'A pending sole input must not reach payment submission');
-  assert.equal((await context.getContinueAvailability()).canPay,true,'B1 remains actionable');
+  assert.equal((await context.getContinueAvailability()).canPay,true,'B.P.1 remains actionable');
   // Public ledger fixtures exercise real receipt reconciliation. This does not
   // claim the SDK batch handler or a live operator completed the withdrawal.
   release();await finished;

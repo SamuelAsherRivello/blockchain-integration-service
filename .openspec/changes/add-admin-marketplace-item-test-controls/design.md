@@ -1,6 +1,6 @@
 ## Context
 
-See [proposal.md](proposal.md) for motivation. The integration package currently exposes generic mint/list/burn operations. `createBisGameWallet` provides the separately retained Game Wallet and `createBisContext` owns the Player Wallet. The Admin Marketplace panel has batch H1 mint and H2 Game-Wallet burn controls, while the standalone Marketplace correctly exposes an unavailable atomic-exchange gate.
+See [proposal.md](proposal.md) for motivation. The integration package currently exposes generic mint/list/burn operations. `createBisGameWallet` provides the separately retained Game Wallet and `createBisContext` owns the Player Wallet. The Admin Marketplace panel has batch F.N.1 mint and H2 Game-Wallet burn controls, while the standalone Marketplace correctly exposes an unavailable atomic-exchange gate.
 
 Arkade SDK 0.4.71 supports an asset-bearing `Wallet.send` recipient: the recipient declares exact assets, and any unallocated selected assets must be returned in sender change. Arkade assets must ride a sats-carrying output, so a transfer cannot claim a literal zero-value protocol output. This change treats the carrier as a protocol requirement, not a buy/sell price or a sats payment.
 

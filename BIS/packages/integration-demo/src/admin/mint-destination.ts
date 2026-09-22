@@ -24,7 +24,7 @@ export type PreparedMintDestination = {
 
 export function prepareMintDestination(destination: MintDestination, source: MintWallet | undefined, recipient: MintWallet | undefined,
   current: () => boolean, log: (result: unknown) => void): Promise<PreparedMintDestination>;
-/** @deprecated Test seams and older Marketplace callers may pass one wallet; production C1 always uses the five-argument form. */
+/** @deprecated Test seams and older Marketplace callers may pass one wallet; production C.G.1 always uses the five-argument form. */
 export function prepareMintDestination(destination: MintDestination, source: MintWallet | undefined,
   current: () => boolean, log: (result: unknown) => void): Promise<PreparedMintDestination>;
 export async function prepareMintDestination(destination: MintDestination, source: MintWallet | undefined,

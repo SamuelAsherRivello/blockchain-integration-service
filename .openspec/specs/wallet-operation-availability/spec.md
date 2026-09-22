@@ -59,20 +59,20 @@ Max, quotes and submissions SHALL use fresh eligible unreserved inputs including
 - **WHEN** minting cannot enforce exclusion of reserved inputs but burns and sends can
 - **THEN** minting remains unavailable while supported independently funded operations remain enabled
 
-### Requirement: Shared B1 payment availability
-BIS SHALL apply the shared input reservation policy to B1 payments as well as sends, transfers and supported minting. B1 SHALL be greyed out when verified unreserved funds cannot cover the payment and applicable fees, or payment readiness cannot be verified. It SHALL expose an accessible specific reason and known available/reserved amounts. Opening Account alone SHALL NOT disable B1. Fund and reservation changes SHALL refresh availability without automatically submitting a queued payment. Duplicate submission protection SHALL remain enforced.
+### Requirement: Shared B.P.1 payment availability
+BIS SHALL apply the shared input reservation policy to B.P.1 payments as well as sends, transfers and supported minting. B.P.1 SHALL be greyed out when verified unreserved funds cannot cover the payment and applicable fees, or payment readiness cannot be verified. It SHALL expose an accessible specific reason and known available/reserved amounts. Opening Account alone SHALL NOT disable B.P.1. Fund and reservation changes SHALL refresh availability without automatically submitting a queued payment. Duplicate submission protection SHALL remain enforced.
 
-#### Scenario: Pending transfer with independent B1 funds
-- **WHEN** the player is logged in, the game wallet recipient is available, and verified unreserved inputs cover B1 while an unrelated transfer remains pending
-- **THEN** B1 remains enabled even with Account open and its explicit click uses only independent inputs
+#### Scenario: Pending transfer with independent B.P.1 funds
+- **WHEN** the player is logged in, the game wallet recipient is available, and verified unreserved inputs cover B.P.1 while an unrelated transfer remains pending
+- **THEN** B.P.1 remains enabled even with Account open and its explicit click uses only independent inputs
 
-#### Scenario: Insufficient independent B1 funds
-- **WHEN** verified unreserved funds cannot cover B1
-- **THEN** B1 is greyed out with the specific reason and known available/reserved amounts
+#### Scenario: Insufficient independent B.P.1 funds
+- **WHEN** verified unreserved funds cannot cover B.P.1
+- **THEN** B.P.1 is greyed out with the specific reason and known available/reserved amounts
 - **AND** when sufficient eligible funds become available it re-enables and requires a new explicit click
 
 #### Scenario: Independent minting unsupported
-- **WHEN** minting cannot enforce exclusion of reserved inputs but B1 and sends can
+- **WHEN** minting cannot enforce exclusion of reserved inputs but B.P.1 and sends can
 - **THEN** minting is greyed out with its specific reason and supported independently funded operations remain enabled
 
 ### Requirement: Actionable recovery view
@@ -93,9 +93,9 @@ Account SHALL expose all its pending operations with amount, known status, last 
 ### Requirement: Evidence-based delivery report
 Delivery SHALL report supported and unavailable actions separately, including SDK input-control limits, whole-input reservations, cancellation feasibility and outstanding live evidence. Independent spending/recovery delivery SHALL NOT depend on cancellation feasibility or claim that the original transfer was resolved.
 
-#### Scenario: Required live B1 acceptance
+#### Scenario: Required live B.P.1 acceptance
 - **WHEN** this change is reported complete
-- **THEN** evidence includes live Signet B1 success while an unrelated transfer remains pending, verified receipt of 1,000 sats at the configured game wallet, and preservation of the original transfer recovery record and reservations
+- **THEN** evidence includes live Signet B.P.1 success while an unrelated transfer remains pending, verified receipt of 1,000 sats at the configured game wallet, and preservation of the original transfer recovery record and reservations
 - **AND** automated tests verify conflicting-input and duplicate-submission protection; isolated browser success alone does not satisfy live acceptance
 
 #### Scenario: Cancellation remains blocked
@@ -107,12 +107,12 @@ Verified completion or terminal cancellation SHALL durably release only the reso
 
 #### Scenario: Payment after verified resolution
 - **WHEN** a withdrawal or its cancellation is durably verified and the original account has enough fresh eligible sats
-- **THEN** B1 can pay without logout or manually clearing browser state
+- **THEN** B.P.1 can pay without logout or manually clearing browser state
 - **AND** unrelated operation reservations remain protected
 
 #### Scenario: Positive balance entirely reserved
-- **WHEN** a pending withdrawal reserves all currently eligible inputs and B1 cannot fund 1,000 sats
-- **THEN** B1 explains the pending reservation and points to that operation's status
+- **WHEN** a pending withdrawal reserves all currently eligible inputs and B.P.1 cannot fund 1,000 sats
+- **THEN** B.P.1 explains the pending reservation and points to that operation's status
 - **AND** the app does not replace total balance with zero or submit a conflicting payment
 
 #### Scenario: Explicit logout clears local records without cancelling transactions
@@ -128,11 +128,11 @@ Verified completion or terminal cancellation SHALL durably release only the reso
 - **THEN** input reservations remain protected and the app does not advertise them as released
 
 ### Requirement: Preparation-aware reservation continuity
-All wallet mutation paths SHALL honor preparation input reservations and the dedicated withdrawal output reservation. Releasing completed preparation inputs SHALL require durable, verified output handoff. Available change SHALL refresh the shared balance, assets, Activity and B1 views for the owning account, without creating a payment or changing an unrelated account.
+All wallet mutation paths SHALL honor preparation input reservations and the dedicated withdrawal output reservation. Releasing completed preparation inputs SHALL require durable, verified output handoff. Available change SHALL refresh the shared balance, assets, Activity and B.P.1 views for the owning account, without creating a payment or changing an unrelated account.
 
 #### Scenario: Payment races preparation completion
-- **WHEN** B1 and preparation completion run in separate cooperating contexts
-- **THEN** B1 can select verified change only after the durable handoff and cannot select either the unresolved source input or the dedicated withdrawal output
+- **WHEN** B.P.1 and preparation completion run in separate cooperating contexts
+- **THEN** B.P.1 can select verified change only after the durable handoff and cannot select either the unresolved source input or the dedicated withdrawal output
 
 #### Scenario: Handoff persistence fails
 - **WHEN** the verified preparation result cannot be durably saved

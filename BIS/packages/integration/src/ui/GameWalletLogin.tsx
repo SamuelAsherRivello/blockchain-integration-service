@@ -9,7 +9,7 @@ import { BalanceTooltip, formatBalanceSats } from './BalanceTooltip';
 
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 
-/** Private F2 setup surface. It receives no Admin balance, address, or boarding capability. */
+/** Private A.G.2 setup surface. It receives no Admin balance, address, or boarding capability. */
 export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack(): void }) {
   const state = useSyncExternalStore(wallet.subscribe, wallet.getState, wallet.getState);
   const [page, setPage] = useState<'start' | 'created' | 'restore'>('start');

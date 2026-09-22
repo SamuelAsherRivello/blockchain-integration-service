@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Deliver B1. MVP Request Continue: a minimal game-facing operation with real Signet payment to a configured game wallet and attributable, recoverable outcomes. B2 game integration is specified separately in game-pay-to-continue.
+Deliver B.P.1. MVP Request Continue: a minimal game-facing operation with real Signet payment to a configured game wallet and attributable, recoverable outcomes. B.P.2 game integration is specified separately in game-pay-to-continue.
 
 ## Requirements
 
@@ -60,7 +60,7 @@ Requests SHALL carry a stable operation identity bound to the account, amount, c
 - **THEN** it reconciles its original send without creating a game-wallet payment
 
 ### Requirement: Preserve assets while paying native sats
-B1 SHALL accept SDK-eligible spendable inputs carrying assets and return every original asset quantity to the player's change output. It SHALL bind assets to the quote and verify the complete transaction extension before submission. Pending reconciliation SHALL verify the recipient contains only the requested sats and that player-owned change contains the expected sats and complete asset manifest. Ordinary Account Send selection is outside this repair.
+B.P.1 SHALL accept SDK-eligible spendable inputs carrying assets and return every original asset quantity to the player's change output. It SHALL bind assets to the quote and verify the complete transaction extension before submission. Pending reconciliation SHALL verify the recipient contains only the requested sats and that player-owned change contains the expected sats and complete asset manifest. Ordinary Account Send selection is outside this repair.
 
 #### Scenario: Player funds share an output with assets
 - **WHEN** a valid 1,000-sat request uses an eligible 289,715-sat input carrying three assets

@@ -49,13 +49,13 @@ The transfer SHALL preserve one user-visible identity with distinct preparation 
 - **WHEN** the withdrawal fails or becomes uncertain after verified preparation
 - **THEN** its dedicated input remains protected and its separate change remains available
 
-### Requirement: Immediate independent B1 after withdrawal acknowledgement
-Once the confirmed transfer is presented as withdrawal pending, verified change SHALL already be independent of the withdrawal input. If it covers B1 and its fees, an explicit B1 request SHALL succeed without awaiting withdrawal completion or requiring logout, account replacement, additional funding, or manual reservation clearing. Preparation in progress SHALL be presented distinctly and SHALL NOT claim that the independent change is ready.
+### Requirement: Immediate independent B.P.1 after withdrawal acknowledgement
+Once the confirmed transfer is presented as withdrawal pending, verified change SHALL already be independent of the withdrawal input. If it covers B.P.1 and its fees, an explicit B.P.1 request SHALL succeed without awaiting withdrawal completion or requiring logout, account replacement, additional funding, or manual reservation clearing. Preparation in progress SHALL be presented distinctly and SHALL NOT claim that the independent change is ready.
 
 #### Scenario: User reproduction succeeds while withdrawal is pending
-- **WHEN** a funded account restores 264715 sats, pays B1 to reach 263715 sats, then confirms a prepared 1000-sat Bitcoin withdrawal at zero fees and invokes B1 while that withdrawal is pending
-- **THEN** B1 pays 1000 sats from the 262715-sat change, leaves 261715 independently owned sats with both assets, and preserves the separate 1000-sat withdrawal reservation
+- **WHEN** a funded account restores 264715 sats, pays B.P.1 to reach 263715 sats, then confirms a prepared 1000-sat Bitcoin withdrawal at zero fees and invokes B.P.1 while that withdrawal is pending
+- **THEN** B.P.1 pays 1000 sats from the 262715-sat change, leaves 261715 independently owned sats with both assets, and preserves the separate 1000-sat withdrawal reservation
 
 #### Scenario: Remainder is genuinely insufficient
-- **WHEN** Max or another reviewed amount leaves less than B1 plus its fees
-- **THEN** B1 reports the real independent-funds shortfall and does not spend the withdrawal input
+- **WHEN** Max or another reviewed amount leaves less than B.P.1 plus its fees
+- **THEN** B.P.1 reports the real independent-funds shortfall and does not spend the withdrawal input

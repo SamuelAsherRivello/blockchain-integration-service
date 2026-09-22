@@ -44,7 +44,7 @@ export function assertNoPendingContinue(profileId:string|undefined,storage:Pick<
   if(profileId && readContinuations(profileId,storage).some(r=>r.status==='pending'))throw Error('A continuation is unresolved. Check its status before spending or clearing this account.');
 }
 export function continueResult(record:ContinueRecord):BisContinueResult {
-  // Presentation-only compatibility for the legacy B1 funds rejection.
+  // Presentation-only compatibility for the legacy B.P.1 funds rejection.
   // Leave the saved operation and its historical amounts unchanged.
   const message=record.status==='failed' && !record.send && record.message==='Enter an affordable whole-sats amount above the minimum.'
     ? `Insufficient eligible spendable funds for this ${record.request.sats.toLocaleString('en-US')}-sat payment. No payment was submitted. Total balance may include ineligible outputs.`

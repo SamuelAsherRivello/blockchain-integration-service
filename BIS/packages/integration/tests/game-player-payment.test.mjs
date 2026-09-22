@@ -13,7 +13,7 @@ function fixture(amount=1000) {
  const adapter={quote:async(a,r,n,_s,preserve)=>{assert.equal(a,sender);assert.equal(r,recipient.address);assert.equal(n,amount);assert.equal(preserve,true);return quote;},submit:async(a,q,current,journal,preserve)=>{assert.equal(preserve,true);assert.equal(current(),true);submits++;const record={version:1,id:'send',profileId:a.profileId,status:'pending',transactionId:txid,quote:q,inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)};journal.write(record);return record;},reconcile:async()=>readSendRecord('sender')};
  return {map,adapter,pay:createGamePlayerPayments(adapter),submits:()=>submits};
 }
-test('F2 journals before completion, blocks retries and retains recovery on player cleanup',async()=>{
+test('A.G.2 journals before completion, blocks retries and retains recovery on player cleanup',async()=>{
  const f=fixture();const result=await f.pay.pay(sender,recipient,1000,new AbortController().signal,()=>true);
  assert.equal(result.status,'pending');assert.equal(f.submits(),1);
  assert.equal(paymentSender({identifier:`ark:${txid}`,amountSats:1000},'player'),'sender');

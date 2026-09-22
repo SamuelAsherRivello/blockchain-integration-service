@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Wallet-scoped automatic funding
-The host SHALL be able to initiate funding through a public API without opening Admin or requiring another acceptance click, using the selected browser-local game wallet supplied through F1 or F2. Local, preview, and deployed games SHALL use the same direct Arkade workflow without a BIS application wallet service. BIS SHALL validate current player/game identities, readiness, network and eligible unreserved funds. A public receiving address SHALL NOT count as game signing access. Session and operation identifiers SHALL make repeated host calls idempotent.
+The host SHALL be able to initiate funding through a public API without opening Admin or requiring another acceptance click, using the selected browser-local game wallet supplied through A.G.1 or A.G.2. Local, preview, and deployed games SHALL use the same direct Arkade workflow without a BIS application wallet service. BIS SHALL validate current player/game identities, readiness, network and eligible unreserved funds. A public receiving address SHALL NOT count as game signing access. Session and operation identifiers SHALL make repeated host calls idempotent.
 
 #### Scenario: Game signer absent
 - **WHEN** no selected game wallet has local signing access
@@ -51,7 +51,7 @@ BIS SHALL revalidate claim eligibility against the immutable elapsed-time deadli
 - **THEN** BIS persists the end request and reconciles the original funding, refunding if it succeeds without offering the reward again
 
 ### Requirement: Durable recovery and wallet policy participation
-BIS SHALL persist sanitized contract records and encrypted recovery material before submission, reserve inputs/outpoints, preserve existing asset holdings, and correlate terminal evidence to the specific contract and recipient. Reload and timer suspension SHALL NOT imply completion or trigger duplicate operations. Contract records SHALL participate in existing logout pending-loss acknowledgement and Admin Reset policies; player cleanup SHALL NOT erase separate game-owned refund recovery. Selecting, replacing, or logging out the game wallet SHALL invalidate the prior G2 presentation session rather than apply old records to the new selection.
+BIS SHALL persist sanitized contract records and encrypted recovery material before submission, reserve inputs/outpoints, preserve existing asset holdings, and correlate terminal evidence to the specific contract and recipient. Reload and timer suspension SHALL NOT imply completion or trigger duplicate operations. Contract records SHALL participate in existing logout pending-loss acknowledgement and Admin Reset policies; player cleanup SHALL NOT erase separate game-owned refund recovery. Selecting, replacing, or logging out the game wallet SHALL invalidate the prior D.P.2 presentation session rather than apply old records to the new selection.
 
 #### Scenario: Browser closed at expiry
 - **WHEN** the browser is closed when an unresolved offer's deadline passes
@@ -68,18 +68,18 @@ BIS SHALL persist sanitized contract records and encrypted recovery material bef
 ## ADDED Requirements
 
 ### Requirement: Locally selected game wallet
-F1 and F2 SHALL provide the locally selected game signing identity for LTO funding, claim, and refund. The LTO controller SHALL never require a BIS application server to restore, use, or switch that selected wallet. No public configuration or player-facing LTO response SHALL disclose recovery material. Switching the selected game wallet SHALL not cause a partially submitted operation to be replayed or an old offer to be actionable in the new G2 presentation session.
+A.G.1 and A.G.2 SHALL provide the locally selected game signing identity for LTO funding, claim, and refund. The LTO controller SHALL never require a BIS application server to restore, use, or switch that selected wallet. No public configuration or player-facing LTO response SHALL disclose recovery material. Switching the selected game wallet SHALL not cause a partially submitted operation to be replayed or an old offer to be actionable in the new D.P.2 presentation session.
 
-#### Scenario: F2-configured game
-- **WHEN** a player configures a game wallet through F2 in a deployed game with no Admin
+#### Scenario: A.G.2-configured game
+- **WHEN** a player configures a game wallet through A.G.2 in a deployed game with no Admin
 - **THEN** the next eligible run can use that wallet for direct LTO operations
 
 #### Scenario: Replace game wallet after a run
-- **WHEN** a different game wallet is selected after a G2 run has begun
+- **WHEN** a different game wallet is selected after a D.P.2 run has begun
 - **THEN** no old offer is displayed or submitted under the replacement wallet and a later fresh run begins a new local session
 
 ## REMOVED Requirements
 
 ### Requirement: Admin-managed persistent game wallet
-**Reason**: F1 and F2 now select the game wallet through the browser-local BIS controller, so the hosted wallet-service signer and its persistent server record are obsolete.
-**Migration**: Configure the game wallet in the target browser origin through F1 or F2 before starting a new G2 run; remove wallet-service deployment configuration and use the local controller's selected-wallet state.
+**Reason**: A.G.1 and A.G.2 now select the game wallet through the browser-local BIS controller, so the hosted wallet-service signer and its persistent server record are obsolete.
+**Migration**: Configure the game wallet in the target browser origin through A.G.1 or A.G.2 before starting a new D.P.2 run; remove wallet-service deployment configuration and use the local controller's selected-wallet state.

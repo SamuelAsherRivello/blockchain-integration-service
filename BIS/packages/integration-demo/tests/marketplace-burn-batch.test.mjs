@@ -8,7 +8,7 @@ function asset(item,index,type='item') { return {
   metadata:{bisSchemaVersion:'1',bisGameId:'stealth-and-steel',bisAssetType:type,bisCatalogId:item.id,bisEquipmentFamily:item.family,bisTier:String(item.tier),bisPriceSats:String(item.priceSats)},
 }; }
 
-test('H2 selects only freshly classified marketplace items and preserves trophies and unrelated assets',async()=>{
+test('C.G.3 selects only freshly classified marketplace items and preserves trophies and unrelated assets',async()=>{
   const items=marketplaceCatalogItems.slice(0,2).map((item,index)=>asset(item,index));
   const trophy={...asset(marketplaceCatalogItems[2],2,'trophy'),assetId:'f'.repeat(64)+'0000'};
   const unrelated={assetId:'e'.repeat(64)+'0000',quantity:'1',name:'Other'};
@@ -21,7 +21,7 @@ test('H2 selects only freshly classified marketplace items and preserves trophie
   assert.deepEqual(calls,items.map(item=>marketplaceBurnRequest(item.assetId,item.quantity)));
 });
 
-test('H2 continues after item-scoped unknown outcomes and a later invocation never changes operation IDs',async()=>{
+test('C.G.3 continues after item-scoped unknown outcomes and a later invocation never changes operation IDs',async()=>{
   const items=marketplaceCatalogItems.slice(0,3).map((item,index)=>asset(item,index));
   const calls=[];
   let listCalls=0;
@@ -36,7 +36,7 @@ test('H2 continues after item-scoped unknown outcomes and a later invocation nev
   assert.deepEqual(calls.map(call=>call.operationId),firstIds);
 });
 
-test('H2 refreshes after each verified burn until no marketplace items remain',async()=>{
+test('C.G.3 refreshes after each verified burn until no marketplace items remain',async()=>{
   const items=marketplaceCatalogItems.slice(0,4).map((item,index)=>asset(item,index));
   const live=[...items],calls=[],listed=[];
   const progress=[];

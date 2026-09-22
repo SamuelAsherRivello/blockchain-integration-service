@@ -43,7 +43,7 @@ The game SHALL own payment consequences. For a matching successful attempt in LE
 - **THEN** a fresh visible player spawns at the same position with full health and the same loadout, nearby enemies are removed, farther enemies and other entities retain state, and gameplay resumes after removal
 
 ### Requirement: Session abandonment never grants another run a continuation
-Restart SHALL begin a free new session. Closing or refreshing SHALL start at the beginning without restoring the previous run. Payment journals SHALL remain under B1 recovery, but an old result SHALL never revive a player or remove enemies in a new session. The host SHALL dispose listeners and reconciliation timers on teardown.
+Restart SHALL begin a free new session. Closing or refreshing SHALL start at the beginning without restoring the previous run. Payment journals SHALL remain under B.P.1 recovery, but an old result SHALL never revive a player or remove enemies in a new session. The host SHALL dispose listeners and reconciliation timers on teardown.
 
 #### Scenario: Late completion after teardown
 - **WHEN** a submitted payment completes after the originating game session is disposed

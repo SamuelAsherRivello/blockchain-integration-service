@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {hasLiveBoardingWait} from '../src/core/live-boarding-wait.ts';
 const record={quote:{direction:'to-arkade'},inputs:[{txid:'deposit',vout:0}],commitmentTxid:'batch'};
 const tx={txid:'batch',status:{confirmed:false},vin:[{txid:'deposit',vout:0}]};
-test('F3 waits only on live unconfirmed spending of its boarding inputs',()=>{
+test('B.G.2 waits only on live unconfirmed spending of its boarding inputs',()=>{
  assert.equal(hasLiveBoardingWait([record],[]),false);
  assert.equal(hasLiveBoardingWait([record],[tx]),true);
  assert.equal(hasLiveBoardingWait([record],[{...tx,status:{confirmed:true}}]),false);

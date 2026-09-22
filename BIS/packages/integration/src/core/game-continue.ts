@@ -80,7 +80,7 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
       let result: BisContinueResult | undefined;
       try { result = await context.requestContinue(request); }
       catch (error) {
-        // Reacquire B1's status lock before declaring a thrown call unsubmitted.
+        // Reacquire B.P.1's status lock before declaring a thrown call unsubmitted.
         // A recorded or unreadable attempt remains subject to reconciliation.
         try {
           if (context.getState().profileId !== profileId) { schedule(); return; }

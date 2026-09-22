@@ -44,7 +44,7 @@ Run the following commands to get started.
 
 <!-- AI: Replace {command} with the actual local launch command or editor action. State where to run it and how to open the app if needed. Refer to the printed URL when the port can vary. Avoid repeating completed build/setup steps. -->
 1. Run `npm run dev` and open the localhost URL printed by Vite.
-2. Select **A1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
+2. Select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
 
 Use `npm run preview` to serve the production build locally.
 
