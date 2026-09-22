@@ -12,6 +12,8 @@ import {BoardingBlockedError} from '../core/boarding-record';
 import { networkLabel } from '../core/test-network';
 
 import {AmountChooserRow} from './AmountChooserRow';
+import {CopyableValueField} from './CopyableValueField';
+import {BalanceTooltip, formatBalanceSats} from './BalanceTooltip';
 
 export function AccountSend({context}:{context:BisContext}) {
  const [recipient,setRecipient]=useState(''),[amount,setAmount]=useState(''),[funds,setFunds]=useState<number>();
@@ -70,7 +72,7 @@ export function AccountSend({context}:{context:BisContext}) {
    <p>Send to</p><p className="bis-send-address">{quote.recipient}</p>
    {expired&&<p role="status">Quote expired. Go Back for a fresh review.</p>}
   </div>:<div className="bis-send-form">
-   <p>From: Arkade balance · Spendable: {funds===undefined?'Unavailable':sats(funds)}</p>
+   <CopyableValueField label="Arkade balance" value={funds===undefined?'':sats(funds)} disabled={funds===undefined} tooltipName="Arkade balance" tooltip={<BalanceTooltip title="Arkade balance" balance={formatBalanceSats(funds)} available={formatBalanceSats(funds)} />} />
    <FieldHeading htmlFor={recipientId} label="Recipient address"><PasteButton disabled={busy} onClick={() => void paste()} /></FieldHeading>
    <input id={recipientId} ref={recipientInput} aria-label="Recipient address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>
    <AmountChooserRow value={amount} onChange={value=>edit(value,'amount')} onMax={()=>void review(true)} disabled={busy} maxDisabled={!validAddress||!funds}/>

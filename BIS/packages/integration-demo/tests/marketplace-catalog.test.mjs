@@ -62,9 +62,19 @@ test('H1, H2, and H3 report Marketplace progress and results only through the Ad
   assert.doesNotMatch(panel, /\{message && <p role="status">\{message\}<\/p>\}/);
   assert.doesNotMatch(panel, /busy \? 'Working…'/);
   assert.match(panel, /onLog\(\{operation:'H1\. Marketplace mint'/);
+  assert.match(panel, /status:'pending', message:'Preparing catalog issuance…'/);
+  assert.match(panel, /Minting \$\{progress\.itemName\}/);
+  assert.match(panel, /Verifying fresh marketplace inventory/);
+  assert.match(panel, /status:'verified', message:'Nine verified catalog items are now available from this Game Wallet’s live inventory\.'/);
   assert.match(panel, /onLog\(\{operation:'H2\. Burn All Items for Marketplace'/);
-  assert.match(panel, /H3\. List All Items For Markeplace/);
-  assert.match(panel, /onLog\(\{operation,status:'pending',message:'Listing fresh game-wallet marketplace items…'\}\)/);
+  assert.match(panel, /Refreshing marketplace inventory after/);
+  assert.match(panel, /Burning \$\{label\}/);
+  assert.match(panel, /status:batch\.status, message:batch\.status==='error'\?'Marketplace item burn is unavailable\.':`\$\{batch\.burned\} item\(s\) burned;/);
+  assert.match(panel, /H3\. List All Items For Marketplace/);
+  assert.match(panel, /Reading fresh game-wallet assets/);
+  assert.match(panel, /Classifying \$\{progress\.total\} asset\(s\)/);
+  assert.match(panel, /status:result\.status,message:result\.status==='success'\?`\$\{result\.items\.length\} marketplace item\(s\) found\.`:result\.message/);
+  assert.doesNotMatch(panel, /Markeplace/);
 });
 
 test('fresh chain holdings must contain exactly one fully classified asset per catalog item', () => {

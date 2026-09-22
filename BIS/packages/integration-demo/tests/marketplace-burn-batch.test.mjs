@@ -24,14 +24,39 @@ test('H2 selects only freshly classified marketplace items and preserves trophie
 test('H2 continues after item-scoped unknown outcomes and a later invocation never changes operation IDs',async()=>{
   const items=marketplaceCatalogItems.slice(0,3).map((item,index)=>asset(item,index));
   const calls=[];
+  let listCalls=0;
   const wallet={
-    async listAssets(){return {status:'success',profileId:'game',assets:items};},
+    async listAssets(){listCalls++;return {status:'success',profileId:'game',assets:items};},
     async burnAsset(request){calls.push(request);return calls.length===1?{status:'error',code:'outcome-unknown',message:'unknown'}:{status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:'d'.repeat(64)};},
   };
   const result=await burnAllMarketplaceItems(wallet,()=>true);
   assert.deepEqual({status:result.status,burned:result.burned,unresolved:result.unresolved,skipped:result.skipped},{status:'partial',burned:2,unresolved:1,skipped:0});
+  assert.equal(listCalls,4);
   const firstIds=calls.map(call=>call.operationId);calls.length=0;await burnAllMarketplaceItems(wallet,()=>true);
   assert.deepEqual(calls.map(call=>call.operationId),firstIds);
+});
+
+test('H2 refreshes after each verified burn until no marketplace items remain',async()=>{
+  const items=marketplaceCatalogItems.slice(0,4).map((item,index)=>asset(item,index));
+  const live=[...items],calls=[],listed=[];
+  const progress=[];
+  const result=await burnAllMarketplaceItems({
+    async listAssets(){listed.push(live.map(item=>item.assetId));return {status:'success',profileId:'game',assets:[...live]};},
+    async burnAsset(request){
+      calls.push(request);
+      const index=live.findIndex(item=>item.assetId===request.assetId);
+      assert.notEqual(index,-1);
+      live.splice(index,1);
+      return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:'d'.repeat(64)};
+    },
+  },()=>true,event=>progress.push(event));
+  assert.equal(result.status,'complete');
+  assert.equal(result.burned,4);
+  assert.equal(live.length,0);
+  assert.equal(listed.length,5);
+  assert.deepEqual(calls.map(call=>call.operationId),items.map(item=>marketplaceBurnRequest(item.assetId,item.quantity).operationId));
+  assert.equal(progress.filter(event=>event.stage==='listing').length,5);
+  assert.equal(progress.filter(event=>event.stage==='burned').length,4);
 });
 
 test('wallet changes stop new item submissions without making the batch throw',async()=>{
@@ -40,5 +65,5 @@ test('wallet changes stop new item submissions without making the batch throw',a
     async listAssets(){return {status:'success',profileId:'game',assets:items};},
     async burnAsset(request){calls++;current=false;return {status:'error',code:'account-changed',message:'changed'};},
   },()=>current);
-  assert.equal(calls,1);assert.equal(result.skipped,3);assert.equal(result.status,'partial');
+  assert.equal(calls,1);assert.equal(result.skipped,1);assert.equal(result.status,'partial');
 });

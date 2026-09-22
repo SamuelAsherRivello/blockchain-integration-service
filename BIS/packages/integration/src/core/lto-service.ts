@@ -76,7 +76,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
   const attempts = new Map<string,Promise<BisContractActionResult>>();
   const started = new Map<string,Pick<ContractRecord,'scope'|'sessionId'>>();
   const notifications = new Set<string>();
-  let detached = false, ticking = false, detachedGameId:string|undefined;
+  let detached = false, reconciling: Promise<void>|undefined, reconcileQueued = false, detachedGameId:string|undefined;
   async function wallets() {
     const [player,game] = await Promise.all([playerStorage.load(),gameStorage.load()]);
     return {player:player.account,game};
@@ -135,41 +135,45 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           const recovery={...document.recovery[id],spend:undefined,finalization:undefined};
           document=await save(document,record,recovery);
           notify(record); accepted=true; resolve({status:'pending',contract:presentContract(record,Date.now())});
-          await execute(document,record,recovery,signer);
-        },signer.network ?? 'signet');
+          await execute(document,record,recovery,{...signer,network:record.scope.network});
+        },signer.network ?? context.getState().network ?? game.network ?? 'signet');
       })().catch(()=>{ if(!accepted)resolve({status:'unavailable'}); });
     });
   }
   async function reconcile() {
-    if (ticking) return;
-    ticking = true;
-    try {
-      const {game} = await wallets(); if(!game || (detached && game.profileId!==detachedGameId))return;
-      await locked(game.profileId,async()=>{
-        let document=await storage.load();
-        publishContractReservations(document);
-        const network=game.network ?? 'signet';
-        for (const original of document.ledger.contracts) {
-          if (original.scope.gameId!==game.profileId || original.scope.network!==network || original.scope.operator!==operatorFor(network) || contractResolved(original)) continue;
-          let record=ended(original), recovery=document.recovery[record.id];
-          // Holding both mutation locks proves no writer can still submit a prepared operation.
-          // Every provider call first durably transitions to submitted, so prepared is safe to abandon.
-          if(record.operation.submission==='prepared'&&!recovery.spend) {
-            record=finishContractOperation(record,{operationId:record.operation.id,kind:record.operation.kind,outcome:'not-submitted'});
-          }
-          let result=await dependencies.reconcile(record,recovery);
-          if(['submitted','unknown'].includes(result.record.operation.submission)&&result.recovery.finalization)result=await dependencies.resume(result.record,result.recovery);
-          record=ended(result.record); recovery=result.recovery;
-          document=await save(document,record,recovery); notify(record);
-          if (record.financial==='funded'&&(record.ended||Date.now()>=record.expiresAt)) {
-            record=beginContractOperation(record,'refund',crypto.randomUUID(),Date.now()); recovery={...recovery,spend:undefined,finalization:undefined};
-            document=await save(document,record,recovery); notify(record);
-            const returned=await execute(document,record,recovery,game); document=returned.document;
-          }
-        }
-      },game.network ?? 'signet');
-    } catch { /* Uncertainty retains both the slot and its reservation. The Contracts query stays available. */ }
-    finally { ticking=false; }
+    if (reconciling) { reconcileQueued=true; return reconciling; }
+    reconciling = (async()=>{
+      do {
+        reconcileQueued=false;
+        try {
+          const {game} = await wallets(); if(!game || (detached && game.profileId!==detachedGameId))return;
+          await locked(game.profileId,async()=>{
+            let document=await storage.load();
+            publishContractReservations(document);
+            const network=game.network ?? 'signet';
+            for (const original of document.ledger.contracts) {
+              if (original.scope.gameId!==game.profileId || original.scope.network!==network || original.scope.operator!==operatorFor(network) || contractResolved(original)) continue;
+              let record=ended(original), recovery=document.recovery[record.id];
+              // Holding both mutation locks proves no writer can still submit a prepared operation.
+              // Every provider call first durably transitions to submitted, so prepared is safe to abandon.
+              if(record.operation.submission==='prepared'&&!recovery.spend) {
+                record=finishContractOperation(record,{operationId:record.operation.id,kind:record.operation.kind,outcome:'not-submitted'});
+              }
+              let result=await dependencies.reconcile(record,recovery);
+              if(['submitted','unknown'].includes(result.record.operation.submission)&&result.recovery.finalization)result=await dependencies.resume(result.record,result.recovery);
+              record=ended(result.record); recovery=result.recovery;
+              document=await save(document,record,recovery); notify(record);
+              if (record.financial==='funded'&&(record.ended||Date.now()>=record.expiresAt)) {
+                record=beginContractOperation(record,'refund',crypto.randomUUID(),Date.now()); recovery={...recovery,spend:undefined,finalization:undefined};
+                document=await save(document,record,recovery); notify(record);
+                const returned=await execute(document,record,recovery,game); document=returned.document;
+              }
+            }
+          },game.network ?? 'signet');
+        } catch { /* Uncertainty retains both the slot and its reservation. The Contracts query stays available. */ }
+      } while (reconcileQueued);
+    })().finally(()=>{ reconciling=undefined; });
+    return reconciling;
   }
   async function prepareExclusiveReplacement(playerId:string, gameId:string, exclusivityKey:string, currentKey:string):Promise<boolean> {
     const document=await storage.load();
@@ -182,6 +186,12 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     const after=await storage.load();
     return !after.ledger.contracts.some(record=>!contractResolved(record)&&record.scope.playerId===playerId&&record.scope.gameId===gameId&&record.scope.exclusivityKey===exclusivityKey);
   }
+  async function durableStartResult(sessionId:string, network:TestNetwork, playerId:string, gameId:string, exclusivityKey:string):Promise<BisContractActionResult | undefined> {
+    const document=await storage.load();
+    const record=document.ledger.contracts.find(record=>record.sessionId===sessionId&&record.scope.network===network&&record.scope.operator===operatorFor(network)&&record.scope.playerId===playerId&&record.scope.gameId===gameId&&record.scope.exclusivityKey===exclusivityKey);
+    if(!record)return undefined;
+    return {status:record.operation.submission==='confirmed'?'confirmed':record.operation.submission==='not-submitted'?'not-submitted':'pending',contract:presentContract(ended(record),Date.now())};
+  }
   const controller = {
     checkContracts: async(filter: BisContractFilter = {}):Promise<BisContractsResult> => {
       const profileId=context.getState().profileId;if(!profileId)return {status:'ready',contracts:[]};
@@ -192,32 +202,41 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       const playerId=context.getState().profileId, gameId=gameWallet.getState().profileId;
       const key=JSON.stringify([gameId,playerId,request.exclusivityKey,request.sessionId]);
       if(attempts.has(key))return attempts.get(key)!;
+      let needsReconcile=false;
       const attempt=(async():Promise<BisContractActionResult>=>{
-        if(detached||options.creationEnabled===false||!playerId||!gameId||playerId===gameId||context.getState().phase!=='active'||gameWallet.getState().status!=='ready')return {status:'unavailable'};
+        if(detached||options.creationEnabled===false||!playerId||!gameId||playerId===gameId)return {status:'unavailable'};
+        const marker=`bis-lto-attempt-v1:${encodeURIComponent(key)}`;
         const network=context.getState().network ?? 'signet';
+        if(localStorage.getItem(marker)!==null)return await durableStartResult(request.sessionId,network,playerId,gameId,request.exclusivityKey) ?? {status:'unavailable'};
+        if(context.getState().phase!=='active'||gameWallet.getState().status!=='ready') {
+          // Persist readiness skips so this session cannot late-start if the
+          // same session's wallets become ready later.
+          localStorage.setItem(marker,'attempted');if(localStorage.getItem(marker)!=='attempted')return {status:'unavailable'};
+          return {status:'unavailable'};
+        }
         const scope={network,operator:operatorFor(network),playerId,gameId,exclusivityKey:request.exclusivityKey};
         started.set(request.sessionId,{scope,sessionId:request.sessionId});
-        // A persisted attempt marker also prevents a late retry after lock/readiness failure or reload.
-        const marker=`bis-lto-attempt-v1:${encodeURIComponent(key)}`;
-        if(localStorage.getItem(marker)!==null)return {status:'unavailable'};
-        localStorage.setItem(marker,'attempted');if(localStorage.getItem(marker)!=='attempted')return {status:'unavailable'};
+        needsReconcile=true;
         if(!await prepareExclusiveReplacement(playerId,gameId,request.exclusivityKey,key))return {status:'unavailable'};
+        localStorage.setItem(marker,'attempted');if(localStorage.getItem(marker)!=='attempted')return {status:'unavailable'};
         return locked(gameId,async()=>{
           const {player,game}=await wallets();
-          if(!player||!game||player.profileId!==playerId||game.profileId!==gameId||player.network!==game.network||player.network!==network||!current(playerId,gameId))return {status:'unavailable'};
+          const playerNetwork=player?.network ?? network, gameNetwork=game?.network ?? network;
+          if(!player||!game||player.profileId!==playerId||game.profileId!==gameId||playerNetwork!==gameNetwork||playerNetwork!==network||!current(playerId,gameId))return {status:'unavailable'};
+          const activePlayer={...player,network},activeGame={...game,network};
           let document=await storage.load();
           const allocated=startLto(document.ledger,{...request,scope,id:crypto.randomUUID(),operationId:crypto.randomUUID()},Date.now());
           if(!allocated.contract) { await storage.save({...document,ledger:allocated.ledger}); return {status:'unavailable'}; }
-          const recovery=await dependencies.prepare(game,player);
+          const recovery=await dependencies.prepare(activeGame,activePlayer);
           let record=ended(allocated.contract);
           reserveContract(record,recovery);
           document=await storage.save({...document,ledger:{...allocated.ledger,contracts:allocated.ledger.contracts.map(old=>old.id===record.id?record:old)},recovery:{...document.recovery,[record.id]:recovery}});
           publishContractReservations(document);notify(record);
-          const result=await execute(document,record,recovery,game);
+          const result=await execute(document,record,recovery,activeGame);
           return {status:result.record.operation.submission==='confirmed'?'confirmed':result.record.operation.submission==='not-submitted'?'not-submitted':'pending',contract:presentContract(ended(result.record),Date.now())};
         },network);
       })().catch(()=>({status:'unavailable' as const}));
-      attempts.set(key,attempt);void attempt.finally(()=>{void reconcile();});return attempt;
+      attempts.set(key,attempt);void attempt.finally(()=>{attempts.delete(key);if(needsReconcile)void reconcile();});return attempt;
     },
     claim: (id:string) => action(id,'claim'),
     reject: (id:string) => action(id,'refund',true),

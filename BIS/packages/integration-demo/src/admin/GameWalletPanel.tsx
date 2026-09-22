@@ -1,7 +1,7 @@
 import { StoryButton } from './StoryButton';
 import { StorySection } from './StorySection';
 import { useEffect, useState } from 'react';
-import { createBisGameWallet, type BisGameWalletState } from '@bis/integration';
+import { BalanceTooltip, createBisGameWallet, formatBalanceSats, type BisGameWalletState } from '@bis/integration';
 
 export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpenDeveloper}: {
   controller?: ReturnType<typeof createBisGameWallet>;
@@ -117,7 +117,10 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
     <StoryButton label="F2. Game Wallet (User-facing)">
       <button aria-label="F2. Game Wallet (User-facing)" disabled={!controller || !playerReady} onClick={onOpenDeveloper}>↗</button>
     </StoryButton>
-    <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
+    <StoryButton label="F3. Board Game Wallet" sublabel={<>{state.balance && <span className="bis-balance-tooltip" data-bis-balance-tooltip="F3 Board Game Wallet balance" tabIndex={0}>
+      <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>
+      <span className="bis-balance-tooltip-panel" role="tooltip"><BalanceTooltip title="F3 Board Game Wallet balance" balance={formatBalanceSats(state.balance.availableSats)} available={formatBalanceSats(state.balance.availableSats)} /></span>
+    </span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}>
         <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
         {boardingState !== 'boarded' &&
           <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}

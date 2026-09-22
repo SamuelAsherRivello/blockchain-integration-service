@@ -92,7 +92,8 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     if (signal.aborted || disposed) return;
     selectProfile(account?.profileId);
     if (!account) { publish({status:'empty'}); return; }
-    publish({status:'loading', profileId:account.profileId});
+    const previous = state.profileId === account.profileId ? state : undefined;
+    publish({status:'loading', profileId:account.profileId, ...(previous?.addresses ? {addresses:previous.addresses} : {}), ...(previous?.balance ? {balance:previous.balance} : {})});
     const [addresses, balance] = await Promise.allSettled([dependencies.addresses(account, signal), dependencies.balance(account, signal)]);
     if (signal.aborted || disposed) return;
     publish({status: addresses.status === 'fulfilled' && balance.status === 'fulfilled' ? 'ready' : 'unavailable', profileId:account.profileId,
@@ -117,7 +118,7 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     if (disposed) return;
     if (importing) { refreshQueued = true; return; }
     if (!playerConnected()) { begin(); selectProfile(undefined); publish({status:'empty',message:'Connect a Player Wallet before using the Game Wallet.'}); return; }
-    const signal = begin(); publish({status:'loading', profileId:state.profileId});
+    const signal = begin(); publish({status:'loading', profileId:state.profileId, ...(state.addresses ? {addresses:state.addresses} : {}), ...(state.balance ? {balance:state.balance} : {})});
     try {
       const account=await storage.load();
       if(account?.profileId===options.playerProfileId() || (account?.network !== undefined && account.network !== selectedNetwork())) {
@@ -163,7 +164,7 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     },
     async getPendingAssetMint() {
       const account=await selectedAccount();
-      return {status:'success' as const,profileId:account.profileId,request:readAssetRecords(account.profileId).find(r=>r.status==='pending')?.request??null};
+      return {status:'success' as const,profileId:account.profileId,request:readAssetRecords(account.profileId,account.network ?? 'signet').find(r=>r.status==='pending')?.request??null};
     },
     async getPendingAssetDelivery():Promise<BisPendingAssetDeliveryResult> {
       try {

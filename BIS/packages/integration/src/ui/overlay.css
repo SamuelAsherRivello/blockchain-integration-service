@@ -30,7 +30,7 @@
 .bis-network-option-selected { background: #d7e8e2; color: #175a4c; }
 .bis-account-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .bis-account-actions .bis-button { width: 100%; min-width: 0; padding-inline: 12px; white-space: nowrap; }
-.bis-back { position: relative; margin-top: 18px; }
+.bis-back { position: relative; margin-top: 8px; }
 .bis-button.bis-back { overflow: visible; }
 .bis-back::before { content: ''; position: absolute; left: 50%; top: -8px; width: 2px; height: 2px; border-radius: 50%; background: rgba(82, 107, 116, 0.28); box-shadow: -6px 0 rgba(82, 107, 116, 0.28), 6px 0 rgba(82, 107, 116, 0.28); transform: translateX(-50%); pointer-events: none; }
 .bis-card p { margin: 0 0 var(--bis-dialog-content-gap); font-size: 9.6px; line-height: 1.6; color: #667a84; }
@@ -90,8 +90,8 @@
 .bis-copy-field-heading label { min-width: 0; }
 .bis-copy-field-heading h3 { margin: 0; font: inherit; }
 .bis-balance-tooltip { position: relative; display: inline-flex; min-width: 0; outline: none; }
-.bis-balance-tooltip > label { cursor: help; }
-.bis-balance-tooltip-panel { position: absolute; z-index: 12; top: calc(100% + 4px); left: 0; display: none; width: max-content; max-width: 208px; padding: 6px 8px; border: 0.8px solid #54727d; border-radius: 5px; background: #18313d; color: #f8fbfc; box-shadow: 0 5px 14px #0004; font-size: 8px; line-height: 1.45; white-space: nowrap; pointer-events: none; }
+.bis-balance-tooltip > label, .bis-balance-tooltip > span:first-child { cursor: help; }
+.bis-balance-tooltip-panel { position: absolute; z-index: 12; top: calc(100% + 4px); left: 0; display: none; width: max-content; max-width: min(208px, calc(100vw - 32px)); padding: 6px 8px; border: 0.8px solid #54727d; border-radius: 5px; background: #18313d; color: #f8fbfc; box-shadow: 0 5px 14px #0004; font-size: 8px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; pointer-events: none; }
 .bis-balance-tooltip-panel strong, .bis-balance-tooltip-panel span { display: block; }
 .bis-balance-tooltip-panel strong { margin-bottom: 2px; color: #fff0b8; font-weight: 700; }
 .bis-balance-tooltip:hover .bis-balance-tooltip-panel, .bis-balance-tooltip:focus-visible .bis-balance-tooltip-panel { display: block; }
@@ -151,6 +151,7 @@
 
 .bis-balance-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .bis-balance-columns .bis-address-row { min-width: 0; align-content: start; }
+.bis-balance-columns .bis-address-row:last-child .bis-balance-tooltip-panel { left: auto; right: 0; }
 .bis-balance-columns .bis-copy-field-heading { font-size: 8.8px; gap: 1.6px; }
 .bis-balance-columns .bis-copy-icon { flex-basis: 17.6px; width: 17.6px; }
 .bis-account-balances > .bis-address-row input { text-align: center; }

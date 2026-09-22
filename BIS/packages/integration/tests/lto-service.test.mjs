@@ -14,13 +14,13 @@ function setup(overrides={}) {
   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks:testLocks()}});
   let envelope;
   const storage=createContractStorage({read:async()=>structuredClone(envelope),write:async(next,revision)=>{assert.equal(envelope?.revision??0,revision);envelope=structuredClone(next);}});
-  const player={profileId:'player',phrase:'test-only-placeholder',network:'signet'},game={profileId:'game',phrase:'test-only-placeholder',network:'signet'};
+  const player=overrides.player??{profileId:'player',phrase:'test-only-placeholder',network:'signet'},game=overrides.game??{profileId:'game',phrase:'test-only-placeholder',network:'signet'};
   const playerState={profileId:'player',phase:'active'},gameState={profileId:'game',status:'ready'};
   const calls=[],toasts=[];
   const context={getState:()=>playerState,showToast:text=>toasts.push(text),refreshBalance:async()=>{}},gameWallet={getState:()=>gameState,refresh:async()=>{}};
   const recovery={secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'};
   const dependencies={storage,playerStorage:{load:async()=>({generation:0,account:player})},gameStorage:{load:async()=>game,dispose(){}},poll:false,
-    prepare:async()=>recovery,reconcile:async(record,recovery)=>({record,recovery}),resume:async(record,recovery)=>({record,recovery}),
+    prepare:overrides.prepare??(async()=>recovery),reconcile:async(record,recovery)=>({record,recovery}),resume:async(record,recovery)=>({record,recovery}),
     submit:async(record,recovery,account,commit,isCurrent)=>{
       assert.ok(isCurrent());calls.push(record.operation.kind);
       const transactionId=(record.operation.kind==='fund'?'b':'c').repeat(64);
@@ -107,14 +107,27 @@ test('same session submits once; funded slot stays reserved and duplicate notifi
   assert.deepEqual(s.calls,['fund']);assert.equal(s.toasts.filter(text=>text.includes('confirmed')).length,1);
   assert.equal((await s.storage.load()).ledger.contracts.length,1);
 });
+test('same-key active calls share one promise but settled unavailable does not poison a fresh session',async()=>{
+  let release;const wait=new Promise(resolve=>{release=resolve;});
+  const s=setup({wait:kind=>kind==='fund'?wait:undefined});
+  const first=s.service.start(s.request),second=s.service.start(s.request);
+  assert.equal(first,second);await until(()=>s.calls.length===1);
+  release();assert.equal((await first).status,'confirmed');await delay();
+
+  const skipped=setup();skipped.gameState.status='loading';
+  assert.equal((await skipped.service.start(skipped.request)).status,'unavailable');
+  skipped.gameState.status='ready';
+  assert.equal((await skipped.service.start({...skipped.request,sessionId:'fresh'})).status,'confirmed');
+  assert.deepEqual(skipped.calls,['fund']);
+});
 test('end during funding immediately persists forfeiture, then refunds late success',async()=>{
   let release;const wait=new Promise(resolve=>{release=resolve;});
   const s=setup({wait:kind=>kind==='fund'?wait:undefined});
   const funding=s.service.start(s.request);await until(()=>s.calls.length===1);
-  await s.service.endSession(s.request.sessionId);release();await funding;
-  await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='refunded');
+  await s.service.endSession(s.request.sessionId);release();const funded=await funding;
+  await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='refunded'&&!walletReservations('game').some(operation=>operation.id===`contract:${funded.contract.id}`));
   assert.deepEqual(s.calls,['fund','refund']);
-  assert.equal(walletReservations('game').length,0);
+  assert.ok(!walletReservations('game').some(operation=>operation.id===`contract:${funded.contract.id}`));
   assert.ok(!s.toasts.some(text=>text.startsWith('Offer funding confirmed')));
 });
 test('new session waits for prior offer cleanup, then creates one replacement',async()=>{
@@ -148,6 +161,33 @@ test('readiness failure never starts late and cooperating controllers cannot cre
   const other=createLtoService({context:s.context,gameWallet:s.gameWallet},s.dependencies);
   const result=await Promise.all([s.service.start({...s.request,sessionId:'one'}),other.start({...s.request,sessionId:'two'})]);
   assert.equal(result.filter(r=>r.status==='confirmed').length,1);assert.deepEqual(s.calls,['fund']);
+});
+
+test('legacy player record without network can start an offer on the active network',async()=>{
+  const s=setup({player:{profileId:'player',phrase:'test-only-placeholder'}});
+  assert.equal((await s.service.start(s.request)).status,'confirmed');
+  assert.deepEqual(s.calls,['fund']);
+});
+test('legacy accounts without network are passed to LTO adapters with the active network',async()=>{
+  const s=setup({
+    player:{profileId:'player',phrase:'test-only-placeholder'},
+    game:{profileId:'game',phrase:'test-only-placeholder'},
+    prepare:async(game,player)=>{
+      assert.equal(game.network,'mutinynet');
+      assert.equal(player.network,'mutinynet');
+      return {secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'};
+    },
+  });
+  s.playerState.network='mutinynet';
+  assert.equal((await s.service.start(s.request)).status,'confirmed');
+  assert.deepEqual(s.calls,['fund']);
+});
+test('explicit player or game network mismatch remains unavailable',async()=>{
+  for (const mismatch of ['player','game']) {
+    const s=setup(mismatch==='player'?{player:{profileId:'player',phrase:'test-only-placeholder',network:'mutinynet'}}:{game:{profileId:'game',phrase:'test-only-placeholder',network:'mutinynet'}});
+    assert.equal((await s.service.start({...s.request,sessionId:`mismatch-${mismatch}`})).status,'unavailable');
+    assert.deepEqual(s.calls,[]);
+  }
 });
 
 test('public inspection filters exact host reference, exposes roles and never signs',async()=>{

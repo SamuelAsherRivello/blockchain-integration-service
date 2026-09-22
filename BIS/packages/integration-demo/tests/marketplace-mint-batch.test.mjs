@@ -48,7 +48,7 @@ test('an interrupted or incomplete batch never returns verified publication reco
 });
 
 test('a transient unavailable result retries the same catalog operation before pausing the batch', async () => {
-  const calls = [];
+  const calls = [], progress = [];
   const wallet = {
     async mint(request) {
       calls.push(request.operationId);
@@ -59,7 +59,10 @@ test('a transient unavailable result retries the same catalog operation before p
     },
     async listAssets() { return {status:'success',profileId:'game',assets:chainAssets()}; },
   };
-  const result = await mintAndVerifyMarketplaceCatalog(wallet, () => true);
+  const result = await mintAndVerifyMarketplaceCatalog(wallet, () => true, event => progress.push(event));
   assert.equal(result.status, 'verified');
   assert.equal(calls.filter(id => id === marketplaceMintRequest(marketplaceCatalogItems[1]).operationId).length, 2);
+  assert.ok(progress.some(event => event.stage === 'minting' && event.itemName === 'Shoes II' && event.attempt === 1));
+  assert.ok(progress.some(event => event.stage === 'retrying' && event.itemName === 'Shoes II'));
+  assert.ok(progress.some(event => event.stage === 'verifying'));
 });

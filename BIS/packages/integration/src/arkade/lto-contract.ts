@@ -39,7 +39,8 @@ export function verifyLtoReceipt(spend: ContractSpend, receipts: readonly Coin[]
 async function terms(network:TestNetwork='signet') {
   const operator=operatorFor(network), ark = new RestArkProvider(operator), indexer = new RestIndexerProvider(operator);
   const info = await ark.getInfo(); requireNetwork(info.network,network);
-  if (info.fees.txFeeRate !== '0' || Object.values(info.fees.intentFee).some(value => value !== '' && value !== '0')) throw new ContractError('Contract fees changed. Creation and spending need fee verification.');
+  const zeroFee = (value: string) => value === '' || /^(?:0|0\.0+)$/.test(value);
+  if (!zeroFee(info.fees.txFeeRate) || Object.values(info.fees.intentFee).some(value => !zeroFee(value))) throw new ContractError('Contract fees changed. Creation and spending need fee verification.');
   return { ark, indexer, info, operatorKey: hex.decode(info.signerPubkey).slice(-32) };
 }
 export async function prepareLtoRecovery(game: AccountSecret, player: AccountSecret, suppliedPlayerKey?: Uint8Array): Promise<ContractRecovery> {

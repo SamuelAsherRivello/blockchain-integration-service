@@ -12,10 +12,10 @@ async function fixture(t){
   t.mock.method(globalThis,'fetch',async()=>{throw Error('Unexpected test network');});
   t.mock.method(MnemonicIdentity,'fromMnemonic',phrase=>phrase==='test-game'?keys[1]:keys[2]);
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:()=>null}});
-  const state={fee:'0',calls:0,coins:[],saved:[],evidence:false};
+  const state={fee:'0',intentFee:{},calls:0,coins:[],saved:[],evidence:false};
   const info={network:'signet',fees:{txFeeRate:'0',intentFee:{}},signerPubkey:hex.encode(operator),unilateralExitDelay:512n,vtxoMinAmount:1n,vtxoMaxAmount:0n,
     checkpointTapscript:hex.encode(CSVMultisigTapscript.encode({pubkeys:[operator],timelock:{type:'seconds',value:512n}}).script)};
-  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({...info,fees:{...info.fees,txFeeRate:state.fee}}));
+  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({...info,fees:{...info.fees,txFeeRate:state.fee,intentFee:state.intentFee}}));
   t.mock.method(RestArkProvider.prototype,'submitTx',async()=>{state.calls++;assert.ok(state.saved.at(-1).record.operation.submission==='submitted');throw Error('Acknowledgement lost');});
   t.mock.method(RestIndexerProvider.prototype,'getVtxos',async query=>{
     if(query.scripts)return {vtxos:state.coins};
@@ -41,6 +41,7 @@ test('changed fees, insufficient eligible funds and a replaced account are expli
 });
 test('real SDK construction journals exact inputs/change before a lost submission and reconciles only receipt evidence',async t=>{
   const f=await fixture(t);
+  f.state.fee='0.0';f.state.intentFee={offchainInput:'0.0',offchainOutput:'0.0',onchainInput:'0.0',onchainOutput:'0.0'};
   const unknown=await submitLtoSpend(f.record,f.recovery,f.game,f.commit,()=>true);
   assert.equal(f.state.calls,1);assert.equal(unknown.record.financial,'unknown');
   assert.equal(unknown.recovery.spend.change.value,1000);

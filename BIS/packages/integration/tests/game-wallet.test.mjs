@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBisGameWallet,createLocalGameWallet,createNetworkScopedGameWalletStorage} from '../src/core/game-wallet.ts';
+import {writeAssetRecord} from '../src/core/assets.ts';
 import {testLocks} from './locks-fixture.mjs';
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -28,6 +29,18 @@ test('C1 checks and mints with the selected game identity, never the player iden
  assert.equal((await c.mintAsset({operationId:'mint-test',name:'Test',ticker:'TEST',amount:'1',decimals:0})).profileId,'game');
  assert.deepEqual(calls,[['balance','game'],['mint','game']]);
  assert.equal(values.get('bis-game-wallet-mint-owner:game'),'1');c.dispose();
+});
+test('C1 pending mint lookup follows the selected game wallet network',async()=>{
+ const values=new Map();
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),key:i=>[...values.keys()][i]??null,get length(){return values.size;}}});
+ const f=fixture();
+ f.dependencies.restore=async phrase=>({phrase,profileId:'game',network:'mutinynet'});
+ const c=createBisGameWallet({playerProfileId:()=> 'player',playerNetwork:()=> 'mutinynet'},f.dependencies);
+ await tick();await c.importWallet('game');
+ const request={operationId:'mutiny-mint',name:'Mutiny',ticker:'MUT',amount:'1',decimals:0};
+ writeAssetRecord('game',{request,status:'pending',network:'mutinynet'});
+ assert.deepEqual((await c.getPendingAssetMint()).request,request);
+ c.dispose();
 });
 test('F2 reports unresolved boarding rather than awaiting balance and recovers when cleared',async()=>{
   const f=fixture();let blocked=true;
@@ -104,6 +117,23 @@ test('provider failures do not fabricate a balance and refresh retries',async()=
   const f=fixture();f.dependencies.balance=async()=>{throw Error('private provider detail');};
   const c=f.create();await tick();await c.importWallet('a');assert.equal(c.getState().status,'unavailable');assert.equal(c.getState().balance,undefined);
   f.dependencies.balance=async()=>({availableSats:3,totalSats:3,bitcoinSats:0,arkadeSats:3});await c.refresh();assert.equal(c.getState().balance.availableSats,3);c.dispose();
+});
+
+test('refresh keeps the selected game wallet address and balance visible while reads are pending',async()=>{
+  const f=fixture();let releaseBalance;
+  f.dependencies.balance=async a=>a.profileId==='a'?await new Promise(resolve=>{releaseBalance=resolve;}):{availableSats:2,totalSats:2,bitcoinSats:0,arkadeSats:2};
+  const c=f.create();await tick();
+  const importing=c.importWallet('a');await tick();
+  releaseBalance({availableSats:1,totalSats:1,bitcoinSats:0,arkadeSats:1});await importing;
+  assert.equal(c.getState().addresses.arkadeAddress,'tark1a');
+  assert.equal(c.getState().balance.arkadeSats,1);
+  const refreshing=c.refresh();await tick();
+  assert.equal(c.getState().status,'loading');
+  assert.equal(c.getState().addresses.arkadeAddress,'tark1a');
+  assert.equal(c.getState().balance.arkadeSats,1);
+  releaseBalance({availableSats:3,totalSats:3,bitcoinSats:0,arkadeSats:3});await refreshing;
+  assert.equal(c.getState().addresses.arkadeAddress,'tark1a');
+  assert.equal(c.getState().balance.arkadeSats,3);c.dispose();
 });
 
 

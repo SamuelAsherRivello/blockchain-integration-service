@@ -115,7 +115,7 @@
   grid-area: catalog;
   align-self: stretch;
   min-height: 0;
-  padding: 2px 0 18px 2px;
+  padding: 2px clamp(14px, 1.2vw, 20px) 18px 2px;
   overflow-x: hidden;
   overflow-y: scroll;
   overscroll-behavior: contain;
@@ -125,7 +125,7 @@
 .marketplace-page .catalog-scroll::-webkit-scrollbar { width: 11px; }
 .marketplace-page .catalog-scroll::-webkit-scrollbar-track { background: #dce7eb; border-radius: 20px; }
 .marketplace-page .catalog-scroll::-webkit-scrollbar-thumb { border: 3px solid var(--market-canvas); background: var(--market-muted); border-radius: 20px; }
-.marketplace-page .catalog-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, clamp(9rem, 13vw, 14rem)), 1fr)); gap: clamp(10px, 1vw, 16px); }
+.marketplace-page .catalog-grid { --market-card-size: clamp(9rem, 13vw, 14rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--market-card-size)), var(--market-card-size))); gap: clamp(10px, 1vw, 16px); }
 .marketplace-page .asset-card {
   aspect-ratio: 1;
   min-height: 0;
@@ -139,13 +139,48 @@
 }
 .marketplace-page .asset-card:hover,.marketplace-page .asset-card:focus-visible { border-color: var(--market-accent); background: #fff; transform: translateY(-2px); outline: none; }
 .marketplace-page .asset-card:focus-visible { box-shadow: 0 0 0 3px var(--market-warm); }
-.marketplace-page .asset-card-identity { gap: clamp(8px, .7vw, 12px); }
+.marketplace-page .asset-card-layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: clamp(8px, .7vw, 12px);
+  height: 100%;
+  min-width: 0;
+}
 .marketplace-page .list-art { width: clamp(42px, 4.2vw, 64px) !important; height: clamp(42px, 4.2vw, 64px) !important; border-radius: 14px; }
-.marketplace-page .asset-card-title { gap: 5px; }
-.marketplace-page .asset-card strong { color: var(--market-ink); font-size: clamp(17px, 1.6vw, 23px); letter-spacing: -.035em; }
+.marketplace-page .asset-card-title { min-width: 0; display: grid; align-content: start; gap: 5px; }
+.marketplace-page .asset-card strong { min-width: 0; color: var(--market-ink); font-size: clamp(17px, 1.6vw, 23px); letter-spacing: -.035em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .marketplace-page .asset-card-title b { color: var(--market-accent-strong); font-size: clamp(14px, 1.2vw, 17px); font-variant-numeric: tabular-nums; }
-.marketplace-page .asset-card-effect { margin-top: clamp(8px, .8vw, 12px); color: var(--market-muted); font-size: clamp(12px, 1vw, 15px); line-height: 1.35; }
-.marketplace-page .poetic-quote { max-width: 24ch; color: var(--market-ink); font-size: clamp(14px, 1.2vw, 17px); line-height: 1.2; }
+.marketplace-page .asset-card-lore {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: end;
+  gap: clamp(5px, .55vw, 8px);
+}
+.marketplace-page .asset-card-effect {
+  min-width: 0;
+  display: grid;
+  place-items: end center;
+  color: var(--market-muted);
+  font-size: clamp(12px, .86vw, 14px);
+  line-height: 1.2;
+  overflow: hidden;
+  text-align: center;
+  white-space: normal;
+}
+.marketplace-page .poetic-quote {
+  min-width: 0;
+  display: grid;
+  place-items: start center;
+  color: var(--market-ink);
+  font-size: clamp(14px, 1vw, 16px);
+  line-height: 1.15;
+  overflow: hidden;
+  text-align: center;
+}
 
 .marketplace-page .backdrop {
   padding: clamp(12px, 3vw, 28px);
@@ -228,6 +263,6 @@
   .marketplace-page .filter-row button { min-height: 44px; padding: 8px 13px; font-size: 13px; }
   .marketplace-page .wallet-strip { padding: 20px; border-radius: 16px; font-size: 15px; }
   .marketplace-page .catalog-scroll { min-height: auto; padding: 2px 0 0; overflow: visible; overscroll-behavior: auto; scrollbar-gutter: auto; }
-  .marketplace-page .catalog-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: 12px; }
+  .marketplace-page .catalog-grid { --market-card-size: 10rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--market-card-size)), var(--market-card-size))); gap: 12px; }
   .marketplace-page .asset-card { min-height: 10rem; }
 }

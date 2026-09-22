@@ -737,14 +737,15 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if (!globalThis.navigator?.locks) return assetError('unsupported-environment', profileId, request.operationId);
       const isCurrent = () => !disposed && current === version && state.profileId === profileId && state.hasProfile && state.phase === 'active';
       try {
+        const selectedAccount = await activeTransferAccount();
         return await withActiveWalletMutation(async () => {
-          eligibleUnreservedCoins([],walletReservations(profileId!));
+          eligibleUnreservedCoins([],walletReservations(profileId!, selectedAccount.network ?? 'signet'));
           const account = await activeTransferAccount();
           if (!isCurrent()) return assetError('account-changed', profileId, request.operationId);
           const result = await assets.mint(account, request, operation.signal, isCurrent);
           if(isCurrent() && (result.status==='minted' || result.status==='already-minted'))walletChanged(account.profileId);
           return isCurrent() ? result : assetError(disposed ? 'disposed' : 'account-changed', profileId, request.operationId);
-        });
+        }, selectedAccount.network ?? 'signet');
       } catch (error) { return assetError(error instanceof AssetError ? error.code : error instanceof BoardingBlockedError ? 'busy' : !isCurrent() ? (disposed ? 'disposed' : 'account-changed') : 'unavailable', profileId, request.operationId); }
     },
     async listAssets() {

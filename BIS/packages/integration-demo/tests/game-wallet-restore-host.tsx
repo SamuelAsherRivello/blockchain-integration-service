@@ -7,7 +7,7 @@ const phrase = 'abandon abandon abandon abandon abandon abandon abandon abandon 
 const host = document.getElementById('host')!;
 const result = document.getElementById('result')!;
 const listeners = new Set<() => void>();
-const state = {status:'ready', selectionVersion:0, playerConnected:true, profileId:undefined as string | undefined, addresses: undefined as {arkadeAddress:string;bitcoinAddress:string} | undefined, message: undefined as string | undefined};
+const state = {status:'ready', selectionVersion:0, playerConnected:true, profileId:undefined as string | undefined, addresses: undefined as {arkadeAddress:string;bitcoinAddress:string} | undefined, balance: undefined as {availableSats:number;totalSats:number;bitcoinSats:number;arkadeSats:number} | undefined, message: undefined as string | undefined};
 let imported = '';
 let address = 'tark1game-wallet-fixture';
 let copied = '';
@@ -16,7 +16,7 @@ let releaseImport = () => {};
 const wallet = {
   subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
   getState: () => state,
-  async importWallet(value: string) { imported = value; await new Promise<void>(resolve => { releaseImport = resolve; }); state.profileId = 'game-wallet-fixture'; state.addresses = {arkadeAddress:address, bitcoinAddress:'tb1game-wallet-fixture'}; listeners.forEach(listener => listener()); return true; },
+  async importWallet(value: string) { imported = value; await new Promise<void>(resolve => { releaseImport = resolve; }); state.profileId = 'game-wallet-fixture'; state.addresses = {arkadeAddress:address, bitcoinAddress:'tb1game-wallet-fixture'}; state.balance = {availableSats:1234,totalSats:1234,bitcoinSats:0,arkadeSats:1234}; listeners.forEach(listener => listener()); return true; },
   async logout() { await new Promise<void>(resolve => { releaseLogout = resolve; }); state.profileId = undefined; listeners.forEach(listener => listener()); },
 } as Parameters<typeof GameWalletLogin>[0]['wallet'];
 const root = createRoot(host);
@@ -52,9 +52,19 @@ document.getElementById('run')!.onclick = async () => {
     releaseImport(); await tick(); await tick();
     check(imported === phrase && host.textContent?.includes('Game wallet configured.'), 'Restore delegates only to Game Wallet import');
     const arkadeField = host.querySelector<HTMLInputElement>('input[aria-label="Arkade address"]');
+    const balanceField = host.querySelector<HTMLInputElement>('input[aria-label="Arkade balance"]');
     check(arkadeField?.value === address, 'Selected Game Wallet Arkade address is visible');
+    check(balanceField?.value === '1,234 sats', 'Selected Game Wallet Arkade balance is visible');
     check(!!host.querySelector('button[aria-label="Copy Arkade address"]'), 'Arkade address has a Copy action');
-    check((arkadeField?.getBoundingClientRect().bottom ?? 0) <= button('Log Out Game Wallet').getBoundingClientRect().top, 'Arkade address appears above logout');
+    check((arkadeField?.getBoundingClientRect().bottom ?? 0) <= (balanceField?.getBoundingClientRect().top ?? 0), 'Arkade balance appears below address');
+    check((balanceField?.getBoundingClientRect().bottom ?? 0) <= button('Log Out Game Wallet').getBoundingClientRect().top, 'Arkade balance appears above logout');
+    state.status = 'loading'; listeners.forEach(listener => listener()); await tick();
+    check(host.querySelector<HTMLInputElement>('input[aria-label="Arkade address"]')?.value === address, 'Arkade address remains visible while refreshing');
+    check(host.querySelector<HTMLInputElement>('input[aria-label="Arkade balance"]')?.value === '1,234 sats', 'Arkade balance remains visible while refreshing');
+    state.addresses = undefined; listeners.forEach(listener => listener()); await tick();
+    check(!!host.querySelector<HTMLInputElement>('input[aria-label="Arkade address"]') && !!host.querySelector('button[aria-label="Copy Arkade address"]'), 'Arkade address layout remains visible while address is pending');
+    check(host.querySelector<HTMLInputElement>('input[aria-label="Arkade balance"]')?.value === '1,234 sats', 'Arkade balance remains visible while address is pending');
+    state.status = 'ready'; state.addresses = {arkadeAddress:address, bitcoinAddress:'tb1game-wallet-fixture'}; listeners.forEach(listener => listener()); await tick();
     button('Copy Arkade address').click(); await tick();
     check(copied === address, 'Copy uses the complete Arkade address');
     button('Log Out Game Wallet').click(); await tick();

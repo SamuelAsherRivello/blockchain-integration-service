@@ -27,6 +27,7 @@ export type { BisMarketplaceCheckoutRecord, BisMarketplaceCheckoutRequest } from
 export { createBisUi, GameOverlay } from './ui/client';
 export { PendingOperations, usePendingNotice } from './ui/PendingOperationDialog';
 export { CopyableValueField } from './ui/CopyableValueField';
+export { BalanceTooltip, formatBalanceSats } from './ui/BalanceTooltip';
 
 export type {BisContinueRequest,BisContinueResult} from './core/continuation';
 export {createBisContinue,getContinuePriceSats,networkLabel} from './core/game-continue';
