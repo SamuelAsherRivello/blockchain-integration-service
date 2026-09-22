@@ -1,7 +1,9 @@
 import {eligibleUnreservedCoins, walletReservations, migrateWalletReservations} from '../core/wallet-reservations.ts';
 import { ArkAddress, MnemonicIdentity, ReadonlyWallet, Wallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, Transaction, Extension, createAssetPacket, type ExtendedVirtualCoin } from '@arkade-os/sdk';
 import { operatorFor, requireNetwork, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import type { TestNetwork } from '../core/test-network.ts';
+import { requireReadablePolicy } from '../core/wallet-network-policy.ts';
 import { readFreshBalance } from './balance.ts';
 import { SendError, sendAmounts, assertSendQuote, readSendRecord, readSendRecords, writeSendRecord, completeSend, type BisSendQuote, type SendRecord } from '../core/sending.ts';
 
@@ -32,7 +34,8 @@ export function assetTotals(coins: readonly {assets?: readonly {assetId:string;a
  return [...totals].sort(([a],[b])=>a.localeCompare(b)).map(([assetId,amount])=>({assetId,amount:String(amount)}));
 }
 async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:string,ignoreOperation?:string,network:TestNetwork='signet') {
- const info=await new RestArkProvider(operatorFor(network)).getInfo();requireNetwork(info.network,network);
+ const {info,policy}=await readWalletNetworkPolicy(network);
+ requireReadablePolicy(policy,'Direct Send');
  // Direct Arkade sends do not use the on-chain fee rate as a separate send
  // charge. The complete fee schedule is included in the quote fingerprint and
  // is re-read and compared by `submitSend` before anything is submitted.
@@ -45,11 +48,11 @@ async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:strin
  if(!Number.isSafeInteger(eligibleTotal)||eligibleTotal<0||eligibleTotal>balance.availableSats||!Number.isSafeInteger(total)||total<0||candidates.some(c=>!Number.isSafeInteger(c.value)||c.value<=0))throw new SendError('Live send data is unavailable.');
  const outpoints=new Set(candidates.map(c=>`${c.txid}:${c.vout}`));
  const blocking=reservations.filter(r=>r.inputs?.some(i=>outpoints.has(`${i.txid}:${i.vout}`)));
- return {info,coins,total,reservedSats:eligibleTotal-total,blocking,dust:Math.max(Number(wallet.dustAmount),Number(info.vtxoMinAmount),1)};
+ return {info,policy,coins,total,reservedSats:eligibleTotal-total,blocking,dust:Math.max(Number(wallet.dustAmount),Number(info.vtxoMinAmount),1)};
 }
 async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requested?:number,preserveAssets=false,ignoreOperation?:string,network:TestNetwork='signet') {
  const own=await wallet.getAddress();const address=sendRecipient(recipient,own);
- const {info,coins,total,dust,reservedSats,blocking}=await funds(wallet,preserveAssets,profileId,ignoreOperation,network);
+ const {info,policy,coins,total,dust,reservedSats,blocking}=await funds(wallet,preserveAssets,profileId,ignoreOperation,network);
  if(reservedSats>0&&(requested===undefined?total===0:Number.isSafeInteger(requested)&&requested>total&&requested<=total+reservedSats)) {
   const transfers=blocking.filter(r=>r.id.startsWith('transfer:'));
   const ids=transfers.map(r=>r.id.slice(9)).filter(id=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id));
@@ -59,7 +62,7 @@ async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requ
  if(info.vtxoMaxAmount>0n&&(BigInt(amounts.amountSats)>info.vtxoMaxAmount||BigInt(amounts.changeSats)>info.vtxoMaxAmount))throw new SendError('Amount exceeds the operator limit.');
  const retained=assetTotals(coins);
  if(retained.length && amounts.changeSats<dust)throw new SendError('This payment must leave enough sats in change to preserve your assets.');
- const raw=JSON.stringify({profileId,recipient:address.encode(),amount:amounts.amountSats,inputs:coins.map(c=>[c.txid,c.vout,c.value,(c.assets??[]).map(a=>[a.assetId,String(a.amount)])]),fees:info.fees,own,dust});
+ const raw=JSON.stringify({profileId,recipient:address.encode(),amount:amounts.amountSats,inputs:coins.map(c=>[c.txid,c.vout,c.value,(c.assets??[]).map(a=>[a.assetId,String(a.amount)])]),policy:policy.fingerprint,own,dust});
  const fingerprint=hex(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw))));
  const quote:BisSendQuote=Object.freeze({id:crypto.randomUUID(),profileId,recipient:address.encode(),amountSats:amounts.amountSats,feeSats:0,totalSats:amounts.amountSats,maxSats:total,expiresAt:Date.now()+60000,fingerprint});
  return {quote,coins,recipientScript:hex(address.pkScript),changeScript:hex(ArkAddress.decode(own).pkScript)};

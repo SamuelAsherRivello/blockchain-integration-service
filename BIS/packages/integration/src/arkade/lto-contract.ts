@@ -1,7 +1,9 @@
 import { MnemonicIdentity, DefaultVtxo, VtxoScript, CSVMultisigTapscript, RestArkProvider, RestIndexerProvider, signAndSubmitOffchainTx, claimWithPreimageIdentity, Extension, createAssetPacket } from '@arkade-os/sdk';
 import { hex } from '@scure/base';
-import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
+import { operatorFor, type AccountSecret } from './account.ts';
+import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import type { TestNetwork } from '../core/test-network.ts';
+import { requireZeroFeePolicy, WalletNetworkPolicyError } from '../core/wallet-network-policy.ts';
 import { buildLtoScript } from './lto-script.ts';
 import { inspectSendTransaction, assetTotals } from './sending.ts';
 import { eligibleUnreservedCoins, walletReservations, type ReservedOperation } from '../core/wallet-reservations.ts';
@@ -38,9 +40,8 @@ export function verifyLtoReceipt(spend: ContractSpend, receipts: readonly Coin[]
 }
 async function terms(network:TestNetwork='signet') {
   const operator=operatorFor(network), ark = new RestArkProvider(operator), indexer = new RestIndexerProvider(operator);
-  const info = await ark.getInfo(); requireNetwork(info.network,network);
-  const zeroFee = (value: string) => value === '' || /^(?:0|0\.0+)$/.test(value);
-  if (!zeroFee(info.fees.txFeeRate) || Object.values(info.fees.intentFee).some(value => !zeroFee(value))) throw new ContractError('Contract fees changed. Creation and spending need fee verification.');
+  const {info,policy}=await readWalletNetworkPolicy(network,ark);
+  requireZeroFeePolicy(policy,'contract creation and spending');
   return { ark, indexer, info, operatorKey: hex.decode(info.signerPubkey).slice(-32) };
 }
 export async function prepareLtoRecovery(game: AccountSecret, player: AccountSecret, suppliedPlayerKey?: Uint8Array): Promise<ContractRecovery> {
@@ -146,7 +147,7 @@ export async function submitLtoSpend(initial: ContractRecord, recovery: Contract
         'Pending operation inputs could not be verified. Open recovery details; receiving and inspection remain available.':'input-recovery'
       };
       const message=error instanceof Error?error.message:'';
-      record={...record,operation:{...record.operation,failure:Object.hasOwn(known,message)?known[message]:'preparation-failed'}};
+      record={...record,operation:{...record.operation,failure:error instanceof WalletNetworkPolicyError&&error.reason==='unsupported-fees'?'fee-change':Object.hasOwn(known,message)?known[message]:'preparation-failed'}};
     }
     await commit(record,material);
     return {record,recovery:material};

@@ -33,6 +33,11 @@ test('changed frozen inputs retire only an unsent draft; nonzero fees prevent mu
 test('policy revalidation stops signing before registration',async t=>{
  const f=fixture(t);writeOnboardingRecord(scope,f.r,0);f.info.fees.txFeeRate='1';await f.adapter.submit(f.r,'boarding',new AbortController().signal,f.save);assert.equal(f.registered,0);assert.equal(readOnboardingRecord(scope).boarding.phase,'prepared');
 });
+test('decimal-zero operator fees remain eligible for the zero-fee onboarding route',async t=>{
+ const f=fixture(t);f.info.fees.txFeeRate='0.0';f.info.fees.intentFee={offchainInput:'0.0',offchainOutput:'00.000'};
+ const facts=await readOnboardingFacts(f.wallet,f.provider,scope,undefined,new AbortController().signal);
+ assert.equal(facts.snapshot.policy.zeroFees,true);assert.equal(facts.snapshot.policy.reason,'supported');
+});
 test('first-leg receipt needs every frozen input, own script, exact amount and no assets',async t=>{
  const f=fixture(t),signal=new AbortController().signal;f.txs=[{txid:'e'.repeat(64),vin:[coin],vout:[],status:{confirmed:false}}];
  for(const wrong of [{...receipt,value:12000},{...receipt,script:'ffff'},{...receipt,assets:[{assetId:'asset',amount:1n}]}]){f.receipts=[{...receipt,script:f.script,commitmentTxIds:['e'.repeat(64)],...wrong}];assert.equal((await readOnboardingFacts(f.wallet,f.provider,scope,f.r,signal)).reconciled,undefined);}

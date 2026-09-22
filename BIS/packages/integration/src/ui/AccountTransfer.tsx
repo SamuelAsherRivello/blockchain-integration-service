@@ -4,6 +4,7 @@ import { readWithRetry } from '../core/pending-read';
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { BisBalance, BisContext, BisTransferStatus } from '../core/context';
+import type { WalletOperationAvailability } from '../core/wallet-network-policy';
 import { boardingSubmissionEnabled, type BoardingQuote } from '../core/boarding-quote';
 import { AccountBalances } from './AccountBalances';
 import { AmountChooserRow } from './AmountChooserRow';
@@ -21,6 +22,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const [statusChecked, setStatusChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<BisTransferStatus>({status:'idle'});
+  const [availability,setAvailability]=useState<WalletOperationAvailability>();
   const [error, setError] = useState('');
   const [submitted,setSubmitted]=useState(false);
   const [warning,setWarning]=useState<readonly BisTransferStatus[]>();
@@ -36,7 +38,8 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const valid = /^\d+$/.test(amount) && Number.isSafeInteger(numeric) && numeric > 0;
   const label = direction === 'to-arkade' ? 'Bitcoin → Arkade' : 'Arkade → Bitcoin';
   const pending = status.status === 'pending';
-  const blocked = !statusChecked;
+  const policyBlocked = availability !== undefined && !availability.available && status.status !== 'pending';
+  const blocked = !statusChecked || policyBlocked;
   function failure(cause: unknown) {
     const message = cause instanceof Error ? cause.message : '';
     return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
@@ -45,9 +48,12 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     const current=++request.current;if(!background)setBusy(true);
     if(!background){setForeground(true);setOperationLabel('Checking...');if(clearError)setError('');}
     try {
-      const next=await readWithRetry(()=>context.checkAccountTransfer(),readController.current.signal);
+      const [next,policy]=await Promise.all([
+        readWithRetry(()=>context.checkAccountTransfer(),readController.current.signal),
+        readWithRetry(()=>context.getAccountTransferAvailability(direction),readController.current.signal),
+      ]);
       if(!alive.current||current!==request.current)return;
-      setStatus(next);setStatusChecked(true);
+      setStatus(next);setAvailability(policy);setStatusChecked(true);
       if(next.status==='succeeded'&&!background)await context.refreshBalance();
     } catch(cause) {
       if(alive.current&&current===request.current){setStatusChecked(false);setStatus(previous=>previous.status==='pending'?{...previous,verification:'unavailable'}:previous);if(!background)setError(failure(cause));}
@@ -137,6 +143,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
       {amount !== '0' && !valid && <p id={`${amountId}-help`} className="bis-transfer-help">Enter a positive whole number of sats.</p>}
     </div>}
     {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}
+    {availability && !availability.available && status.status !== 'pending' && <p className="bis-transfer-help bis-transfer-status" role="status">{availability.message}</p>}
     {!boardingSubmissionEnabled && <p className="bis-warning">Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.</p>}
     {pending && <p className="bis-transfer-help" role="status">Check Transactions for updates on pending transfers.</p>}
     {status.status==='not-submitted' && <p role="status">Transfer was not submitted. Review again to start a new transfer.</p>}

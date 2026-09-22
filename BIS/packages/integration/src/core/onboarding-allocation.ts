@@ -1,4 +1,5 @@
 import type {OnboardingCoin, OnboardingPlan, OnboardingRecord, OnboardingScope} from './onboarding-record.ts';
+import type {WalletPolicyReason} from './wallet-network-policy.ts';
 
 /** Adapter-normalized live facts; unknown eligibility must not be normalized to false/zero. */
 export type OnboardingFunding = OnboardingCoin & {confirmed: boolean; expired: boolean; reserved: boolean};
@@ -6,7 +7,7 @@ export type OnboardingSnapshot = OnboardingScope & {
   complete: boolean; unresolvedOnboarding: boolean;
   boarding: OnboardingFunding[]; spendable: OnboardingFunding[];
   bitcoinScript: string; arkadeScript: string;
-  policy: {zeroFees: boolean; arkadeMinimum: number; bitcoinMinimum: number; arkadeMaximum: number; bitcoinMaximum: number};
+  policy: {zeroFees: boolean; reason?:WalletPolicyReason; arkadeMinimum: number; bitcoinMinimum: number; arkadeMaximum: number; bitcoinMaximum: number};
 };
 export type OnboardingAssessment =
   {status:'complete'|'resume'|'reconcile'|'already-ready'|'funding-needed'|'waiting-confirmation'|'unavailable'|'unsupported'} |
@@ -34,6 +35,7 @@ export function assessOnboarding(scope:OnboardingScope, snapshot:OnboardingSnaps
   const policy=snapshot.policy;
   if(!policy||typeof policy.zeroFees!=='boolean'||!safe(policy.arkadeMinimum,1)||!safe(policy.bitcoinMinimum,1)||!safe(policy.arkadeMaximum)||!safe(policy.bitcoinMaximum)||
     !/^(?:[a-f0-9]{2}){2,10000}$/.test(snapshot.bitcoinScript)||!/^(?:[a-f0-9]{2}){2,10000}$/.test(snapshot.arkadeScript))return {status:'unavailable'};
+  if(policy.reason&&policy.reason!=='supported')return {status:policy.reason==='unsupported-fees'?'unsupported':'unavailable'};
   if(!policy.zeroFees)return {status:'unsupported'};
   const inputs=snapshot.boarding.filter(c=>c.confirmed&&!c.expired&&!c.reserved)
     .map(({txid,vout,value})=>({txid,vout,value})).sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);

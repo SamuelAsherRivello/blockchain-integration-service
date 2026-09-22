@@ -55,6 +55,7 @@ test('adapter persists before network, preserves a lost response, and blocks lat
  // Published BIP39 test vector; never a user account or funded identity.
  const account={profileId:'p',phrase:'abandon '.repeat(11)+'about'};
  const q=await quoteSend(account,recipient,500,new AbortController().signal);
+ info.fees.txFeeRate='1';await assert.rejects(submitSend(account,q,()=>allowed),/Send details changed/);assert.equal(network,0,'changed operator policy cannot submit a reviewed send');info.fees.txFeeRate='0';
  fail=true;await assert.rejects(submitSend(account,q,()=>allowed));assert.equal(network,0);
  fail=false;allowed=false;await assert.rejects(submitSend(account,q,()=>allowed));assert.equal(network,0);
  allowed=true;const pending=await submitSend(account,q,()=>allowed);assert.equal(pending.status,'pending');assert.equal(network,1);assert.equal(readSendRecord('p').status,'pending');

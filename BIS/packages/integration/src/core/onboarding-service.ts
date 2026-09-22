@@ -57,7 +57,7 @@ export function startOnboarding(scope:OnboardingScope,adapter:OnboardingAdapter,
         }
         else if(r.progress?.retryAt&&r.progress.retryAt>Date.now())delay=r.progress.retryAt-Date.now();
         else if(!r.progress?.failure)emit({detail:'Checking the existing settlement and exact receipts automatically; no action needed.'});
-      }else emit({record:undefined,status:assessment.status==='funding-needed'?'start':'pending',detail:assessment.status==='funding-needed'?'Fund this account to start automatic 50% onboarding.':assessment.status==='waiting-confirmation'?'Incoming Bitcoin detected. Waiting for eligible confirmation.':assessment.status==='unsupported'?'Current fees or amount limits do not support this 50% transfer. Checking automatically.':'Checking eligibility and existing reservations automatically.'});
+      }else emit({record:undefined,status:assessment.status==='funding-needed'?'start':'pending',detail:assessment.status==='funding-needed'?'Fund this account to start automatic 50% onboarding.':assessment.status==='waiting-confirmation'?'Incoming Bitcoin detected. Waiting for eligible confirmation.':assessment.status==='unsupported'?'Current operator fee terms or amount limits do not support this 50% transfer. Checking automatically.':facts.snapshot.policy.reason==='network-mismatch'?'The configured operator does not match this wallet network. Checking automatically.':facts.snapshot.policy.reason==='policy-unavailable'?'Operator policy verification is unavailable. Checking automatically.':'Checking eligibility and existing reservations automatically.'});
       failures=0;
     }catch{
       failures++;delay=Math.min(60000,5000*2**Math.min(failures-1,4));

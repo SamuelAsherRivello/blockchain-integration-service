@@ -1,6 +1,8 @@
 import {Wallet,ReadonlyWallet,MnemonicIdentity,RestArkProvider,RestIndexerProvider,InMemoryWalletRepository,InMemoryContractRepository,ArkAddress,CSVMultisigTapscript,hasBoardingTxExpired,Transaction,sdkVersion,type SettleParams} from '@arkade-os/sdk';
-import {operatorFor,requireNetwork,type AccountSecret} from './account.ts';
+import {operatorFor,type AccountSecret} from './account.ts';
+import {readWalletNetworkPolicy} from './wallet-network-policy.ts';
 import type {TestNetwork} from '../core/test-network.ts';
+import {requireZeroFeePolicy} from '../core/wallet-network-policy.ts';
 import {walletReservations,eligibleUnreservedCoins} from '../core/wallet-reservations.ts';
 import {readOnboardingRecord,type OnboardingRecord,type OnboardingCoin,type OnboardingScope} from '../core/onboarding-record.ts';
 import {onboardingFailure,type OnboardingAdapter,type OnboardingFacts,type OnboardingTransaction} from '../core/onboarding-service.ts';
@@ -19,8 +21,8 @@ async function bounded<T>(work:Promise<T>,signal:AbortSignal,ms=30000):Promise<T
   finally{stop.removeEventListener('abort',abort);}
 }
 export async function readOnboardingFacts(wallet:ReadonlyWallet,provider:RestArkProvider,scope:OnboardingScope,r:OnboardingRecord|undefined,signal:AbortSignal):Promise<OnboardingFacts>{
-  const [info,coins,receipts,tip,address,own]=await bounded(Promise.all([provider.getInfo(),wallet.getBoardingUtxos(),wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),wallet.onchainProvider.getChainTip(),wallet.getBoardingAddress(),wallet.getAddress()]),signal);
-  requireNetwork(info.network,scope.network);const live=wallet.getProviderConnectionState();if(live.mode!=='online'||live.source!=='live')throw Error('Live connection unavailable.');
+  const [operatorPolicy,coins,receipts,tip,address,own]=await bounded(Promise.all([readWalletNetworkPolicy(scope.network,provider),wallet.getBoardingUtxos(),wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),wallet.onchainProvider.getChainTip(),wallet.getBoardingAddress(),wallet.getAddress()]),signal);
+  const {info,policy}=operatorPolicy;const live=wallet.getProviderConnectionState();if(live.mode!=='online'||live.source!=='live')throw Error('Live connection unavailable.');
   const txs=await bounded(wallet.onchainProvider.getTransactions(address),signal);
   const bitcoinScript=hex(wallet.boardingTapscript.pkScript),arkadeScript=hex(ArkAddress.decode(own).pkScript);
   const allReservations=walletReservations(scope.profileId),other=allReservations.filter(v=>v.id!==`onboarding:${r?.id}`);
@@ -29,7 +31,7 @@ export async function readOnboardingFacts(wallet:ReadonlyWallet,provider:RestArk
   const snapshot={...scope,complete:true,unresolvedOnboarding:false,bitcoinScript,arkadeScript,
     boarding:coins.map(c=>({...plain(c),confirmed:c.status.confirmed,expired:hasBoardingTxExpired(c,exit.params.timelock,tip.height),reserved:!allowed.has(point(c))})),
     spendable:receipts.map(c=>({...plain(c),confirmed:true,expired:false,reserved:!allowed.has(point(c))})),
-    policy:{zeroFees:info.fees.txFeeRate==='0'&&Object.values(info.fees.intentFee).every(v=>v===''||v==='0'),arkadeMinimum:Math.max(1,Number(info.vtxoMinAmount),Number(wallet.dustAmount)),bitcoinMinimum:Math.max(1,Number(info.utxoMinAmount)),arkadeMaximum:Math.max(0,Number(info.vtxoMaxAmount)),bitcoinMaximum:Math.max(0,Number(info.utxoMaxAmount))}};
+    policy:{zeroFees:policy.zeroFees,reason:policy.reason,arkadeMinimum:Math.max(1,Number(info.vtxoMinAmount),Number(wallet.dustAmount)),bitcoinMinimum:Math.max(1,Number(info.utxoMinAmount)),arkadeMaximum:Math.max(0,Number(info.vtxoMaxAmount)),bitcoinMaximum:Math.max(0,Number(info.utxoMaxAmount))}};
   const transactions:OnboardingTransaction[]=txs.filter(tx=>tx.vout.some(o=>o.scriptpubkey_address===address)).map(tx=>({txid:tx.txid,confirmed:tx.status.confirmed,value:tx.vout.filter(o=>o.scriptpubkey_address===address).reduce((s,o)=>s+Number(o.value),0),kind:tx.txid===r?.returning?.commitmentTxid?'return':'incoming'}));
   let next=r;const independent:OnboardingCoin[]=[];
   if(r?.plan&&r.status==='pending'){
@@ -123,12 +125,12 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
           const forfeits=provider.submitSignedForfeitTxs.bind(provider);provider.submitSignedForfeitTxs=async(...args)=>{assert();await forfeits(...args);await progress('signing');};
           let acquisition:Promise<Wallet>|undefined;
           try{
-            const info=await bounded(provider.getInfo(),active);requireNetwork(info.network,scope.network);progressWindow=settlementTimeoutMs(info);deadline=Date.now()+progressWindow;
+            const {info,policy:initialPolicy}=await bounded(readWalletNetworkPolicy(scope.network,provider),active);requireZeroFeePolicy(initialPolicy,'automatic onboarding');progressWindow=settlementTimeoutMs(info);deadline=Date.now()+progressWindow;
             attemptTimer=setTimeout(()=>{open=false;stop.abort();},Math.max(1,deadline-Date.now()));
             acquisition=dependencies.signing(provider,account,scope.operator);wallet=await bounded(acquisition,active);assert();
             const r=readOnboardingRecord(scope);if(!r?.plan||r.id!==original.id||r[which].phase!=='prepared')return;
             const facts=await readOnboardingFacts(wallet,provider,scope,r,active),p=r.plan,policy=facts.snapshot.policy;
-            if(!policy.zeroFees||p.targetSats<policy.arkadeMinimum||p.returnSats<policy.bitcoinMinimum||policy.arkadeMaximum>0&&p.totalSats>policy.arkadeMaximum||policy.bitcoinMaximum>0&&p.returnSats>policy.bitcoinMaximum||p.bitcoinScript!==facts.snapshot.bitcoinScript||p.arkadeScript!==facts.snapshot.arkadeScript){
+            if(policy.reason!=='supported'||!policy.zeroFees||p.targetSats<policy.arkadeMinimum||p.returnSats<policy.bitcoinMinimum||policy.arkadeMaximum>0&&p.totalSats>policy.arkadeMaximum||policy.bitcoinMaximum>0&&p.returnSats>policy.bitcoinMaximum||p.bitcoinScript!==facts.snapshot.bitcoinScript||p.arkadeScript!==facts.snapshot.arkadeScript){
               if(which==='boarding')await checkpoint(v=>v.plan&&v.id===r.id&&v.boarding.phase==='prepared'?{...v,status:'not-submitted'}:v);
               throw Error('Onboarding terms changed.');
             }

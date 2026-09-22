@@ -21,7 +21,8 @@ import { assertNoPendingBurn, BurnError, validateBurn, type BisBurnAssetRequest,
 import { AssetDeliveryError, validateAssetDelivery, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from './asset-delivery.ts';
 import type { BisAssets } from './asset-presentation';
 import { AssetError, assetError, validateMint, readAssetRecords, type BisMintAssetRequest, type BisMintAssetResult, type BisListAssetsResult, type BisPendingMintResult } from './assets.ts';
-import { quoteBoarding, submitBoarding, reconcileBoarding } from '../arkade/boarding.ts';
+import { getBoardingAvailability, quoteBoarding, submitBoarding, reconcileBoarding } from '../arkade/boarding.ts';
+import type { WalletOperationAvailability } from './wallet-network-policy.ts';
 import { assertNoPendingBoarding, assertPendingTransfersAcknowledged, withWalletMutation, BoardingBlockedError, readBoardingRecord, readBoardingRecords } from './boarding-record.ts';
 import { boardingSubmissionEnabled, type BoardingQuote } from './boarding-quote.ts';
 import { transferStatus } from './boarding-status.ts';
@@ -107,6 +108,7 @@ export interface BisContext {
   openAccountDetails(): void;
   openAccountTransfer(): void;
   quoteAccountTransfer(amountSats?: number, direction?: BoardingQuote['direction']): Promise<BoardingQuote>;
+  getAccountTransferAvailability(direction?: BoardingQuote['direction']): Promise<WalletOperationAvailability>;
   confirmAccountTransfer(quote: BoardingQuote, acknowledgedPendingIds?: readonly string[]): Promise<BisTransferStatus>;
   getPendingAccountTransfers(): readonly BisTransferStatus[];
   checkAccountTransfer(): Promise<BisTransferStatus>;
@@ -143,7 +145,7 @@ export function getControls(context: BisContext): Controls {
 // Private dependency seam for isolated tests; not exported by the package.
 type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined; hasGameWallet?:()=>boolean; resetGameWallet?:()=>Promise<boolean>; getNetwork?:()=>TestNetwork|undefined; selectNetwork?:(network:TestNetwork)=>void; requireNetworkSelection?:boolean};
 const playerGameWalletConflict = 'This wallet is already configured as the Game Wallet. Use a different Player Wallet.';
-export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: BisContextOptions = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined, onboardingFactory:((account:AccountSecret,current:()=>boolean)=>OnboardingAdapter)|undefined = create===createAccount&&identifyAccount===identify&&readBalance===loadBalance?createOnboardingAdapter:undefined): BisContext {
+export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers: {quote:typeof quoteBoarding;submit:typeof submitBoarding;reconcile:typeof reconcileBoarding;availability?:typeof getBoardingAvailability} = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding,availability:getBoardingAvailability}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: BisContextOptions = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined, onboardingFactory:((account:AccountSecret,current:()=>boolean)=>OnboardingAdapter)|undefined = create===createAccount&&identifyAccount===identify&&readBalance===loadBalance?createOnboardingAdapter:undefined): BisContext {
   const toasts = createToastQueue();
   const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
   if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
@@ -788,6 +790,14 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       const quote=await transfers.quote(account,amountSats,operation.signal,direction);
       if(disposed||accountVersion!==version||account.profileId!==state.profileId)throw Error('The account changed.');
       return quote;
+    },
+    async getAccountTransferAvailability(direction='to-arkade') {
+      const account=await activeTransferAccount(),current=version;
+      // Isolated tests can inject transfer behavior without a network reader;
+      // production always supplies the shared policy availability adapter.
+      const availability=transfers.availability ? await transfers.availability(account,operation.signal,direction) : Object.freeze({available:true as const});
+      if(disposed||current!==version||account.profileId!==state.profileId)return Object.freeze({available:false as const,reason:'policy-unavailable' as const,message:'The account changed. Account Transfer is unavailable.'});
+      return availability;
     },
     getPendingAccountTransfers() {
       assertAlive();

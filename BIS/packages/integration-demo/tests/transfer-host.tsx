@@ -13,10 +13,12 @@ document.getElementById('run')!.onclick = async () => {
   const account = {phrase:'isolated-placeholder',profileId:'1234567890abcdef'};
   let fail = false, quoteLifetime=60000;
   let emptyBitcoin = true;
+  let policyUnavailable = false;
   const c = createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}}, undefined, async()=>account.profileId, undefined,
     async()=>{if(fail)throw Error('private');return emptyBitcoin ? {availableSats:289715,totalSats:289715,bitcoinSats:0,arkadeSats:289715} : {availableSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000};});
   c.getPendingAccountTransfers=()=>[];
   c.checkAccountTransfer=async()=>({status:'idle'});
+  c.getAccountTransferAvailability=async()=>policyUnavailable?{available:false,reason:'unsupported-fees',message:'The current operator fee terms are not supported for Account Transfer.'}:{available:true};
   c.quoteAccountTransfer=async(amount=500,direction='to-arkade')=>({profileId:account.profileId,direction,amountSats:amount,feeSats:0,netSats:amount,maxSats:500,bitcoinAfterSats:500-amount,arkadeAfterSats:1000+amount,totalAfterSats:1500,expiresAt:Date.now()+quoteLifetime,fingerprint:'test-only'});
   c.confirmAccountTransfer=async()=>{throw Error('Unexpected submission');};
   const ui = createBisUi(c);ui.mount(host);cleanup=()=>{ui.unmount();c.dispose();};
@@ -127,6 +129,9 @@ document.getElementById('run')!.onclick = async () => {
     check(host.textContent?.includes('289,385 sats') && host.textContent.includes('330 sats'),'Asset-preserving reverse quote renders withdrawal and retained Arkade balance');
     check(!button('Confirm Transfer').disabled,'Asset-preserving review reaches explicit confirmation');
     check(card.scrollWidth<=card.clientWidth,'Asset review has no horizontal overflow');
+    button('Back').click();await tick();policyUnavailable=true;c.openAccountTransfer();await tick();
+    check(button('Review Transfer').disabled && host.textContent?.includes('current operator fee terms are not supported'),'Known operator policy is shown before review and blocks the action');
+    check(!host.textContent?.includes('operator fee schedule changed'),'Decimal-zero regression does not use the legacy fee-schedule modal copy');
     result.textContent='PASS: transfer layout, directions, review, expiry and recovery checks; asset-preserving Max and 330-sat Arkade change rendered. Isolated test doubles; no live submission.';
   } catch(error) {result.textContent=`FAIL: ${error instanceof Error ? error.message : 'transfer checks'}`;}
 };

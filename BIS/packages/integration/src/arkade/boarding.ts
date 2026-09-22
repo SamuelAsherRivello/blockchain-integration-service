@@ -7,7 +7,9 @@ import { sdkVersion, MnemonicIdentity, ReadonlyWallet, Wallet, RestArkProvider, 
 import { boardingAssets, type BoardingAssetChange } from '../core/boarding-assets.ts';
 import type { ExtendedVirtualCoin } from '@arkade-os/sdk';
 import { operatorFor, requireNetwork, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import type { TestNetwork } from '../core/test-network.ts';
+import { requireZeroFeePolicy, walletPolicyAvailability } from '../core/wallet-network-policy.ts';
 import { boardingAmounts, assertQuoteUnchanged, type BoardingQuote } from '../core/boarding-quote.ts';
 import { readBoardingRecord, readBoardingRecords, writeBoardingRecord, createBoardingAttempt, recoverPreparedBoarding, withWalletMutation, type BoardingRecord } from '../core/boarding-record.ts';
 import { withBrowserMutation } from '../core/logout-cleanup.ts';
@@ -37,10 +39,10 @@ async function readonly<T>(account:AccountSecret,signal:AbortSignal,read:(wallet
 }
 async function plan(wallet:ReadonlyWallet,profileId:string,requested?:number,direction:BoardingQuote['direction']='to-arkade',network:TestNetwork='signet') {
   if(!['to-arkade','to-bitcoin'].includes(direction))throw Error('Unsupported transfer direction.');
-  const info=await new RestArkProvider(operatorFor(network)).getInfo();requireNetwork(info.network,network);
-  // The configured Signet operator currently quotes zero fees. Do not guess
-  // arbitrary fee formulas or omit a future onchain-change output charge.
-  if(info.fees.txFeeRate!=='0'||Object.values(info.fees.intentFee).some(value=>value!==''&&value!=='0'))throw Error('The operator fee schedule changed. Transfers need a new fee verification.');
+  const {info,policy}=await readWalletNetworkPolicy(network);
+  // Do not guess arbitrary fee formulas or omit a future onchain-change output charge.
+  // Decimal-zero encodings are normalized before this capability decision.
+  requireZeroFeePolicy(policy,'Account Transfer');
   const [coins,balance,tip,bitcoinAddress]=await Promise.all([wallet.getBoardingUtxos(),wallet.getBalance(),wallet.onchainProvider.getChainTip(),wallet.getBoardingAddress()]);
   await readFreshBalance({getBalance:async()=>balance,getProviderConnectionState:()=>wallet.getProviderConnectionState()});
   const exit=CSVMultisigTapscript.decode(Uint8Array.from(wallet.boardingTapscript.exitScript.match(/.{2}/g)!.map(v=>parseInt(v,16))));
@@ -93,7 +95,7 @@ async function plan(wallet:ReadonlyWallet,profileId:string,requested?:number,dir
   if(direction==='to-bitcoin'&&info.utxoMaxAmount>0n&&BigInt(amounts.amountSats)>info.utxoMaxAmount)throw Error('Amount exceeds the operator limit.');
   if(direction==='to-bitcoin'&&info.vtxoMaxAmount>0n&&BigInt(amounts.changeSats)>info.vtxoMaxAmount)throw Error('Change exceeds the operator limit.');
   if(direction==='to-arkade'&&info.utxoMaxAmount>0n&&BigInt(amounts.changeSats)>info.utxoMaxAmount)throw Error('Change exceeds the operator limit.');
-  const raw=JSON.stringify({profileId,direction,inputs:inputs.map(i=>({txid:i.txid,vout:i.vout,value:i.value,assets:boardingAssets([i])})),outputs:params.outputs.map(o=>({address:o.address,amount:o.amount.toString()})),assetChange,fees:info.fees});
+  const raw=JSON.stringify({profileId,direction,inputs:inputs.map(i=>({txid:i.txid,vout:i.vout,value:i.value,assets:boardingAssets([i])})),outputs:params.outputs.map(o=>({address:o.address,amount:o.amount.toString()})),assetChange,policy:policy.fingerprint});
   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
   const quote:BoardingQuote=Object.freeze({profileId,direction,amountSats:amounts.amountSats,feeSats:0,netSats:amounts.amountSats,maxSats,inputSats:totalInput,bitcoinAfterSats:balance.boarding.total+(direction==='to-arkade'?-amounts.amountSats:amounts.amountSats),arkadeAfterSats:balance.total-balance.boarding.total+(direction==='to-arkade'?amounts.amountSats:-amounts.amountSats),totalAfterSats:balance.total,expiresAt:Date.now()+60000,fingerprint:Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('')});
   return {quote,params,bitcoinAddress,assetChange};
@@ -116,6 +118,21 @@ export function inspectBoardingAssets(proof:string,params:SettleParams,change:Bo
 }
 export async function quoteBoarding(account:AccountSecret,requested:number|undefined,signal:AbortSignal,direction:BoardingQuote['direction']='to-arkade') {
   return readonly(account,signal,async wallet=>(await plan(wallet,account.profileId,requested,direction,account.network ?? 'signet')).quote);
+}
+export async function getBoardingAvailability(account:AccountSecret,signal:AbortSignal,direction:BoardingQuote['direction']='to-arkade') {
+  try {
+    const {policy}=await readWalletNetworkPolicy(account.network ?? 'signet');
+    signal.throwIfAborted();
+    const policyAvailability=walletPolicyAvailability(policy,'Account Transfer',true);
+    if(!policyAvailability.available)return policyAvailability;
+    await readonly(account,signal,async wallet=>{await plan(wallet,account.profileId,undefined,direction,account.network ?? 'signet');});
+    return Object.freeze({available:true as const});
+  } catch(error) {
+    const message=error instanceof Error?error.message:'';
+    if(message.includes('Pending transfers reserve'))return Object.freeze({available:false as const,reason:'reserved-inputs' as const,message:'Pending wallet operations reserve the inputs needed for this Account Transfer.'});
+    if(message.startsWith('No confirmed eligible Bitcoin funds.')||message.startsWith('No spendable Arkade funds are available.')||message.startsWith('No eligible'))return Object.freeze({available:false as const,reason:'insufficient-funds' as const,message:'Insufficient unreserved funds are available for this Account Transfer.'});
+    return Object.freeze({available:false as const,reason:'policy-unavailable' as const,message:'Operator policy verification is unavailable. Account Transfer is unavailable.'});
+  }
 }
 export function submitBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:()=>boolean=()=>true):Promise<BoardingRecord> {
   const operationId=crypto.randomUUID();
@@ -161,7 +178,8 @@ async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:(
   provider.submitSignedForfeitTxs=async(...args)=>{assertSigningActive();await observe('signing','forfeit-signatures');assertSigningActive();await forfeits(...args);await observe('signatures-submitted');};
   let attempt:ReturnType<typeof createBoardingAttempt>|undefined;
   let prepared:Awaited<ReturnType<typeof plan>>|undefined;
-  const schedule=await c.options.arkProvider.getInfo();
+  const {info:schedule,policy:schedulePolicy}=await readWalletNetworkPolicy(network,c.options.arkProvider);
+  requireZeroFeePolicy(schedulePolicy,'Account Transfer');
   const timeout=settlementTimeoutMs(schedule);
   const deadline=Date.now()+timeout;
   const register=c.options.arkProvider.registerIntent.bind(c.options.arkProvider);
