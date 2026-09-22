@@ -94,7 +94,7 @@ try {
   await page.goto(base);
   await page.getByRole('button',{name:/B.P.1/}).waitFor();
   assert.match(await page.getByRole('button',{name:/B.P.1/}).innerText(),/\(Player->Game\)$/);
-  assert.match(await page.getByRole('button',{name:/B.G.2\. Send/}).innerText(),/^B.G.2\. Send 1000 Sats \(Game->Player\)/);
+  assert.match(await page.getByRole('button',{name:/A.G.3\. Send/}).innerText(),/^A.G.3\. Send 1000 Sats \(Game->Player\)/);
   assert.deepEqual(errors,[]);
-  console.log('PASS: destination routing, keyboard/mobile, wallet availability, pending recovery, account replacement, retry identity, focus restoration and B.P.1/B.G.2 labels. Isolated wallet callbacks; no live mints.');
+  console.log('PASS: destination routing, keyboard/mobile, wallet availability, pending recovery, account replacement, retry identity, focus restoration and B.P.1/A.G.3 labels. Isolated wallet callbacks; no live mints.');
 } finally {await browser.close();}

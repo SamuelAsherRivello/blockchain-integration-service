@@ -56,7 +56,7 @@ export function TreasureLtoPanel({context,offers,gameWallet,onLog}:{context?:Bis
     log.current({event:'Claim LTO',status:result.status,sessionId:before.sessionId,contractId:before.contractId,message:result.status==='pending'?'Claim pending; confirmation will arrive without interrupting play.':treasureMessage(before.status)});
     if (result.status !== 'pending') context?.showToast(result.status === 'too-late' ? "You found a treasure but it's expired" : result.status === 'not-submitted' ? 'Contract claim was not submitted.' : treasureMessage(before.status), {messageType:'warning'});
   }
-  return <StoryButton label="D.P.2 / D.G.1. LTO Treasure Chest" sublabel={<span className="game-wallet-balance" aria-label="LTO time left" style={{fontVariantNumeric:'tabular-nums'}}>Time left: {remaining}s</span>}>
+  return <StoryButton label="D.G.1 / D.P.2. LTO Treasure Chest" sublabel={<span className="game-wallet-balance" aria-label="LTO time left" style={{fontVariantNumeric:'tabular-nums'}}>Time left: {remaining}s</span>}>
     <button type="button" onClick={start}>Start LTO</button>
     <button type="button" onClick={()=>void claim()}>Claim LTO</button>
   </StoryButton>;

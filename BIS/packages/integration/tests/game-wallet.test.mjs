@@ -5,7 +5,7 @@ import {writeAssetRecord} from '../src/core/assets.ts';
 import {testLocks} from './locks-fixture.mjs';
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-test('B.G.2 enables at 1000 sats and remains unavailable below 1000',async()=>{
+test('A.G.3 enables at 1000 sats and remains unavailable below 1000',async()=>{
   for(const amount of [999,1000]) {
     const f=fixture();
     f.dependencies.balance=async()=>({availableSats:amount,totalSats:amount,bitcoinSats:0,arkadeSats:amount});

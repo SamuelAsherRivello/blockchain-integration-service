@@ -75,7 +75,7 @@ test('A.G.1 keeps the recovery phrase and reports an import failure beside the f
   assert.ok(submit.indexOf("setPhrase('')") > submit.indexOf('await controller.importWallet(input)'), 'A.G.1 must not erase the phrase before import succeeds');
 });
 
-test('B.G.2 Details exposes separate Bitcoin and Arkade funding details', async () => {
+test('A.G.3 Details exposes separate Bitcoin and Arkade funding details', async () => {
   const source = await readFile(new URL('../src/admin/GameWalletPanel.tsx', import.meta.url), 'utf8');
   const details = source.slice(source.indexOf('async function details()'), source.indexOf('return <StorySection'));
   assert.match(details, /bitcoin:\s*\{[\s\S]*?balanceSats:\s*current\.balance\?\.bitcoinSats[\s\S]*?address:\s*current\.addresses\?\.bitcoinAddress/);

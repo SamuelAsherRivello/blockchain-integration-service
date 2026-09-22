@@ -177,9 +177,9 @@ Before every additional balance-transfer review in either direction, the UI asks
 
 API consumers can call getPendingAccountTransfers() for the public pending statuses and pass the explicitly acknowledged operation IDs as the optional second argument to confirmAccountTransfer(quote, acknowledgedPendingIds). Confirmation without acknowledgement rejects when another transfer is pending. Each operation retains independent status and input reservations; Transactions includes all records. This does not guarantee a settlement time or permit reuse of pending inputs.
 
-### Local game wallet (A.G.1, A.G.2, B.G.2)
+### Local game wallet (A.G.1, A.G.2, A.G.3)
 
-Create one `createBisGameWallet({ playerProfileId })` controller for a browser origin and pass it to every BIS surface that needs it. Compose it into `createBisUi(context, { gameWallet })`, the Admin A.G.1/B.G.2 controls, and `createBisLto({ context, gameWallet })`. A.G.1 (Admin-facing) and A.G.2 (user-facing) select the same encrypted, browser-local game wallet; A.G.2 is the standalone-game setup path under Account Details → Balance → Game Wallet Login. B.G.2 is Admin-only and provides board controls for that selected wallet.
+Create one `createBisGameWallet({ playerProfileId })` controller for a browser origin and pass it to every BIS surface that needs it. Compose it into `createBisUi(context, { gameWallet })`, the Admin A.G.1/A.G.3 controls, and `createBisLto({ context, gameWallet })`. A.G.1 (Admin-facing) and A.G.2 (user-facing) select the same encrypted, browser-local game wallet; A.G.2 is the standalone-game setup path under Account Details → Balance → Game Wallet Login. A.G.3 is Admin-only and provides board controls for that selected wallet.
 
 The controller exposes private Create, Restore, Select, Logout, inspection, subscription, boarding, and direct Arkade signing operations. Its public state contains only the selected profile, non-secret selection version, public addresses, balance, status, and sanitized message. Do not put recovery material or a service URL in host configuration.
 

@@ -27,7 +27,7 @@ B. Payments/Transfers
    B.P.7  Account Transfer
    B.P.8  Open Onboarding
    B.G.1  Receive Player Continuation Payment
-   B.G.2  Board Game Wallet
+   A.G.3  Board Game Wallet
 
 C. Assets
    C.P.1  Reward Player With Trophy
@@ -117,7 +117,7 @@ Reviewed against the current checkout and recorded acceptance evidence on 2026-0
 | E.P.3 Cancel Pending Transfer | Not implemented | Blocked on verified operator cancellation scope and terminal-outcome guarantees; no cancellation UI or live cancellation delivered. |
 | A.G.1 Admin Game Wallet | A. Accounts / Game Wallet | Admin setup for the shared local game-wallet selection. |
 | A.G.2 User-facing Game Wallet ✓ | Account Details / Balance / Game Wallet Login | Serverless setup for every BIS account host. |
-| B.G.2 Board Game Wallet ✓ | Payments/Transfers / Game Wallet | Admin-only balance and boarding controls for the selected game wallet. |
+| A.G.3 Board Game Wallet ✓ | Payments/Transfers / Game Wallet | Admin-only balance and boarding controls for the selected game wallet. |
 | D.P.1 Contracts UI ✓ | Account Details / Contracts | Complete and user-accepted 2026-09-09; shared list/details and eligible actions. Specs synced; change archived. |
 | D.P.2 / D.G.1 Treasure Chest ✓ | BIS contract demo / Stealth & Steel Level01 | Complete locally and user-accepted 2026-09-09; 1,000-sat, 90-second chest with shared persistent game wallet. Specs synced; archived with verification limits retained. HTTPS service deployment remains outstanding. |
 | X.N.1 Arkade Onboarding Spike ✓ | [Standalone spike](http://127.0.0.1:5174/spike1/) | Original six-step experiment and the documented four-run and three-run acceptance cohorts reached verified Step 6; 89 tests and both builds passed. Robustness follow-up tasks remain separately tracked, and this does not establish BIS production acceptance. |
@@ -564,7 +564,7 @@ The Game Wallet marketplace listing operation reads fresh inventory and reports 
 
 Admin has an independent game wallet, imported through one recovery-phrase field. Importing another wallet retains earlier wallets; re-entering a phrase selects that wallet again. Reload restores the last selection. Player logout and reset leave game-wallet storage intact.
 
-**Serverless game wallet implementation — 2026-09-10:** A.G.1 (Admin-facing) and A.G.2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS local storage. A.G.2 is available from Account Details → Balance below Get Recovery Phrase and is the setup path for any consuming game with no Admin. It creates/restores or logs out the game wallet only; B.G.2 remains the Admin-only board controls. D.P.2 uses the selected local wallet for direct Arkade operations, so no BIS wallet-service endpoint is configured or deployed.
+**Serverless game wallet implementation — 2026-09-10:** A.G.1 (Admin-facing) and A.G.2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS local storage. A.G.2 is available from Account Details → Balance below Get Recovery Phrase and is the setup path for any consuming game with no Admin. It creates/restores or logs out the game wallet only; A.G.3 remains the Admin-only board controls. D.P.2 uses the selected local wallet for direct Arkade operations, so no BIS wallet-service endpoint is configured or deployed.
 
 The **A.G.1. Game Wallet (Admin-facing)** row shows **Login** initially and **Logout** after import. A.G.1 and A.G.2 read and write the same selected record. Logout deselects the wallet across reloads without deleting saved identities.
 
@@ -576,13 +576,13 @@ Game-wallet trophy issuance remains a separate deferred proposal; existing playe
 
 A.G.2 provides the Game Wallet Login page in Account Details → Balance. It can create or restore the separate game wallet, then offers Logout Game Wallet before a replacement can be created or restored. It does not display the wallet's balance, addresses, or board controls.
 
-### B.G.2. Board Game Wallet ✓
+### A.G.3. Board Game Wallet ✓
 
-B.G.2 remains Admin-only. It reads the wallet selected by A.G.1 or A.G.2, shows its balance beside the board controls, and provides the existing Details, quote, confirmation, and boarding-state workflow. It is not a player-payment route and is never displayed in a standalone consuming game.
+A.G.3 remains Admin-only. It reads the wallet selected by A.G.1 or A.G.2, shows its balance beside the board controls, and provides the existing Details, quote, confirmation, and boarding-state workflow. It is not a player-payment route and is never displayed in a standalone consuming game.
 
 ## D. Contracts
 
-D.P.1 and D.P.2 retain their completed generic contract behavior, with the current serverless A.G.1/A.G.2/B.G.2 game-wallet migration planned in the active OpenSpec change. Historical acceptance records describe the previous hosted topology and are retained only as evidence for that superseded slice. BIS owns reusable contract tracking and operations; the game owns gameplay and placement.
+D.P.1 and D.P.2 retain their completed generic contract behavior, with the current serverless A.G.1/A.G.2/A.G.3 game-wallet migration planned in the active OpenSpec change. Historical acceptance records describe the previous hosted topology and are retained only as evidence for that superseded slice. BIS owns reusable contract tracking and operations; the game owns gameplay and placement.
 
 ### D.P.1. Contracts UI ✓
 
@@ -1092,7 +1092,7 @@ E.P.2 and E.P.3 are independently deliverable stories. E.P.2 provides a read-onl
 
 
 
-B.G.2 appends **(Awaiting Balance)** for loading or insufficient payment funds. Other eligibility blockers retain their safeguards and appear separately from the button suffix. A.G.2 uses live transaction evidence for boarding status.
+A.G.3 appends **(Awaiting Balance)** for loading or insufficient payment funds. Other eligibility blockers retain their safeguards and appear separately from the button suffix. A.G.2 uses live transaction evidence for boarding status.
 
 
 ### A.G.4. Reliable onboarding and transfer recovery

@@ -2,26 +2,27 @@ import { StoryButton } from './StoryButton';
 import { useEffect, useState } from 'react';
 import { BalanceTooltip, createBisGameWallet, formatBalanceSats, type BisGameWalletState } from '@bis/integration';
 
-export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpenDeveloper}: {
+export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpenDeveloper, mode = 'all'}: {
   controller?: ReturnType<typeof createBisGameWallet>;
   onRecipientChange?(recipient: string | undefined): void;
   onOpenDeveloper(): void;
   onDetails(details: unknown): void;
+  mode?: 'all' | 'account' | 'board';
 }) {
   const [state, setState] = useState<BisGameWalletState>({status:'loading',selectionVersion:0});
   const [entry, setEntry] = useState(false), [phrase, setPhrase] = useState('');
   const [importing, setImporting] = useState(false), [importMessage, setImportMessage] = useState('');
   useEffect(() => {
     const address = state.addresses?.arkadeAddress;
-    onRecipientChange?.(state.profileId ? address : undefined);
-  }, [onRecipientChange, state.addresses?.arkadeAddress, state.profileId]);
+    if (mode !== 'board') onRecipientChange?.(state.profileId ? address : undefined);
+  }, [mode, onRecipientChange, state.addresses?.arkadeAddress, state.profileId]);
   const [boardingBusy, setBoardingBusy] = useState(false);
   const [boardingState, setBoardingState] = useState<'ready' | 'waiting' | 'boarded' | 'unknown'>('unknown');
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     setBoardingState('unknown');
-    if (!controller || !state.profileId || state.status !== 'ready') return;
+    if (mode === 'account' || !controller || !state.profileId || state.status !== 'ready') return;
     const check = async () => {
       try {
         const result = await controller.checkLiveBoardingState();
@@ -34,7 +35,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
     };
     void check();
     return () => { stopped = true; clearTimeout(timer); };
-  }, [controller, state.profileId, state.status, boardingBusy]);
+  }, [controller, mode, state.profileId, state.status, boardingBusy]);
   const [quote, setQuote] = useState<Awaited<ReturnType<ReturnType<typeof createBisGameWallet>['quoteBoarding']>>>();
   const setBoardingMessage = (message: string) => { if (message) onDetails({operation:'Board Game Wallet', message}); };
   useEffect(() => { setQuote(undefined); }, [state.profileId]);
@@ -54,7 +55,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
     try {
       if (action === 'check') {
         const status = await controller.checkBoarding();
-        onDetails({operation:'B.G.2 Boarding Status', ...status});
+        onDetails({operation:'A.G.3 Boarding Status', ...status});
         await controller.refresh();
         return;
       }
@@ -81,11 +82,11 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
   }
   async function details() {
     if (!controller) return;
-    onDetails({operation:'B.G.2 Wallet Status', status:'loading'});
+    onDetails({operation:'A.G.3 Wallet Status', status:'loading'});
     await controller.refresh();
     const current = controller.getState();
     onDetails({
-      operation:'B.G.2 Wallet Status',
+      operation:'A.G.3 Wallet Status',
       status: current.status, profileId: current.profileId,
       paymentStatus: controller.getPlayerPaymentBlockReason?.() ?? 'Ready',
       paymentBalanceSats: controller.getPlayerPaymentBalance?.() ?? 'Unavailable',
@@ -107,22 +108,22 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
     });
   }
   return <div className="game-wallet-panel">
-    <StoryButton label="B.G.2. Board Game Wallet" sublabel={<>{state.balance && <span className="bis-balance-tooltip" data-bis-balance-tooltip="B.G.2 Board Game Wallet balance" tabIndex={0}>
-      <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>
-      <span className="bis-balance-tooltip-panel" role="tooltip"><BalanceTooltip title="B.G.2 Board Game Wallet balance" balance={formatBalanceSats(state.balance.availableSats)} available={formatBalanceSats(state.balance.availableSats)} /></span>
-    </span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}</>}> 
-      <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
-      {boardingState !== 'boarded' && <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
-    </StoryButton>
-    <StoryButton label="A.G.1. Game Wallet (Admin-facing)">
+    {mode !== 'board' && <><StoryButton label="A.G.1. Game Wallet (Admin-facing)">
         {state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
           : <button disabled={busy || !playerReady} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
     </StoryButton>
     <StoryButton label="A.G.2. Game Wallet (User-facing)">
       <button aria-label="A.G.2. Game Wallet (User-facing)" disabled={!controller || !playerReady} onClick={onOpenDeveloper}>↗</button>
-    </StoryButton>
-    {!playerReady && <p role="status">Connect a Player Wallet to use the Game Wallet on that same network.</p>}
-    {entry && playerReady && !state.profileId && <form onSubmit={async event => {
+    </StoryButton></>}
+    {mode !== 'account' && <StoryButton label="A.G.3. Board Game Wallet" sublabel={<>{state.balance && <span className="bis-balance-tooltip" data-bis-balance-tooltip="A.G.3 Board Game Wallet balance" tabIndex={0}>
+      <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>
+      <span className="bis-balance-tooltip-panel" role="tooltip"><BalanceTooltip title="A.G.3 Board Game Wallet balance" balance={formatBalanceSats(state.balance.availableSats)} available={formatBalanceSats(state.balance.availableSats)} /></span>
+    </span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}
+    </>}>
+      <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
+      {boardingState !== 'boarded' && <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'unknown' && state.profileId ? ' (Status Unavailable)' : ''}</button>}
+    </StoryButton>}
+    {mode !== 'board' && entry && playerReady && !state.profileId && <form onSubmit={async event => {
       event.preventDefault();
       if (!controller || importing) return;
       const input=phrase;setImporting(true);setImportMessage('');

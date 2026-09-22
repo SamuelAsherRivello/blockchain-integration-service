@@ -129,6 +129,12 @@ nav + .story-section { margin-top: 24px; }
 .story-card-subbuttons button:hover:not(:disabled) { border-color: #a9d9c3; }
 .story-card-subbuttons button:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 2px; }
 .story-card-subbuttons button[aria-pressed=true] { border-color: #789d90; background: #24352f; }
+.story-card-start { position: relative; border-color: #817bff; background: #635bff; color: #fff; box-shadow: 0 5px 18px #635bff40; }
+.story-card-start .story-card-label { color: #fff; font-weight: 700; }
+.story-card-start .story-card-subbuttons { background: #ffffff1f; }
+.story-card-start .story-card-subbuttons button { border-color: #aaa6ff; background: #5149e6; color: #fff; }
+.story-card-start:hover { border-color: #a5a1ff; background: #746eff; }
+.story-card-start:focus-within { outline: 2px solid #b7b4ff; outline-offset: 4px; }
 
 /* Preserve the first action longest when the action group must compress. */
 .admin-panel .story-card-subbuttons button:first-child { flex-shrink: 1; }

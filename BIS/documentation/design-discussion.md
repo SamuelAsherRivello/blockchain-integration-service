@@ -191,11 +191,11 @@ The user withdrew B3 optional payment review/guidance and B4 extended pending-pa
 
 ## Serverless game wallet — 2026-09-10
 
-A.G.1 (Admin-facing) and A.G.2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS's encrypted local controller. A.G.2 is available in every BIS Account UI, including a consuming game with no Admin: it creates or restores the separate game wallet, then offers only logout. B.G.2 remains the Admin-only Board Game Wallet surface. Each deployed origin must be configured through its own A.G.2 surface; no BIS application wallet service, deployment configuration, or public signer endpoint is involved.
+A.G.1 (Admin-facing) and A.G.2 (user-facing) select the same browser-and-origin-scoped game wallet through BIS's encrypted local controller. A.G.2 is available in every BIS Account UI, including a consuming game with no Admin: it creates or restores the separate game wallet, then offers only logout. A.G.3 remains the Admin-only Board Game Wallet surface. Each deployed origin must be configured through its own A.G.2 surface; no BIS application wallet service, deployment configuration, or public signer endpoint is involved.
 
 D.P.2 reads that locally selected wallet and submits real Arkade operations directly. A missing game wallet leaves ordinary play available and simply produces no offer. Changing a game wallet establishes a fresh D.P.2 presentation session instead of showing old wallet history. The obsolete hosted wallet-service implementation is removed with this migration.
 
 
 ### D.P.1/D.P.2 historical acceptance and archive — 2026-09-09
 
-The user confirmed the then-current treasure flow and requested sync/archive. See the [archived acceptance record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). It records the superseded hosted-wallet architecture and does not describe the current serverless A.G.1/A.G.2/B.G.2 flow.
+The user confirmed the then-current treasure flow and requested sync/archive. See the [archived acceptance record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). It records the superseded hosted-wallet architecture and does not describe the current serverless A.G.1/A.G.2/A.G.3 flow.
