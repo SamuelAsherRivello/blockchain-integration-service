@@ -31,6 +31,13 @@ test('encrypted recovery survives a new storage instance without storing plainte
   assert.deepEqual(await createContractStorage(db).load(), saved);
 });
 
+test('contract recovery encryption is bound to the selected network', async () => {
+  const db = backend(), storage = createContractStorage(db, 'signet');
+  await storage.save(document());
+  assert.deepEqual((await createContractStorage(db, 'signet').load()).ledger, document().ledger);
+  await assert.rejects(createContractStorage(db, 'mutinynet').load());
+});
+
 test('stale writers cannot replace recovery or duplicate a reserved slot', async () => {
   const db = backend(), first = createContractStorage(db), other = createContractStorage(db);
   const old = await other.load();

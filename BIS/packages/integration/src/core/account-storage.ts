@@ -187,7 +187,7 @@ export function createAccountStorage(network: TestNetwork = 'signet'): AccountSt
       // A game wallet can fund a player contract: serialize reset against all
       // wallets on this origin before checking either participant's recovery.
       await withBrowserMutation(async () => {
-      if(readContractReservations().some(record=>record.pending&&(record.playerId===profileId||record.gameId===profileId)))
+      if(readContractReservations(loaded.account?.network ?? 'signet').some(record=>record.pending&&(record.playerId===profileId||record.gameId===profileId)))
         throw new BoardingBlockedError('A contract is unresolved. Open Account → Contracts and check recovery before resetting this account.');
       assertNoPendingSend(profileId);
       // Administrative reset retains its existing unresolved-transfer guard.

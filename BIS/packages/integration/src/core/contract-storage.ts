@@ -1,4 +1,5 @@
 import { ContractError, contractResolved, emptyContractLedger, validateContractLedger, type ContractLedger } from './contracts.ts';
+import type { TestNetwork } from './test-network.ts';
 
 export type ContractOutpoint = Readonly<{ txid: string; vout: number; value: number }>;
 export type ContractSpend = Readonly<{
@@ -21,7 +22,6 @@ export interface ContractBackend {
   /** Atomic compare-and-swap: reject if persisted revision differs. */
   write(envelope: Envelope, previousRevision: number): Promise<void>;
 }
-const database = 'bis-contract-recovery-signet-v1';
 const fail = () => new ContractError('Contract recovery data could not be verified. Existing offers remain reserved.');
 const hex = (value: unknown) => typeof value === 'string' && /^(?:[a-f0-9]{2})+$/i.test(value);
 const keyHex = (value: unknown) => hex(value) && (value as string).length === 64;
@@ -48,7 +48,6 @@ function validate(value: unknown): asserts value is ContractDocument {
   }
   if (Object.keys(document.recovery).some(id => !document.ledger.contracts.some(contract => contract.id === id))) throw fail();
 }
-const aad = (revision: number) => new TextEncoder().encode(`${database}:${revision}`);
 
 export function advanceContractDocument(previous: ContractDocument, document: ContractDocument): ContractDocument {
   validate(previous); validate(document);
@@ -73,13 +72,15 @@ export function advanceContractDocument(previous: ContractDocument, document: Co
   return next;
 }
 
-export function createContractStorage(backend: ContractBackend = indexedContractBackend()) {
+export function createContractStorage(backend: ContractBackend | undefined = undefined, network: TestNetwork = 'signet') {
+  const storageBackend = backend ?? indexedContractBackend(network);
+  const additionalData = (revision: number) => new TextEncoder().encode(`bis-contract-recovery-${network}-v1:${revision}`);
   async function load(): Promise<ContractDocument> {
     try {
-      const envelope = await backend.read();
+      const envelope = await storageBackend.read();
       if (!envelope) return { version: 1, revision: 0, ledger: emptyContractLedger(), recovery: {} };
       if (envelope.version !== 1 || !Number.isSafeInteger(envelope.revision) || envelope.revision < 1 || !(envelope.key instanceof CryptoKey) || envelope.key.extractable) throw fail();
-      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: envelope.iv, additionalData: aad(envelope.revision) }, envelope.key, envelope.encrypted);
+      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: envelope.iv, additionalData: additionalData(envelope.revision) }, envelope.key, envelope.encrypted);
       const document: unknown = JSON.parse(new TextDecoder().decode(plain));
       validate(document);
       if (document.revision !== envelope.revision) throw fail();
@@ -96,8 +97,8 @@ export function createContractStorage(backend: ContractBackend = indexedContract
         const next = advanceContractDocument(previous, document);
         const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt','decrypt']);
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad(next.revision) }, key, new TextEncoder().encode(JSON.stringify(next)));
-        await backend.write({ version: 1, revision: next.revision, key, iv, encrypted }, document.revision);
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: additionalData(next.revision) }, key, new TextEncoder().encode(JSON.stringify(next)));
+        await storageBackend.write({ version: 1, revision: next.revision, key, iv, encrypted }, document.revision);
         return next;
       } catch { throw fail(); }
     },
@@ -107,14 +108,26 @@ export function createContractStorage(backend: ContractBackend = indexedContract
         const next: ContractDocument = { version: 1, revision: previous.revision + 1, ledger: emptyContractLedger(), recovery: {} };
         const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt','decrypt']);
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad(next.revision) }, key, new TextEncoder().encode(JSON.stringify(next)));
-        await backend.write({ version: 1, revision: next.revision, key, iv, encrypted }, previous.revision);
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: additionalData(next.revision) }, key, new TextEncoder().encode(JSON.stringify(next)));
+        await storageBackend.write({ version: 1, revision: next.revision, key, iv, encrypted }, previous.revision);
       } catch { throw fail(); }
     },
   };
 }
 
-function indexedContractBackend(): ContractBackend {
+export function createNetworkScopedContractStorage(selectedNetwork: () => TestNetwork | undefined) {
+  const stores = new Map<TestNetwork, ReturnType<typeof createContractStorage>>();
+  const current = () => {
+    const network = selectedNetwork() ?? 'signet';
+    let store = stores.get(network);
+    if (!store) { store = createContractStorage(indexedContractBackend(network), network); stores.set(network, store); }
+    return store;
+  };
+  return {load: () => current().load(), save: (document: ContractDocument) => current().save(document), reset: () => current().reset()};
+}
+
+function indexedContractBackend(network: TestNetwork = 'signet'): ContractBackend {
+  const database = `bis-contract-recovery-${network}-v1`;
   async function transaction<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore, set: (value: T) => void, abort: () => void) => void): Promise<T> {
     const db = await new Promise<IDBDatabase>((resolve,reject) => {
       const request = indexedDB.open(database, 1);

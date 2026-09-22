@@ -19,6 +19,15 @@ BIS SHALL enforce an account, network, operator, game, and host-supplied exclusi
 - **THEN** only one obtains the durable funding slot within the same account, network, operator, and game scope
 - **AND** conflicting input reservations are rejected without cross-network contention
 
+#### Scenario: Cooperating controllers start together
+- **WHEN** cooperating controllers start the same offer at the same time
+- **THEN** they share one in-flight mutation and only one durable contract is created
+
+#### Scenario: Readiness failure does not poison later sessions
+- **WHEN** an offer attempt fails before funding because the wallet is not ready
+- **THEN** the failed attempt releases only its transient coordination state
+- **AND** a later ready session can start normally
+
 ### Requirement: Durable recovery and wallet policy participation
 BIS SHALL persist sanitized contract records and encrypted recovery material before submission, reserve inputs/outpoints, preserve existing asset holdings, and correlate terminal evidence to the specific contract and recipient. Recovery documents, encrypted storage namespaces, reservations, cleanup markers, and reset boundaries SHALL be scoped to the active account, network, operator, and game where applicable. Reload, timer suspension and wallet changes SHALL NOT imply completion or trigger duplicate operations. Contract records SHALL participate in existing logout pending-loss acknowledgement and Admin Reset policies; player cleanup SHALL NOT erase separate game-owned refund recovery, and cleanup for one network SHALL NOT erase unresolved recovery from another network.
 

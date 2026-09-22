@@ -36,7 +36,7 @@ function gameBoarding(key: string, storage: WebStorage) {
 }
 export function pendingLogoutOperations(storage: WebStorage | undefined = globalThis.localStorage, profileId?:string): LogoutOperations {
   const pending = new Set<string>();
-  for (const contract of readContractReservations(storage)) if (contract.pending&&(!profileId||contract.playerId===profileId||contract.gameId===profileId)) pending.add(`contract:${contract.playerId}:${contract.id}`);
+  for (const network of testNetworks) for (const contract of readContractReservations(network.id,storage)) if (contract.pending&&(!profileId||contract.playerId===profileId||contract.gameId===profileId)) pending.add(`contract:${network.id}:${contract.playerId}:${contract.id}`);
   if (storage) for (const key of keys(storage)) {
     if (gameBoarding(key, storage)) continue;
     if(key.startsWith(continuationPrefix))assertNoPendingContinue(decodeURIComponent(key.slice(continuationPrefix.length)),storage);

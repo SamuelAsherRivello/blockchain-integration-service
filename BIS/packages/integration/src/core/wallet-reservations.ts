@@ -36,7 +36,7 @@ export function walletReservations(profileId:string, network:TestNetwork = 'sign
   const saved=readJournal(profileId,network);
   const operations:ReservedOperation[]=[];
   for(const r of readAccountOnboarding(profileId))if(r.status==='pending'&&r.plan)operations.push({id:`onboarding:${r.id}`,inputs:[...r.plan.inputs,...r.boarding.receipts??[],...r.returning.receipts??[]],independent:r.independent??[]});
-  for(const r of readContractReservations())if(r.pending&&(r.gameId===profileId||r.playerId===profileId))operations.push({id:`contract:${r.id}`,inputs:r.inputs,transactionId:r.transactionId});
+  for(const r of readContractReservations(network))if(r.pending&&(r.gameId===profileId||r.playerId===profileId))operations.push({id:`contract:${r.id}`,inputs:r.inputs,transactionId:r.transactionId});
   for(const r of readBoardingRecords(profileId,network))if(r.status==='pending')operations.push({id:`transfer:${r.id}`,inputs:r.inputs});
   for(const r of readSendRecords(profileId,network))if(r.status==='pending')operations.push({id:`send:${r.id}`,inputs:r.inputs});
   for(const r of readContinuations(profileId))if(r.status==='pending')operations.push({id:`continue:${r.request.operationId}`,inputs:r.send?.inputs});
