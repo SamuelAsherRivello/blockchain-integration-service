@@ -16,7 +16,7 @@ The user-story Markdown SHALL identify the wallet responsibility of every wallet
 
 ### Requirement: Renumbered domain catalog and Admin alignment
 
-The user-story Markdown and Admin story navigator SHALL use the same from-scratch domain catalog: A Accounts, B Payments, C Assets, D Contracts, E Transactions, and X Appendix. Admin SHALL expose the domains and wallet lanes in this order, showing only implemented demonstrations while retaining truthful status for documented partial, blocked, deferred, or live-pending stories.
+The user-story Markdown and Admin story navigator SHALL use the same from-scratch domain catalog: A Accounts, B Payments/Transfers, C Assets, D Contracts, E Transactions, F Integrations, and X Appendix. Admin SHALL expose the domains and wallet lanes in this order, showing only implemented demonstrations while retaining truthful status for documented partial, blocked, deferred, or live-pending stories.
 
 #### Scenario: Admin and documentation agree
 - **WHEN** a reader compares the Admin navigator with the user-story documentation
@@ -30,7 +30,7 @@ The user-story Markdown and Admin story navigator SHALL use the same from-scratc
 
 ### Requirement: UI and appendix story organization
 
-The user-story Markdown SHALL use the from-scratch domain catalog and SHALL place each story under its new domain and wallet lane. The top-level domains SHALL be A. Accounts, B. Payments, C. Assets, D. Contracts, E. Transactions, and X. Appendix. Internal links, table references, diagram step labels, Admin labels, and documentation links SHALL use the new document numbering. A complete old-ID-to-new-ID cross-reference SHALL be included. Historical OpenSpec change paths, archived evidence, and existing runtime account-selection identifiers SHALL remain intact.
+The user-story Markdown SHALL use the from-scratch domain catalog and SHALL place each story under its new domain and wallet lane. The top-level domains SHALL be A. Accounts, B. Payments/Transfers, C. Assets, D. Contracts, E. Transactions, F. Integrations, and X. Appendix. Internal links, table references, diagram step labels, Admin labels, and documentation links SHALL use the new document numbering. A complete old-ID-to-new-ID cross-reference SHALL be included. Historical OpenSpec change paths, archived evidence, and existing runtime account-selection identifiers SHALL remain intact.
 
 #### Scenario: New catalog navigation
 - **WHEN** a reader follows a new domain or story link

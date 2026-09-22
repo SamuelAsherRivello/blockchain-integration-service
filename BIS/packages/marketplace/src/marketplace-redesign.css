@@ -125,7 +125,7 @@
 .marketplace-page .catalog-scroll::-webkit-scrollbar { width: 11px; }
 .marketplace-page .catalog-scroll::-webkit-scrollbar-track { background: #dce7eb; border-radius: 20px; }
 .marketplace-page .catalog-scroll::-webkit-scrollbar-thumb { border: 3px solid var(--market-canvas); background: var(--market-muted); border-radius: 20px; }
-.marketplace-page .catalog-grid { --market-card-size: clamp(12rem, 13vw, 14rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--market-card-size)), var(--market-card-size))); gap: clamp(10px, 1vw, 16px); }
+.marketplace-page .catalog-grid { --market-card-size: clamp(13rem, 13vw, 14rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--market-card-size)), var(--market-card-size))); gap: clamp(10px, 1vw, 16px); }
 .marketplace-page .asset-card {
   aspect-ratio: 1;
   min-height: 0;
@@ -155,30 +155,27 @@
 .marketplace-page .asset-card-lore {
   grid-column: 1 / -1;
   min-width: 0;
-  display: grid;
-  grid-template-rows: auto auto;
-  align-content: start;
-  gap: clamp(12px, 1vw, 16px);
-  padding-top: clamp(16px, 1.5vw, 24px);
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(10px, .9vw, 14px);
+  overflow: hidden;
 }
 .marketplace-page .asset-card-effect {
   min-width: 0;
-  display: grid;
-  place-items: center;
   color: var(--market-muted);
-  font-size: clamp(12px, .86vw, 14px);
-  line-height: 1.15;
+  font-size: clamp(11px, .78vw, 13px);
+  line-height: 1.2;
   overflow: hidden;
   text-align: center;
   white-space: normal;
 }
 .marketplace-page .poetic-quote {
   min-width: 0;
-  display: grid;
-  place-items: center;
   color: var(--market-ink);
-  font-size: clamp(13px, .92vw, 15px);
-  line-height: 1.12;
+  font-size: clamp(13px, .88vw, 15px);
+  line-height: 1.22;
   overflow: hidden;
   text-align: center;
 }

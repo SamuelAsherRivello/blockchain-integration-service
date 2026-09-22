@@ -23,7 +23,7 @@ The current story catalog and Admin navigator use historical A-H/X labels, while
 
 ### Use six stable product domains
 
-Use A Accounts, B Payments, C Assets, D Contracts, E Transactions, and X Appendix. X Appendix contains deferred, cross-cutting, and spike material. These describe durable product responsibilities rather than development chronology and consolidate the previous fragmented Admin, UI, Game Economy, Security, and Spike categories.
+Use A Accounts, B Payments/Transfers, C Assets, D Contracts, E Transactions, F Integrations, and X Appendix. X Appendix contains remaining deferred and cross-cutting material; F Integrations contains shared UI and onboarding integration work. These describe durable product responsibilities rather than development chronology and consolidate the previous fragmented Admin, UI, Game Economy, Security, and Spike categories.
 
 ### Use explicit wallet lanes
 
