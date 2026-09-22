@@ -1,0 +1,134 @@
+import { ItemList, ItemListDetail } from './ItemList';
+import { ReportTextArea } from './ReportTextArea';
+import { usePendingNotice } from './PendingOperationDialog';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import type { BisAsset } from '../state-layer-core/assets';
+import type { BisAssets } from '../state-layer-core/asset-presentation';
+import { assetDecimals, assetExplorerUrl, assetName, formatAssetDetail, formatAssetDetails, formatAssetQuantity } from '../state-layer-core/asset-presentation';
+import { ConfirmationDialog } from './ConfirmationDialog';
+import type { BisToastOptions } from '../state-layer-core/toasts';
+import type { BisBurnAssetRequest, BisBurnAssetResult } from '../state-layer-core/burning';
+import { CompactItemRow } from './StatusTypeIcon';
+import { StatusTypeIcon } from './StatusTypeIcon';
+import type { createBisEquipment, BisEquipmentState } from '../state-layer-core/equipment-loadout';
+import { networkLabel, type TestNetwork } from '../state-layer-core/test-network';
+
+const preparedIcons = new Set<string>();
+function AssetIcon({url, background = false, fallback}: {url?:string; background?:boolean; fallback?:ReactNode}) {
+  const [failed,setFailed]=useState<string>();
+  let source:string|undefined;
+  try {const parsed=new URL(url!);if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password)source=parsed.href;} catch { /* Missing or malformed metadata uses local artwork. */ }
+  const [ready,setReady]=useState<string>();
+  const image=useRef<HTMLImageElement>(null);
+  const loading=!!source && failed!==source && ready!==source && !preparedIcons.has(source);
+  usePendingNotice(loading && !background,'Loading...',undefined,()=>{});
+  useEffect(()=>{
+    if(!loading)return;
+    const timer=setTimeout(()=>setFailed(source),30000);
+    return()=>clearTimeout(timer);
+  },[source,loading]);
+  async function loaded() {
+    const value=source;
+    try {await image.current?.decode();} catch {setFailed(value);return;}
+    if(value){preparedIcons.add(value);setReady(value);}
+  }
+  return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:(fallback??<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>)}</span>;
+}
+
+export function AccountAssets({assets, network, equipment, equipmentState, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; network:TestNetwork; equipment?:ReturnType<typeof createBisEquipment>;equipmentState?:BisEquipmentState; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
+  const [selectedId, setSelectedId] = useState<string>();
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [confirmation,setConfirmation]=useState<BisAsset>();
+  const [burning,setBurning]=useState(false);
+  const [burnError,setBurnError]=useState('');
+  const [backgroundImages,setBackgroundImages]=useState(false);
+  const [equipmentBusy,setEquipmentBusy]=useState(false);
+  const burnInFlight=useRef(false), burnOrigin=useRef(false), mounted=useRef(true);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;onBusyChange(false);};},[onBusyChange]);
+  useEffect(()=>{onBusyChange(burning||!!confirmation);},[burning,confirmation,onBusyChange]);
+  async function burn(asset:BisAsset) {
+    if(burnInFlight.current)return;
+    burnInFlight.current=true;burnOrigin.current=true;setConfirmation(undefined);setBurning(true);setBurnError('');
+    let confirmed=false;
+    try {
+      onToast('Asset burn (Pending)', {messageType:'info'});
+      const result=await onBurn({operationId:crypto.randomUUID(),assetId:asset.assetId,quantity:asset.quantity});
+      if(!mounted.current)return;
+      if(result.status!=='burned')setBurnError(result.code==='outcome-unknown'?'Outcome not yet confirmed. The burn may still complete. Do not submit it again.':result.message);
+      if(result.status==='burned'){confirmed=true;onToast('Asset burn (Confirmed)', {messageType:'success'});setBackgroundImages(true);setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;await onRefresh();}
+    } catch {if(mounted.current)setBurnError(confirmed?'Assets could not be loaded.':'Outcome not yet confirmed. The burn may still complete. Do not submit it again.');}
+    finally {burnInFlight.current=false;if(mounted.current)setBurning(false);}
+  }
+  const rows = assets.status === 'ready' ? assets.assets : [];
+  const report = rows.map(asset=>formatAssetDetail(asset, network)).join('\n\n');
+  const selected = rows.find(asset => asset.assetId === selectedId);
+  const equipmentItem=selected&&equipmentState?.status==='ready'?equipmentState.ownedItems.find(item=>item.assetId===selected.assetId):undefined;
+  const equipped=equipmentItem?equipmentState?.effective[equipmentItem.family]?.assetId===equipmentItem.assetId:false;
+  async function updateEquipment(){
+    if(!equipment||!equipmentItem||equipmentBusy)return;setEquipmentBusy(true);setNotice('');
+    try{if(equipped)await equipment.clear(equipmentItem.family);else await equipment.select(equipmentItem.assetId);setNotice(equipped?`${equipmentItem.family} selection cleared.`:`${equipmentItem.name} selected for the next game spawn.`);}
+    catch{setNotice('Equipment ownership could not be verified. Refresh Assets and try again.');}
+    finally{setEquipmentBusy(false);}
+  }
+  const explorerUrl = selected ? assetExplorerUrl(selected.assetId, network) : undefined;
+  const explorerUnavailableReason = 'Explorer unavailable: no supported explorer URL is available for this asset and active network.';
+  const detailReport = selected ? formatAssetDetails(selected, network) : '';
+  const list = useRef<HTMLUListElement>(null);
+  const scroll = useRef(0);
+  const restoreFocus = useRef(false);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  useLayoutEffect(() => { onDetailChange(detailOpen); }, [detailOpen, onDetailChange]);
+  useEffect(() => () => onDetailChange(false), [onDetailChange]);
+  useLayoutEffect(() => {
+    if (assets.status === 'ready' && selectedId && !selected) {
+      setSelectedId(undefined);
+      if (detailOpen) {
+        setNotice('Asset is no longer in your owned assets.');
+        restoreFocus.current = true;
+        setDetailOpen(false);
+      }
+    }
+  }, [assets, selectedId, selected, detailOpen]);
+  useLayoutEffect(() => {
+    if (detailOpen) return;
+    if (list.current) list.current.scrollTop = scroll.current;
+    if (!restoreFocus.current) return;
+    restoreFocus.current = false;
+    const frame = requestAnimationFrame(() => {
+      const target = selectedId ? buttons.current.get(selectedId) : undefined;
+    target?.focus({preventScroll:true});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [detailOpen, assets, selectedId]);
+  const loading = assets.status === 'idle' || assets.status === 'loading';
+  useLayoutEffect(()=>{if(!burning && !burnError && assets.status==='ready')burnOrigin.current=false;},[burning,burnError,assets.status]);
+  useEffect(()=>{if(loading && !burning)setBackgroundImages(false);},[loading,burning]);
+  usePendingNotice(loading && !burning,'Loading...', burnError || (assets.status==='unavailable'?'Assets could not be loaded.':undefined),()=>{
+    setBurnError('');
+    if(detailOpen || burnOrigin.current){burnOrigin.current=false;setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;if(assets.status!=='ready')void onRefresh();}
+    else onBack();
+  });
+  const Page=detailOpen?ItemListDetail:ItemList;
+  return <Page network={networkLabel(network)} title={detailOpen?'Asset Detail':'Assets'} body={detailOpen?'Inspect this asset and its ownership.':'Assets held by this account.'}
+    fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?detailReport:report} loading={loading} listLabel="Owned assets"
+    onRefresh={onRefresh} refreshDisabled={burning||!!confirmation}
+    listRef={list} onScroll={event=>{scroll.current=event.currentTarget.scrollTop;}}
+    items={rows.map(asset=>({id:asset.assetId,selected:selectedId===asset.assetId,
+      buttonRef:element=>{if(element)buttons.current.set(asset.assetId,element);else buttons.current.delete(asset.assetId);},
+      onSelect:()=>{if(list.current)scroll.current=list.current.scrollTop;setSelectedId(asset.assetId);setNotice('');setBurnError('');setDetailOpen(true);},
+      content:<CompactItemRow status="success" leading={<AssetIcon url={asset.iconUrl} fallback={<StatusTypeIcon type="success"/>} background={backgroundImages||assets.status==='ready'&&assets.background}/>} fields={[
+        {icon:'🏷️',label:'Asset',value:assetName(asset)},{icon:'🔢',label:'Amount',value:formatAssetQuantity(asset)},
+        {icon:'🔤',label:'Ticker',value:asset.ticker||'Not provided'},{icon:'✅',label:'Status',value:'Owned'},
+        {icon:'🎯',label:'Decimals',value:assetDecimals(asset)??'Not provided'},{icon:'🌐',label:'Network',value:'Off-chain'},
+      ]}/>}))}
+    detail={detailOpen?<ReportTextArea aria-label="Asset details" rows={12} value={detailReport}/>:undefined}
+    notice={notice&&assets.status==='ready'?<p role="status">{notice}</p>:!loading&&assets.status==='ready'&&!rows.length?<p>No assets.</p>:null}
+    actions={<>
+      {detailOpen && selected && <><button type="button" className="bis-button" disabled={burning || !explorerUrl} aria-describedby={!explorerUrl?'asset-explorer-unavailable':undefined} title={!explorerUrl ? explorerUnavailableReason : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>{!explorerUrl&&<span id="asset-explorer-unavailable" className="bis-sr-only">{explorerUnavailableReason}</span>}</>}
+      {detailOpen&&equipmentItem&&<button className="bis-button bis-primary" disabled={burning||equipmentBusy||equipmentState?.status!=='ready'} onClick={()=>void updateEquipment()}>{equipped?`Clear ${equipmentItem.family}`:`Select ${equipmentItem.family}`}</button>}
+      {detailOpen && selected && <button className="bis-button bis-danger" disabled={burning} onClick={()=>setConfirmation(selected)}>Burn</button>}
+    </>} backDisabled={burning} onBack={()=>{if(detailOpen){restoreFocus.current=true;setDetailOpen(false);}else onBack();}}
+    overlay={confirmation&&<ConfirmationDialog onCancel={()=>setConfirmation(undefined)} onConfirm={()=>void burn(confirmation)}/>}
+  />;
+}

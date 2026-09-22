@@ -1,29 +1,29 @@
-import {stateStorage,stateLocks,updateWindowUrl,windowState} from './window-runtime.js';
-import {WorkCoordinator,staleError,withDeadline} from './coordinator.js';
-import {classifyFailure,nextRetry,recoveryMessage,batchFailure} from './recovery.js';
-import {renderSettlementOutput} from './settlement-output.js';
-import {renderStepCompletion,setupStepDisclosure} from './step-ui.js';
-import { errorSummary, guarded } from './callback-errors.js';
+import {stateStorage,stateLocks,updateWindowUrl,windowState} from './client/operation-layer/window-runtime.js';
+import {WorkCoordinator,staleError,withDeadline} from './client/operation-layer/coordinator.js';
+import {classifyFailure,nextRetry,recoveryMessage,batchFailure} from './client/operation-layer/recovery.js';
+import {renderSettlementOutput} from './client/operation-layer/settlement-output.js';
+import {renderStepCompletion,setupStepDisclosure} from './client/ui-layer-react/step-ui.js';
+import { errorSummary, guarded } from './client/operation-layer/callback-errors.js';
 
-import { layout } from './layout.js';
+import { layout } from './client/ui-layer-react/layout.js';
 
 import { Wallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository, Ramps, CSVMultisigTapscript, hasBoardingTxExpired, sdkVersion } from '@arkade-os/sdk';
 
-import { identity, read, write, recoveryDetails } from './storage.js';
-import { normalizeRecoveryPhrase } from './identity-material.js';
+import { identity, read, write, recoveryDetails } from './client/operation-layer/storage.js';
+import { normalizeRecoveryPhrase } from './client/arkade-layer/identity-material.js';
 
-import { half, canSubmit, verifiedReceipt, fundingEligible, capturedFunding } from './model.js';
+import { half, canSubmit, verifiedReceipt, fundingEligible, capturedFunding } from './client/operation-layer/model.js';
 
-import { incomingTransactions } from './incoming.js';
+import { incomingTransactions } from './client/arkade-layer/incoming.js';
 
-import { incomingCard, transferBadge, statusBadge, settlementCard } from './transaction-card.js';
+import { incomingCard, transferBadge, statusBadge, settlementCard } from './client/ui-layer-react/transaction-card.js';
 
-import { recordTiming, loadTimings } from './timing.js';
+import { recordTiming, loadTimings } from './client/operation-layer/timing.js';
 
-import { setupTimingViews, renderTimings } from './timing-view.js';
+import { setupTimingViews, renderTimings } from './client/ui-layer-react/timing-view.js';
 
-import './style.css';
-import './admin-polish.css';
+import './client/ui-layer-react/style.css';
+import './client/ui-layer-react/admin-polish.css';
 
 
 

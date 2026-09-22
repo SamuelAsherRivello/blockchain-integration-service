@@ -8,9 +8,9 @@ export const inScopePackages = [
   'BIS/packages/marketplace/package.json',
 ];
 export const runtimeSources = [
-  'BIS/packages/integration/src/ui/AccountCard.tsx',
-  'BIS/packages/integration-demo/src/App.tsx',
-  'BIS/packages/marketplace/src/App.tsx',
+  'BIS/packages/integration/src/client/ui-layer-react/AccountCard.tsx',
+  'BIS/packages/integration-demo/src/client/ui-layer-react/App.tsx',
+  'BIS/packages/marketplace/src/client/marketplace-layer/App.tsx',
 ];
 
 const versionPattern = /^0\.0\.(\d+)$/;
@@ -77,7 +77,7 @@ export async function validateReleaseVersion({ previousVersion } = {}) {
   }
   for (const relativePath of runtimeSources) {
     const source = await readText(relativePath);
-    if (!source.includes("from '../package.json'") && !source.includes("from '../../package.json'")) {
+    if (!/from ['"](?:\.\.\/)+package\.json['"]/.test(source)) {
       throw new Error(`${relativePath} does not derive its displayed version from package metadata.`);
     }
   }

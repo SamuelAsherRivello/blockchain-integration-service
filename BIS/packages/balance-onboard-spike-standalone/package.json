@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5186 --strictPort",
     "build": "vite build",
-    "test": "node --test --test-isolation=none tests/*.test.mjs"
+    "test": "node --test --test-isolation=none tests/client/*.test.mjs"
   },
   "dependencies": {
     "@arkade-os/sdk": "0.4.72",

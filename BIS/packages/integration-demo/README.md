@@ -6,8 +6,8 @@ Choose **Account / Account Button** to render the production entry button or **A
 
 Reset Client clears BIS account storage and transient state, recreates the session, clears selection, and leaves runtime content empty. It remains enabled for a saved account even without a selected story. Real deletion-based reset checks must be completed manually under the repository database rule; reset lifecycle tests use isolated in-memory doubles.
 
-- `src/admin`: explicit story catalog and Admin UI controls.
-- `src/preview`: a single 9:16 host container; no simulated game menus.
+- `src/client/admin-layer`: explicit story catalog and Admin UI controls.
+- `src/client/preview-layer`: a single 9:16 host container; no simulated game menus.
 - `src/App.tsx`: selection, public context subscriptions, mounting and cleanup.
 - `src/style.css`: dark demo page/navigation/frame styles only.
 

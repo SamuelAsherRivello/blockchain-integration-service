@@ -8,9 +8,9 @@ const result = spawnSync(process.execPath, [
   '--test-concurrency=1',
   '--test-force-exit',
   ...process.argv.slice(2),
-  'BIS/packages/integration/tests/*.test.mjs',
-  'BIS/packages/integration-demo/tests/*.test.mjs',
-  'BIS/packages/marketplace/tests/*.test.mjs',
+  'BIS/packages/integration/tests/client/*.test.mjs',
+  'BIS/packages/integration-demo/tests/client/*.test.mjs',
+  'BIS/packages/marketplace/tests/client/*.test.mjs',
   'BIS/scripts/*.test.mjs',
 ], { cwd: root, stdio: 'inherit' });
 

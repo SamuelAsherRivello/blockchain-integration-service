@@ -1,6 +1,6 @@
 # Integration package
 
-Production UI and state, consumed only through public exports. `src/core` owns lifecycle and state; `src/ui` owns components and all light production styling; `src/arkade` owns real Signet SDK creation and identity reconstruction.
+Production UI and state, consumed only through public exports. `src/client/state-layer-core` owns lifecycle and state; `src/client/ui-layer-react` owns components and all light production styling; `src/client/wallet-layer-arkade` owns real Signet SDK creation and identity reconstruction.
 
 Get Recovery Phrase is available at the bottom of Balance, above Back. `openAccountRecovery()` opens the numbered seed-word layout and immediately reads the saved phrase inside the production UI; the words are masked by default, with inline copy and visibility controls beside `Seed words`. Account creation uses the same display under Set Recovery Phrase. Public state exposes only `accountRecovery` and `recoveryStatus`, never the words. Back returns to the entry screen, and leaving/unmounting clears the loaded phrase. Isolated verification: `node --test BIS/packages/integration/tests/recovery-access.test.mjs` and the demo's `/tests/recovery-host.html`.
 
@@ -140,7 +140,7 @@ B.P.1 can spend SDK-eligible outputs carrying assets. It retains enough sat chan
 
 `FitTextButton` keeps the Send/Receive/Swap emoji and labels on one line, reducing their font size only when their available width requires it and restoring normal size when space returns.
 
-Runtime components in `src/ui` remain private; hosts use `createBisUi` or `GameOverlay`. `AccountCard` owns the account frame and heading associations. `RecoveryPhrasePanel` provides the shared read-only Set/Get recovery display; Restore Account reuses `SeedWordsHeading`, the test-wallet warning and visibility/paste controls while retaining its own editable validated grid. Recovery sessions start hidden and reset on leaving, remounting or changing accounts. Recovery material never enters public state or component exports.
+Runtime components in `src/client/ui-layer-react` remain private; hosts use `createBisUi` or `GameOverlay`. `AccountCard` owns the account frame and heading associations. `RecoveryPhrasePanel` provides the shared read-only Set/Get recovery display; Restore Account reuses `SeedWordsHeading`, the test-wallet warning and visibility/paste controls while retaining its own editable validated grid. Recovery sessions start hidden and reset on leaving, remounting or changing accounts. Recovery material never enters public state or component exports.
 
 `FieldHeading`, `IconButton` and `CopyFieldLabel` compose inline controls. `CopyableValueField` serves addresses, balances and Asset ID; `CopyableTextArea` serves transaction and standalone transfer-report text. `useClipboardCopy` handles explicit writes, duplicate protection and obsolete feedback; callers retain their own success and manual-copy messages. Recovery keeps its successful copy checkmark for the current session. `ReviewDetails`, `formatSats` and `useQuoteExpiry` are shared by Send and Transfer, alongside the existing `AmountChooserRow`. Their wallet controllers remain separate.
 

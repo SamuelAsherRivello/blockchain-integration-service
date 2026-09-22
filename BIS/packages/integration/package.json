@@ -10,7 +10,7 @@
       "default": "./dist/integration.js"
     },
     "./style.css": {
-      "development": "./src/ui/overlay.css",
+      "development": "./src/client/ui-layer-react/overlay.css",
       "default": "./dist/integration.css"
     }
   },

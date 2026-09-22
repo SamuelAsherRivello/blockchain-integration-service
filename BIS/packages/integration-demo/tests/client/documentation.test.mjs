@@ -1,0 +1,62 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+import { resolve } from 'node:path';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+test('every documentation TOC link resolves to one rendered heading', async () => {
+  const server = await createServer({
+    root: 'BIS/packages/integration-demo',
+    cacheDir: resolve(`output/tests/client/documentation-render/${process.pid}`),
+    server: { middlewareMode: true },
+    plugins: [{
+      name: 'render-documentation-without-browser-mount',
+      enforce: 'pre',
+      transform(code, id) {
+        if (id.endsWith('/src/client/ui-layer-react/documentation.tsx')) {
+          return code.replace(/createRoot\(document\.getElementById\('root'\)!\)\.render\(<Documentation \/>\);/, 'export { Documentation };');
+        }
+      },
+    }],
+  });
+  try {
+    const { Documentation } = await server.ssrLoadModule('/src/client/ui-layer-react/documentation.tsx');
+    const html = renderToStaticMarkup(createElement(Documentation));
+    const targets = [...html.matchAll(/href="#([^"]+)"/g)].map(match => match[1]);
+    const headings = [...html.matchAll(/<h[1-6]\b[^>]*\bid="([^"]+)"/g)].map(match => match[1]);
+    assert.ok(targets.length >= 23);
+    for (const target of targets) {
+      assert.equal(headings.filter(id => id === target).length, 1, `Missing or duplicate heading: ${target}`);
+    }
+  } finally { await server.close(); }
+});
+
+test('documentation has a clean standalone route and no filesystem URL', async () => {
+  const server = await createServer({ root: 'BIS/packages/integration-demo', cacheDir: resolve(`output/tests/client/documentation-routes/${process.pid}`), optimizeDeps: { noDiscovery: true, include: [] }, server: { host: '127.0.0.1', port: 0 } });
+  try {
+    await server.listen();
+    const base = server.resolvedUrls.local[0];
+    const admin = await (await fetch(new URL('src/client/admin-layer/AdminPanel.tsx', base))).text();
+    assert.match(admin, /href:\s*userStoriesUrl/);
+    assert.match(admin, /userStoriesUrl\s*=\s*.*documentation\/user-stories\//);
+    const page = await (await fetch(new URL('documentation/user-stories/', base))).text();
+    assert.match(page, /User Story Diagrams/);
+    assert.match(page, /documentation\.tsx/);
+    for (const path of ['BIS/documentation/user-stories/', 'BIS/documentation/user-stories', 'BIS/documentation/user-stories/?view=all']) {
+      const alias = await fetch(new URL(path, base), { redirect: 'manual' });
+      assert.equal(alias.status, 302, `Expected documentation redirect for ${path}`);
+      const target = '/documentation/user-stories/' + (path.includes('?') ? '?view=all' : '');
+      assert.equal(alias.headers.get('location'), target);
+      const documentation = await fetch(new URL(path, base));
+      assert.equal(documentation.status, 200);
+      assert.match(await documentation.text(), /<title>User Story Diagrams/);
+    }
+    const legacy = new URL('/BIS/documentation/User Story Diagrams.md', base);
+    const redirect = await fetch(legacy, { redirect: 'manual' });
+    assert.equal(redirect.status, 302);
+    assert.equal(redirect.headers.get('location'), '/documentation/user-stories/');
+  } finally { await server.close(); }
+});
+
+
