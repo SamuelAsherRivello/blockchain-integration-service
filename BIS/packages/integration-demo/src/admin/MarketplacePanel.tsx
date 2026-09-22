@@ -39,7 +39,7 @@ export function MarketplacePanel({ controller, onLog }: {controller?: ReturnType
     try {
       if(!targetProfile)throw Error();
       const batch=await burnAllMarketplaceItems(controller,()=>controller.getState().profileId===targetProfile, progress => {
-        const label = progress.name ?? progress.assetId.slice(0,12);
+        const label = progress.stage === 'listing' ? '' : progress.name ?? progress.assetId.slice(0,12);
         const message = progress.stage === 'listing' ? `Refreshing marketplace inventory after ${progress.burned} burned…`
           : progress.stage === 'burning' ? `Burning ${label}…`
           : progress.stage === 'burned' ? `${label} burned; refreshing inventory.`

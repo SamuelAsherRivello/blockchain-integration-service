@@ -263,7 +263,17 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       if(endSessions)for(const record of started.values())persistEnd(record,'session-ended');
       if(controllers.get(context)===controller)controllers.delete(context);
       const markStored=async()=>{if(!endSessions||!detachedGameId||!detachedPlayerId)return;for(const record of (await storage.load()).ledger.contracts)if(record.scope.gameId===detachedGameId&&record.scope.playerId===detachedPlayerId&&!contractResolved(record))persistEnd(record,'session-ended');};
-      void markStored().then(()=>{reconciling=undefined;return reconcile();});
+      const finishScopedRecovery=async()=>{
+        await markStored();
+        for(let attempt=0;attempt<3;attempt++){
+          await reconcile();
+          const document=await storage.load();
+          const unresolved=document.ledger.contracts.some(record=>record.scope.gameId===detachedGameId&&record.scope.playerId===detachedPlayerId&&!contractResolved(record));
+          if(!unresolved)return;
+          await new Promise(resolve=>setTimeout(resolve,0));
+        }
+      };
+      void finishScopedRecovery().catch(()=>undefined);
     },
   };
   controllers.set(context,controller);
