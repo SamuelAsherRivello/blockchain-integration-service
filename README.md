@@ -74,10 +74,6 @@ Run the following commands to get started.
 
 Use `npm run preview` to serve the production build locally.
 
-### What about sandbox?
-
-For an isolated Windows Codex workflow, see [Windows Sandbox Setup](BIS/documentation/setup-sandbox-windows.md), which covers Docker Sandboxes installation, permissions, and usage.
-
 ### 🛠 Release Version
 
 <!-- AI: Describe the repository's existing release workflow in the fewest steps, based on checked-in workflows or release scripts. Distinguish builds, tags, releases, and deployment accurately. If no release process exists, retain a placeholder rather than inventing one. Documentation edits do not authorize publishing or changing Git history. -->
