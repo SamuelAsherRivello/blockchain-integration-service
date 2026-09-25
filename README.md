@@ -117,9 +117,6 @@ This is a work in progress with no custom application server. The two supported 
 
 The root `package.json`, `package-lock.json`, and `tsconfig.json` configure npm workspaces and shared tooling.
 
-
-
-
 ## Project Details
 
 <!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. Keep this section brief; do not add test commands, test caveats, or dependency-version inventory unless explicitly requested. -->
@@ -142,7 +139,12 @@ React and TypeScript power both packages, with Vite for development and producti
 
 ## Deep Dive
 
-Deep Dive takes a closer look at a few representative files and the cross-repository contract that connects them. Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
+
+<a href="https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/BIS/documentation/bis-concept-diagram-1.png"><img src="https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/BIS/documentation/bis-concept-diagram-1.png" width="400" alt="BIS concept diagram" /></a>
+
+Deep Dive takes a closer look at a few representative files and the cross-repository contract that connects them. 
+
+Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
 
 
 
