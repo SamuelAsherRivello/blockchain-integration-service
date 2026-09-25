@@ -7,7 +7,7 @@
 <!-- AI: Replace {PROJECT_NAME} with the requested project display name. Write one short introduction sentence explaining what the project does and who it is for, based on implemented behavior. -->
 This is a proof-of-concept (POC) demonstrating Blockchain use cases for gaming.
 
-The BIS adds a Blockchain enabled ui and service layer to your games for Signet and Mutinynet networks.
+The BIS adds a Blockchain enabled ui and service layer to your games for Signet and Mutinynet networks for Bitcoin.
 
 ### Benefits
 
