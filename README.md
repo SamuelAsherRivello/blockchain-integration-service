@@ -10,7 +10,13 @@ Reusable Signet account, payment, and asset integration for browser games, with 
 ## Images
 
 <!-- AI: Use screenshots that exist in this repository and represent the current project. Keep relative paths, matching link href and image src, and the 400-pixel preview width. Replace placeholder alt text with a brief description. Preserve image order unless instructed otherwise; do not invent asset paths. -->
-<a href="BIS/documentation/screenshot01.png"><img src="BIS/documentation/screenshot01.png" width="400" alt="BIS admin controls and portrait runtime account preview" /></a>
+### Admin
+
+<a href="BIS/documentation/admin.png"><img src="BIS/documentation/admin.png" width="400" alt="BIS admin controls and runtime preview" /></a>
+
+### Marketplace
+
+<a href="BIS/documentation/marketplace.png"><img src="BIS/documentation/marketplace.png" width="400" alt="BIS marketplace catalog" /></a>
 
 
 ## Demo
