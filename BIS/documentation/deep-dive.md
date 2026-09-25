@@ -6,17 +6,17 @@
 1. [Bitcoin](https://bitcoin.org/en/) (Layer 1) — The decentralized base layer that provides final settlement and security.
 2. [Ark](https://ark-protocol.org/) (Layer 2) — An off-chain Bitcoin transaction-batching protocol for fast, low-cost payments with self-custodied exits to Layer 1.
 3. [Arkade](https://arkadeos.com/) (Layer 2) — A programmable Bitcoin execution layer for wallets, payments, assets, and contracts.
-4. [BIS](https://github.com/SamuelAsherRivello/blockchain-integration-service) (Integration) — A custom TypeScript/React library that connects Arkade workflows to a game through a small, game-neutral contract.
+4. [BIS](https://github.com/SamuelAsherRivello/blockchain-integration-service) (Integration) — A custom TypeScript/React library that connects Signet or Mutinynet Arkade workflows to a game through a small, game-neutral contract.
 5. [Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game) (Application) — The custom Stealth & Steel host game, which owns scenes and gameplay consequences after BIS confirms an outcome.
 
 # Deep Dive
 
 This document reviews the inner workings of the project.
 
-This project has 2 repos:
+This project spans 2 repos:
 
-1. BIS Library: Reusable Typescript/React Library. Signet wallet and blockchain workflow integration.
-2. [Stealth & Steel Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/documentation/deep-dive.md): Typescript example stealth-action game consuming the BIS
+1. BIS Library: Reusable TypeScript/React library with Signet and Mutinynet wallet and blockchain workflow integration.
+2. [Stealth & Steel Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game/blob/main/STEALTH_STEEL/documentation/deep-dive.md): TypeScript example stealth-action game consuming BIS.
 
 ---
 
@@ -26,7 +26,7 @@ This repository owns the published wallet/workflow boundary. Read the Stealth & 
 
 ### The shared showcase: `BisHostGame`
 
-[`BisHostGame`](../packages/integration/src/core/bis-host-game.ts) is the deliberately complete contract the game implements. It has exactly four clearly named methods: identify the active game session, capture an opaque continuation target, apply a confirmed continuation, and present a confirmed reward. The names trade brevity for reviewability.
+[`BisHostGame`](../packages/integration/src/client/state-layer-core/bis-host-game.ts) is the deliberately complete, protocol-neutral contract the game implements. It has exactly four clearly named methods: identify the active game session, capture an opaque continuation target, apply a confirmed continuation, and present a confirmed reward. The names trade brevity for reviewability.
 
 ```ts
 interface BisHostGame {
@@ -41,7 +41,7 @@ A session reference carries `gameId` and `gameSessionId`. BIS treats the continu
 
 ### BIS-specific showcase: `BisGameServices`
 
-[`BisGameServices`](../packages/integration/src/core/bis-game-services.ts) is the package’s lifecycle-owning facade. Its numbered comments are a concise route through the architecture:
+[`BisGameServices`](../packages/integration/src/client/state-layer-core/bis-game-services.ts) is the package’s lifecycle-owning facade. Its numbered comments are a concise route through the architecture:
 
 1. The public surface is the protocol-neutral host, never Arkade.
 2. Context, game wallet, LTO, and UI are assembled at one ownership boundary.
