@@ -1,7 +1,7 @@
 <!-- AI: These shared diagrams are stored only in BIS/documentation in the BIS repository. If they are updated, store them only there; both Deep Dive pages must keep linking to these single sources. -->
-# Deep Dive
-
 ![BIS sequence diagram](bis-sequence-diagram-1.png)
+
+# Deep Dive
 
 ![BIS concept diagram](bis-concept-diagram-1.png)
 
