@@ -32,5 +32,5 @@ None.
 - Admin C1 composition and form state in `BIS/packages/integration-demo/src/admin/`.
 - Public mint preparation and wallet-role routing in the integration-demo layer.
 - Core asset request/result boundaries and Arkade issuance/delivery orchestration in `BIS/packages/integration/src/`.
-- C1 and asset API tests, plus synchronized `.openspec` and user-story documentation.
+- C1 and asset API tests, plus synchronized `openspec` and user-story documentation.
 - No automatic funding, secret exposure, server-side persistence, or change to the separate Marketplace H1 Game Wallet-only batch behavior.

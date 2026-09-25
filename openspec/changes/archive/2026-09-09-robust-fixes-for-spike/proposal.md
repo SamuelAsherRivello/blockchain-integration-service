@@ -20,7 +20,7 @@ Recent successful runs establish a useful baseline, but settlement recovery alon
 
 ### Modified Capabilities
 
-None. The original `standalone-boarding-spike` capability was reconciled with later user-approved behavior and synced to canonical `.openspec/specs/` on 2026-09-09 before implementation of this change. This additive capability complements its evidence requirements and preserves automatic onboarding, confirmed always-enabled Restart, and window-isolated state.
+None. The original `standalone-boarding-spike` capability was reconciled with later user-approved behavior and synced to canonical `openspec/specs/` on 2026-09-09 before implementation of this change. This additive capability complements its evidence requirements and preserves automatic onboarding, confirmed always-enabled Restart, and window-isolated state.
 
 ## Impact
 

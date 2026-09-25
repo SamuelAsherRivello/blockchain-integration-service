@@ -69,6 +69,10 @@ Run the following commands to get started.
 
 Use `npm run preview` to serve the production build locally.
 
+### What about sandbox?
+
+For an isolated Windows Codex workflow, see [Windows Sandbox Setup](BIS/documentation/setup-sandbox-windows.md), which covers Docker Sandboxes installation, permissions, and usage.
+
 ### 🛠 Release Version
 
 <!-- AI: Describe the repository's existing release workflow in the fewest steps, based on checked-in workflows or release scripts. Distinguish builds, tags, releases, and deployment accurately. If no release process exists, retain a placeholder rather than inventing one. Documentation edits do not authorize publishing or changing Git history. -->
@@ -93,6 +97,7 @@ This is a work in progress with no custom application server. The two supported 
 - [Integration package](BIS/packages/integration/README.md): Public API and runtime behavior.
 - [Game smoke test](BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md): Integration setup and acceptance checks.
 - [Demo application](BIS/packages/integration-demo/README.md): Admin demonstrations and verification hosts.
+- [Windows Sandbox Setup](BIS/documentation/setup-sandbox-windows.md): Docker Sandboxes setup and Codex usage on Windows.
 
 ### 📝 Structure
 
@@ -101,7 +106,7 @@ This is a work in progress with no custom application server. The two supported 
 - `BIS/packages/integration/`: Reusable runtime UI, core state, and Arkade adapters.
 - `BIS/packages/integration-demo/`: Admin UI, 9:16 preview, and documentation viewer.
 - `BIS/scripts/`: Project automation, including the test runner.
-- `.openspec/`: Tracked specifications and change plans.
+- `openspec/`: Tracked specifications and change plans.
 - `.agents/skills/`: Local specification workflows.
 - `.github/workflows/`: GitHub Pages deployment.
 

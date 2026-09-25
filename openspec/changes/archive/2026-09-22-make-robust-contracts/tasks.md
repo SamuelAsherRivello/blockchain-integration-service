@@ -25,4 +25,4 @@
 - [x] 4.1 Run focused contract storage, reservation, LTO, wallet-operation availability, logout/reset, and network-selection tests and record unrelated failures separately.
 - [x] 4.2 Run `npm.cmd run typecheck` and `npm.cmd run build` and verify all workspaces compile with the migration boundary.
 - [x] 4.3 Run `openspec validate make-robust-contracts --strict` and verify every delta requirement has complete scenarios.
-- [x] 4.4 Inspect `git diff -- .openspec/changes/make-robust-contracts BIS/packages/integration BIS/packages/integration-demo` and verify implementation remains limited to contract-state isolation, with completed `make-robust-assets` work and unrelated dirty changes preserved.
+- [x] 4.4 Inspect `git diff -- openspec/changes/make-robust-contracts BIS/packages/integration BIS/packages/integration-demo` and verify implementation remains limited to contract-state isolation, with completed `make-robust-assets` work and unrelated dirty changes preserved.

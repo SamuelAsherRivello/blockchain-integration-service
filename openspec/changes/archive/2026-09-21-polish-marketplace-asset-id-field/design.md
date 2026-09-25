@@ -69,9 +69,9 @@ monospace face.
 Alternative: modify global account field styles. Rejected because it risks
 changing the existing Account Details layout.
 
-### Make `.openspec` discovery explicit in repository guidance
+### Make `openspec` discovery explicit in repository guidance
 
-`AGENTS.md` treats `.openspec/` as the first planning-home lookup and plain
+`AGENTS.md` treats `openspec/` as the first planning-home lookup and plain
 `openspec/` only as generated compatibility plumbing. This prevents agents
 from treating the absence of the default-named directory as a missing planning
 home.

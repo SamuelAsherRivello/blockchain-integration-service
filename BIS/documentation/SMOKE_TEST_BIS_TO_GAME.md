@@ -113,7 +113,7 @@ ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:14174:127.0.0.1:4174 -L 127.0.0.
 
 Open http://127.0.0.1:14174/ and http://127.0.0.1:14175/. These are fresh origins; production navigation does not require moving the development wallet. Repeat guest Settings/Account/Back and verify CSS/assets and lack of startup/React errors.
 
-See [acceptance evidence](../../.openspec/changes/smoke-test-bis-to-game/verification.md). Pay-to-continue, revival, achievements and live financial mutations are outside this change.
+See [acceptance evidence](../../openspec/changes/smoke-test-bis-to-game/verification.md). Pay-to-continue, revival, achievements and live financial mutations are outside this change.
 
 ## Repeat automated browser checks
 

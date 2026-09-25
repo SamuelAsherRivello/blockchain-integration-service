@@ -17,7 +17,7 @@
   detail, upper-right actions, omitted Decimals, no internal scrollbar/footer
   copy, and shared left-aligned data-row typography; run
   `node --test BIS/packages/marketplace/tests/catalog.test.mjs`.
-- [x] 2.2 Clarify `AGENTS.md` so agents discover `.openspec/` first and treat
+- [x] 2.2 Clarify `AGENTS.md` so agents discover `openspec/` first and treat
   plain `openspec/` only as generated compatibility plumbing; verify the
   instructions distinguish inspection/editing from the compatibility link.
 

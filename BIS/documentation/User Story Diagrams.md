@@ -178,7 +178,7 @@ Status: complete. Precondition: no active profile. The host decides where to pla
 
 ### A.P.2. Create a new disposable test account
 
-Status: implemented, with manual real-storage Reset Client verification pending. Confirmed scope is captured in [add-a2-account-creation](../../.openspec/changes/archive/2026-09-03-add-a2-account-creation/proposal.md); the change task list records outstanding verification. Game and Runtime Preview share production persistence behavior. Story IDs identify scope, not development order.
+Status: implemented, with manual real-storage Reset Client verification pending. Confirmed scope is captured in [add-a2-account-creation](../../openspec/changes/archive/2026-09-03-add-a2-account-creation/proposal.md); the change task list records outstanding verification. Game and Runtime Preview share production persistence behavior. Story IDs identify scope, not development order.
 
 ```text
 [A.P.2.11] Host opens the production Account dialogue
@@ -243,7 +243,7 @@ Status: implemented, with manual real-storage Reset Client verification pending.
 
 ### A.P.3. Restore an account from this experience ✓
 
-Status: implemented for account access only. Verification is recorded in [A.P.3_VERIFICATION.md](../../.openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md).
+Status: implemented for account access only. Verification is recorded in [A.P.3_VERIFICATION.md](../../openspec/changes/archive/2026-09-03-add-a3-account-restoration/A3_VERIFICATION.md).
 
 ```text
 [A.P.3.01] Player: Restore Account
@@ -280,7 +280,7 @@ Status: implemented for account access only. Verification is recorded in [A.P.3_
 
 ### A.P.4. Open Account with an active profile ✓
 
-Status: complete, confirmed by the user on 2026-09-09. Earlier funded-balance acceptance is closed on that confirmation. See [A.P.4 verification](../../.openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md). A.P.2/A.P.3 enter this shared dialog after account activation; their account-access behavior remains separate.
+Status: complete, confirmed by the user on 2026-09-09. Earlier funded-balance acceptance is closed on that confirmation. See [A.P.4 verification](../../openspec/changes/archive/2026-09-03-add-a4-account-balance/A4_VERIFICATION.md). A.P.2/A.P.3 enter this shared dialog after account activation; their account-access behavior remains separate.
 
 ```text
 [A.P.4.01] Player: Gear --> Account
@@ -308,7 +308,7 @@ Status: complete, confirmed by the user on 2026-09-09. Earlier funded-balance ac
 
 ### E.P.1. Inspect Activity ✓
 
-Complete, confirmed by the user on 2026-09-09: production SDK history, transaction rows/detail, Copy-all, automatic updates, and account-scoped cleanup. Earlier live-transition acceptance is closed on that confirmation; see [E.P.1 verification](../../.openspec/changes/archive/2026-09-08-add-a5-inspect-activity/A5_VERIFICATION.md).
+Complete, confirmed by the user on 2026-09-09: production SDK history, transaction rows/detail, Copy-all, automatic updates, and account-scoped cleanup. Earlier live-transition acceptance is closed on that confirmation; see [E.P.1 verification](../../openspec/changes/archive/2026-09-08-add-a5-inspect-activity/A5_VERIFICATION.md).
 
 ```text
 [E.P.1.01] Player: Account --> Accounts Details --> Transactions (below Balance)
@@ -377,7 +377,7 @@ Complete, confirmed by the user on 2026-09-09: production SDK history, transacti
 [A.P.5.09] Game: ordinary gameplay remains available
 ```
 
-- Implemented with manual real-storage verification pending. See [A.P.5 verification](../../.openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md). Game observes the non-secret `accountDisconnected` event after confirmed active-to-absent state; normal gameplay remains usable.
+- Implemented with manual real-storage verification pending. See [A.P.5 verification](../../openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md). Game observes the non-secret `accountDisconnected` event after confirmed active-to-absent state; normal gameplay remains usable.
 - Service: Core owns session transition and pending-work policy; UI explains consequences; Arkade handles SDK-specific lifecycle cleanup. Logout is not an on-chain transaction and does not erase wallet assets.
 - Confirmed scope: use the supplied Arkade Reset wallet screenshots as the behavioral reference for a backup confirmation, with our heading "Account Log Out" and action "Log Out". Ask "Did you back up your wallet?" and warn that clearing the account from this browser cannot be undone locally; restoring access requires the saved recovery phrase. This confirmation is permanent A.P.5 behavior, independent of A.P.3 restoration availability.
 - The "I have backed up my wallet" checkbox starts unchecked every time the confirmation opens. Log Out is disabled until checked and becomes disabled again if unchecked. Checking the box alone does not log out; the player must press Log Out. Back cancels without clearing account material or ending the session.
@@ -391,7 +391,7 @@ The first deliverable was B.P.1: a complete minimal continuation request demonst
 
 ### B.P.1. MVP Request Continue ✓
 
-**Status:** Historical B.P.1 sink-payment verification passed, preserving all three assets in player change. A.G.1 changes new requests to a configured recipient; its live verification remains pending. See [B.P.1 verification](../../.openspec/changes/archive/2026-09-04-add-b-pay-to-continue-mvp/VERIFICATION.md).
+**Status:** Historical B.P.1 sink-payment verification passed, preserving all three assets in player change. A.G.1 changes new requests to a configured recipient; its live verification remains pending. See [B.P.1 verification](../../openspec/changes/archive/2026-09-04-add-b-pay-to-continue-mvp/VERIFICATION.md).
 
 ```text
 [B.P.1.01] Admin: "Pay 1000 Sats To Continue" (Player->Game), BIS-owned 1000-sat price
@@ -421,7 +421,7 @@ The first deliverable was B.P.1: a complete minimal continuation request demonst
 
 ### B.P.2. Game death screen and continuation integration ✓
 
-**Status:** Implemented and verified with the real game and isolated payment fixtures. No new live Signet payment was made for B.P.2. See [B.P.2 verification](../../.openspec/changes/archive/2026-09-07-add-b2-game-pay-to-continue/verification.md).
+**Status:** Implemented and verified with the real game and isolated payment fixtures. No new live Signet payment was made for B.P.2. See [B.P.2 verification](../../openspec/changes/archive/2026-09-07-add-b2-game-pay-to-continue/verification.md).
 
 The game shows a lightning icon followed by `Pay 1000 Sats To Continue`, then `Restart Game` below. BIS supplies the hardcoded 1000-sat price through a public API; the game dynamically inserts it. Pay stays visible and greyed out whenever the player is not logged in. All shared game menu labels shrink when needed to fit, accounting for the icon.
 
@@ -465,7 +465,7 @@ Current BIS/Admin flow:
 
 ### C.P.1. Reward Player With Trophy After Level Complete ✓
 
-**Status:** Complete, confirmed by the user on 2026-09-09, and archived in [reward-player-with-trophy-after-level-complete](../../.openspec/changes/archive/2026-09-07-reward-player-with-trophy-after-level-complete/proposal.md). See [verification](../../.openspec/changes/archive/2026-09-07-reward-player-with-trophy-after-level-complete/verification.md). Admin simulates two completed levels; the game loads actual packaged levels. Wallet acceptance uses isolated fixtures; live Signet issuance was not performed.
+**Status:** Complete, confirmed by the user on 2026-09-09, and archived in [reward-player-with-trophy-after-level-complete](../../openspec/changes/archive/2026-09-07-reward-player-with-trophy-after-level-complete/proposal.md). See [verification](../../openspec/changes/archive/2026-09-07-reward-player-with-trophy-after-level-complete/verification.md). Admin simulates two completed levels; the game loads actual packaged levels. Wallet acceptance uses isolated fixtures; live Signet issuance was not performed.
 
 The game shows **Level Completed** when another packaged level exists, with the current HUD gold numbers (minimum two digits):
 
@@ -510,7 +510,7 @@ When the trophy is owned, the existing completion body ends with **You already o
 
 ### F.P.1. UI Toast ✓
 
-**Status:** Implemented in `add-d7-toast-messaging`; see [toast verification](../../.openspec/changes/archive/2026-09-08-add-d7-toast-messaging/VERIFICATION.md).
+**Status:** Implemented in `add-d7-toast-messaging`; see [toast verification](../../openspec/changes/archive/2026-09-08-add-d7-toast-messaging/VERIFICATION.md).
 
 As a player, I receive brief BIS notifications at the top of the runtime viewport without losing focus or interrupting gameplay. As a developer, I can trigger the same production presentation from Admin to try it out.
 
@@ -568,7 +568,7 @@ Admin has an independent game wallet, imported through one recovery-phrase field
 
 The **A.G.1. Game Wallet (Admin-facing)** row shows **Login** initially and **Logout** after import. A.G.1 and A.G.2 read and write the same selected record. Logout deselects the wallet across reloads without deleting saved identities.
 
-Game-wallet trophy issuance remains a separate deferred proposal; existing player self-minting is unchanged. See [A.G.1 planning](../../.openspec/changes/add-admin-game-wallet-and-continue-payments/proposal.md).
+Game-wallet trophy issuance remains a separate deferred proposal; existing player self-minting is unchanged. See [A.G.1 planning](../../openspec/changes/add-admin-game-wallet-and-continue-payments/proposal.md).
 
 ### A.G.2. Game Wallet (User-facing) ✓
 
@@ -586,7 +586,7 @@ D.P.1 and D.P.2 retain their completed generic contract behavior, with the curre
 
 ### D.P.1. Contracts UI ✓
 
-Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.
+Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.
 
 ```text
 [D.P.1.01] Account Details --> Contracts
@@ -607,7 +607,7 @@ Status: complete for the delivered feature; user confirmed it works on 2026-09-0
 
 ### D.P.2. LTO Treasure Chest ✓
 
-Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../.openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). LTO means Limited-Time Offer: a funded reward bound to a specific player, with a player claim path and a game refund path. The gameplay demonstration is a timed treasure chest in Stealth & Steel.
+Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). LTO means Limited-Time Offer: a funded reward bound to a specific player, with a player claim path and a game refund path. The gameplay demonstration is a timed treasure chest in Stealth & Steel.
 
 ```text
 [D.P.2.01] Enter start menu --> silently check contracts / eligible cleanup
@@ -645,7 +645,7 @@ D.P.1 and Assets/Transactions share **Item List** and **Item List Detail**. All 
 
 **User story:** As a BIS developer, I want an isolated, observable Signet onboarding experiment so I can verify funding, settlement, recovery and timing before bringing the behavior into the player-facing onboarding flow.
 
-**Status:** The original six-step spike is implemented, has recorded live completions, and is synced into the [standalone boarding specification](../../.openspec/specs/standalone-boarding-spike/spec.md). The [robustness change](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/proposal.md) was synced into the [resilience specification](../../.openspec/specs/standalone-spike-resilience/spec.md) and archived at the user's request on 2026-09-09 after four accepted runs and three additional runs reached Step 6. Its [verification report](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/verification.md) records 89 passing tests, exact live outputs and timings. The [15 unfinished tasks](../../.openspec/changes/archive/2026-09-09-robust-fixes-for-spike/tasks.md) remain unchecked, including full fault/lifecycle coverage, detailed timing instrumentation and controlled benchmarks. This experiment provides evidence for [A.G.4](#ag4-reliable-onboarding-and-transfer-recovery); it does not establish BIS production acceptance.
+**Status:** The original six-step spike is implemented, has recorded live completions, and is synced into the [standalone boarding specification](../../openspec/specs/standalone-boarding-spike/spec.md). The [robustness change](../../openspec/changes/archive/2026-09-09-robust-fixes-for-spike/proposal.md) was synced into the [resilience specification](../../openspec/specs/standalone-spike-resilience/spec.md) and archived at the user's request on 2026-09-09 after four accepted runs and three additional runs reached Step 6. Its [verification report](../../openspec/changes/archive/2026-09-09-robust-fixes-for-spike/verification.md) records 89 passing tests, exact live outputs and timings. The [15 unfinished tasks](../../openspec/changes/archive/2026-09-09-robust-fixes-for-spike/tasks.md) remain unchecked, including full fault/lifecycle coverage, detailed timing instrumentation and controlled benchmarks. This experiment provides evidence for [A.G.4](#ag4-reliable-onboarding-and-transfer-recovery); it does not establish BIS production acceptance.
 
 **Demo:** [Open Spike #1](http://127.0.0.1:5174/spike1/) with the local integration demo running, or use [the standalone server](http://127.0.0.1:5186/spike1/). Each active window has its own account, operation, timing history and populated public `btcAddress` URL. Ports 5174 and 5186 have separate browser storage. See the [spike README](../packages/balance-onboard-spike-standalone/README.md) for startup commands and prior acceptance evidence.
 
@@ -781,13 +781,13 @@ The remaining Appendix stories use the current numbering. Game-wallet account be
 
 ### B. Payments/Transfers receiving details
 
-This detail is organized under B.P.3 and B.P.4. B.P.3 is delivered independently in [add-d2a-address-receiving](../../.openspec/changes/archive/2026-09-04-add-d2a-address-receiving/proposal.md). The earlier combined receiving change retains unfinished B.P.4 live requirements; B.P.3 completion does not complete its remaining tasks.
+This detail is organized under B.P.3 and B.P.4. B.P.3 is delivered independently in [add-d2a-address-receiving](../../openspec/changes/archive/2026-09-04-add-d2a-address-receiving/proposal.md). The earlier combined receiving change retains unfinished B.P.4 live requirements; B.P.3 completion does not complete its remaining tasks.
 
 #### B.P.3. Receive funds using addresses ✓
 
 **User story:** As a player, I want to open Receive and copy my Arkade or Bitcoin receiving address, so someone can fund my account using a currently supported address without confusing the payment types.
 
-**Status:** Complete for address-based receiving. Account / Account Dialog opens production Receive for an active account, or the normal chooser when logged out. Address copying, errors/retry, navigation, keyboard access, and portrait layout are verified; see [B.P.3 evidence](../../.openspec/changes/archive/2026-09-04-add-d2a-address-receiving/verification.md). No invoice creation or payment completion is claimed.
+**Status:** Complete for address-based receiving. Account / Account Dialog opens production Receive for an active account, or the normal chooser when logged out. Address copying, errors/retry, navigation, keyboard access, and portrait layout are verified; see [B.P.3 evidence](../../openspec/changes/archive/2026-09-04-add-d2a-address-receiving/verification.md). No invoice creation or payment completion is claimed.
 
 **Atomic outcome:** One usable, truthful Receive page from entry through copying an address and returning to Account. Include the production UI, its public state, the Admin demonstration, documentation, and verification as one deliverable.
 
@@ -823,7 +823,7 @@ This detail is organized under B.P.3 and B.P.4. B.P.3 is delivered independently
 
 **User story:** As a player, I want to create and copy a Lightning invoice for a chosen amount, so someone can fund my account and I can see whether the receipt completed.
 
-**Status:** Deferred and hidden from the app as of 2026-09-04. The user reported that [Arkade Signet](https://signet.arkade.money/) displays "Lightning unavailable: No Lightning solver available". Remove the unavailable placeholder as well as invoice controls; address receiving remains available. This supersedes earlier requirements to display a disabled invoice section. Planned in [add-lightning-invoice-receiving](../../.openspec/changes/add-lightning-invoice-receiving/proposal.md). The [receiving specification](../../.openspec/changes/add-lightning-invoice-receiving/specs/account-invoice-receiving/spec.md) retains the full approved live behavior. The [implementation evidence](../../.openspec/changes/add-lightning-invoice-receiving/verification.md) records the support gate; an unavailable presentation is not delivery of this story.
+**Status:** Deferred and hidden from the app as of 2026-09-04. The user reported that [Arkade Signet](https://signet.arkade.money/) displays "Lightning unavailable: No Lightning solver available". Remove the unavailable placeholder as well as invoice controls; address receiving remains available. This supersedes earlier requirements to display a disabled invoice section. Planned in [add-lightning-invoice-receiving](../../openspec/changes/add-lightning-invoice-receiving/proposal.md). The [receiving specification](../../openspec/changes/add-lightning-invoice-receiving/specs/account-invoice-receiving/spec.md) retains the full approved live behavior. The [implementation evidence](../../openspec/changes/add-lightning-invoice-receiving/verification.md) records the support gate; an unavailable presentation is not delivery of this story.
 
 **If/when to add it back:** Keep invoice UI hidden until the following conditions are met and live receiving is ready to ship. Do not restore it automatically just because the external wallet stops showing its warning.
 
@@ -882,7 +882,7 @@ The following B.P.4 step sequence describes future invoice-receiving behavior; B
 
 **User story:** As a player, I want to send available Arkade test sats to another Arkade address after reviewing the recipient, exact amount, fees and total deducted.
 
-**Status:** Implemented with automated/browser verification; live payment acceptance remains pending. Proposal: [add-d3a-address-sending](../../.openspec/changes/archive/2026-09-08-add-d3a-address-sending/proposal.md). Recipient/Paste, live spendable funds, sats amount/Max, separate Review Send and explicit confirmation. Bitcoin destinations/source selectors, Lightning, QR and fiat controls are omitted. The existing pending account remains locked; isolated implementation tests and a separately selected clean account do not depend on E.P.2/E.P.3 recovery. See [verification](../../.openspec/changes/archive/2026-09-08-add-d3a-address-sending/VERIFICATION.md).
+**Status:** Implemented with automated/browser verification; live payment acceptance remains pending. Proposal: [add-d3a-address-sending](../../openspec/changes/archive/2026-09-08-add-d3a-address-sending/proposal.md). Recipient/Paste, live spendable funds, sats amount/Max, separate Review Send and explicit confirmation. Bitcoin destinations/source selectors, Lightning, QR and fiat controls are omitted. The existing pending account remains locked; isolated implementation tests and a separately selected clean account do not depend on E.P.2/E.P.3 recovery. See [verification](../../openspec/changes/archive/2026-09-08-add-d3a-address-sending/VERIFICATION.md).
 
 ```text
 [B.P.5.01] Account / Account Dialog --> enter another Arkade address (or Paste)
@@ -900,7 +900,7 @@ The following B.P.4 step sequence describes future invoice-receiving behavior; B
 
 **Status:** Deferred and explicitly unstarted at the user's request. Separate from B.P.5 and from B.P.4 invoice receiving. No implementation tasks, enabled controls, dependency installation or live invoice payments are authorized by B.P.5. Future work requires its own proposal and Signet sending/quote/recovery verification; the receiving-route blocker alone does not establish outbound availability.
 
-Source: [Account Send and Receive decisions](design-discussion.md#account-send-and-receive) and the [B.P.6 proposal's separate all-send-types scope](../../.openspec/changes/add-lightning-invoice-receiving/proposal.md).
+Source: [Account Send and Receive decisions](design-discussion.md#account-send-and-receive) and the [B.P.6 proposal's separate all-send-types scope](../../openspec/changes/add-lightning-invoice-receiving/proposal.md).
 
 ### B.P.7. Make deposited Bitcoin available
 
@@ -908,7 +908,7 @@ Source: [Account Send and Receive decisions](design-discussion.md#account-send-a
 
 **User story:** As a player, I want to see my total split into Bitcoin and Arkade balances and choose an amount and direction to transfer within my account.
 
-**Status:** Both Bitcoin-to-Arkade and Arkade-to-Bitcoin now support eligible amount selection, Max, real fee/net/projected-balance review and explicit Confirm Transfer. Partial amounts are preserved; unsupported change amounts are rejected. Background boarding from account inspection is disabled. Reverse Bitcoin returns to this account's boarding address and stays Bitcoin until explicitly transferred back. Durable pending-operation guards prevent blind retries and account clearing while the outcome is unresolved. Actual user-confirmed transfers through the new flow still require live verification. See [implementation evidence and live steps](../../.openspec/changes/add-bitcoin-boarding-settlement/BOARDING_VERIFICATION.md) and [the transfer proposal](../../.openspec/changes/add-bitcoin-boarding-settlement/proposal.md).
+**Status:** Both Bitcoin-to-Arkade and Arkade-to-Bitcoin now support eligible amount selection, Max, real fee/net/projected-balance review and explicit Confirm Transfer. Partial amounts are preserved; unsupported change amounts are rejected. Background boarding from account inspection is disabled. Reverse Bitcoin returns to this account's boarding address and stays Bitcoin until explicitly transferred back. Durable pending-operation guards prevent blind retries and account clearing while the outcome is unresolved. Actual user-confirmed transfers through the new flow still require live verification. See [implementation evidence and live steps](../../openspec/changes/add-bitcoin-boarding-settlement/BOARDING_VERIFICATION.md) and [the transfer proposal](../../openspec/changes/add-bitcoin-boarding-settlement/proposal.md).
 
 #### Account Details mockup
 
@@ -1033,7 +1033,7 @@ E.P.2 and E.P.3 are independently deliverable stories. E.P.2 provides a read-onl
 
 **User story:** As a player with an unresolved transfer, I want to inspect and copy its public recovery details so I can ask trusted operator support to investigate without exposing my recovery material.
 
-**Status:** Implemented and verified with unit tests and an isolated real-browser fixture. [Proposal](../../.openspec/changes/archive/2026-09-04-add-transfer-recovery-report/proposal.md). No cancellation SDK capability is needed and no live transaction is required for this story's acceptance.
+**Status:** Implemented and verified with unit tests and an isolated real-browser fixture. [Proposal](../../openspec/changes/archive/2026-09-04-add-transfer-recovery-report/proposal.md). No cancellation SDK capability is needed and no live transaction is required for this story's acceptance.
 
 ```text
 [E.P.2.01] Account Transfer one-line pending notice --> Transactions --> click pending transaction
@@ -1050,7 +1050,7 @@ E.P.2 and E.P.3 are independently deliverable stories. E.P.2 provides a read-onl
 
 **User story:** As a player with an unresolved same-account transfer, I want to explicitly cancel it when supported so I can safely use my account again without risking a duplicate transfer.
 
-**Status:** Proposed, not implemented. The confirmed delivery order is feasibility first: establish exact cancellation scope and a verifiable terminal outcome before building cancellation UI. If those guarantees cannot be established, stop and report the blocker; a disabled cancellation button is not delivery. See [proposal](../../.openspec/changes/cancel-pending-transfer/proposal.md) and [feasibility findings](../../.openspec/changes/cancel-pending-transfer/FEASIBILITY.md).
+**Status:** Proposed, not implemented. The confirmed delivery order is feasibility first: establish exact cancellation scope and a verifiable terminal outcome before building cancellation UI. If those guarantees cannot be established, stop and report the blocker; a disabled cancellation button is not delivery. See [proposal](../../openspec/changes/cancel-pending-transfer/proposal.md) and [feasibility findings](../../openspec/changes/cancel-pending-transfer/FEASIBILITY.md).
 
 **Intended flow after feasibility passes:**
 
@@ -1099,7 +1099,7 @@ A.G.3 appends **(Awaiting Balance)** for loading or insufficient payment funds. 
 
 **User story:** As a player, I want BIS to start onboarding automatically once my account is funded, explain its progress and recover safely, so my intended Arkade funds become usable without manual transfer steps or unnecessary waits.
 
-**Status:** Implemented with deterministic and browser verification; fresh Signet settlement/payment acceptance remains open. See [verification and recovery limits](../../.openspec/changes/add-automatic-bis-onboarding/verification.md), [automatic onboarding proposal](../../.openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../.openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../.openspec/changes/add-automatic-bis-onboarding/tasks.md). This section defines A.G.4 automatic 50% onboarding decisions. B.P.7 manual transfers and E.P.3 cancellation/recovery retain their separate contracts.
+**Status:** Implemented with deterministic and browser verification; fresh Signet settlement/payment acceptance remains open. See [verification and recovery limits](../../openspec/changes/add-automatic-bis-onboarding/verification.md), [automatic onboarding proposal](../../openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../openspec/changes/add-automatic-bis-onboarding/tasks.md). This section defines A.G.4 automatic 50% onboarding decisions. B.P.7 manual transfers and E.P.3 cancellation/recovery retain their separate contracts.
 
 **Evidence and current BIS gaps:**
 

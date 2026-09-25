@@ -25,7 +25,7 @@ A5 is complete, confirmed by the user. Remaining acceptance checkboxes below are
 - [x] 4.1 Remove separate Pending Operations navigation, merge pending records into Transactions without duplicates, place selected recovery/status/copy and eligible unsent-draft discard actions in Transaction Detail, and verify honest unknown/draft labels, reconciliation, existing navigation and compact browser layout.
 
 
-Implementation note: real history/coin reads, source coverage, and an isolated live SDK utxo notification are verified. 3.2 remains open for a real confirmation transition and outgoing/spent examples. See .openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md. No funding or sending is authorized by verification tasks.
+Implementation note: real history/coin reads, source coverage, and an isolated live SDK utxo notification are verified. 3.2 remains open for a real confirmation transition and outgoing/spent examples. See openspec/changes/add-a5-inspect-activity/A5_VERIFICATION.md. No funding or sending is authorized by verification tasks.
 
 Recheck (2026-09-05): live confirmed-state rendering and outgoing rows are observed, but the same-transaction live transition and independent spent-history evidence remain pending. User Story Diagrams.md is now populated. Task 3.3 remains open because its A5 diagram is stale and the original Copy-all/text-area contract conflicts with the delivered row/detail-copy UI. See the latest A5_VERIFICATION.md entry before reconciling or finalizing.
 

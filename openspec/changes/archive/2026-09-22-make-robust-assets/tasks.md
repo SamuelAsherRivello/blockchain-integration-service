@@ -35,4 +35,4 @@
 - [x] 5.1 Run focused integration tests for LTO, treasure session, asset API, burn, marketplace mint/burn batches, and wallet-operation availability, and record any unrelated pre-existing failures separately
 - [x] 5.2 Run the relevant browser fixture for G2 LTO controls if UI behavior changed, and verify the toast/countdown behavior is visible without blocking ordinary gameplay (not required; no UI code changed)
 - [x] 5.3 Run `openspec validate make-robust-assets --strict` and verify the change remains valid after implementation tasks are updated
-- [x] 5.4 Inspect `git diff -- .openspec/changes/make-robust-assets BIS/packages/integration BIS/packages/integration-demo` and verify only scoped files changed, with unrelated dirty work preserved
+- [x] 5.4 Inspect `git diff -- openspec/changes/make-robust-assets BIS/packages/integration BIS/packages/integration-demo` and verify only scoped files changed, with unrelated dirty work preserved

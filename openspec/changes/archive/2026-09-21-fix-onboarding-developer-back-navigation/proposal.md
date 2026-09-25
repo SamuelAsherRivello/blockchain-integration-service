@@ -25,5 +25,5 @@ When onboarding is opened from the production Developer menu, selecting Back is 
 
 - `BIS/packages/integration/src/ui/client.tsx`: onboarding/Developer view state and Back routing.
 - `BIS/packages/integration-demo/tests/onboarding-host.tsx` and/or the closest existing UI harness: regression coverage for both onboarding entry points and Back destinations.
-- `.openspec/changes/fix-onboarding-developer-back-navigation/specs/account-entry/spec.md`: delta requirements for the corrected navigation contract.
+- `openspec/changes/fix-onboarding-developer-back-navigation/specs/account-entry/spec.md`: delta requirements for the corrected navigation contract.
 - No public API, dependency, storage, wallet, or transaction behavior changes are intended.
