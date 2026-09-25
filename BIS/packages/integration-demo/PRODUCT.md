@@ -12,7 +12,7 @@ Developers and portfolio reviewers use the demo to operate a split admin workspa
 
 ## Product Purpose
 
-Make the reusable integration independently demonstrable and testable without running the Babylon game, while retaining real Signet workflows wherever the integration touches Arkade.
+Make the reusable integration independently demonstrable and testable without running the Babylon game, while retaining real Signet and Mutinynet workflows wherever the integration touches Arkade.
 
 ## Positioning
 
@@ -26,8 +26,8 @@ The local Vite app provides development and review flows for account, payment, a
 
 - React and TypeScript Vite application.
 - Split workspace: admin/development controls beside a 9:16-style runtime preview.
-- Game events may be simulated in the harness; wallet operations are real Signet behavior.
-- Signet only, Arkade SDK only, and no custom application server.
+- Game events may be simulated in the harness; wallet operations are real selected-network behavior.
+- Signet and Mutinynet network options, Arkade SDK integration, and no custom application server.
 - The demo must use the integration package's public API and production React components.
 - Recovery phrases are sensitive and must never be entered in chat, source control, or configuration.
 

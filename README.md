@@ -5,7 +5,16 @@
 # Blockchain Integration Service (BIS)
 
 <!-- AI: Replace {PROJECT_NAME} with the requested project display name. Write one short introduction sentence explaining what the project does and who it is for, based on implemented behavior. -->
-Reusable Signet account, payment, and asset integration for browser games, with a React demo for exploring the public API.
+Adds a Blockchain enabled ui and service layer to your games for Signet and Mutinynet networks.
+
+### Benefits
+
+- Accounts
+- Payments
+  - Transfer in, transfer out
+  - Pay-to-play mechanics
+- Assets (e.g. in-game items and achievement trophies)
+- Contracts (e.g. limited-time offers to reward players)
 
 ## Images
 
@@ -64,9 +73,9 @@ Use `npm run preview` to serve the production build locally.
 ## Project Overview
 
 <!-- AI: Summarize the project's purpose, main capabilities, and intended use cases. Describe current implementation; label planned capabilities explicitly rather than presenting them as complete. Keep detailed tooling under Project Details. Keep this section brief; do not add release-specific status, smoke-test, or future-work detail unless explicitly requested. -->
-BIS separates reusable game integration from its development demo. The integration owns account creation and restoration, browser persistence, balances, transaction history, receiving addresses, Arkade sending, Bitcoin/Arkade transfer flows, and generic asset minting, listing, and burning. The demo provides admin controls, a console, and a portrait runtime preview through the public API.
+BIS separates reusable game integration from its development demo. The integration owns account creation and restoration, browser persistence, balances, transaction history, receiving addresses, Arkade sending, Bitcoin/Arkade transfer flows, and generic asset minting, listing, and burning across the selected Signet or Mutinynet network. The demo provides admin controls, a console, and a portrait runtime preview through the public API.
 
-This is a Signet-only work in progress with no custom application server. Payment and transfer flows have documented verification limits; Lightning invoice receiving is currently unavailable. Games remain separate and can be playable without an account. See the user stories and package documentation for implementation status and remaining checks.
+This is a work in progress with no custom application server. The two supported network options are Signet and Mutinynet. Payment and transfer flows have documented verification limits; Lightning invoice receiving is currently unavailable. Games remain separate and can be playable without an account. See the user stories and package documentation for implementation status and remaining checks.
 
 ### 📝 Documentation
 
@@ -104,14 +113,14 @@ React and TypeScript power both packages, with Vite for development and producti
 
 <!-- AI: Keep this section to the concise Codex and OpenSpec links below. Do not restore OpenSpec CLI setup instructions, PowerShell requirements, compatibility-link explanations, OpenSpec commands, or Grill Me guidance in this README unless explicitly requested by the user. -->
 - [Codex](https://openai.com/codex/): Repository guidance in [AGENTS.md](AGENTS.md) and local skills.
-- [OpenSpec](https://openspec.dev/): Specifications and change planning in `.openspec/`.
+- [OpenSpec](https://openspec.dev/): Specifications and change planning in `openspec/`.
 
 
 ### 📦 Packages
 
 <!-- AI: Keep the package list limited to React, Arkade SDK, TypeScript, and Vite. Do not restore Mermaid, react-markdown, or @scure/bip39 entries or descriptions in this README unless explicitly requested by the user. Verify listed versions against the repository. -->
 - [React](https://react.dev/): Runtime components and demo UI (`19.2.8`).
-- [Arkade SDK](https://github.com/arkade-os/sdk): Signet wallet and asset integration (`0.4.67`).
+- [Arkade SDK](https://github.com/arkade-os/sdk): Signet and Mutinynet wallet and asset integration (`0.4.67`).
 - [TypeScript](https://www.typescriptlang.org/): Static type checking (`7.0.2`).
 - [Vite](https://vite.dev/): Local development server and production builds (`8.2.2`).
 
