@@ -1,5 +1,5 @@
-<!-- AI: This shared diagram is stored only at BIS/documentation/bitcoin-ark-arkade-bis-game.png in the BIS repository. If it is updated, update and store it only there; both Deep Dive pages must keep linking to this single source. -->
-![Bitcoin Layer 1, ARK, Arkade, BIS, and Game](bitcoin-ark-arkade-bis-game.png)
+<!-- AI: These shared diagrams are stored only in BIS/documentation in the BIS repository. If they are updated, store them only there; both Deep Dive pages must keep linking to these single sources. -->
+![BIS concept diagram](bis-concept-diagram-1.png)
 
 ### Legend
 
@@ -8,6 +8,8 @@
 3. [Arkade](https://arkadeos.com/) (Layer 2) — A programmable Bitcoin execution layer for wallets, payments, assets, and contracts.
 4. [BIS](https://github.com/SamuelAsherRivello/blockchain-integration-service) (Integration) — A custom TypeScript/React library that connects Signet or Mutinynet Arkade workflows to a game through a small, game-neutral contract.
 5. [Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game) (Application) — The custom Stealth & Steel host game, which owns scenes and gameplay consequences after BIS confirms an outcome.
+
+![BIS sequence diagram](bis-sequence-diagram-1.png)
 
 # Deep Dive
 
