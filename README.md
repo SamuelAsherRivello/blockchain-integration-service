@@ -5,16 +5,21 @@
 # Blockchain Integration Service (BIS)
 
 <!-- AI: Replace {PROJECT_NAME} with the requested project display name. Write one short introduction sentence explaining what the project does and who it is for, based on implemented behavior. -->
-Adds a Blockchain enabled ui and service layer to your games for Signet and Mutinynet networks.
+This is a proof-of-concept (POC) demonstrating Blockchain use cases for gaming.
 
-### Benefits
+The BIS adds a Blockchain enabled ui and service layer to your games for Signet and Mutinynet networks for Bitcoin.
+
+### BIS Benefits
 
 - Accounts
 - Payments
-  - Transfer in, transfer out
+  - Deposits and withdrawals
   - Pay-to-play mechanics
-- Assets (e.g. in-game items and achievement trophies)
-- Contracts (e.g. limited-time offers to reward players)
+- Assets
+  - Marketplace
+  - In-game items
+  - Achievements and trophies
+- Contracts, including limited-time player reward offers
 
 ## Images
 
