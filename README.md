@@ -142,7 +142,9 @@ React and TypeScript power both packages, with Vite for development and producti
 
 <a href="https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/BIS/documentation/bis-concept-diagram-1.png"><img src="https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/BIS/documentation/bis-concept-diagram-1.png" width="400" alt="BIS concept diagram" /></a>
 
-Deep Dive takes a closer look at a few representative files and the cross-repository contract that connects them. Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
+Deep Dive takes a closer look at a few representative files and the cross-repository contract that connects them. 
+
+Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
 
 
 
