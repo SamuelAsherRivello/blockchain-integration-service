@@ -9,6 +9,11 @@ import type { BisTransaction } from './activity.ts';
 
 export type BisPlayerRecipient = Readonly<{profileId: string; address: string}>;
 const prefix = 'bis-game-player-payment:';
+export function recordGamePlayerPayment(transactionId: string, senderId: string, playerId: string, amountSats: number) {
+  const key = prefix + transactionId, raw = JSON.stringify({senderId,playerId,amountSats});
+  localStorage.setItem(key, raw);
+  if (localStorage.getItem(key) !== raw) throw Error('Payment metadata could not be saved.');
+}
 export function paymentSender(row: BisTransaction, playerId: string): string | undefined {
   if (!globalThis.localStorage) return;
   for (const ref of row.identifier.split(' ')) {
@@ -36,10 +41,7 @@ export function createGamePlayerPayments(dependencies = adapter) {
         const journal: SendJournal = {
           read: (profileId) => readSendRecord(profileId,undefined,network),
           write(record) {
-            const key = prefix + record.transactionId;
-            const raw = JSON.stringify({senderId: account.profileId, playerId: recipient.profileId, amountSats});
-            localStorage.setItem(key, raw);
-            if (localStorage.getItem(key) !== raw) throw Error('Payment metadata could not be saved.');
+            recordGamePlayerPayment(record.transactionId, account.profileId, recipient.profileId, amountSats);
             // Retain the game sender's recovery record across player logout.
             const owner = 'bis-game-wallet-send-owner:' + encodeURIComponent(account.profileId);
             localStorage.setItem(owner, '1');

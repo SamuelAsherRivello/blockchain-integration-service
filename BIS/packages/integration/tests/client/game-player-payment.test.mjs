@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createGamePlayerPayments, paymentSender} from '../../src/client/state-layer-core/game-player-payment.ts';
+import {createGamePlayerPayments, paymentSender, recordGamePlayerPayment} from '../../src/client/state-layer-core/game-player-payment.ts';
 import {readSendRecord,writeSendRecord} from '../../src/client/state-layer-core/sending.ts';
 import {clearBrowserPreferences} from '../../src/client/state-layer-core/logout-cleanup.ts';
 const sender={profileId:'sender',phrase:'fixture-only'}, recipient={profileId:'player',address:'tark1fixture'};
@@ -48,4 +48,8 @@ test('historical 1000-sat payment remains recognized and blocks a new payment',a
 test('the game wallet payment boundary preserves an exact sell-back price',async()=>{
  const f=fixture(1100);const result=await f.pay.pay(sender,recipient,1100,new AbortController().signal,()=>true);
  assert.equal(result.status,'pending');assert.equal(readSendRecord('sender').quote.amountSats,1100);
+});
+test('a treasure claim can retain its Game Wallet sender for receipt labeling',()=>{
+ fixture();recordGamePlayerPayment(txid,'game','player',1000);
+ assert.equal(paymentSender({identifier:`ark:${txid}`,amountSats:1000},'player'),'game');
 });

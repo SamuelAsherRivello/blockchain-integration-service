@@ -42,6 +42,11 @@ test('known sender, final-only arrival, change and asset-only excluded',()=>{
  n.observe([]);n.observe([row('new','Settled offchain'),row('out','Confirmed',{direction:'Outgoing'}),row('asset','Confirmed',{amountSats:0})]);
  assert.deepEqual(messages,['User ABCD....56789 sent you 1000 sats (Confirmed)']);
 });
+test('a receipt from the selected Game Wallet uses its role label',()=>{
+ const messages=[],n=createPaymentNotifications(m=>messages.push(m),()=> 'game-wallet',()=> 'game-wallet');
+ n.observe([]);n.observe([row('treasure','Settled offchain')]);
+ assert.deepEqual(messages,['Game Wallet sent you 1000 sats (Confirmed)']);
+});
 test('transfer identity survives row replacement and uncertain amounts stay silent',()=>{
  const messages=[],n=createPaymentNotifications(m=>messages.push(m));n.observe([]);
  n.observe([row('before','Pending — registered, awaiting verification',{transfer:{operationId:'op',direction:'to-arkade',status:'pending'}})]);

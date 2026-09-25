@@ -9,6 +9,7 @@ import { publishContractReservations, reserveContract } from './contract-reserva
 import { prepareLtoRecovery, reconcileLtoSpend, resumeLtoFinalization, submitLtoSpend } from '../wallet-layer-arkade/lto-contract.ts';
 import { operatorFor } from '../wallet-layer-arkade/account.ts';
 import { isTestNetwork, type TestNetwork } from './test-network.ts';
+import { recordGamePlayerPayment } from './game-player-payment.ts';
 
 export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string; exclusivityKey?: string; gameId?: string; hostReference?: string; includeResolved?: boolean; includeOtherNetworks?: boolean }>;
 export type BisContractsResult = Readonly<{ status: 'ready' | 'unavailable'; contracts: readonly BisContract[] }>;
@@ -109,6 +110,9 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       latest = await save(latest,ended(next),material); notify(ended(next));
     },()=>record.operation.kind==='refund' ? gameWallet.getState().profileId===record.scope.gameId
       : current(record.scope.playerId,record.scope.gameId) && !ended(record).ended && Date.now()<record.expiresAt);
+    if (record.operation.kind === 'claim' && result.recovery.spend) {
+      try { recordGamePlayerPayment(result.recovery.spend.transactionId, record.scope.gameId, record.scope.playerId, record.amountSats); } catch { /* A missing label never alters an already-submitted claim. */ }
+    }
     if(!detached)void context.refreshBalance().catch(()=>{});
     void gameWallet.refresh().catch(()=>{});
     return {document:latest,...result};

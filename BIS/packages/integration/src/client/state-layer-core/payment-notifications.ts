@@ -2,7 +2,7 @@ import type { MessageType } from './toasts.ts';
 import type { BisTransaction } from './activity.ts';
 
 /** Session-only observation: reconnects retain state; a new login starts silently. */
-export function createPaymentNotifications(show: (message: string, messageType: MessageType) => void, sender: (row: BisTransaction) => string | undefined = () => undefined) {
+export function createPaymentNotifications(show: (message: string, messageType: MessageType) => void, sender: (row: BisTransaction) => string | undefined = () => undefined, gameWalletProfileId: () => string | undefined = () => undefined) {
   let baseline = false;
   const seen = new Map<string, number>();
   return { observe(rows: readonly BisTransaction[]) {
@@ -23,9 +23,10 @@ export function createPaymentNotifications(show: (message: string, messageType: 
       if (!baseline) continue;
       if (!previous && ark && !row.bitcoin && !transfer) newArkadeReceipt = true;
       const id = sender(row), short = id && id.length > 9 ? `${id.slice(0,4)}....${id.slice(-5)}` : id;
+      const senderLabel = id && id === gameWalletProfileId() ? 'Game Wallet' : short ? `User ${short}` : 'Unknown user';
       const message = transfer
         ? `Transferred ${row.amountSats} sats from ${transfer.direction === 'to-arkade' ? 'Bitcoin to Arkade' : 'Arkade to Bitcoin'}`
-        : `${short ? `User ${short}` : 'Unknown user'} sent you ${row.amountSats} sats`;
+        : `${senderLabel} sent you ${row.amountSats} sats`;
       if (!previous && verifiedArkade && row.status === 'Pending offchain') show(message + ' (Pending)', 'info');
       show(message + (stage === 1 ? ' (Pending)' : !transfer && (verifiedArkade || row.status === 'Settled offchain') ? ' (Confirmed)' : ''), stage === 1 ? 'info' : 'success');
     }

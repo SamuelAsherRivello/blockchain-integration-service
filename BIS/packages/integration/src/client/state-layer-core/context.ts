@@ -259,7 +259,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if (!disposed && !signal.aborted && state.profileId === profile) {
         toasts.enqueue(message, {messageType});
       }
-    }, row => paymentSender(row, profile));
+    }, row => paymentSender(row, profile), () => options.gameWalletProfileId?.());
     const run = async () => {
       try {
         const saved = await storage.load();
