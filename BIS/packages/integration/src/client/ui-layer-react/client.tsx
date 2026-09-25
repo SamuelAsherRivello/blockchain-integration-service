@@ -21,7 +21,6 @@ import { IconButton } from './IconButton';
 import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
 import { GameWalletLogin } from './GameWalletLogin';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
-import { createBisEquipment } from '../state-layer-core/equipment-loadout';
 import { networkLabel } from '../state-layer-core/test-network';
 import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable } from '../state-layer-core/capabilities';
 import { FormRowBoolean } from './FormRowBoolean';
@@ -66,8 +65,6 @@ export function BisView({ context, gameWallet, hasItemSupport, hasAssetMintingSu
 function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
   const walletSnapshot = useSyncExternalStore(gameWallet?.subscribe ?? emptySubscribe, gameWallet?.getState ?? emptySnapshot, gameWallet?.getState ?? emptySnapshot);
-  const equipment=useMemo(()=>createBisEquipment(context),[context]);
-  const equipmentState=useSyncExternalStore(equipment.subscribe,equipment.getState,equipment.getState);
   const [developerOpen, setDeveloperOpen] = useState(false);
   const [transactionOpen, setTransactionOpen] = useState(false);
   const [assetOpen, setAssetOpen] = useState(false);
@@ -85,7 +82,6 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
     };
   }, [context]);
   useEffect(() => () => getControls(context).hideRecovery(), [context]);
-  useEffect(()=>()=>equipment.dispose(),[equipment]);
   useEffect(() => {
     onDeveloperDialogChange?.(() => {
       setDeveloperOpen(true);
@@ -109,7 +105,6 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
   const details = state.phase === 'active' && state.accountDetails;
   const activity = state.phase === 'active' && state.accountActivity;
   const assets = state.phase === 'active' && state.accountAssets;
-  useEffect(()=>{if(assets)void equipment.refresh();},[assets,state.profileId,equipment]);
   const contracts = state.phase === 'active' && !!state.accountContracts;
   const [contractOpen,setContractOpen]=useState(false);
   const receive = state.phase === 'active' && state.accountReceive;
@@ -148,7 +143,7 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
   };
   if (state.view === 'empty') return null;
   if (state.view === 'account' && (assets || contracts || activity)) return <div className="bis-layer bis-layer-open bis-layer-collection">
-    {assets && state.network && <AccountAssets key={state.profileId} assets={state.assets} network={state.network} equipment={equipment} equipmentState={equipmentState} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
+    {assets && state.network && <AccountAssets key={state.profileId} assets={state.assets} network={state.network} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
     {contracts && <AccountContracts key={state.profileId} context={context} onDetailChange={setContractOpen} />}
     {activity && <AccountActivity key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
   </div>;
