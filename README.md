@@ -31,8 +31,14 @@ Adds a Blockchain enabled ui and service layer to your games for Signet and Muti
 ## Demo
 
 <!-- AI: Keep the verified public demo URLs. Use a hidden ?v=<published-version> cache buster in each destination while leaving the labels unchanged. Advance both values for every published version. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
+### BIS
+
 * [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.7)
 * [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.7)
+
+### Game
+
+- See [Stealth & Steel](https://github.com/SamuelAsherRivello/stealth-and-steel-game)
 
 ## Table of Contents
 
