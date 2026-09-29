@@ -2,7 +2,7 @@
 
 Generated with the built-in image generation tool. Direction: exciting, game-inspired architecture infographic. Illustrations are conceptual, including the sample account display.
 
-Grounding: current repository README, BIS/documentation/BGS_PROJECT_BRIEF.md, BIS/documentation/design-discussion.md, BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md, and BIS/packages/integration/README.md. Game payment and achievement hooks are presented as the vision rather than completed acceptance.
+Grounding: current repository README, BIS/documentation/BGS_PROJECT_BRIEF.md, BIS/documentation/design-discussion.md, BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md, and BIS/packages/integration/integration-package-readme.md. Game payment and achievement hooks are presented as the vision rather than completed acceptance.
 
 ## Generation prompt
 

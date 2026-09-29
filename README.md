@@ -38,8 +38,8 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 <!-- AI: Keep the verified public demo URLs. Use a hidden ?v=<published-version> cache buster in each destination while leaving the labels unchanged. Advance both values for every published version. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
 ### BIS
 
-* [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.9)
-* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.9)
+* [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.10)
+* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.10)
 
 ### Game
 
@@ -69,8 +69,17 @@ Run the following commands to get started.
 ### 🛠 Run Project
 
 <!-- AI: Replace {command} with the actual local launch command or editor action. State where to run it and how to open the app if needed. Refer to the printed URL when the port can vary. Avoid repeating completed build/setup steps. -->
-1. Run `npm run dev` and open the localhost URL printed by Vite.
-2. Select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
+1. Run `npm run dev` to start one Vite server for all four packages.
+2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), or the [Integration README](http://127.0.0.1:5174/integration/).
+3. In Admin, select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
+
+For a remote preview, start the same command on the SSH server. In Windows PowerShell, paste this entire line before pressing Enter and leave the terminal open (reuse an existing working tunnel):
+
+```powershell
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:15174:127.0.0.1:5174 contabo-srive
+```
+
+Then open [BIS Admin](http://127.0.0.1:15174/admin/), [BIS Marketplace](http://127.0.0.1:15174/marketplace/), [Onboarding Spike](http://127.0.0.1:15174/onboarding/), or the [Integration README](http://127.0.0.1:15174/integration/). Admin and Marketplace share BIS account storage on this origin; the spike keeps separate window-scoped storage. Wallet data saved on other ports stays on those origins and is not migrated automatically.
 
 Use `npm run preview` to serve the production build locally.
 
@@ -83,7 +92,7 @@ For an isolated Windows Codex workflow, see [Windows Sandbox Setup](BIS/document
 <!-- AI: Describe the repository's existing release workflow in the fewest steps, based on checked-in workflows or release scripts. Distinguish builds, tags, releases, and deployment accurately. If no release process exists, retain a placeholder rather than inventing one. Documentation edits do not authorize publishing or changing Git history. -->
 1. For the first published baseline use `0.0.1`; for every later published update increment only the last digit (`0.0.N` → `0.0.(N+1)`). Run `npm run check:release -- --previous-version <prior-version>` to validate the transition, then run `npm test` and `npm run build`.
 2. Update both hidden `v` cache-busters in the Admin and Marketplace links to the new version, commit the intended changes, and push to `main`; [Deploy live demo](.github/workflows/deploy-pages.yml) builds and publishes both routes to GitHub Pages.
-3. Check the [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.9) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.9). Manual deployment is also available; this workflow does not create version tags or GitHub releases.
+3. Check the [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.10) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.10). Manual deployment is also available; this workflow does not create version tags or GitHub releases.
 
 ## Project Overview
 
@@ -99,9 +108,9 @@ This is a work in progress with no custom application server. The two supported 
 - [Project brief](BIS/documentation/BGS_PROJECT_BRIEF.md): Original BGS design baseline.
 - [Design discussion](BIS/documentation/design-discussion.md): Confirmed decisions and implementation notes.
 - [User Story Diagrams](BIS/documentation/User%20Story%20Diagrams.md): Flows, scope, and verification status.
-- [Integration package](BIS/packages/integration/README.md): Public API and runtime behavior.
+- [Integration package](BIS/packages/integration/integration-package-readme.md): Public API and runtime behavior.
 - [Game smoke test](BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md): Integration setup and acceptance checks.
-- [Demo application](BIS/packages/integration-demo/README.md): Admin demonstrations and verification hosts.
+- [Demo application](BIS/packages/integration-demo/integration-demo-package-readme.md): Admin demonstrations and verification hosts.
 - [Windows Sandbox Setup](BIS/documentation/setup-sandbox-windows.md): Docker Sandboxes setup and Codex usage on Windows.
 
 ### 📝 Structure
@@ -129,13 +138,22 @@ React and TypeScript power both packages, with Vite for development and producti
 - [OpenSpec](https://openspec.dev/): Specifications and change planning in `openspec/`.
 
 
-### 📦 Packages
+### Packages
+
+#### External Packages
 
 <!-- AI: Keep the package list limited to React, Arkade SDK, TypeScript, and Vite. Do not restore Mermaid, react-markdown, or @scure/bip39 entries or descriptions in this README unless explicitly requested by the user. Verify listed versions against the repository. -->
 - [React](https://react.dev/): Runtime components and demo UI (`19.2.8`).
 - [Arkade SDK](https://github.com/arkade-os/sdk): Signet and Mutinynet wallet and asset integration (`0.4.67`).
 - [TypeScript](https://www.typescriptlang.org/): Static type checking (`7.0.2`).
 - [Vite](https://vite.dev/): Local development server and production builds (`8.2.2`).
+
+#### Internal Packages
+
+- [Integration](BIS/packages/integration/integration-package-readme.md): Reusable BIS UI, state, and wallet integration library.
+- [Integration Demo (BIS Admin)](BIS/packages/integration-demo/integration-demo-package-readme.md): Admin controls and the runtime preview.
+- [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
+- [Standalone Onboarding Spike](BIS/packages/balance-onboard-spike-standalone/balance-onboard-spike-standalone-package-readme.md): Independent Signet onboarding experiment.
 
 ## Deep Dive
 

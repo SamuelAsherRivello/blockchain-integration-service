@@ -1,33 +1,25 @@
-import { spawn } from 'node:child_process';
+import { createServer } from 'vite';
+import { parseArgs } from 'node:util';
+import { developmentConfig, packageRoutes } from './dev-config.mjs';
 
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const runner = process.platform === 'win32' ? process.env.ComSpec : npmCommand;
-const runnerArgs = script => process.platform === 'win32'
-  ? ['/d', '/s', '/c', `${npmCommand} run ${script}`]
-  : ['run', script];
-const children = [
-  spawn(runner, runnerArgs('dev:admin'), { stdio: 'inherit', shell: false }),
-  spawn(runner, runnerArgs('dev:marketplace'), { stdio: 'inherit', shell: false }),
-];
-
-let shuttingDown = false;
-
-function stopAll(exitCode = 0) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  for (const child of children) child.kill('SIGTERM');
-  setTimeout(() => process.exit(exitCode), 250);
+const { values } = parseArgs({ options: { port: { type: 'string', default: '5174' }, strictPort: { type: 'boolean' } } });
+const port = Number(values.port);
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Port must be an integer from 1 to 65535.');
+const server = await createServer(developmentConfig({ port }));
+try {
+  await server.listen();
+} catch (error) {
+  await server.close();
+  throw error;
 }
-
-for (const child of children) {
-  child.once('error', error => {
-    console.error(error);
-    stopAll(1);
-  });
-  child.once('exit', code => {
-    if (!shuttingDown && code !== 0) stopAll(code ?? 1);
-  });
+console.log('\nBIS packages — one Vite server:\n');
+for (const { label, route } of packageRoutes) console.log(`  ${label}: http://127.0.0.1:${port}${route}`);
+let stopping = false;
+async function stop() {
+  if (stopping) return;
+  stopping = true;
+  await server.close();
+  process.exit(0);
 }
-
-process.once('SIGINT', () => stopAll());
-process.once('SIGTERM', () => stopAll());
+process.once('SIGINT', stop);
+process.once('SIGTERM', stop);

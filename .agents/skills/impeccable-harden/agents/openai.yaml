@@ -1,6 +1,0 @@
-interface:
-  display_name: "Impeccable · Harden"
-  short_description: "Harden UI errors, overflow, and edge cases"
-  default_prompt: "Use $impeccable-harden to make this UI resilient to real-world edge cases."
-policy:
-  allow_implicit_invocation: false

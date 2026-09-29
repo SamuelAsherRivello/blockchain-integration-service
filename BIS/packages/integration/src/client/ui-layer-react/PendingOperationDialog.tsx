@@ -2,11 +2,12 @@ import { useVisibleViewport } from './useVisibleViewport';
 import { useFitTextButtons } from './FitTextButton';
 import { CopyFieldLabel } from './CopyFieldLabel';
 import { useClipboardCopy } from './useClipboardCopy';
-import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 type NoticeInfo = {title:string;message:string;confirm?:()=>void};
-type Notice = { label: string; error?: string; info?:NoticeInfo; dismiss(): void };
+type Notice = { label: string; host?: true; error?: string; info?:NoticeInfo; dismiss(): void };
 type Register = (id: string, notice?: Notice) => void;
+export type HostLoading = Readonly<{subscribe(listener: () => void): () => void; getSnapshot(): boolean}>;
 const PendingContext = createContext<Register | undefined>(undefined);
 // Temporary bolt pivot preview: set false to restore normal loading behavior.
 const PREVIEW_LOADING_FOREVER = false;
@@ -25,17 +26,19 @@ export function usePendingNotice(busy: boolean, label: string, error: string | u
 }
 
 /** A host-local modal: document-level showModal would also disable the Admin panel. */
-export function PendingOperations({children, overlay, className}: {children: ReactNode; overlay?: ReactNode; className?: string}) {
+export function PendingOperations({children, overlay, className, hostLoading, onBisVisibilityChange}: {children: ReactNode; overlay?: ReactNode; className?: string; hostLoading?: HostLoading; onBisVisibilityChange?(visible: boolean): void}) {
   const runtime = useVisibleViewport();
   useFitTextButtons(runtime);
   const [notices,setNotices] = useState<Map<string,Notice>>(()=>new Map());
+  const hostPending = useSyncExternalStore(hostLoading?.subscribe ?? (() => () => {}), hostLoading?.getSnapshot ?? (() => false), () => false);
   const register = useCallback<Register>((id,notice)=>setNotices(previous=>{
     if(!notice && !previous.has(id))return previous;
     const next=new Map(previous);if(notice)next.set(id,notice);else next.delete(id);return next;
   }),[]);
+  const hostEntry: Notice | undefined = hostPending ? {label:'Loading ...',host:true,dismiss:()=>{}} : undefined;
   const entries: Notice[]=PREVIEW_LOADING_FOREVER
     ? [{label:'Loading ...',dismiss:()=>{}}]
-    : [...notices.values()];
+    : [...notices.values(), ...(hostEntry ? [hostEntry] : [])];
   const waiting=entries.filter(entry=>!entry.error&&!entry.info);
   const failure=waiting.length ? undefined : entries.find(entry=>entry.error);
   const pending=waiting.find(entry=>entry.label!=='Loading...') ?? waiting[0];
@@ -51,6 +54,7 @@ export function PendingOperations({children, overlay, className}: {children: Rea
   },[active]);
   const current=active ?? retained?.notice;
   const displayLabel=active ? label.current : retained?.label;
+  useLayoutEffect(() => { onBisVisibilityChange?.(Boolean(current && !current.host)); }, [current, onBisVisibilityChange]);
   const content=useRef<HTMLDivElement>(null), dialog=useRef<HTMLDivElement>(null);
   const previousFocus=useRef<HTMLElement|null>(null);
   const open=!!current, failed=!!current?.error;

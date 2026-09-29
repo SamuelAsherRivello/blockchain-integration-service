@@ -61,6 +61,9 @@ export class BisGameServices {
   ready() { return this.context.ready(); }
   mount(container: HTMLElement) { this.ui.mount(container); }
   openAccountDialog() { this.context.openAccountDialog(); }
+  isBisVisible() { return this.ui.isBisVisible(); }
+  showLoading() { this.ui.showLoading(); }
+  hideLoading() { this.ui.hideLoading(); }
 
   /** Item support is Player Wallet-only; admin-minted items do not require a Game Wallet. */
   hasItemSupport(): boolean {

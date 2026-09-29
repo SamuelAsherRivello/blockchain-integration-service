@@ -6,13 +6,23 @@ const root = new URL('../../', import.meta.url);
 const text = path => readFile(new URL(path, root), 'utf8');
 
 test('public integration boundary exposes the shared accessible pending dialog', async () => {
-  const [index, dialog, style] = await Promise.all([
+  const [index, client, services, dialog, style] = await Promise.all([
     text('src/index.ts'),
+    text('src/client/ui-layer-react/client.tsx'),
+    text('src/client/state-layer-core/bis-game-services.ts'),
     text('src/client/ui-layer-react/PendingOperationDialog.tsx'),
     text('src/client/ui-layer-react/overlay.css'),
   ]);
   assert.match(index, /export \{ PendingOperations, usePendingNotice \} from '\.\/client\/ui-layer-react\/PendingOperationDialog';/);
-  assert.match(dialog, /export function PendingOperations\(\{children, overlay, className\}/);
+  assert.match(dialog, /export function PendingOperations\(\{children, overlay, className, hostLoading, onBisVisibilityChange\}/);
+  assert.match(dialog, /const hostEntry: Notice \| undefined = hostPending \? \{label:'Loading \.\.\.',host:true,dismiss:\(\)=>\{\}\} : undefined;/);
+  assert.match(dialog, /\[\.\.\.notices\.values\(\), \.\.\.\(hostEntry \? \[hostEntry\] : \[\]\)\]/);
+  assert.match(client, /isBisVisible\(\) \{ return bisVisible; \}/);
+  assert.match(client, /showLoading\(\) \{ internal\.assertAlive\(\); setHostLoading\(true\); \}/);
+  assert.match(client, /hideLoading\(\) \{ setHostLoading\(false\); \}/);
+  assert.match(services, /isBisVisible\(\) \{ return this\.ui\.isBisVisible\(\); \}/);
+  assert.match(services, /showLoading\(\) \{ this\.ui\.showLoading\(\); \}/);
+  assert.match(services, /hideLoading\(\) \{ this\.ui\.hideLoading\(\); \}/);
   assert.match(dialog, /inert=\{open\}/);
   assert.match(dialog, /aria-hidden=\{open \|\| undefined\}/);
   assert.match(dialog, /aria-label="Pending Operation Dialog"/);
