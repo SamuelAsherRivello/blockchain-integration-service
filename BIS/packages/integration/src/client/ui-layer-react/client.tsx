@@ -22,7 +22,7 @@ import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
 import { GameWalletLogin } from './GameWalletLogin';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
 import { networkLabel } from '../state-layer-core/test-network';
-import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable } from '../state-layer-core/capabilities';
+import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, itemSupportAvailable, itemSupportFeedback } from '../state-layer-core/capabilities';
 import { FormRowBoolean } from './FormRowBoolean';
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 const emptySubscribe = () => () => {};
@@ -113,6 +113,24 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
   const menu = state.phase === 'active' && !developer && !onboarding && !details && !transfer && !activity && !assets && !contracts && !savedRecovery && !receive && !send;
   const recovery = state.phase === 'recovery' || state.phase === 'saving';
   const recoverySession = useMemo(() => ({}), [context, recovery, savedRecovery, state.profileId]);
+  // Keep host capability checks scoped to the Developer view, as before these
+  // indicators existed. Hosts may calculate them from live integration state.
+  const hostAssetMintingSupport = developer ? hasAssetMintingSupport?.() : undefined;
+  const hostContractSupport = developer ? hasContractSupport?.() : undefined;
+  const hostItemSupport = developer ? hasItemSupport?.() : undefined;
+  const assetMintingSupported = hostAssetMintingSupport ?? (!!walletSnapshot && assetMintingSupportAvailable(state, walletSnapshot));
+  const contractSupported = hostContractSupport ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot));
+  const itemsSupported = hostItemSupport ?? itemSupportAvailable(state);
+  const hostFeedback = (capability: string, supported: boolean | undefined) => supported === undefined ? undefined : supported
+    ? `Current status: available. ${capability} is enabled by the host capability check.`
+    : `${capability} is unavailable because the host capability check returned false.`;
+  const assetMintingTooltip = hostFeedback('Asset Minting', hostAssetMintingSupport) ?? (walletSnapshot
+    ? assetMintingSupportFeedback(state, walletSnapshot)
+    : 'Asset Minting is unavailable: select or create a Game Wallet.');
+  const contractTooltip = hostFeedback('Contracts', hostContractSupport) ?? (walletSnapshot
+    ? contractSupportFeedback(state, walletSnapshot)
+    : 'Contracts are unavailable: select or create a Game Wallet.');
+  const itemsTooltip = hostFeedback('Items', hostItemSupport) ?? itemSupportFeedback(state);
   useEffect(() => {
     if (state.accountRecovery) void getControls(context).revealRecovery();
   }, [context, state.accountRecovery]);
@@ -174,9 +192,9 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
         {gameWalletLogin && gameWallet ? <GameWalletLogin wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
           <div className="bis-copy-field-heading"><h3>Support</h3></div>
           <div className="bis-support-list">
-            <FormRowBoolean label="Asset Minting" value={hasAssetMintingSupport?.() ?? (!!walletSnapshot && assetMintingSupportAvailable(state, walletSnapshot))} enabledText="Enabled because the Player Wallet and a funded Game Wallet are ready." disabledText="Disabled because the Player Wallet, Game Wallet, network, or minimum minting funds are not ready." />
-            <FormRowBoolean label="Contracts" value={hasContractSupport?.() ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot))} enabledText="Enabled because both distinct wallets are ready on the same network." disabledText="Disabled because both distinct wallets are not ready on the same network." />
-            <FormRowBoolean label="Items" value={hasItemSupport?.() ?? itemSupportAvailable(state)} enabledText="Enabled because the Player Wallet is active and BIS item support is available." disabledText="Disabled because the Player Wallet is not active or BIS item support is unavailable." />
+            <FormRowBoolean label="Asset Minting" value={assetMintingSupported} enabledText={assetMintingTooltip} disabledText={assetMintingTooltip} />
+            <FormRowBoolean label="Contracts" value={contractSupported} enabledText={contractTooltip} disabledText={contractTooltip} />
+            <FormRowBoolean label="Items" value={itemsSupported} enabledText={itemsTooltip} disabledText={itemsTooltip} />
           </div>
           <div className="bis-copy-field-heading"><h3>Player Wallet</h3></div>
           <p>Allow easy account funding.</p>

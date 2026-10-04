@@ -1,0 +1,28 @@
+{
+  "name": "@bis/slidev-documentation",
+  "version": "0.0.10",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "slidev slides.md --port 3032",
+    "dev:comparison": "vite --config comparison.vite.config.mjs --port 3032",
+    "dev:seriph": "slidev slides.md --theme seriph --port 3042 --base /slidev/seriph/",
+    "dev:apple-basic": "slidev slides.md --theme apple-basic --port 3043 --base /slidev/apple-basic/",
+    "dev:dracula": "slidev slides.md --theme dracula --port 3044 --base /slidev/dracula/",
+    "dev:template": "slidev template-deck.md --theme default --port 3045 --base /slidev/template/",
+    "dev:modrian-template-1": "slidev template-deck.md --theme ./themes/mondrian-classic --port 3046 --base /slidev/modrian-template-1/",
+    "dev:modrian-template-2": "slidev modrian-template-2.md --theme ./themes/mondrian-night --port 3047 --base /slidev/modrian-template-2/",
+    "dev:modrian-template": "slidev modrian-template.md --theme ./themes/mondrian-final --port 3049 --base /slidev/modrian-template/",
+    "dev:modrian-template-3": "slidev template-deck.md --theme ./themes/mondrian-signal --port 3048 --base /slidev/modrian-template-3/",
+    "build": "slidev build slides.md --out dist",
+    "export": "slidev export slides.md"
+  },
+  "devDependencies": {
+    "@slidev/cli": "^53.0.0",
+    "@slidev/theme-apple-basic": "^0.25.1",
+    "@slidev/theme-bricks": "^0.25.0",
+    "@slidev/theme-default": "^0.25.0",
+    "@slidev/theme-seriph": "^0.25.0",
+    "slidev-theme-dracula": "^0.2.5"
+  }
+}

@@ -1,0 +1,14 @@
+:root {
+  --mondrian-bg: #07162f;
+  --mondrian-panel: #0d2450;
+  --mondrian-paper: #e7edf5;
+  --mondrian-ink: #061126;
+  --mondrian-text: #f4f7fc;
+  --mondrian-muted: #c2cee0;
+  --mondrian-blue: #4d96ff;
+  --mondrian-red: #ff594c;
+  --mondrian-line: #315485;
+}
+
+.slidev-layout::after { box-shadow: 4.6rem 7.8rem 0 -2rem var(--mondrian-blue); }
+.slidev-layout.fact h1 { color: var(--mondrian-red); }

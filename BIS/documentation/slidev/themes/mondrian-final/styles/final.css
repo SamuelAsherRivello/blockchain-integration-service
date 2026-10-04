@@ -1,0 +1,166 @@
+/* Final selected deck: use Slide 3's dark field as the common canvas. */
+:root {
+  --mondrian-panel: #090a0c;
+}
+
+/* Slide 2 follows the first slide's two reference heights rather than
+   vertically centering its shorter content block. */
+.slidev-layout.section.b-slide-two {
+  display: block;
+  padding: 0 4.5rem;
+}
+
+.slidev-layout.section.b-slide-two h1 {
+  position: absolute;
+  top: 30.246%;
+  left: 4.5rem;
+  margin: 0;
+}
+
+.slidev-layout.section.b-slide-two p {
+  position: absolute;
+  top: 54.421%;
+  left: 4.5rem;
+  margin: 0;
+  max-width: 68%;
+}
+
+/* Slide 4 uses shared grid rows. The headings bottom-align in row one, then
+   both body lines begin together in row two below the taller left heading. */
+.slidev-layout.two-columns.b-layout-slide-four {
+  grid-template-rows: max-content max-content;
+  align-content: start;
+  row-gap: 1.15rem;
+  padding-top: calc(10% + 20px);
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left,
+.slidev-layout.two-columns.b-layout-slide-four .col-right {
+  display: contents;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > h1,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > h2,
+.slidev-layout.two-columns.b-layout-slide-four .col-left > p,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > p {
+  margin: 0;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > h1,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > h2 {
+  grid-row: 1;
+  align-self: end;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > h1,
+.slidev-layout.two-columns.b-layout-slide-four .col-left > p {
+  grid-column: 1;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-right > h2,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > p {
+  grid-column: 2;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > p,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > p {
+  grid-row: 2;
+  align-self: start;
+}
+
+/* Slide 11 reserves its left text pane for reading: no cobalt divider or
+   ring can enter it, and the red accent is moved completely off-pane. */
+.slidev-layout.b-slide-eleven {
+  background-image:
+    linear-gradient(var(--mondrian-line), var(--mondrian-line)),
+    linear-gradient(90deg, var(--mondrian-line), var(--mondrian-line));
+}
+
+.slidev-layout.b-slide-eleven::after {
+  display: none;
+}
+
+.slidev-layout.b-slide-eleven::before {
+  right: -10rem;
+}
+
+/* About retains the cover composition while making room for the short bio. */
+.mondrian-cover .mondrian-about-copy {
+  max-width: 34rem;
+}
+
+.mondrian-cover .mondrian-about-copy h1 {
+  max-width: none;
+  margin: 0 0 .45rem;
+  font-size: 4.5rem;
+}
+
+.mondrian-cover .primary-label-one-line {
+  white-space: nowrap;
+}
+
+/* Slide 7 keeps the original three-line title field without adding visible
+   continuation words to its primary label. */
+.slidev-layout.quote .quote-primary-label {
+  display: block;
+}
+
+.slidev-layout.quote .quote-primary-label::after {
+  display: block;
+  height: 1.9em;
+  content: '';
+}
+
+.mondrian-cover .mondrian-about-copy h2 {
+  margin: 0 0 1.15rem;
+  font-size: 2.15rem;
+}
+
+.mondrian-cover .mondrian-about-copy ul {
+  display: grid;
+  gap: .45rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.mondrian-cover .mondrian-about-copy li {
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+/* The final screen reuses the complete Slide 12 background: the two vertical
+   rules, horizontal rule, cobalt ring, and red circle remain behind its three
+   low-contrast central forms. */
+.slidev-layout.mondrian-end-screen {
+  display: block;
+  background-color: var(--mondrian-panel);
+}
+
+.slidev-layout > .mondrian-end-screen__shape {
+  position: absolute;
+  z-index: 1;
+  top: 43%;
+  height: 15%;
+  border-radius: 1.25rem;
+  background: #30343a;
+  opacity: .48;
+}
+
+.mondrian-end-screen__shape--left {
+  left: 14%;
+  width: 21%;
+}
+
+.mondrian-end-screen__shape--center {
+  left: 44%;
+  width: 12%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translateY(-9%);
+}
+
+.mondrian-end-screen__shape--right {
+  right: 14%;
+  width: 21%;
+}

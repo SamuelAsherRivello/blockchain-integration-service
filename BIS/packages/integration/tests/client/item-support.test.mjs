@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assetMintingSupportAvailable, contractSupportAvailable, GAME_WALLET_MIN_ASSET_MINT_BALANCE_SATS, itemSupportAvailable } from '../../src/client/state-layer-core/capabilities.ts';
+import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, GAME_WALLET_MIN_ASSET_MINT_BALANCE_SATS, itemSupportAvailable, itemSupportFeedback } from '../../src/client/state-layer-core/capabilities.ts';
 
 const active = { phase: 'active', hasProfile: true };
 const supportedEnvironment = { navigator: { locks: {} } };
@@ -37,4 +37,13 @@ test('contract support requires distinct ready wallets but does not require a ba
   assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), false);
   assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), status: 'loading' }), false);
   assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), network: 'mutinynet' }), false);
+});
+
+test('Developer capability feedback reports the exact missing prerequisite', () => {
+  assert.equal(itemSupportFeedback(active, supportedEnvironment), 'Current status: available. The Player Wallet is active and this browser supports item operations.');
+  assert.equal(itemSupportFeedback(active, { navigator: {} }), 'Items are unavailable: use a browser with Web Locks support.');
+  assert.equal(contractSupportFeedback(activeNetwork, readyGameWallet()), 'Current status: available. Distinct Player and Game Wallets are ready on the same network.');
+  assert.equal(contractSupportFeedback(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), 'Contracts are unavailable: select a Game Wallet different from the Player Wallet.');
+  assert.equal(assetMintingSupportFeedback(activeNetwork, readyGameWallet(), supportedEnvironment), 'Current status: available. The Game Wallet has at least 1,000 sats available for minting.');
+  assert.equal(assetMintingSupportFeedback(activeNetwork, readyGameWallet(750), supportedEnvironment), 'Asset Minting is unavailable: fund the Game Wallet with 1,000 sats (currently 750 sats; 250 more needed).');
 });
