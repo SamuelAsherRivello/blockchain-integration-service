@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 test('documentation entry and its dependencies load successfully', async () => {
   const server = process.env.BIS_DEMO_URL ? undefined : await createServer({
-    root: 'BIS/packages/integration-demo',
+    root: 'BIS/packages/integration-admin',
     cacheDir: resolve(`output/tests/client/documentation-loading/${process.pid}`),
     server: { host: '127.0.0.1', port: 0 },
   });

@@ -13,7 +13,7 @@ try {
       await context.route('**/*', route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
       // Serve the fixture's metadata icon locally so image decoding is deterministic and offline.
       await context.route('https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v1/level-1-trophy.png', route => route.fulfill({
-        path: fileURLToPath(new URL('../packages/integration-demo/public/assets/achievements/v1/level-1-trophy.png', import.meta.url)),
+        path: fileURLToPath(new URL('../packages/integration-admin/public/assets/achievements/v1/level-1-trophy.png', import.meta.url)),
         contentType: 'image/png',
       }));
       const page = await context.newPage();

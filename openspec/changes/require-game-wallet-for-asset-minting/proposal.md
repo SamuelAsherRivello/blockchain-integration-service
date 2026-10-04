@@ -23,5 +23,5 @@ None.
 ## Impact
 
 - `BIS/packages/integration` public game service and item/trophy support API.
-- `BIS/packages/integration-demo` capability fixtures and documentation.
+- `BIS/packages/integration-admin` capability fixtures and documentation.
 - No Stealth & Steel source changes, no global mint gate, no change to item ownership semantics, and no new custody or server layer.

@@ -13,7 +13,7 @@
 
 ## 3. A.G.1/A.G.3 Admin migration
 
-- [x] 3.1 Recompose the integration-demo Admin, Runtime Preview, and D.P.2 panel around one `createBisGameWallet` instance without `serviceUrl`; verify the local factory is used and no D.P.2 path requests `/__bis/wallet` or a wallet-service URL.
+- [x] 3.1 Recompose the integration-admin Admin, Runtime Preview, and D.P.2 panel around one `createBisGameWallet` instance without `serviceUrl`; verify the local factory is used and no D.P.2 path requests `/__bis/wallet` or a wallet-service URL.
 - [x] 3.2 Rename and arrange Admin controls as A.G.1. Game Wallet (Admin-facing) and A.G.3. Board Game Wallet, with A.G.1/A.G.2 sharing selection and A.G.3 remaining Admin-only; verify Admin component tests and same-origin Admin-to-Preview synchronization.
 - [x] 3.3 Preserve A.G.3 details, balance, quote, confirmation, and live boarding behavior for the wallet selected by A.G.1 or A.G.2; verify existing boarding coverage plus a focused test for an A.G.2-selected wallet.
 

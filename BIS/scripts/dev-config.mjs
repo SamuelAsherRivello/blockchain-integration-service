@@ -8,9 +8,9 @@ import remarkGfm from 'remark-gfm';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export const packageRoutes = [
-  { label: 'BIS Admin', route: '/admin/', directory: 'integration-demo' },
+  { label: 'BIS Admin', route: '/admin/', directory: 'integration-admin' },
   { label: 'BIS Marketplace', route: '/marketplace/', directory: 'marketplace' },
-  { label: 'Onboarding Spike', route: '/onboarding/', directory: 'balance-onboard-spike-standalone' },
+  { label: 'Onboarding Spike', route: '/onboarding/', directory: 'prototype-onboarding' },
   { label: 'Integration README', route: '/integration/', directory: 'integration', readme: true },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);
@@ -77,7 +77,7 @@ function packageEntries() {
             response.end(html);
             return;
           }
-          if (path === '/favicon.png') { request.url = '/BIS/packages/integration-demo/public/favicon.png' + url.search; return next(); }
+          if (path === '/favicon.png') { request.url = '/BIS/packages/integration-admin/public/favicon.png' + url.search; return next(); }
           for (const app of packageRoutes) {
             const directory = `/BIS/packages/${app.directory}/`;
             const prefix = path.startsWith(app.route) ? app.route : path.startsWith(directory) ? directory : undefined;

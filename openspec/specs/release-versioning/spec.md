@@ -24,7 +24,7 @@ The published BIS release version SHALL use three numeric components in the form
 
 ### Requirement: Published version surfaces remain synchronized
 
-The root release metadata SHALL be authoritative for the published BIS version. The root metadata, published `@bis/integration`, `@bis/integration-demo`, and `@bis/marketplace` package metadata, lockfile root/workspace metadata, runtime `BIS: v<version>` labels, and both README Pages cache-busters SHALL represent the same release version. The standalone onboarding spike SHALL remain outside this published version contract unless the release boundary is explicitly expanded.
+The root release metadata SHALL be authoritative for the published BIS version. The root metadata, published `@bis/integration`, `@bis/integration-admin`, and `@bis/marketplace` package metadata, lockfile root/workspace metadata, runtime `BIS: v<version>` labels, and both README Pages cache-busters SHALL represent the same release version. The standalone onboarding prototype SHALL remain outside this published version contract unless the release boundary is explicitly expanded.
 
 #### Scenario: Candidate metadata is consistent
 - **WHEN** release validation examines the candidate source tree

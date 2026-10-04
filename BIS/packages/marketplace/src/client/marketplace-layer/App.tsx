@@ -4,7 +4,7 @@ import '@bis/integration/style.css';
 import { fallbackCatalog, type MarketplaceCatalog } from './catalog';
 import { readPublicInventory } from '../inventory-layer/inventory';
 import { version } from '../../../package.json';
-import arkadeLogo from '../../../../integration-demo/src/client/ui-layer-react/assets/arkade-logo.png';
+import arkadeLogo from '../../../../integration-admin/src/client/ui-layer-react/assets/arkade-logo.png';
 import '../ui-layer-react/marketplace-utilities.css';
 import '../ui-layer-react/marketplace-redesign.css';
 

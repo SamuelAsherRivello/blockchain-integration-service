@@ -26,7 +26,7 @@ D.P.2 currently depends on a hosted BIS wallet service for its game signer. A ru
 
 ## Impact
 
-- Affected BIS areas: game-wallet storage/controller and public composition APIs, runtime Account UI, local LTO implementation and tests, and integration-demo Admin/preview composition.
+- Affected BIS areas: game-wallet storage/controller and public composition APIs, runtime Account UI, local LTO implementation and tests, and integration-admin Admin/preview composition.
 - Affected consumer: Stealth & Steel's BIS integration, treasure session behavior, package update, and browser verification.
 - The existing hosted wallet-service route, package, and service-owned signing model are removed. Arkade operator connectivity remains necessary for real Arkade operations.
 - Existing private recovery UI and encrypted browser storage remain the only places recovery material is handled; no recovery material is added to public state, logs, build artifacts, or configuration files.

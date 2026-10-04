@@ -37,6 +37,6 @@ Account clearing stays blocked while a transfer is unresolved, across same-origi
 
 ## Impact
 
-Implementation remains in `packages/integration` UI/Core/Arkade layers and `packages/integration-demo` Admin composition. No new dependency or custom server. Signet only. No external destination, automatic funding, automatic transfer, secret journal, or simulated production transaction outcomes. Preserve unrelated story IDs and changes.
+Implementation remains in `packages/integration` UI/Core/Arkade layers and `packages/integration-admin` Admin composition. No new dependency or custom server. Signet only. No external destination, automatic funding, automatic transfer, secret journal, or simulated production transaction outcomes. Preserve unrelated story IDs and changes.
 
 A fresh read on 2026-09-04 confirmed Bitcoin 0, settled/available Arkade 289715. The original deposit is confirmed spent by `438f487ba60562e628e4cb5de8d25320d4cc8b7f5ecfefd1f4f7d502fb29413c`; the initiating client has not been proven. See [verification](BOARDING_VERIFICATION.md). The user authorized updating this proposal and applying it, and explicitly reconfirmed both directions.

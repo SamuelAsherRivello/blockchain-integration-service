@@ -83,7 +83,7 @@ Alternative considered: mark the prior record ended and immediately allocate the
 ## Migration Plan
 
 1. Extend the local controller/composition API and add A.G.2 while preserving existing encrypted game-wallet records and A.G.1 import behavior.
-2. Change integration-demo and Stealth & Steel composition to omit `serviceUrl`; wire the one local controller to A.G.2, A.G.1/A.G.3, and D.P.2.
+2. Change integration-admin and Stealth & Steel composition to omit `serviceUrl`; wire the one local controller to A.G.2, A.G.1/A.G.3, and D.P.2.
 3. Add controller, UI, LTO, and treasure-session tests, then build BIS and consume the generated package in Stealth & Steel.
 4. Browser-verify Runtime Preview and Stealth & Steel with no BIS wallet service running: A.G.2 setup/logout, normal play without a game wallet, and a funded local D.P.2 flow with pending/confirmed toasts.
 5. Remove the wallet-service package, hosted adapters, root service script, service-only tests, and obsolete documentation/configuration after the local route has been verified.

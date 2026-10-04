@@ -9,7 +9,7 @@ const result = spawnSync(process.execPath, [
   '--test-force-exit',
   ...process.argv.slice(2),
   'BIS/packages/integration/tests/client/*.test.mjs',
-  'BIS/packages/integration-demo/tests/client/*.test.mjs',
+  'BIS/packages/integration-admin/tests/client/*.test.mjs',
   'BIS/packages/marketplace/tests/client/*.test.mjs',
   'BIS/scripts/*.test.mjs',
 ], { cwd: root, stdio: 'inherit' });

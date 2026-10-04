@@ -1,8 +1,8 @@
-# Integration Demo: BIS Admin
+# Integration Admin: BIS Admin
 
 [Back to the main README](../../../README.md)
 
-`@bis/integration-demo` is the development application for exploring BIS behavior through Admin controls and a portrait runtime preview. It consumes `@bis/integration` through public exports and keeps demonstration composition outside the reusable library. The application helps developers exercise account, wallet, asset, payment, and contract flows while observing public results. It is a harness for the integration, not the game itself.
+`@bis/integration-admin` is the development application for exploring BIS behavior through Admin controls and a portrait runtime preview. It consumes `@bis/integration` through public exports and keeps demonstration composition outside the reusable library. The application helps developers exercise account, wallet, asset, payment, and contract flows while observing public results. It is a harness for the integration, not the game itself.
 
 ## Admin and runtime preview
 
@@ -26,4 +26,4 @@ Reset Client is a development action with production safeguards. It can clear in
 
 Run `npm run dev` from the repository root and open the printed `/admin/` URL. The default port is `5174`; the same server also hosts Marketplace, the onboarding spike, and integration documentation. Admin and Marketplace share BIS storage on their common origin. Data stored under a previous port stays there unless an explicit migration is performed.
 
-Run `npm run typecheck`, `npm test`, and `npm run build --workspace @bis/integration-demo` for the relevant workspace checks and build. Browser fixtures live under `tests/client` and should be treated according to their documented isolation. The production build retains the `/blockchain-integration-service/admin/` base for the existing GitHub Pages release. Starting a development preview does not publish a release or establish live wallet acceptance.
+Run `npm run typecheck`, `npm test`, and `npm run build --workspace @bis/integration-admin` for the relevant workspace checks and build. Browser fixtures live under `tests/client` and should be treated according to their documented isolation. The production build retains the `/blockchain-integration-service/admin/` base for the existing GitHub Pages release. Starting a development preview does not publish a release or establish live wallet acceptance.

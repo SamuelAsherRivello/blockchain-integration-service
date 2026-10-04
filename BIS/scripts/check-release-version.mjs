@@ -4,12 +4,12 @@ import { resolve } from 'node:path';
 export const root = resolve(import.meta.dirname, '..', '..');
 export const inScopePackages = [
   'BIS/packages/integration/package.json',
-  'BIS/packages/integration-demo/package.json',
+  'BIS/packages/integration-admin/package.json',
   'BIS/packages/marketplace/package.json',
 ];
 export const runtimeSources = [
   'BIS/packages/integration/src/client/ui-layer-react/AccountCard.tsx',
-  'BIS/packages/integration-demo/src/client/ui-layer-react/App.tsx',
+  'BIS/packages/integration-admin/src/client/ui-layer-react/App.tsx',
   'BIS/packages/marketplace/src/client/marketplace-layer/App.tsx',
 ];
 
@@ -63,7 +63,7 @@ export async function validateReleaseVersion({ previousVersion } = {}) {
     const entry = lockfile.packages?.[workspacePath];
     if (!entry || entry.version !== version) throw new Error(`package-lock.json is missing synchronized metadata for ${relativePath}.`);
   }
-  for (const relativePath of ['BIS/packages/integration-demo/package.json', 'BIS/packages/marketplace/package.json']) {
+  for (const relativePath of ['BIS/packages/integration-admin/package.json', 'BIS/packages/marketplace/package.json']) {
     const manifest = await readJson(relativePath);
     if (manifest.dependencies?.['@bis/integration'] !== version) {
       throw new Error(`${relativePath} must depend on @bis/integration ${version}.`);

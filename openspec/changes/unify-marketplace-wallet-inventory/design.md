@@ -48,7 +48,7 @@ Alternative considered: have Admin write catalog configuration directly at runti
 
 ### 4. Extend the existing Admin Vite workspace into the one-origin development host
 
-The root `npm run dev` command will continue to delegate to the integration-demo Vite workspace, but that Vite instance will serve explicit development HTML entries at `/admin/` and `/marketplace/`. Admin continues to use its current entry. The Marketplace development entry imports the Marketplace application and its styles into that same Vite module graph. The Vite configuration will mount Marketplace public catalog resources beneath `/marketplace/` during development and preserve direct refresh behavior for both paths.
+The root `npm run dev` command will continue to delegate to the integration-admin Vite workspace, but that Vite instance will serve explicit development HTML entries at `/admin/` and `/marketplace/`. Admin continues to use its current entry. The Marketplace development entry imports the Marketplace application and its styles into that same Vite module graph. The Vite configuration will mount Marketplace public catalog resources beneath `/marketplace/` during development and preserve direct refresh behavior for both paths.
 
 This is a single Vite process and a single `http://host:port` origin; it does not copy IndexedDB, localStorage, or account state between origins. It merely lets the normal BIS persistence mechanism see the same browser origin from both routes. Separate package build configurations retain their respective GitHub Pages bases and production artifacts.
 

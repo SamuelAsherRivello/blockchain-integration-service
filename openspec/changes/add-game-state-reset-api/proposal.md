@@ -28,5 +28,5 @@ The game needs one deterministic “clear all settings” action that can clear 
 - `BIS/packages/integration/src/core/bis-game-services.ts` and public type exports gain the game reset API.
 - Core account/game-wallet storage and lifecycle coordination must support an explicit force-reset path distinct from interactive player logout.
 - Core controllers, event subscriptions, UI, and game-preview session state need reset/disposal hooks.
-- `BIS/packages/integration-demo` gains a representative Clear All Settings integration and reset verification.
+- `BIS/packages/integration-admin` gains a representative Clear All Settings integration and reset verification.
 - No new dependency or network endpoint is required; the reset is local and provider-neutral.

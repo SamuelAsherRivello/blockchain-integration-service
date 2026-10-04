@@ -1,8 +1,8 @@
-# Standalone balance onboarding spike
+# Prototype onboarding
 
 [Back to the main README](../../../README.md)
 
-`@spike/balance-onboard` is an independent Signet experiment for measuring and investigating Bitcoin-to-Arkade onboarding. It uses the Arkade SDK directly rather than importing the BIS integration library. Its account, operation history, and timing data are separate from the Admin and Marketplace wallets. The browser application is intended for observing real network behavior and recovery, not for supplying the production game's Account interface.
+`@spike/prototype-onboarding` is an independent Signet experiment for measuring and investigating Bitcoin-to-Arkade onboarding. It uses the Arkade SDK directly rather than importing the BIS integration library. Its account, operation history, and timing data are separate from the Admin and Marketplace wallets. The browser application is intended for observing real network behavior and recovery, not for supplying the production game's Account interface.
 
 ## Onboarding flow
 
@@ -24,6 +24,6 @@ Network errors retain the saved operation for reconciliation. Automatic recovery
 
 ## Run and verify
 
-Run `npm run dev` from the repository root and open the printed `/onboarding/` URL on the shared server. The default port is `5174`. For isolated development, `npm run dev --workspace @spike/balance-onboard` retains the package's separate server on port `5186`. Accounts saved on one origin are not automatically available on the other.
+Run `npm run dev` from the repository root and open the printed `/onboarding/` URL on the shared server. The default port is `5174`. For isolated development, `npm run dev --workspace @spike/prototype-onboarding` retains the package's separate server on port `5186`. Accounts saved on one origin are not automatically available on the other.
 
-Run `npm run test --workspace @spike/balance-onboard` for the standalone checks and `npm run build --workspace @spike/balance-onboard` for its build. Automated tests use controlled conditions and do not establish funded live acceptance. See [user-story documentation](../../documentation/User%20Story%20Diagrams.md) and the [archived robustness verification](../../../openspec/changes/archive/2026-09-09-robust-fixes-for-spike/verification.md) for recorded evidence, acceptance scope, and remaining limitations.
+Run `npm run test --workspace @spike/prototype-onboarding` for the standalone checks and `npm run build --workspace @spike/prototype-onboarding` for its build. Automated tests use controlled conditions and do not establish funded live acceptance. See [user-story documentation](../../documentation/User%20Story%20Diagrams.md) and the [archived robustness verification](../../../openspec/changes/archive/2026-09-09-robust-fixes-for-spike/verification.md) for recorded evidence, acceptance scope, and remaining limitations.

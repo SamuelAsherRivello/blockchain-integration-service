@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 test('split width follows the pointer and reserves room for both panes', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   try {
-    const { splitPercent } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/client/ui-layer-react/split-layout.ts');
+    const { splitPercent } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/ui-layer-react/split-layout.ts');
     assert.equal(splitPercent(400, 1000), 40);
     assert.equal(splitPercent(-10, 1000), 38);
     assert.equal(splitPercent(256, 800), 47.5);
@@ -21,7 +21,7 @@ test('split width follows the pointer and reserves room for both panes', async (
 test('split preference round-trips and tolerates invalid or unavailable storage', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   try {
-    const { readSplitPercent, saveSplitPercent } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/client/ui-layer-react/split-layout.ts');
+    const { readSplitPercent, saveSplitPercent } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/ui-layer-react/split-layout.ts');
     const values = new Map();
     const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
     assert.equal(readSplitPercent(storage), 32);
@@ -47,7 +47,7 @@ test('split preference uses browser localStorage when no storage is passed', asy
     value: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) },
   });
   try {
-    const { readSplitPercent, saveSplitPercent } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/client/ui-layer-react/split-layout.ts');
+    const { readSplitPercent, saveSplitPercent } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/ui-layer-react/split-layout.ts');
     assert.equal(readSplitPercent(), 32);
     saveSplitPercent(54);
     assert.equal(values.get('bis.integration-demo.admin-split-percent'), '54');

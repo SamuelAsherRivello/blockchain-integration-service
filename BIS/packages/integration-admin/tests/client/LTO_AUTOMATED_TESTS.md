@@ -5,7 +5,7 @@
 With the BIS Vite demo running, execute:
 
 ```text
-node BIS/packages/integration-demo/tests/client/lto-browser-check.mjs
+node BIS/packages/integration-admin/tests/client/lto-browser-check.mjs
 ```
 
 The script resolves an already installed `playwright` package. If it is supplied by a separate tooling runtime, set `BIS_PLAYWRIGHT_PACKAGE` to that runtime's absolute package.json path. `BIS_DEMO_URL` optionally changes the default `http://127.0.0.1:5174/`. It creates fresh isolated profiles and blocks all requests outside that origin. No manual clicks or live funding are required.

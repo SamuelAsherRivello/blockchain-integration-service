@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 test('B.P.3 selects Receive only for active accounts and preserves other story routes', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
   try {
-    const { selectAccountStory } = await server.ssrLoadModule('/BIS/packages/integration-demo/src/client/admin-layer/selectAccountStory.ts');
+    const { selectAccountStory } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/admin-layer/selectAccountStory.ts');
     for (const [id, active, expected] of [
       ['B.P.3', true, ['account', 'receive']], ['B.P.3', false, ['account']],
       ['B.P.5', true, ['account', 'send']], ['B.P.5', false, ['account']],

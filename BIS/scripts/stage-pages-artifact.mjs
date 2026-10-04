@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..', '..');
 const artifact = resolve(root, 'output', 'pages', 'deploy-separate-pages-demos', 'blockchain-integration-service');
-const admin = resolve(root, 'BIS', 'packages', 'integration-demo', 'dist');
+const admin = resolve(root, 'BIS', 'packages', 'integration-admin', 'dist');
 const marketplace = resolve(root, 'BIS', 'packages', 'marketplace', 'dist');
 
 await rm(artifact, { recursive: true, force: true });

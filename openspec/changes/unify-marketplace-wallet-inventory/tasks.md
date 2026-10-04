@@ -20,13 +20,13 @@
 
 ## 4. One-origin local preview
 
-- [ ] 4.1 Add a shared-development Vite host in the integration-demo workspace that directly serves `/admin/` and `/marketplace/` from one process, including Marketplace public catalog resources; verify both routes load and refresh on the same host and port.
+- [ ] 4.1 Add a shared-development Vite host in the integration-admin workspace that directly serves `/admin/` and `/marketplace/` from one process, including Marketplace public catalog resources; verify both routes load and refresh on the same host and port.
 - [ ] 4.2 Preserve the current standalone Admin and Marketplace build bases and Pages staging behavior; verify independent production builds and route verification still pass.
 - [ ] 4.3 Document the single root run command and one local server URL/subroutes; verify it does not instruct developers to start separate Admin and Marketplace Vite processes.
 - [ ] 4.4 Add automated browser coverage that selects a network and Game Wallet in `/admin/`, opens `/marketplace/` on the same origin, and verifies shared persisted role/network behavior without exposing wallet secrets.
 
 ## 5. End-to-end verification
 
-- [ ] 5.1 Run focused Marketplace, integration, and integration-demo tests; verify player trophy presentation, game inventory display, non-trading guards, and Admin diagnostics pass.
+- [ ] 5.1 Run focused Marketplace, integration, and integration-admin tests; verify player trophy presentation, game inventory display, non-trading guards, and Admin diagnostics pass.
 - [ ] 5.2 Run the workspace type check and production build; verify no standalone Pages route regression.
 - [ ] 5.3 Start the documented one-server local preview and perform a real-browser smoke test of `/admin/` then `/marketplace/`; verify game items render for the active game wallet, player equipment/trophies render for the active player wallet, and source/empty/error states are truthful.

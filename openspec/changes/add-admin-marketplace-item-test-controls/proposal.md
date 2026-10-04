@@ -24,5 +24,5 @@ The production Marketplace must not fake a purchase while an atomic asset-for-sa
 ## Impact
 
 - Affects `@bis/integration` core asset operation records, Arkade adapter, public exports, and unit tests.
-- Affects `@bis/integration-demo` Admin Marketplace composition, operation presentation, and browser tests.
+- Affects `@bis/integration-admin` Admin Marketplace composition, operation presentation, and browser tests.
 - Uses the installed Arkade SDK's asset-bearing `Wallet.send` capability; no new dependency, server, wallet credential handling, or Marketplace production trade path is introduced.

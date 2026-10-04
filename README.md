@@ -106,7 +106,7 @@ This is a work in progress with no custom application server. The two supported 
 - [User Story Diagrams](BIS/documentation/User%20Story%20Diagrams.md): Flows, scope, and verification status.
 - [Integration package](BIS/packages/integration/integration-package-readme.md): Public API and runtime behavior.
 - [Game smoke test](BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md): Integration setup and acceptance checks.
-- [Demo application](BIS/packages/integration-demo/integration-demo-package-readme.md): Admin demonstrations and verification hosts.
+- [Integration Admin application](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
 - [Windows Sandbox Setup](BIS/documentation/setup-sandbox-windows.md): Docker Sandboxes setup and Codex usage on Windows.
 
 ### 📝 Structure
@@ -114,7 +114,7 @@ This is a work in progress with no custom application server. The two supported 
 <!-- AI: Replace PROJECT_NAME with the actual main project directory and list only the few folders needed to understand the repository. Check paths and capitalization. Omit generated output, dependency folders, and exhaustive file inventories. -->
 - `BIS/documentation/`: Project documentation and README images.
 - `BIS/packages/integration/`: Reusable runtime UI, core state, and Arkade adapters.
-- `BIS/packages/integration-demo/`: Admin UI, 9:16 preview, and documentation viewer.
+- `BIS/packages/integration-admin/`: Admin UI, 9:16 preview, and documentation viewer.
 - `BIS/scripts/`: Project automation, including the test runner.
 - `openspec/`: Tracked specifications and change plans.
 - `.agents/skills/`: Local specification workflows.
@@ -125,7 +125,7 @@ The root `package.json`, `package-lock.json`, and `tsconfig.json` configure npm 
 ## Project Details
 
 <!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. Keep this section brief; do not add test commands, test caveats, or dependency-version inventory unless explicitly requested. -->
-React and TypeScript power both packages, with Vite for development and production builds. `@bis/integration-demo` consumes `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. Arkade-specific types and recovery material stay out of public state and events.
+React and TypeScript power both packages, with Vite for development and production builds. `@bis/integration-admin` consumes `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. Arkade-specific types and recovery material stay out of public state and events.
 
 ### 📦 AI
 
@@ -147,9 +147,9 @@ React and TypeScript power both packages, with Vite for development and producti
 #### Internal Packages
 
 - [Integration](BIS/packages/integration/integration-package-readme.md): Reusable BIS UI, state, and wallet integration library.
-- [Integration Demo (BIS Admin)](BIS/packages/integration-demo/integration-demo-package-readme.md): Admin controls and the runtime preview.
+- [Integration Admin (BIS Admin)](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin controls and the runtime preview.
 - [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
-- [Standalone Onboarding Spike](BIS/packages/balance-onboard-spike-standalone/balance-onboard-spike-standalone-package-readme.md): Independent Signet onboarding experiment.
+- [Prototype Onboarding](BIS/packages/prototype-onboarding/prototype-onboarding-package-readme.md): Independent Signet onboarding experiment.
 
 ## Deep Dive
 

@@ -24,8 +24,8 @@ test('Marketplace derives every visible network route from the selected Player W
 
 test('the Admin demo gets its funding and explorer links from the active network registry', async () => {
   const [app, panel] = await Promise.all([
-    readFile(new URL('../../../integration-demo/src/client/ui-layer-react/App.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../../integration-demo/src/client/admin-layer/AdminPanel.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../../integration-admin/src/client/ui-layer-react/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../../integration-admin/src/client/admin-layer/AdminPanel.tsx', import.meta.url), 'utf8'),
   ]);
 
   assert.match(app, /const selectedNetwork=testNetwork\(network\);/);

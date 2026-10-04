@@ -26,7 +26,7 @@ This leaves the inventory view unable to truthfully answer the core question: wh
 
 ## Impact
 
-- Affected runtime UI: `BIS/packages/marketplace`, `BIS/packages/integration-demo`, and shared BIS asset classification/presentation boundaries as needed.
+- Affected runtime UI: `BIS/packages/marketplace`, `BIS/packages/integration-admin`, and shared BIS asset classification/presentation boundaries as needed.
 - Affected developer workflow: root/package scripts and Vite routing for a single local preview server.
 - Affected tests: Marketplace ownership/filter rendering, trophy non-trading guards, active network/address selection, shared-origin persistence, and browser smoke coverage.
 - No recovery phrase, signer, transaction payload, or other private wallet material will be added to the catalog, diagnostics, routes, or test artifacts.
