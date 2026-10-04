@@ -11,3 +11,4 @@ output/playwright/
 
 # Generated Understand Anything knowledge-graph artifacts
 BIS/packages/.ua/
+/.ua
