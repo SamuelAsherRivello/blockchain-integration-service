@@ -1,0 +1,97 @@
+# account-creation Specification
+
+## Purpose
+
+Create and remember genuine test accounts through the production integration while keeping recovery material private and account state truthful.
+
+## Requirements
+
+### Requirement: Explicit real test account creation
+A logged-out player SHALL explicitly start creation. The integration SHALL create a genuine Signet account through the configured Arkade integration, show the lightning loader during asynchronous operations, and display recovery material immediately on successful creation. It SHALL NOT create accounts merely on opening a dialogue, viewing a story, or refreshing. It SHALL reject non-Signet configuration and SHALL NOT substitute simulated success.
+
+#### Scenario: Create and reveal recovery
+- **WHEN** a logged-out player selects Create Account and creation succeeds
+- **THEN** the recovery screen appears with a clear Signet test-only warning, including never entering or reusing a real-funds recovery phrase
+- **AND** no active account or accountConnected event is published yet
+
+#### Scenario: Repeated creation requests
+- **WHEN** Create Account is requested again while creation is pending
+- **THEN** no concurrent identity creation starts
+
+### Requirement: Continue commits the account
+The player SHALL be able to save the phrase externally or proceed without saving. Continue SHALL NOT require a backup checkbox or phrase verification. Successful durable saving SHALL precede activation and an accountConnected event carrying only a safe profile identifier. Saving SHALL be idempotent for repeated Continue actions. Account creation SHALL NOT imply funding, payment success, or network availability. Before durable saving or activation, BIS SHALL verify that the candidate public profile ID is not the currently selected Game Wallet. If it is selected as the Game Wallet, BIS SHALL reject Continue with a clear non-secret role-conflict error, retain the candidate recovery screen, leave the Player Wallet and Game Wallet selections unchanged, and emit no accountConnected event.
+
+#### Scenario: Complete A.P.2.09 and A.P.2.10
+- **WHEN** the player selects Continue and saving succeeds
+- **THEN** the account becomes active and the Account dialogue shows the logged-in message with shortened public Account ID and a line break after "as", as specified by account-entry
+- **AND** it contains enabled lightning-prefixed Log Out opening the A.P.5 backup confirmation and enabled Back, with Create Account and Restore Account hidden
+
+#### Scenario: Candidate conflicts with Game Wallet
+- **WHEN** a newly created Player Wallet's public profile ID matches the selected Game Wallet when the player selects Continue
+- **THEN** BIS rejects the Player Wallet activation with a clear role-conflict error before saving or emitting accountConnected
+- **AND** the candidate remains only in the private recovery flow and both previously selected roles remain unchanged
+
+#### Scenario: Saving fails
+- **WHEN** storage cannot commit the account
+- **THEN** the Pending Operation Dialog reports the error with only OK without publishing activation
+- **AND** OK closes the failed source page and reconciles any uncertain saved account before returning
+
+### Requirement: Completed accounts survive reopening
+A completed account SHALL remain available in the same browser profile and origin across refreshes and browser restarts while its stored data remains available. Opening the account flow SHALL recognize it without creating another account or requiring phrase entry. Ordinary disposal SHALL preserve committed identity. Unfinished creation SHALL NOT be restored after reopening. No unlock step SHALL be required in this test-only slice.
+
+#### Scenario: Refresh after Continue
+- **WHEN** an account was committed and the application is reopened
+- **THEN** it loads the same profile and presents the minimal logged-in dialogue when account presentation is requested
+- **AND** it does not claim a new account was created or that the wallet is online
+
+#### Scenario: Refresh before Continue
+- **WHEN** the player refreshes or closes the application before committing creation
+- **THEN** the next entry starts the logged-out flow without resuming recovery or remembering that transient identity
+
+#### Scenario: Invalid saved state
+- **WHEN** saved account state cannot be read or recognized
+- **THEN** an account error is shown without silently overwriting it or creating a replacement
+- **AND** ordinary gameplay remains available
+
+### Requirement: Recovery material stays private
+Recovery material SHALL appear only in the private production recovery UI, scoped account storage, and the clipboard after an explicit Copy to Clipboard action. Public state, callbacks, event history, logs, analytics, URLs, and captured verification artifacts SHALL NOT contain it. Stored identity SHALL NOT be plaintext recovery material. The interface SHALL make no production security or guaranteed recovery claim.
+
+#### Scenario: Inspect host-visible events
+- **WHEN** creation progresses through recovery and activation
+- **THEN** the host and Admin receive only non-secret state and events
+
+### Requirement: Failures and stale work do not activate accounts
+Creation SHALL be covered by Creating... in the Pending Operation Dialog. Failures SHALL offer a sanitized explanation and only OK, which closes the failed source page and returns to the logged-out Account dialogue unless reconciliation finds a committed account. Abandoning a transient flow SHALL not activate it. Reset or disposal SHALL invalidate pending work so its late completion cannot notify old consumers or persist an abandoned account.
+
+#### Scenario: Reset during creation
+- **WHEN** Reset Client completes while creation was pending and the old request later succeeds
+- **THEN** no account is saved or activated by that old request
+
+#### Scenario: Creation failure
+- **WHEN** account creation fails
+- **THEN** OK closes the failed source page without claiming activation or blocking ordinary gameplay
+
+### Requirement: One-click recovery phrase copy
+The recovery screen SHALL show Copy to Clipboard immediately above Continue. An explicit click SHALL copy the complete phrase as plain text, with single spaces between words and no numbering or extra formatting. Success SHALL be announced only after the clipboard write succeeds. Failure SHALL show a safe retry/manual-copy message and SHALL NOT block Continue or activate the account. The application SHALL NOT read the clipboard as part of this action. A.P.3 restoration SHALL accept this whitespace-separated phrase format through its Paste from Clipboard action.
+
+#### Scenario: Copy recovery phrase
+- **WHEN** the player clicks Copy to Clipboard and the clipboard write succeeds
+- **THEN** the clipboard contains all 12 words in order separated by single spaces
+- **AND** the UI announces successful copying without exposing recovery material to public events or logs
+
+#### Scenario: Clipboard unavailable or denied
+- **WHEN** the clipboard write fails
+- **THEN** the player can retry or copy manually and Continue remains available
+
+### Requirement: Created accounts join the saved profile collection
+Successful account creation SHALL add the newly committed encrypted identity to the origin-local player profile collection and make it active without replacing other saved profiles. A failed, abandoned, or uncommitted creation SHALL leave the collection unchanged. Repeated completion of the same creation SHALL NOT create a duplicate profile. The production UI SHALL enter the active Account menu without listing, naming, or offering a chooser for the collection.
+
+#### Scenario: Create an additional profile
+- **WHEN** creation is successfully committed while another player profile is saved
+- **THEN** the new public profile ID becomes active and the active Account menu opens without exposing any saved-profile list or switch control
+- **AND** the earlier profile's wallet, equipment selections, and operation records remain unchanged
+
+#### Scenario: Additional creation fails
+- **WHEN** creation fails before durable commit
+- **THEN** no new saved-profile entry appears
+- **AND** every previously saved profile remains unchanged

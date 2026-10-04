@@ -1,0 +1,32 @@
+{
+  "name": "@bis/integration",
+  "version": "0.0.10",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/integration.js"
+    },
+    "./style.css": {
+      "development": "./src/client/ui-layer-react/overlay.css",
+      "default": "./dist/integration.css"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "vite build"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "dependencies": {
+    "@arkade-os/sdk": "0.4.72",
+    "@scure/bip39": "2.4.0"
+  }
+}

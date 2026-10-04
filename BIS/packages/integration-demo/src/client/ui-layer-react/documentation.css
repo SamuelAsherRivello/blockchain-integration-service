@@ -1,0 +1,9 @@
+:root { font-family: Inter, system-ui, sans-serif; color: #eef1f6; background: #11151c; line-height: 1.7; color-scheme: dark; }
+body { margin: 0; }
+main { max-width: 1000px; margin: auto; padding: 40px 24px 80px; overflow-wrap: anywhere; }
+a { color: #a9d9c3; }
+h1, h2, h3 { line-height: 1.25; margin-top: 1.5em; }
+.code-block, pre { padding: 16px; background: #1e2632; border-radius: 10px; overflow-x: auto; white-space: pre; }
+.diagram { overflow-x: auto; white-space: normal; }
+.diagram svg { max-width: 100%; height: auto; }
+img { max-width: 100%; }

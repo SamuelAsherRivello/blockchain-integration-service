@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Isolated actual App asset Console verification</title>
+<style>body{color:#eef1f6;font:14px system-ui}#fixture-controls{padding:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}#fixture-controls p{margin:0;flex-basis:100%}#fixture-controls button,#fixture-controls select{padding:8px}#fixture-result{white-space:pre-wrap}</style>
+</head><body>
+<section id="fixture-controls" aria-label="Isolated App test controls">
+<p><strong>Actual App fixture — synthetic public asset results, in-memory account and browser storage only. No live wallet operations.</strong></p>
+<label>Asset callback scenario <select id="app-scenario"><option value="holdings">Holdings</option><option value="empty">Empty list</option><option value="error">Safe error</option><option value="held">Held pending</option></select></label>
+<button id="release-app-pending">Release held callback</button><button id="run-console-checks">Run actual App Console checks</button>
+<p id="fixture-result" role="status">Ready. Run checks or use the actual Admin below.</p>
+</section><div id="root"></div><script type="module" src="./asset-console-host.tsx"></script>
+</body></html>
