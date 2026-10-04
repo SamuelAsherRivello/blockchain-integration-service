@@ -14,6 +14,7 @@ const { image = defaultCoverImage } = defineProps<{
     <div class="mondrian-cover-portrait" aria-hidden="true">
       <img :src="image" alt="" />
     </div>
+    <slot name="overlay" />
   </div>
 </template>
 

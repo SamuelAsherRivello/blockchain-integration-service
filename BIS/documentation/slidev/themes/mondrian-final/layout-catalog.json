@@ -1,0 +1,23 @@
+{
+  "theme": "./themes/mondrian-final",
+  "layouts": {
+    "mondrian-intro": { "catalogSlide": 1, "slots": ["default"] },
+    "mondrian-subsection": { "catalogSlide": 2, "slots": ["default"] },
+    "mondrian-content": { "catalogSlide": 3, "slots": ["default"] },
+    "mondrian-two-columns": { "catalogSlide": 4, "slots": ["default", "left", "right"] },
+    "mondrian-two-columns-header": { "catalogSlide": 5, "slots": ["default", "left", "right", "bottom"] },
+    "mondrian-center": { "catalogSlide": 6, "slots": ["default"] },
+    "mondrian-quote": { "catalogSlide": 7, "slots": ["default"] },
+    "mondrian-fact": { "catalogSlide": 8, "slots": ["default"] },
+    "mondrian-image-left": { "catalogSlide": 9, "slots": ["default"], "frontmatter": ["image", "backgroundSize"] },
+    "mondrian-image-right": { "catalogSlide": 10, "slots": ["default"], "frontmatter": ["image", "backgroundSize"] },
+    "mondrian-end": { "catalogSlide": 14, "slots": ["default"] },
+    "mondrian-blank": { "catalogSlide": 11, "slots": ["default"] },
+    "mondrian-diagram": { "catalogSlide": 12, "slots": ["default"] },
+    "mondrian-thank-you": { "catalogSlide": 13, "slots": ["default"] },
+    "mondrian-about": { "catalogSlide": 17, "slots": ["default"] },
+    "mondrian-video-xp": { "catalogSlide": 15, "slots": ["default"] },
+    "mondrian-logos": { "catalogSlide": 16, "slots": ["default"] },
+    "mondrian-about-end-cards": { "catalogSlide": 18, "slots": ["default"] }
+  }
+}

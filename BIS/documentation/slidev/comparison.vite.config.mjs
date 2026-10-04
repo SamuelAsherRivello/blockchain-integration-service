@@ -25,6 +25,7 @@ export default defineConfig({
       '/slidev/modrian-template-2': themePreview(3047),
       '/slidev/modrian-template-3': themePreview(3048),
       '/slidev/modrian-template': themePreview(3049),
+      '/slidev/blockchain-for-game': themePreview(3051),
     },
   },
 })
