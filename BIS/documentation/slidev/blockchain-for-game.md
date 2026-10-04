@@ -383,11 +383,16 @@ templateLayout: mondrian-image-bottom
 catalogSlide: 12
 image: ./assets/blockchain-for-game/blockchain-benefits-four-card-original-transparent.png
 backgroundSize: contain
+imageOpacity: 1
+imageScale: 1.5
+imageTint: white
 imageTreatment: generated-transparent
 ---
-# Blockchain: Structure
+# The Four Pillars
 
-Decentralization, immutability, transparency, and security make shared game records trustworthy.
+Blockchain
+
+<Arrow x1="380" y1="165" x2="380" y2="315" color="#2f6bff" width="7" />
 ---
 layout: mondrian-diagram
 contentSlide: 31
@@ -626,6 +631,7 @@ templateLayout: mondrian-image-bottom
 catalogSlide: 45
 image: ./assets/blockchain-for-game/bitcoin-lightning-network.png
 backgroundSize: contain
+backgroundColor: '#050608'
 imageTreatment: generated-infographic
 ---
 ---
@@ -655,8 +661,19 @@ Liquid is a production Bitcoin sidechain for confidential transactions, asset is
 
 Source: [Liquid developer documentation](https://docs.liquid.net/docs/liquid-features-and-benefits)
 ---
-layout: mondrian-subsection
+layout: mondrian-image-bottom
 contentSlide: 49
+contentSlideId: bitcoin-liquid-layer-2-infographic
+templateLayout: mondrian-image-bottom
+catalogSlide: 45
+image: ./assets/blockchain-for-game/bitcoin-liquid-layer-2.png
+backgroundSize: contain
+backgroundColor: '#050608'
+imageTreatment: generated-infographic
+---
+---
+layout: mondrian-subsection
+contentSlide: 50
 contentSlideId: g3e50a99ab1a_1_11981
 templateLayout: mondrian-subsection
 catalogSlide: 2
@@ -666,7 +683,7 @@ imageTreatment: none
 ## Bitcoin Ecosystem
 ---
 layout: mondrian-content
-contentSlide: 50
+contentSlide: 51
 contentSlideId: g3fb61a5d5fe_0_26
 templateLayout: mondrian-content
 catalogSlide: 3
@@ -681,8 +698,19 @@ Taproot defines SegWit v1 spending rules using Schnorr signatures and Merkle bra
 
 Source: [BIP 341](https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki)
 ---
+layout: mondrian-image-bottom
+contentSlide: 52
+contentSlideId: bitcoin-taproot-infographic
+templateLayout: mondrian-image-bottom
+catalogSlide: 45
+image: ./assets/blockchain-for-game/bitcoin-taproot.png
+backgroundSize: contain
+backgroundColor: '#050608'
+imageTreatment: generated-infographic
+---
+---
 layout: mondrian-subsection
-contentSlide: 51
+contentSlide: 53
 contentSlideId: g3fb61a5d5fe_0_0
 templateLayout: mondrian-subsection
 catalogSlide: 2
@@ -692,7 +720,7 @@ imageTreatment: none
 ## Bitcoin Ecosystem
 ---
 layout: mondrian-two-columns-header
-contentSlide: 52
+contentSlide: 54
 contentSlideId: g3fb61a5d5fe_0_18
 templateLayout: mondrian-two-columns-header
 catalogSlide: 5
@@ -718,8 +746,19 @@ Ark is a layer 2 protocol for low-cost off-chain Bitcoin transactions.
 
 Source: [Ark Protocol](https://ark-protocol.org/)
 ---
+layout: mondrian-image-bottom
+contentSlide: 55
+contentSlideId: bitcoin-ark-protocol-infographic
+templateLayout: mondrian-image-bottom
+catalogSlide: 45
+image: ./assets/blockchain-for-game/bitcoin-ark-protocol.png
+backgroundSize: contain
+backgroundColor: '#050608'
+imageTreatment: generated-infographic
+---
+---
 layout: mondrian-subsection
-contentSlide: 53
+contentSlide: 56
 contentSlideId: arkade-subsection
 templateLayout: mondrian-subsection
 catalogSlide: 2
@@ -729,13 +768,13 @@ imageTreatment: none
 ## Bitcoin Ecosystem
 ---
 layout: mondrian-two-columns-header
-contentSlide: 54
+contentSlide: 57
 contentSlideId: arkade-protocol
 templateLayout: mondrian-two-columns-header
 catalogSlide: 5
 imageTreatment: none
 ---
-# Arkade<br>Protocol
+# Arkade<br>A programmable extension of Bitcoin
 
 ::left::
 

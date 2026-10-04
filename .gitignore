@@ -8,3 +8,4 @@ dist/
 output/playwright/
 /.cache
 /output
+/.playwright-mcp

@@ -537,6 +537,7 @@
 .slidev-layout.slide-five-template-eleven .slide-five-template-eleven__skills { display: grid; gap: .4rem; margin: 1rem 0 0; padding: 0; list-style: none; font-size: 1.1rem; line-height: 1.08; }
 .slidev-layout.slide-five-template-eleven .slide-five-template-eleven__skills li { padding-bottom: .35rem; border-bottom: 2px solid var(--mondrian-secondary); }
 .slidev-layout.slide-five-template-eleven { position: relative; }
+.slidev-layout.slide-five-template-eleven::before { display: none; }
 .mondrian-image-layout:has(.slide-five-template-eleven) .slidev-layout { z-index: 2; overflow: visible; }
 .mondrian-image-layout:has(.slide-five-template-eleven) .mondrian-image-pane { position: relative; z-index: 1; }
 .mondrian-image-layout:has(.slide-five-template-eleven) .mondrian-image-pane { background-position: center calc(50% - 10px) !important; background-size: 100% auto !important; }

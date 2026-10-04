@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\".agents/skills/impeccable/scripts/impeccable\" hook",
-            "commandWindows": "call .agents/skills/impeccable/scripts/impeccable.cmd hook & exit /b 0",
+            "command": "[ ! -f 'C:\\Users\\srive\\.agents\\skills\\impeccable\\scripts\\impeccable' ] || 'C:\\Users\\srive\\.agents\\skills\\impeccable\\scripts\\impeccable' hook",
+            "commandWindows": "if exist \"C:\\\\Users\\\\srive\\\\.agents\\\\skills\\\\impeccable\\\\scripts\\\\impeccable.cmd\" (\"C:\\\\Users\\\\srive\\\\.agents\\\\skills\\\\impeccable\\\\scripts\\\\impeccable.cmd\" hook & exit /b)",
             "timeout": 5,
             "statusMessage": "Checking UI changes"
           }
@@ -19,8 +19,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\".agents/skills/impeccable/scripts/impeccable\" hook",
-            "commandWindows": "call .agents/skills/impeccable/scripts/impeccable.cmd hook & exit /b 0",
+            "command": "[ ! -f 'C:\\Users\\srive\\.agents\\skills\\impeccable\\scripts\\impeccable' ] || 'C:\\Users\\srive\\.agents\\skills\\impeccable\\scripts\\impeccable' hook",
+            "commandWindows": "if exist \"C:\\\\Users\\\\srive\\\\.agents\\\\skills\\\\impeccable\\\\scripts\\\\impeccable.cmd\" (\"C:\\\\Users\\\\srive\\\\.agents\\\\skills\\\\impeccable\\\\scripts\\\\impeccable.cmd\" hook & exit /b)",
             "timeout": 30,
             "statusMessage": "Design deep pass"
           }
