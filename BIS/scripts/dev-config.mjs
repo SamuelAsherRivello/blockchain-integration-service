@@ -12,6 +12,7 @@ export const packageRoutes = [
   { label: 'BIS Marketplace', route: '/marketplace/', directory: 'marketplace' },
   { label: 'Onboarding Spike', route: '/onboarding/', directory: 'balance-onboard-spike-standalone' },
   { label: 'Integration README', route: '/integration/', directory: 'integration', readme: true },
+  { label: 'Project Arc', route: '/arc/', directory: 'project-arc' },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);
 const isFile = async path => (await stat(path).catch(() => undefined))?.isFile() ?? false;

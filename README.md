@@ -70,7 +70,7 @@ Run the following commands to get started.
 
 <!-- AI: Replace {command} with the actual local launch command or editor action. State where to run it and how to open the app if needed. Refer to the printed URL when the port can vary. Avoid repeating completed build/setup steps. -->
 1. Run `npm run dev` to start one Vite server for all four packages.
-2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), or the [Integration README](http://127.0.0.1:5174/integration/).
+2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), the [Integration README](http://127.0.0.1:5174/integration/), or [Project Arc](http://127.0.0.1:5174/arc/).
 3. In Admin, select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
 
 For a remote preview, start the same command on the SSH server. In Windows PowerShell, paste this entire line before pressing Enter and leave the terminal open (reuse an existing working tunnel):
@@ -79,7 +79,7 @@ For a remote preview, start the same command on the SSH server. In Windows Power
 ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:15174:127.0.0.1:5174 contabo-srive
 ```
 
-Then open [BIS Admin](http://127.0.0.1:15174/admin/), [BIS Marketplace](http://127.0.0.1:15174/marketplace/), [Onboarding Spike](http://127.0.0.1:15174/onboarding/), or the [Integration README](http://127.0.0.1:15174/integration/). Admin and Marketplace share BIS account storage on this origin; the spike keeps separate window-scoped storage. Wallet data saved on other ports stays on those origins and is not migrated automatically.
+Then open [BIS Admin](http://127.0.0.1:15174/admin/), [BIS Marketplace](http://127.0.0.1:15174/marketplace/), [Onboarding Spike](http://127.0.0.1:15174/onboarding/), the [Integration README](http://127.0.0.1:15174/integration/), or [Project Arc](http://127.0.0.1:15174/arc/). Admin and Marketplace share BIS account storage on this origin; the spike keeps separate window-scoped storage. Wallet data saved on other ports stays on those origins and is not migrated automatically.
 
 Use `npm run preview` to serve the production build locally.
 
@@ -115,6 +115,7 @@ This is a work in progress with no custom application server. The two supported 
 - `BIS/documentation/`: Project documentation and README images.
 - `BIS/packages/integration/`: Reusable runtime UI, core state, and Arkade adapters.
 - `BIS/packages/integration-demo/`: Admin UI, 9:16 preview, and documentation viewer.
+- `BIS/packages/project-arc/`: Prompt-authored Markdown Scores rendered as 16:9 project-story Scenes.
 - `BIS/scripts/`: Project automation, including the test runner.
 - `openspec/`: Tracked specifications and change plans.
 - `.agents/skills/`: Local specification workflows.
@@ -150,6 +151,7 @@ React and TypeScript power both packages, with Vite for development and producti
 - [Integration Demo (BIS Admin)](BIS/packages/integration-demo/integration-demo-package-readme.md): Admin controls and the runtime preview.
 - [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
 - [Standalone Onboarding Spike](BIS/packages/balance-onboard-spike-standalone/balance-onboard-spike-standalone-package-readme.md): Independent Signet onboarding experiment.
+- [Project Arc](BIS/packages/project-arc/project-arc-package-readme.md): Markdown-authored browser stories for project walkthroughs.
 
 ## Deep Dive
 
