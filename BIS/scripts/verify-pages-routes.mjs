@@ -42,14 +42,7 @@ try {
   assert.equal(catalog.status(), 200);
   const artwork = await marketplace.request.get(`${base}assets/marketplace/v1/shoes-1.png`);
   assert.equal(artwork.status(), 200);
-  const arc = await browser.newPage();
-  const arcResponse = await arc.goto(`${base}arc/`, { waitUntil: 'networkidle' });
-  assert.equal(arcResponse?.status(), 200);
-  await expectText(arc, 'Blockchain Integration Service');
-  await expectText(arc, 'PROJECT ARC');
-  await arc.getByRole('button', { name: 'Next', exact: true }).click();
-  await expectText(arc, 'The story map');
-  console.log(`PASS ${base}admin/, ${base}marketplace/, and ${base}arc/`);
+  console.log(`PASS ${base}admin/ and ${base}marketplace/`);
 } finally {
   await browser.close();
   await new Promise(resolveServer => server.close(resolveServer));

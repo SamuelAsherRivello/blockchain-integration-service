@@ -32,7 +32,7 @@ jobs:
         run: npm ci
       - name: Validate release version surfaces
         run: npm run check:release
-      - name: Check types and build Admin, Marketplace, and Project Arc
+      - name: Check types and build Admin and Marketplace
         run: npm run build
       - name: Stage published app routes
         run: npm run stage:pages
