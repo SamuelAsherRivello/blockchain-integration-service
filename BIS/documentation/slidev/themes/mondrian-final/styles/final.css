@@ -20,8 +20,27 @@
   left: 4.5rem;
   display: flex;
   align-items: flex-end;
-  height: 2lh;
+  justify-content: flex-start;
+  width: calc(100% - 9rem);
+  height: 3lh;
   margin: 0;
+  text-align: left;
+  transform: translateY(-1lh);
+  isolation: isolate;
+}
+
+/* Give subsection titles the crisp cobalt band of a text selection. The
+   band hugs the visible baseline rather than filling the reserved two-line
+   title area, so it increases hierarchy without changing the composition. */
+.slidev-layout.section.b-slide-two h1::before {
+  position: absolute;
+  z-index: -1;
+  right: -.35rem;
+  bottom: .03em;
+  left: -.35rem;
+  height: 1.12em;
+  content: '';
+  background: var(--mondrian-secondary);
 }
 
 .slidev-layout.section.b-slide-two p,
@@ -170,6 +189,10 @@
   display: block;
 }
 
+.slidev-layout.quote .quote-primary-label--template {
+  max-width: 600px;
+}
+
 .slidev-layout.quote .quote-primary-label::after {
   display: block;
   height: 1.9em;
@@ -181,6 +204,12 @@
 .slidev-layout .image-template-primary-label {
   display: block;
   font-size: .71em;
+}
+
+.slidev-layout .image-bottom-template-primary-label {
+  display: block;
+  white-space: nowrap;
+  font-size: 1em;
 }
 
 .mondrian-cover .mondrian-about-copy h2 {
@@ -319,12 +348,18 @@
 .mondrian-logos-template__asset--sierra,
 .mondrian-logos-template__asset--usc { top: 34.26%; height: 13.72%; }
 .mondrian-logos-template__asset--sierra { box-sizing: border-box; padding: 2px; background: #fff; object-fit: cover; object-position: 50% 48.7%; }
-.slidev-layout.mondrian-logos-template > .mondrian-logos-template__asset--sierra {
+.slidev-layout.mondrian-logos-template > a.mondrian-logos-template__asset--sierra {
   box-sizing: border-box;
   padding: 0;
   background: transparent;
   border: 2px solid #fff !important;
   box-shadow: none;
+  opacity: 0;
+  animation: xp-fade-in 250ms ease-out 700ms forwards;
+}
+.slidev-layout.mondrian-logos-template > a.mondrian-logos-template__asset--sierra > img {
+  opacity: 1;
+  animation: none;
 }
 .mondrian-logos-template__asset--ucla { top: 17%; height: 14.13%; }
 .mondrian-logos-template__asset--udemy { top: 17%; height: 12.04%; box-sizing: border-box; padding: 5px; background: #fff; }
@@ -410,8 +445,31 @@
 }
 
 .mondrian-logos-template__asset {
+  opacity: 1;
+  animation: none;
+}
+
+/* Fade the complete logo frame, including borders, padding, and backgrounds,
+   as one unit. The delay is read from each image's existing timing marker. */
+.mondrian-logos-template__link {
   opacity: 0;
-  animation: xp-fade-in 250ms ease-out var(--xp-image-delay) forwards;
+  animation: xp-fade-in 250ms ease-out 0ms forwards;
+}
+.mondrian-logos-template__link:has(img[style*="100ms"]) { animation-delay: 100ms; }
+.mondrian-logos-template__link:has(img[style*="200ms"]) { animation-delay: 200ms; }
+.mondrian-logos-template__link:has(img[style*="300ms"]) { animation-delay: 300ms; }
+.mondrian-logos-template__link:has(img[style*="400ms"]) { animation-delay: 400ms; }
+.mondrian-logos-template__link:has(img[style*="500ms"]) { animation-delay: 500ms; }
+.mondrian-logos-template__link:has(img[style*="600ms"]) { animation-delay: 600ms; }
+.mondrian-logos-template__link:has(img[style*="700ms"]) { animation-delay: 700ms; }
+.mondrian-logos-template__link:has(img[style*="800ms"]) { animation-delay: 800ms; }
+.mondrian-logos-template__link:has(img[style*="900ms"]) { animation-delay: 900ms; }
+.mondrian-logos-template__link:has(img[style*="1000ms"]) { animation-delay: 1000ms; }
+.mondrian-logos-template__link:has(img[style*="1100ms"]) { animation-delay: 1100ms; }
+.mondrian-logos-template__link:has(img[style*="1200ms"]) { animation-delay: 1200ms; }
+.mondrian-logos-template__link:has(img[style*="1300ms"]) { animation-delay: 1300ms; }
+.slidev-layout.mondrian-logos-template > a.mondrian-logos-template__asset--neopets {
+  animation-delay: 1200ms;
 }
 
 
@@ -439,3 +497,52 @@
   font-size: 2.75rem;
   margin-bottom: calc(1.15rem + 20px);
 }
+
+/* Content-deck components: semantic HTML keeps headings and table labels
+   editable while treating source-era visual groupings consistently. */
+.deck-table-wrap { padding: 1.7rem 2.5rem; }
+.deck-table-wrap > h1 { margin: 0 0 .75rem; font-size: 2.3rem; }
+.deck-table { width: 100%; border-collapse: separate; border-spacing: .35rem; color: #081a33; font-size: .72rem; }
+.deck-table th, .deck-table td { padding: .55rem .65rem; border: 1px solid #dbe2ed; vertical-align: middle; background: #f9fbff; }
+.deck-table thead th { color: #fff; background: #05070a; text-align: center; font-weight: 800; }
+.deck-table tbody th { width: 17%; color: #08234a; text-align: left; font-weight: 800; }
+.deck-table td { text-align: center; font-weight: 650; line-height: 1.22; }
+.deck-table--source td { height: 4.85rem; padding: 0; overflow: hidden; }
+.deck-table__cell-image { display: block; width: 100%; height: 100%; object-fit: contain; }
+.deck-table--layers th, .deck-table--layers td { text-align: left; font-size: .83rem; }
+.deck-table--gaming thead th { background: #1464e8; }
+.deck-table--gaming tbody th { color: #fff; background: #313842; }
+.deck-table__footer { margin: .75rem 0 0; padding: .35rem .75rem; color: #fff; background: #2e659e; font-size: 1.05rem; }
+.growth-bars { display: grid; grid-template-columns: repeat(6, 1fr); align-items: end; gap: .65rem; height: 12rem; margin: 1rem 0; padding: 1rem; border-bottom: 2px solid #1464e8; }
+.growth-bars span { display: block; min-height: 1.25rem; background: linear-gradient(180deg, #1464e8, #55a0ff); }
+.growth-bars span:nth-child(1) { height: 20%; }.growth-bars span:nth-child(2) { height: 32%; }.growth-bars span:nth-child(3) { height: 45%; }.growth-bars span:nth-child(4) { height: 60%; }.growth-bars span:nth-child(5) { height: 78%; }.growth-bars span:nth-child(6) { height: 100%; }
+.feature-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .65rem; margin-top: 1.15rem; }
+.feature-grid > div { min-height: 7.1rem; padding: .75rem; color: #fff; background: #202a3b; border-top: 4px solid #1464e8; font-size: .87rem; font-weight: 700; }
+.feature-grid > div:nth-child(2n) { border-color: #9d3830; }
+.diagram-art { width: min(100%, 31rem); margin: .6rem auto 0; display: block; }
+.slidev-layout.diagram-template .diagram-art { width: min(100%, 15rem); max-height: 7rem; object-fit: contain; }
+.network-note { color: #b9c7df; text-align: center; font-size: .8rem; }
+
+/* Feedback pass: source assets retain their original aspect ratios and are
+   supplied at 2× their captured resolution so neither charts nor source
+   artwork blur at the 1280-by-720 review viewport. */
+.feedback-source-visual { display: block; max-width: 100%; object-fit: contain; }
+.feedback-source-visual--full { width: min(100%, 68rem); max-height: calc(100vh - 5rem); margin: 0 auto; }
+.feedback-game-essentials { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(10rem, .75fr); gap: 1.5rem; align-items: center; margin-top: .5rem; }
+.feedback-game-essentials__visuals { position: relative; min-height: 21rem; }
+.feedback-source-visual--gameplay { width: 100%; height: 21rem; object-fit: cover; }
+.feedback-source-visual--controller { position: absolute; right: 4%; bottom: -1.4rem; width: 38%; filter: drop-shadow(0 .5rem .5rem rgb(0 0 0 / .45)); }
+.feedback-game-essentials ul { display: grid; gap: .55rem; margin: 0; padding: 0; list-style: none; font-size: 1.35rem; line-height: 1.08; }
+.feedback-game-essentials li { padding-bottom: .42rem; border-bottom: 2px solid var(--mondrian-secondary); }
+.slidev-layout.slide-five-template-eleven .slide-five-template-eleven__skills { display: grid; gap: .4rem; margin: 1rem 0 0; padding: 0; list-style: none; font-size: 1.1rem; line-height: 1.08; }
+.slidev-layout.slide-five-template-eleven .slide-five-template-eleven__skills li { padding-bottom: .35rem; border-bottom: 2px solid var(--mondrian-secondary); }
+.slidev-layout.slide-five-template-eleven { position: relative; }
+.mondrian-image-layout:has(.slide-five-template-eleven) .slidev-layout { z-index: 2; overflow: visible; }
+.mondrian-image-layout:has(.slide-five-template-eleven) .mondrian-image-pane { position: relative; z-index: 1; }
+.mondrian-image-layout:has(.slide-five-template-eleven) .mondrian-image-pane { background-position: center calc(50% - 10px) !important; background-size: 100% auto !important; }
+.slidev-layout.slide-five-template-eleven .slide-five-template-eleven__controller { position: absolute; right: calc(1rem - 200px); bottom: 1.25rem; z-index: 100; display: block; width: 16rem; height: auto; margin: 0; filter: drop-shadow(0 .4rem .4rem rgb(0 0 0 / .45)); }
+.slidev-layout.diagram-template.feedback-diagram-position .mermaid { position: relative; top: 300px; max-width: 76%; transform: scale(1.3); transform-origin: top center; }
+.feedback-capability-list { display: grid; gap: .22rem; margin: 1.4rem 0 0 1.4rem; font-size: .9rem; line-height: 1.12; }
+.feedback-capability-list--detailed { gap: .22rem; }
+.feedback-capability-list--detailed > li > ul { display: grid; grid-template-columns: minmax(0, 1fr); gap: .05rem; margin: .08rem 0 .08rem 1.1rem; font-size: 1em; }
+.mondrian-image-layout:has(.blockchain-structure-custom-image) .mondrian-image-pane { background-color: transparent; background-position: center; background-repeat: no-repeat; background-size: contain; }

@@ -24,7 +24,7 @@ layout: mondrian-subsection
 catalogLayout: mondrian-subsection
 ---
 
-# Subsection Template
+# The<br>Subsection<br>Template
 
 Use these for the ordinary explanatory part of a presentation.
 
@@ -90,7 +90,7 @@ layout: mondrian-quote
 catalogLayout: mondrian-quote
 ---
 
-# <span class="quote-primary-label">Quote Template</span>
+# <span class="quote-primary-label quote-primary-label--template">“Here is the<br>quote template<br>now.”</span>
 
 — Source or speaker
 
@@ -126,6 +126,17 @@ class: slide-image-right-offset b-safe-image-right b-slide-eleven
 Reverse the emphasis: explanation first, supporting visual second.
 
 ---
+layout: mondrian-image-bottom
+catalogLayout: mondrian-image-bottom
+image: layout-placeholder.svg
+backgroundSize: contain
+---
+
+# <span class="image-bottom-template-primary-label">Image Bottom Template</span>
+
+One-line subtitle sits above a centered supporting visual.
+
+---
 layout: mondrian-blank
 catalogLayout: mondrian-blank
 ---
@@ -151,20 +162,30 @@ flowchart LR
 </div>
 
 ---
+layout: mondrian-right-diagram
+catalogLayout: mondrian-right-diagram
+---
+
+# Right Diagram Template
+
+Use the left pane for the takeaway and concise evidence.
+
+- Keep the diagram explanatory.
+- Keep the relationship visible.
+
+::right::
+
+```mermaid {scale: 0.8}
+flowchart LR
+  A[A] --> B[B] --> C[C]
+```
+
+---
 layout: mondrian-thank-you
 catalogLayout: mondrian-thank-you
 ---
 
 # <span class="primary-label-one-line" style="display: inline-block; transform: translateY(-10px)">Thank You!</span>
-
----
-layout: mondrian-end
-catalogLayout: mondrian-end
----
-
-# End Template
-
-## Finish with the action, question, or next step you want the audience to remember.
 
 ---
 layout: mondrian-video-xp

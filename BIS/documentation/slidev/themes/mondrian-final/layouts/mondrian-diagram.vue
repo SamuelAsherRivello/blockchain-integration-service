@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import DiagramTemplate from './diagram-template.vue'
+const props = defineProps<{ class?: string }>()
 </script>
 
-<template><DiagramTemplate class="mondrian-diagram"><slot /></DiagramTemplate></template>
+<template><DiagramTemplate :class="['mondrian-diagram', props.class]"><slot /></DiagramTemplate></template>
 
 <style>
 .slidev-layout.diagram-template { box-sizing: border-box; min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 2.5rem; }
