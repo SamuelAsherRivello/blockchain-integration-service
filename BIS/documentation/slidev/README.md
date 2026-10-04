@@ -1,18 +1,23 @@
 # BIS Slidev documentation
 
-This folder contains developer-facing Slidev presentations for the Blockchain Integration Service. The initial `slides.md` deck is a technical orientation drawn from the package-level Understand knowledge graph and the repository documentation. It deliberately distinguishes implemented package boundaries from experiments and documented limitations.
+This self-contained Slidev workspace hosts the finalized **Modrian Template**: a dark, 16:9 layout reference designed for recording. Its Markdown source is `template-deck-b.md`; `modrian-template.md` is the stable entry point; and `themes/mondrian-final` owns the selected presentation treatment.
 
-## Run the deck
+## Run the final deck
 
-From the repository root, enter this self-contained project and start the presentation:
+Use two PowerShell terminals from this folder:
 
 ```powershell
-cd BIS/documentation/slidev
+npm run dev:modrian-template
+```
+
+```powershell
 npm run dev
 ```
 
-Open `http://localhost:3032`. Use `npm run build` to create a static SPA in this folder's ignored `dist/` directory.
+Open the clean launcher route at `http://localhost:3032/slidev/modrian-template/1`. The launcher on port 3032 proxies the final Slidev server on port 3049 and sends no-cache headers so updates appear immediately.
 
-## Editing
+## Editing and verification
 
-Edit `slides.md` to revise the draft. The deck uses the official `@slidev/theme-seriph` theme and standard Slidev Markdown. It has no independent application runtime and does not participate in the repository's shared Vite preview or GitHub Pages release unless that is added deliberately later.
+Edit `template-deck-b.md` for the slide content and `themes/mondrian-final` for the selected layouts and styling. The reusable safe-area coordinates remain documented in `riverside-safe-area-guides.md`; the final theme deliberately contains no visible guide overlay.
+
+Run `npm run build` to build the final Modrian Template into the ignored `dist/` directory. This workspace is independent from the repository’s shared Vite preview and GitHub Pages release unless that is added deliberately later.

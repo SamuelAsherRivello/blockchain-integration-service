@@ -68,6 +68,63 @@
   align-self: start;
 }
 
+/* Keep Slide 4's primary field at its required two visual lines. */
+.slidev-layout.two-columns.b-layout-slide-four .slide-four-primary-label {
+  display: block;
+  font-size: .82em;
+}
+
+/* Slides 4–5 form a two-column section with a dedicated Mondrian field:
+   an off-axis rule grid, a warm-red block, and a cobalt ring. Its ornaments
+   stay in the outside bands, leaving the established text geometry alone. */
+.slidev-layout.b-layout-slide-four,
+.slidev-layout.b-layout-slide-five {
+  background-color: #07090d;
+  background-image:
+    linear-gradient(#313842, #313842),
+    linear-gradient(90deg, #313842, #313842),
+    linear-gradient(90deg, #1464e8, #1464e8),
+    linear-gradient(90deg, #313842, #313842);
+  background-position: 0 6%, 6% 0, 84% 0, 92% 0;
+  background-repeat: no-repeat;
+  background-size: 100% 1px, 1px 100%, 4px 100%, 1px 100%;
+}
+
+.slidev-layout.b-layout-slide-four::before,
+.slidev-layout.b-layout-slide-five::before {
+  top: 9%;
+  right: 4.5%;
+  width: 10%;
+  height: 12%;
+  border-radius: 0;
+  background: #9d3830;
+  opacity: .76;
+}
+
+.slidev-layout.b-layout-slide-four::after,
+.slidev-layout.b-layout-slide-five::after {
+  top: auto;
+  right: 5%;
+  bottom: -8%;
+  width: 15rem;
+  height: 15rem;
+  border: 2px solid #1464e8;
+  border-radius: 50%;
+  box-shadow: none;
+  opacity: .8;
+}
+
+.slidev-layout.b-layout-slide-five::before {
+  top: auto;
+  right: 4.5%;
+  bottom: 9%;
+}
+
+.slidev-layout.b-layout-slide-five::after {
+  top: -8%;
+  bottom: auto;
+}
+
 /* Slide 11 reserves its left text pane for reading: no cobalt divider or
    ring can enter it, and the red accent is moved completely off-pane. */
 .slidev-layout.b-slide-eleven {
@@ -109,6 +166,13 @@
   display: block;
   height: 1.9em;
   content: '';
+}
+
+/* Image panels are intentionally narrow. This scale keeps the replacement
+   names in the same two-line treatment as their original primary fields. */
+.slidev-layout .image-template-primary-label {
+  display: block;
+  font-size: .71em;
 }
 
 .mondrian-cover .mondrian-about-copy h2 {

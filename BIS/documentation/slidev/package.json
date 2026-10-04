@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "slidev slides.md --port 3032",
+    "dev": "vite --config comparison.vite.config.mjs --port 3032",
     "dev:comparison": "vite --config comparison.vite.config.mjs --port 3032",
     "dev:seriph": "slidev slides.md --theme seriph --port 3042 --base /slidev/seriph/",
     "dev:apple-basic": "slidev slides.md --theme apple-basic --port 3043 --base /slidev/apple-basic/",
@@ -14,8 +14,8 @@
     "dev:modrian-template-2": "slidev modrian-template-2.md --theme ./themes/mondrian-night --port 3047 --base /slidev/modrian-template-2/",
     "dev:modrian-template": "slidev modrian-template.md --theme ./themes/mondrian-final --port 3049 --base /slidev/modrian-template/",
     "dev:modrian-template-3": "slidev template-deck.md --theme ./themes/mondrian-signal --port 3048 --base /slidev/modrian-template-3/",
-    "build": "slidev build slides.md --out dist",
-    "export": "slidev export slides.md"
+    "build": "slidev build modrian-template.md --theme ./themes/mondrian-final --out dist",
+    "export": "slidev export modrian-template.md --theme ./themes/mondrian-final"
   },
   "devDependencies": {
     "@slidev/cli": "^53.0.0",

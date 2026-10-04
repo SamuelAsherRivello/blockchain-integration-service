@@ -12,9 +12,9 @@ canvasWidth: 980
 class: b-safe-intro
 ---
 
-# Modrian Template
+# Cover Template
 
-## A visual reference for a new deck
+## Modrian Template
 
 Start here when you want to see the standard building blocks before choosing a theme or writing final content.
 
@@ -23,7 +23,7 @@ layout: section
 class: b-slide-two
 ---
 
-# Simple Content Layouts
+# Simple Content Template
 
 Use these for the ordinary explanatory part of a presentation.
 
@@ -32,7 +32,7 @@ layout: default
 class: slide-three-offset b-safe-standard
 ---
 
-# Default
+# Bullet Template
 
 The flexible baseline layout: headings, prose, bullet points, diagrams, code, and custom components all work here.
 
@@ -47,7 +47,7 @@ class: slide-four-safe-area b-safe-standard b-slide-four
 
 ::left::
 
-# Two Columns
+# <span class="slide-four-primary-label">Two Columns<br>Template</span>
 
 Use the left side for the primary point, a diagram, or an image.
 
@@ -63,7 +63,7 @@ layoutClass: slide-five-no-rules b-layout-slide-five
 class: b-safe-standard b-slide-five
 ---
 
-# Two Columns with Shared Headline
+# Two Columns, One Headline Template
 
 ::left::
 
@@ -82,7 +82,7 @@ layout: center
 class: b-safe-standard
 ---
 
-# Center
+# Center Template
 
 Use a centered statement for a key idea, question, or transition.
 
@@ -91,7 +91,7 @@ layout: quote
 class: b-safe-standard
 ---
 
-# <span class="quote-primary-label">Quote</span>
+# <span class="quote-primary-label">Quote Template</span>
 
 — Source or speaker
 
@@ -100,7 +100,7 @@ layout: fact
 class: b-safe-standard
 ---
 
-# Fact
+# Fact Template
 
 One large number or short fact, followed by a sentence that makes its meaning obvious.
 
@@ -109,7 +109,7 @@ layout: section
 class: b-safe-standard
 ---
 
-# Visual and Closing Layouts
+# Closing Layout Template
 
 Use these to change pace, introduce a chapter, or bring the deck to a clear end.
 
@@ -119,7 +119,7 @@ image: layout-placeholder.svg
 class: slide-image-left-offset b-safe-image-left
 ---
 
-# Image Left
+# <span class="image-template-primary-label">Image Left<br>Template</span>
 
 Place an image on the left and your explanation on the right. Replace this sample image with your own project visual.
 
@@ -129,7 +129,7 @@ image: layout-placeholder.svg
 class: slide-image-right-offset b-safe-image-right b-slide-eleven
 ---
 
-# Image Right
+# <span class="image-template-primary-label">Image Right<br>Template</span>
 
 Reverse the emphasis: explanation first, supporting visual second.
 
@@ -138,7 +138,7 @@ layout: end
 class: b-safe-standard
 ---
 
-# End
+# End Template
 
 ## Finish with the action, question, or next step you want the audience to remember.
 
@@ -159,7 +159,7 @@ layout: about
 layout: end-screen
 ---
 
-# End Screen
+# End Screen Template
 
 <!--
 Each theme can restyle these layouts or contribute additional ones. This deck shows the common built-in vocabulary.
