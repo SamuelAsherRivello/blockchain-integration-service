@@ -1,0 +1,63 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #294650;
+  background: #eef4f6;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; overflow: hidden; }
+
+.marketplace-bis-host { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+.marketplace-bis-host .bis-runtime { pointer-events: none; }
+.marketplace-bis-host .bis-layer { place-items: start end; padding: clamp(12px, 3vw, 48px) clamp(12px, 2vw, 18px) 0; transform: none; }
+.marketplace-bis-host .bis-layer-open { place-items: center; padding: 16px; transform: none; }
+
+.network-banner { display: flex; justify-content: center; border-bottom: .8px solid #e5b536; background: #fff0b8; color: #785317; font: 750 9px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.marketplace-shell { display: flex; flex-wrap: wrap; }
+.marketplace-sidebar, .collection-panel { min-width: 0; }
+.marketplace-sidebar { display: flex; flex-direction: column; }
+header { min-width: 0; }
+h1 { color: #182d39; }
+.lede { margin: 0; color: #647987; }
+
+.wallet-strip { display: grid; }
+.wallet-strip h2 { margin: 0; color: #182d39; }
+.wallet-strip ul, .wallet-strip ol { margin: 0; padding-left: 20px; color: #506774; }
+.wallet-strip ul { list-style: none; padding-left: 0; }
+.wallet-strip li span { color: #294650; font-weight: 650; }
+.wallet-strip code { min-width: 0; color: #294650; overflow-wrap: anywhere; white-space: normal; }
+.wallet-strip strong { color: #487d66; }
+
+.collection-panel { display: flex; flex-direction: column; }
+.catalog-toolbar { align-self: flex-start; display: grid; color: #182d39; }
+.filter-row [role="group"] { display: flex; flex-wrap: wrap; }
+.filter-row button { cursor: pointer; }
+.catalog-scroll { min-width: 0; }
+.catalog-grid { display: grid; align-items: start; }
+.asset-card { appearance: none; min-width: 0; text-align: left; cursor: pointer; }
+.art { display: grid; place-items: center; color: #fff; }
+.art-shoes { background: #487d66; }
+.art-dagger { background: #557b8d; }
+.art-shield { background: #6070a4; }
+.empty-state { margin: 24px 0; padding: 20px; border: .8px solid #c8d7dc; border-radius: 12px; background: #f8fbfc; color: #647987; }
+
+.backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: #182d3955; }
+.detail { position: relative; }
+.close { position: absolute; right: 16px; top: 12px; border: 0; background: transparent; color: #294650; font-size: 30px; cursor: pointer; }
+.truth { font-size: 12px; color: #647987 !important; }
+.marketplace-pending-runtime { z-index: 100; }
+.marketplace-pending-runtime .bis-pending-backdrop { z-index: 60; }
+
+@media (max-width: 767px) {
+  /* The document is the only mobile scroll surface. Keeping body visible avoids
+     scroll chaining between the browser viewport and the desktop panel rules. */
+  html { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
+  body { height: auto; min-height: 100%; overflow: visible; }
+  #root { height: auto; min-height: 100%; }
+  .marketplace-pending-runtime,
+  .marketplace-pending-runtime > .bis-runtime-content { position: static; inset: auto; }
+  .marketplace-pending-runtime > .bis-pending-backdrop { position: fixed; }
+}

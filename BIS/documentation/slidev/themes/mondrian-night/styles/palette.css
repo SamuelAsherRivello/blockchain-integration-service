@@ -1,0 +1,128 @@
+:root {
+  --mondrian-bg: #090a0c;
+  --mondrian-panel: #16181d;
+  --mondrian-paper: #f2ede2;
+  --mondrian-ink: #0b0c0f;
+  --mondrian-text: #f7f2e8;
+  --mondrian-muted: #b7b5b1;
+  --mondrian-blue: #1464e8;
+  --mondrian-red: #f04a35;
+  --mondrian-line: #2b3037;
+  --mondrian-accent-column: 80%;
+}
+
+/* Keep the content inside the central field created by the grid. */
+.slidev-layout {
+  background-position: 0 7.5%, 4% 0, 0 0;
+}
+
+/* Slide 3: preserve the shared grid while giving its text a little more air. */
+.slidev-layout.slide-three-offset > * {
+  transform: translateY(20px);
+}
+
+/* Slides 4 and 7 use the same safe top edge as slide 3's Default heading. */
+.two-columns .slide-four-safe-area,
+.slidev-layout.quote > .my-auto {
+  transform: translateY(20px);
+}
+
+/* Slide 5: retain its comparison spacing without the decorative blue rules. */
+.slidev-layout.two-cols-header.slide-five-no-rules > div {
+  border-top: 0;
+}
+
+/* Slides 10 and 11: offset the entire text group together. */
+.slidev-layout.slide-image-left-offset > *,
+.slidev-layout.slide-image-right-offset > * {
+  transform: translate(-20px, 20px);
+}
+
+/* Variant B: main readable content stays inside the solid primary guide.
+   Decorative grid and accent objects remain outside this text field. */
+.slidev-layout.b-safe-standard {
+  padding: 10% 22% 10% 10%;
+}
+
+.slidev-layout.b-safe-standard h1,
+.slidev-layout.b-safe-standard h2,
+.slidev-layout.b-safe-standard h3,
+.slidev-layout.b-safe-standard p,
+.slidev-layout.b-safe-standard li,
+.slidev-layout.b-safe-standard blockquote {
+  max-width: 100%;
+}
+
+.slidev-layout.b-safe-standard.two-cols,
+.slidev-layout.b-safe-standard.two-cols-header {
+  gap: 2rem;
+}
+
+.slidev-layout.b-safe-standard.two-cols > div,
+.slidev-layout.b-safe-standard.two-cols-header > div {
+  min-width: 0;
+}
+
+.slidev-layout.b-safe-standard.quote blockquote {
+  max-width: 100%;
+}
+
+.slidev-layout.b-safe-image-left {
+  padding: 10% 44% 10% 10%;
+}
+
+.slidev-layout.b-safe-image-right {
+  padding: 10% 5% 10% 20%;
+}
+
+.slidev-layout.b-safe-image-left h1,
+.slidev-layout.b-safe-image-right h1 {
+  max-width: 100%;
+}
+
+/* B review corrections: keep the two comparison grids well inside the
+   solid primary frame, including wrapped headings and supporting copy. */
+.slidev-layout.two-columns.b-layout-slide-four,
+.slidev-layout.two-cols-header.b-layout-slide-five {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
+  padding: 10% 22% 10% 10%;
+}
+
+.slidev-layout.b-layout-slide-four > div,
+.slidev-layout.b-layout-slide-five > div {
+  min-width: 0;
+}
+
+/* The image-right layout's text pane is only the left half of the slide.
+   Remove its old leftward nudge and inset it from that pane's edges. */
+.slidev-layout.b-slide-eleven {
+  padding: 15% 8% 15% 24%;
+}
+
+.slidev-layout.b-slide-eleven > * {
+  transform: none;
+}
+
+/* Keep the central reading area clear; reserve the far-right fifth for accents. */
+.slidev-layout::before {
+  position: absolute;
+  z-index: 0;
+  top: 56%;
+  right: -3.6rem;
+  width: 8.4rem;
+  height: 8.4rem;
+  border-radius: 50%;
+  background: var(--mondrian-red);
+  content: '';
+}
+
+.slidev-layout::after {
+  /* Let the horizontal rule pass visibly through the upper cobalt ring. */
+  top: -1.5rem;
+  right: -3.2rem;
+  width: 14.5rem;
+  height: 14.5rem;
+  border-color: var(--mondrian-blue);
+  box-shadow: none;
+}

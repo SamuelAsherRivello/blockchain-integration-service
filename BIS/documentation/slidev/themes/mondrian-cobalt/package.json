@@ -1,0 +1,6 @@
+{
+  "name": "slidev-theme-mondrian-cobalt",
+  "version": "0.0.1",
+  "private": true,
+  "slidev": { "colorSchema": "dark" }
+}

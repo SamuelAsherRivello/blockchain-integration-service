@@ -1,0 +1,71 @@
+.admin-dialog-fullscreen {
+  box-sizing: border-box;
+  width: 50vw;
+  height: 80dvh;
+  max-width: none;
+  max-height: none;
+  margin: 10dvh 25vw;
+  padding: 0;
+  border: 1px solid #303036;
+  border-radius: 22px;
+  background: #101011;
+  color: #f5f5f6;
+  box-shadow: 0 28px 100px #0009;
+  overflow: hidden;
+}
+
+.admin-dialog-fullscreen[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-dialog-fullscreen::backdrop {
+  background: #050508bd;
+  backdrop-filter: blur(5px);
+}
+
+.admin-dialog-fullscreen-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  margin: 0 20px;
+  border-bottom: 1px solid #262629;
+}
+
+.admin-dialog-fullscreen-header h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -1px;
+}
+
+.admin-dialog-fullscreen-close {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.admin-dialog-fullscreen-body {
+  min-height: 0;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  scrollbar-width: auto;
+  scrollbar-color: #60606a #18181a;
+}
+
+.admin-dialog-fullscreen-body::-webkit-scrollbar { display: block; width: 10px; }
+.admin-dialog-fullscreen-body::-webkit-scrollbar-track { background: #18181a; }
+.admin-dialog-fullscreen-body::-webkit-scrollbar-thumb { background: #60606a; border-radius: 5px; }
+.admin-dialog-fullscreen button:disabled { opacity: .45; cursor: default; }
+.admin-dialog-fullscreen input:disabled,
+.admin-dialog-fullscreen select:disabled { opacity: .7; }
+.admin-dialog-fullscreen :focus-visible { outline: 2px solid #ad8aff; outline-offset: 3px; }

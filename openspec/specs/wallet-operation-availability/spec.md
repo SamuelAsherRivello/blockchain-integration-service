@@ -1,0 +1,214 @@
+# wallet-operation-availability Specification
+
+## Purpose
+
+Allow independently funded wallet operations while preserving pending-operation recovery and explaining available actions accurately.
+
+## Requirements
+
+Explicit player logout follows account-logout: backup acknowledgement and, when pending operations exist, separate pending-loss acknowledgement permit local player journal cleanup without cancelling submitted transactions. This exception does not relax Admin Reset guards or authorize spending reserved inputs.
+
+### Requirement: Durable input reservations
+The system SHALL maintain multiple account/network/operator-scoped operations, reserving every input of unresolved operations before network submission. It SHALL preserve legacy records during migration and prevent conflicting submissions across cooperating same-origin contexts. Incomplete or corrupt unresolved input records SHALL block spending with an explicit reason. Completion SHALL release only the corresponding operation's reservations, and a record from another network SHALL never make inputs appear spendable or block an unrelated active network without an explicit migration rule.
+
+#### Scenario: Disjoint operations
+- **WHEN** one same-network transfer is pending and verified eligible inputs exist outside all same-network reservations
+- **THEN** a new explicitly confirmed operation can use only those inputs without replacing the old record
+
+#### Scenario: Cross-network records remain isolated
+- **WHEN** an unresolved Signet record exists and the active account has switched to Mutinynet
+- **THEN** the Signet record remains recoverable in its original scope while Mutinynet reads and reservations use only Mutinynet inputs
+
+#### Scenario: Competing confirmations
+- **WHEN** two contexts confirm operations in the same account/network scope and select the same input
+- **THEN** only one reserves and submits it; the other requires fresh review
+
+#### Scenario: Migration cannot establish inputs
+- **WHEN** a legacy unresolved operation has unknown inputs or migration cannot persist
+- **THEN** no new spending occurs and the original recovery record remains intact
+
+#### Scenario: Reconstruct legacy reservations
+- **WHEN** a pending operation lacks a complete input set
+- **THEN** the system attempts read-only reconstruction from supported evidence and persists verified reservations before enabling independent spending
+- **AND** while uncertainty remains it explains the specific spending hold and keeps receiving, inspection and recovery available without signing or resubmitting
+
+### Requirement: Consistent operation availability
+Max, quotes and submissions SHALL use fresh eligible unreserved inputs including fees, revalidated at confirmation. New partial Arkade-to-Bitcoin withdrawals SHALL prepare independent change under withdrawal-input-preparation when the selected funds exceed the required withdrawal funding, rather than reserve the excess through settlement. Mint input control SHALL be proven before independent minting is enabled. Burn SHALL use the same active account/network/operator-scoped reservation and mutation-coordination policy as other wallet mutations. The UI SHALL distinguish insufficient independent funds, unavailable verification, unsupported input selection, input conflict, and network/provider mismatch. SDK balance alone SHALL NOT override reservations. Verified preparation SHALL transition reservations atomically between its completed input spend and the dedicated withdrawal output; surplus change SHALL NOT remain reserved by the parent transfer.
+
+#### Scenario: Burn availability follows active network
+- **WHEN** the active wallet has a fresh owned asset and eligible inputs on Mutinynet
+- **THEN** Burn is evaluated against Mutinynet spendability and does not fail solely because the Signet operator is unavailable or lacks the asset
+
+#### Scenario: Persistent mismatch or unavailable verification
+- **WHEN** the active provider cannot prove the selected network or fresh holding/input verification cannot complete
+- **THEN** Burn does not submit, reports the specific network or unavailable reason, and preserves all existing reservations and recovery records
+
+#### Scenario: Small request reserves large coin
+- **WHEN** an existing unresolved 1000-sat transfer predates preparation and consumes the account's sole eligible input
+- **THEN** no independent spendable funds are advertised and the UI explains that the whole input remains reserved pending verified recovery
+
+#### Scenario: New small withdrawal preserves change
+- **WHEN** a newly confirmed 1000-sat withdrawal starts from an eligible input larger than its required funding at verified zero fees
+- **THEN** withdrawal registration follows verified preparation and only the withdrawal amount remains reserved; the change is independently spendable
+
+#### Scenario: Independent funding arrives
+- **WHEN** a fresh read verifies a newly received independent spendable coin
+- **THEN** eligible operations become available without clearing the existing pending transfer
+
+#### Scenario: Mint adapter cannot constrain inputs
+- **WHEN** minting cannot enforce exclusion of reserved inputs but burns and sends can
+- **THEN** minting remains unavailable while supported independently funded operations remain enabled
+
+### Requirement: Shared B.P.1 payment availability
+BIS SHALL apply the shared input reservation policy to B.P.1 payments as well as sends, transfers and supported minting. B.P.1 SHALL be greyed out when verified unreserved funds cannot cover the payment and applicable fees, or payment readiness cannot be verified. It SHALL expose an accessible specific reason and known available/reserved amounts. Opening Account alone SHALL NOT disable B.P.1. Fund and reservation changes SHALL refresh availability without automatically submitting a queued payment. Duplicate submission protection SHALL remain enforced.
+
+#### Scenario: Pending transfer with independent B.P.1 funds
+- **WHEN** the player is logged in, the game wallet recipient is available, and verified unreserved inputs cover B.P.1 while an unrelated transfer remains pending
+- **THEN** B.P.1 remains enabled even with Account open and its explicit click uses only independent inputs
+
+#### Scenario: Insufficient independent B.P.1 funds
+- **WHEN** verified unreserved funds cannot cover B.P.1
+- **THEN** B.P.1 is greyed out with the specific reason and known available/reserved amounts
+- **AND** when sufficient eligible funds become available it re-enables and requires a new explicit click
+
+#### Scenario: Independent minting unsupported
+- **WHEN** minting cannot enforce exclusion of reserved inputs but B.P.1 and sends can
+- **THEN** minting is greyed out with its specific reason and supported independently funded operations remain enabled
+
+### Requirement: Actionable recovery view
+Account SHALL expose all its pending operations with amount, known status, last verification, reserved value and action availability. Transaction Detail SHALL offer recovery inspection through View Recovery Info only, with copying inside its Recovery Info dialog. Check Status, Copy Recovery Details and discard controls SHALL NOT appear in Transaction Detail or that window. Existing recovery checks elsewhere SHALL remain read-only and secret-free. Discard SHALL apply only to drafts proven never submitted under the mutation lock. Network cancellation SHALL obey account-transfer-cancellation requirements; unavailable cancellation SHALL explain its reason. No Undo or force-clear action SHALL falsely release submitted work. Log Out and Reset SHALL remain protected while any unresolved operation exists.
+
+#### Scenario: Registered transfer cannot be cancelled safely
+- **WHEN** cancellation finality is unverified
+- **THEN** Transaction Detail offers View Recovery Info, whose read-only report explains cancellation unavailability and shows independent spending availability separately, without execution actions
+
+#### Scenario: Proven unsent draft
+- **WHEN** the user discards a prepared draft whose registration gate is closed and which never reached submission
+- **THEN** it is retained as not-submitted and its reservations are released without a network request
+
+#### Scenario: Completed transaction
+- **WHEN** completion is verified
+- **THEN** the UI shows completed, offers no undo, and any reverse transfer requires a new review and confirmation
+
+### Requirement: Evidence-based delivery report
+Delivery SHALL report supported and unavailable actions separately, including SDK input-control limits, whole-input reservations, cancellation feasibility and outstanding live evidence. Independent spending/recovery delivery SHALL NOT depend on cancellation feasibility or claim that the original transfer was resolved.
+
+#### Scenario: Required live B.P.1 acceptance
+- **WHEN** this change is reported complete
+- **THEN** evidence includes live Signet B.P.1 success while an unrelated transfer remains pending, verified receipt of 1,000 sats at the configured game wallet, and preservation of the original transfer recovery record and reservations
+- **AND** automated tests verify conflicting-input and duplicate-submission protection; isolated browser success alone does not satisfy live acceptance
+
+#### Scenario: Cancellation remains blocked
+- **WHEN** independent spending and recovery pass verification but cancellation guarantees remain unproven
+- **THEN** those features are reported delivered with their evidence, cancellation remains explicitly undelivered, and the current account's actual eligible funds determine whether it can spend
+
+### Requirement: Resolution refreshes spendability without logout
+Verified completion or terminal cancellation SHALL durably release only the resolved operation's reservation and refresh the owning account's balances, assets, Activity and payment availability. Unresolved operations SHALL retain reservations across ordinary navigation and restart. Explicit logout after wallet-backup acknowledgement and, when the pending count exceeds zero, pending-loss acknowledgement SHALL clear player transaction and recovery records, including continuation and reservation journals, without requiring pending operations to resolve. Separate Admin game-wallet records SHALL remain intact. Administrative reset retains its existing guards. A total balance exceeding a requested payment SHALL NOT imply that reserved inputs are spendable.
+
+#### Scenario: Payment after verified resolution
+- **WHEN** a withdrawal or its cancellation is durably verified and the original account has enough fresh eligible sats
+- **THEN** B.P.1 can pay without logout or manually clearing browser state
+- **AND** unrelated operation reservations remain protected
+
+#### Scenario: Positive balance entirely reserved
+- **WHEN** a pending withdrawal reserves all currently eligible inputs and B.P.1 cannot fund 1,000 sats
+- **THEN** B.P.1 explains the pending reservation and points to that operation's status
+- **AND** the app does not replace total balance with zero or submit a conflicting payment
+
+#### Scenario: Explicit logout clears local records without cancelling transactions
+- **WHEN** a player acknowledges their backup and requests logout while a withdrawal remains unresolved
+- **THEN** logout succeeds after the backup and pending-loss checkboxes and removes player operation journals and reservations; submitted transactions are not cancelled
+
+#### Scenario: Refresh unavailable
+- **WHEN** terminal resolution is durable but the fresh balance service is unavailable
+- **THEN** the verified outcome remains recorded and balances are reported unavailable rather than fabricated or reset to zero
+
+#### Scenario: Terminal persistence fails
+- **WHEN** terminal evidence cannot be saved durably
+- **THEN** input reservations remain protected and the app does not advertise them as released
+
+### Requirement: Preparation-aware reservation continuity
+All wallet mutation paths SHALL honor preparation input reservations and the dedicated withdrawal output reservation. Releasing completed preparation inputs SHALL require durable, verified output handoff. Available change SHALL refresh the shared balance, assets, Activity and B.P.1 views for the owning account, without creating a payment or changing an unrelated account.
+
+#### Scenario: Payment races preparation completion
+- **WHEN** B.P.1 and preparation completion run in separate cooperating contexts
+- **THEN** B.P.1 can select verified change only after the durable handoff and cannot select either the unresolved source input or the dedicated withdrawal output
+
+#### Scenario: Handoff persistence fails
+- **WHEN** the verified preparation result cannot be durably saved
+- **THEN** the system retains a spending hold and does not advertise change as independently available until reconciliation safely completes the handoff
+
+### Requirement: Onboarding reservation handoff and final spendability
+Every wallet mutation path SHALL honor automatic onboarding's frozen input and intermediate-receipt reservations across tabs and ordinary restart. Verified receipt handoff SHALL durably transition the parent's holds before another operation can select its outputs. Final target outputs SHALL become available as soon as account-automatic-onboarding verifies them spendable and persists their release; unconfirmed Bitcoin commitments SHALL NOT impose an additional hold on those outputs or globally disable independently funded payments. Existing unrelated reservations and asset preservation SHALL remain enforced. A failed persistence or unknown input set SHALL retain the affected spending protection with a specific reason.
+
+#### Scenario: Payment during intermediate boarding
+- **WHEN** the first-leg receipt is SDK-spendable but reserved for the Bitcoin-return leg
+- **THEN** a payment cannot select it, while independent verified unreserved inputs remain usable
+
+#### Scenario: Payment before Bitcoin confirmation
+- **WHEN** the final target handoff is durable and its fresh eligible funds cover a normal payment while the Bitcoin return is unconfirmed
+- **THEN** the payment can use those final outputs without waiting for that confirmation or logging out
+
+#### Scenario: Handoff write fails
+- **WHEN** final receipt evidence cannot be durably saved
+- **THEN** the target is not advertised as released and automatic read-only recovery keeps checking the original operation
+
+#### Scenario: Another tab races return registration
+- **WHEN** two cooperating contexts attempt to submit the same onboarding return leg
+- **THEN** only one can own its reserved inputs and cross the registration boundary
+
+#### Scenario: Intermediate receipt appears before its journal update
+- **WHEN** a first-leg output becomes visible to a payment before onboarding persists its exact receipt outpoint
+- **THEN** the payment cannot select that output until ancestry classification and durable handoff establish its availability
+- **AND** inputs proven independent remain usable; an older quote must revalidate this protection at submission
+
+#### Scenario: Final release is replayed after a crash
+- **WHEN** final receipt verification is delivered twice or the app restarts between durable completion and presentation refresh
+- **THEN** completion and reservation release resolve from the same durable revision, without a duplicate settlement, premature release or residual onboarding hold on the final target
+
+### Requirement: Account-wide network and wallet isolation
+Every Player Wallet read, quote, mutation, recovery check, and transaction submission SHALL use the active Player Account's selected network and its corresponding operator. If a provider reports another network, the operation SHALL fail before signing or submission with a safe actionable reason. A configured Game Wallet SHALL have the same network as the active Player Account; a missing, stale, or mismatched Game Wallet SHALL remain unavailable and SHALL NOT be read, funded, observed, or used for payments or asset mutations. No account's inputs, journals, reservations, balances, or transaction results SHALL be reused across networks.
+
+#### Scenario: Player operations follow the selected network
+- **WHEN** the Player Account is selected on Signet or Mutinynet
+- **THEN** balances, addresses, funding, sends, transfers, contracts, assets, and recovery/reconciliation all use that account's corresponding operator and reject a reported network mismatch before submission
+
+#### Scenario: Game Wallet must match the Player Account
+- **WHEN** a saved Game Wallet belongs to a different network than the active Player Account
+- **THEN** the Game Wallet is not loaded or used, and no payment, transfer, balance read, address read, or asset mutation crosses the network boundary
+
+#### Scenario: Network selection changes
+- **WHEN** the Player Account network changes while a Game Wallet or wallet operation from the prior network exists
+- **THEN** the prior network's state remains isolated and recoverable while the newly selected network starts fresh reads and cannot reuse prior-network inputs or operation IDs
+
+### Requirement: Transient controller state cannot override durable spendability
+Wallet operation availability SHALL be computed from the current active account, active network/operator, durable operation records, durable reservations, and fresh wallet evidence. Completed in-memory promises, busy flags, skipped-session results, or unavailable reads SHALL NOT continue disabling unrelated future operations after they settle. Stale transient state SHALL be invalidated on account, network, wallet, generation, or operation-identity change.
+
+#### Scenario: Stale unavailable result is not reused
+- **WHEN** an operation reports unavailable because a transient prerequisite was missing and that attempt has settled
+- **THEN** a later operation with a new identity computes availability from fresh durable and wallet state
+- **AND** it does not return the old unavailable result from memory alone
+
+#### Scenario: Durable reservation still wins
+- **WHEN** a previous operation may have submitted and remains unresolved
+- **THEN** its durable reservations continue to block conflicting spendability even if transient busy state has cleared
+
+#### Scenario: Network-scoped legacy account comparison
+- **WHEN** a network-scoped store loads an older account record without an explicit network value
+- **THEN** availability checks MAY treat that account as belonging to the selected store's active network for comparison
+- **AND** an explicit different network on any record still prevents cross-network reads, reservations, or submissions
+
+### Requirement: Operation availability includes shared policy reasons
+Wallet operation availability SHALL consume wallet-network-configuration and include its network/operator policy result in each operation's availability decision. Availability presentations SHALL distinguish policy unsupported, policy unavailable, network mismatch, insufficient unreserved funds, input reservation, SDK capability limitation, and stale review. A positive balance or successful policy read SHALL NOT override reservations, account mismatch, or operation-specific unsupported terms.
+
+#### Scenario: Operation blocked by policy, not funds
+- **WHEN** the active account has enough unreserved sats but the current operator policy is unsupported for the requested operation
+- **THEN** the operation is unavailable with a policy-specific reason rather than an insufficient-funds reason
+
+#### Scenario: Independent operation remains available
+- **WHEN** a pending transfer reserves one input and another operation has enough verified unreserved funds under supported policy
+- **THEN** the independent operation remains available and uses only unreserved inputs
+
+#### Scenario: Policy read fails
+- **WHEN** fresh operator policy cannot be verified
+- **THEN** availability reports policy verification unavailable and does not submit, clear, or alter existing operations

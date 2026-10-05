@@ -1,0 +1,549 @@
+/* Final selected deck: use Slide 3's dark field as the common canvas. */
+:root {
+  --mondrian-panel: #090a0c;
+  --mondrian-primary: #ffffff;
+  --mondrian-secondary: #1464e8;
+  --mondrian-tertiary: #9d3830;
+  --mondrian-quaternary: #313842;
+}
+
+/* Slide 2 follows the first slide's two reference heights rather than
+   vertically centering its shorter content block. */
+.slidev-layout.section.b-slide-two {
+  display: block;
+  padding: 0 4.5rem;
+}
+
+.slidev-layout.section.b-slide-two h1 {
+  position: absolute;
+  top: 30.246%;
+  left: 4.5rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  width: calc(100% - 9rem);
+  height: 3lh;
+  margin: 0;
+  text-align: left;
+  transform: translateY(-1lh);
+  isolation: isolate;
+}
+
+/* Give subsection titles the crisp cobalt band of a text selection. The
+   band hugs the visible baseline rather than filling the reserved two-line
+   title area, so it increases hierarchy without changing the composition. */
+.slidev-layout.section.b-slide-two h1::before {
+  position: absolute;
+  z-index: -1;
+  right: -.35rem;
+  bottom: .03em;
+  left: -.35rem;
+  height: 1.12em;
+  content: '';
+  background: var(--mondrian-secondary);
+}
+
+.slidev-layout.section.b-slide-two p,
+.slidev-layout.section.b-slide-two h2 {
+  position: absolute;
+  top: 54.421%;
+  left: 4.5rem;
+  margin: 0;
+  max-width: 68%;
+}
+
+/* Slide 4 uses shared grid rows. The headings bottom-align in row one, then
+   both body lines begin together in row two below the taller left heading. */
+.slidev-layout.two-columns.b-layout-slide-four {
+  grid-template-rows: max-content max-content;
+  align-content: start;
+  row-gap: 1.15rem;
+  padding-top: calc(10% + 20px);
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left,
+.slidev-layout.two-columns.b-layout-slide-four .col-right {
+  display: contents;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > h1,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > h2,
+.slidev-layout.two-columns.b-layout-slide-four .col-left > p,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > p {
+  margin: 0;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > h1,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > h2 {
+  grid-row: 1;
+  align-self: end;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > h1,
+.slidev-layout.two-columns.b-layout-slide-four .col-left > p {
+  grid-column: 1;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-right > h2,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > p {
+  grid-column: 2;
+}
+
+.slidev-layout.two-columns.b-layout-slide-four .col-left > p,
+.slidev-layout.two-columns.b-layout-slide-four .col-right > p {
+  grid-row: 2;
+  align-self: start;
+}
+
+/* Keep Slide 4's primary field at its required two visual lines. */
+.slidev-layout.two-columns.b-layout-slide-four .slide-four-primary-label {
+  display: block;
+  font-size: .82em;
+}
+
+/* Slides 4–5 form a two-column section with a dedicated Mondrian field:
+   an off-axis rule grid, a warm-red block, and a cobalt ring. Its ornaments
+   stay in the outside bands, leaving the established text geometry alone. */
+.slidev-layout.b-layout-slide-four,
+.slidev-layout.b-layout-slide-five {
+  background-color: #07090d;
+  background-image:
+    linear-gradient(var(--mondrian-quaternary), var(--mondrian-quaternary)),
+    linear-gradient(90deg, var(--mondrian-quaternary), var(--mondrian-quaternary)),
+    linear-gradient(90deg, var(--mondrian-secondary), var(--mondrian-secondary)),
+    linear-gradient(90deg, var(--mondrian-quaternary), var(--mondrian-quaternary));
+  background-position: 0 6%, 6% 0, 84% 0, 92% 0;
+  background-repeat: no-repeat;
+  background-size: 100% 1px, 1px 100%, 4px 100%, 1px 100%;
+}
+
+.slidev-layout.b-layout-slide-four::before,
+.slidev-layout.b-layout-slide-five::before {
+  top: 9%;
+  right: 4.5%;
+  width: 10%;
+  height: 12%;
+  border-radius: 0;
+  background: var(--mondrian-tertiary);
+  opacity: .76;
+}
+
+.slidev-layout.b-layout-slide-four::after,
+.slidev-layout.b-layout-slide-five::after {
+  top: auto;
+  right: 5%;
+  bottom: -8%;
+  width: 15rem;
+  height: 15rem;
+  border: 2px solid var(--mondrian-secondary);
+  border-radius: 50%;
+  box-shadow: none;
+  opacity: .8;
+}
+
+.slidev-layout.b-layout-slide-five::before {
+  top: auto;
+  right: 4.5%;
+  bottom: 9%;
+}
+
+.slidev-layout.b-layout-slide-five::after {
+  top: -8%;
+  bottom: auto;
+}
+
+/* Slide 11 reserves its left text pane for reading: no cobalt divider or
+   ring can enter it, and the red accent is moved completely off-pane. */
+.slidev-layout.b-slide-eleven {
+  background-image:
+    linear-gradient(var(--mondrian-line), var(--mondrian-line)),
+    linear-gradient(90deg, var(--mondrian-line), var(--mondrian-line));
+}
+
+.slidev-layout.b-slide-eleven::after {
+  display: none;
+}
+
+.slidev-layout.b-slide-eleven::before {
+  right: -10rem;
+}
+
+/* About retains the cover composition while making room for the short bio. */
+.mondrian-cover .mondrian-about-copy {
+  max-width: 34rem;
+}
+
+.mondrian-cover .mondrian-about-copy h1 {
+  max-width: none;
+  margin: 0 0 .45rem;
+  font-size: 4.5rem;
+}
+
+.mondrian-cover .primary-label-one-line {
+  white-space: nowrap;
+}
+
+/* Slide 7 keeps the original three-line title field without adding visible
+   continuation words to its primary label. */
+.slidev-layout.quote .quote-primary-label {
+  display: block;
+}
+
+.slidev-layout.quote .quote-primary-label--template {
+  max-width: 600px;
+}
+
+.slidev-layout.quote .quote-primary-label::after {
+  display: block;
+  height: 1.9em;
+  content: '';
+}
+
+/* Image panels are intentionally narrow. This scale keeps the replacement
+   names in the same two-line treatment as their original primary fields. */
+.slidev-layout .image-template-primary-label {
+  display: block;
+  font-size: .71em;
+}
+
+.slidev-layout .image-bottom-template-primary-label {
+  display: block;
+  white-space: nowrap;
+  font-size: 1em;
+}
+
+.mondrian-cover .mondrian-about-copy h2 {
+  margin: 0 0 1.15rem;
+  font-size: 2.15rem;
+}
+
+.mondrian-cover .mondrian-about-copy ul {
+  display: grid;
+  gap: .45rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.mondrian-cover .mondrian-about-copy li {
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+/* The final screen reuses the complete Slide 12 background: the two vertical
+   rules, horizontal rule, cobalt ring, and red circle remain behind two broad
+   rounded panels and their centered circular companion. */
+.slidev-layout.mondrian-end-screen {
+  display: block;
+  background-color: var(--mondrian-panel);
+}
+
+.slidev-layout.mondrian-end-screen > h1 {
+  position: relative;
+  top: 10px;
+}
+
+/* A copy of the final screen for content that needs no Mondrian treatment. */
+.slidev-layout.mondrian-blank-template {
+  background: none;
+}
+
+.slidev-layout.mondrian-blank-template::before,
+.slidev-layout.mondrian-blank-template::after {
+  content: none;
+}
+
+.slidev-layout.mondrian-blank-template > h1 {
+  position: relative;
+  top: 10px;
+}
+
+/* Slide 3 of the supplied deck is 10 by 5.625 inches. The logo bounds below
+   retain its arrangement while opening a title band above the composition. */
+.slidev-layout.mondrian-logos-template {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 2rem 2.5rem 2.4rem;
+}
+
+.mondrian-logos-template__asset {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Image links are controls, not text links: remove inherited link rules while
+   retaining an explicit keyboard focus indicator. */
+.slidev-layout a:has(> img) {
+  text-decoration: none;
+  border-bottom: 0 !important;
+}
+
+.slidev-layout a:has(> img):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.slidev-layout.mondrian-logos-template > .mondrian-logos-template__link {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  border: 0;
+  border-bottom: 0 !important;
+  text-decoration: none;
+}
+
+.slidev-layout.mondrian-logos-template .mondrian-xp-copy > h1 {
+  position: absolute;
+  top: 2rem;
+  left: 2.5rem;
+  margin: 0 0 1.1rem;
+  font-size: 2rem;
+  line-height: 1;
+  z-index: 3;
+}
+
+.mondrian-logos-template__asset--packt,
+.mondrian-logos-template__asset--beamable,
+.mondrian-logos-template__asset--saganworks,
+.mondrian-logos-template__asset--udemy {
+  left: 2.5rem;
+  width: 17.4%;
+}
+
+.mondrian-logos-template__asset--subway-surfers,
+.mondrian-logos-template__asset--blades-of-brim,
+.mondrian-logos-template__asset--playstudios {
+  left: 27.3%;
+  width: 27%;
+}
+
+.mondrian-logos-template__asset--shittings,
+.mondrian-logos-template__asset--sierra {
+  left: 58.2%;
+  width: 21.7%;
+}
+
+.mondrian-logos-template__asset--ucla,
+.mondrian-logos-template__asset--usc {
+  left: 82.5%;
+  width: 15.7%;
+}
+
+.mondrian-logos-template__asset--partners,
+.mondrian-logos-template__asset--neopets {
+  left: 58.2%;
+  width: 40%;
+}
+
+.mondrian-logos-template__asset--packt { top: 38.84%; height: 12.04%; box-sizing: border-box; padding: 3px; background: #fff; object-fit: cover; object-position: 50% 51%; }
+.mondrian-logos-template__asset--partners { top: 53%; height: 10.69%; }
+.mondrian-logos-template__asset--beamable { top: 79.92%; height: 10.08%; }
+.mondrian-logos-template__asset--saganworks { top: 60.68%; height: 11.14%; }
+.mondrian-logos-template__asset--subway-surfers { top: 17%; height: 23.66%; }
+.mondrian-logos-template__asset--blades-of-brim { top: 40.36%; height: 30.15%; }
+.mondrian-logos-template__asset--shittings { top: 17%; height: 12.24%; }
+.mondrian-logos-template__asset--sierra,
+.mondrian-logos-template__asset--usc { top: 34.26%; height: 13.72%; }
+.mondrian-logos-template__asset--sierra { box-sizing: border-box; padding: 2px; background: #fff; object-fit: cover; object-position: 50% 48.7%; }
+.slidev-layout.mondrian-logos-template > a.mondrian-logos-template__asset--sierra {
+  box-sizing: border-box;
+  padding: 0;
+  background: transparent;
+  border: 2px solid #fff !important;
+  box-shadow: none;
+  opacity: 0;
+  animation: xp-fade-in 250ms ease-out 700ms forwards;
+}
+.slidev-layout.mondrian-logos-template > a.mondrian-logos-template__asset--sierra > img {
+  opacity: 1;
+  animation: none;
+}
+.mondrian-logos-template__asset--ucla { top: 17%; height: 14.13%; }
+.mondrian-logos-template__asset--udemy { top: 17%; height: 12.04%; box-sizing: border-box; padding: 5px; background: #fff; }
+.mondrian-logos-template__asset--neopets { top: 68.71%; height: 21.29%; box-sizing: border-box; padding: 2px; background: #fff; }
+.mondrian-logos-template__asset--playstudios { top: 79.90%; height: 7.39%; }
+
+/* The thumbnail cards use a complete frame for grouping, not a link rule. */
+.slidev-layout .video-thumbnail-grid > a {
+  border-bottom: 2px solid #283349 !important;
+}
+
+.slidev-layout > .mondrian-end-screen__shape {
+  position: absolute;
+  z-index: 1;
+  top: 39.6%;
+  height: 32%;
+  border-radius: 1.5rem;
+  background: #30343a;
+  opacity: .48;
+}
+
+.mondrian-end-screen__shape--left {
+  left: 6.8%;
+  width: 31.4%;
+}
+
+.mondrian-end-screen__shape--center {
+  top: 35.8%;
+  left: 41.7%;
+  width: 16.6%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.mondrian-end-screen__shape--right {
+  right: 6.8%;
+  width: 31.4%;
+}
+
+/* Slides 19–20 reserve the broader closing field for the contact hierarchy. */
+.mondrian-cover.about-expanded-copy .mondrian-about-copy h1 {
+  font-size: 6rem;
+}
+
+.mondrian-cover.about-expanded-copy .mondrian-about-copy h2 {
+  font-size: 3rem;
+}
+
+.mondrian-cover.about-expanded-copy .mondrian-about-copy ul {
+  gap: .6rem;
+}
+
+.mondrian-cover.about-expanded-copy .mondrian-about-copy li {
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+/* Keep the Game XP and Blockchain XP captions visually identical. */
+.slidev-layout .xp-details {
+  position: absolute;
+  z-index: 4;
+  top: 3rem;
+  right: 2.5rem;
+  margin: 0;
+  color: #ffffff !important;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* XP slides: reveal the copy, then fade images in at a 100 ms cadence. Each
+   individual fade lasts 250 ms, so consecutive images overlap smoothly. */
+@keyframes xp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mondrian-xp-copy,
+.slidev-layout.video-template > h1,
+.slidev-layout.video-template > .xp-details {
+  opacity: 0;
+  animation: xp-fade-in 250ms ease-out 0ms forwards;
+}
+
+.mondrian-logos-template__asset {
+  opacity: 1;
+  animation: none;
+}
+
+/* Fade the complete logo frame, including borders, padding, and backgrounds,
+   as one unit. The delay is read from each image's existing timing marker. */
+.mondrian-logos-template__link {
+  opacity: 0;
+  animation: xp-fade-in 250ms ease-out 0ms forwards;
+}
+.mondrian-logos-template__link:has(img[style*="100ms"]) { animation-delay: 100ms; }
+.mondrian-logos-template__link:has(img[style*="200ms"]) { animation-delay: 200ms; }
+.mondrian-logos-template__link:has(img[style*="300ms"]) { animation-delay: 300ms; }
+.mondrian-logos-template__link:has(img[style*="400ms"]) { animation-delay: 400ms; }
+.mondrian-logos-template__link:has(img[style*="500ms"]) { animation-delay: 500ms; }
+.mondrian-logos-template__link:has(img[style*="600ms"]) { animation-delay: 600ms; }
+.mondrian-logos-template__link:has(img[style*="700ms"]) { animation-delay: 700ms; }
+.mondrian-logos-template__link:has(img[style*="800ms"]) { animation-delay: 800ms; }
+.mondrian-logos-template__link:has(img[style*="900ms"]) { animation-delay: 900ms; }
+.mondrian-logos-template__link:has(img[style*="1000ms"]) { animation-delay: 1000ms; }
+.mondrian-logos-template__link:has(img[style*="1100ms"]) { animation-delay: 1100ms; }
+.mondrian-logos-template__link:has(img[style*="1200ms"]) { animation-delay: 1200ms; }
+.mondrian-logos-template__link:has(img[style*="1300ms"]) { animation-delay: 1300ms; }
+.slidev-layout.mondrian-logos-template > a.mondrian-logos-template__asset--neopets {
+  animation-delay: 1200ms;
+}
+
+
+.video-thumbnail-grid a {
+  opacity: 0;
+  animation: xp-fade-in 250ms ease-out forwards;
+}
+
+.video-thumbnail-grid a:nth-child(1) { animation-delay: 100ms; }
+.video-thumbnail-grid a:nth-child(2) { animation-delay: 200ms; }
+.video-thumbnail-grid a:nth-child(3) { animation-delay: 300ms; }
+.video-thumbnail-grid a:nth-child(4) { animation-delay: 400ms; }
+.video-thumbnail-grid a:nth-child(5) { animation-delay: 500ms; }
+.video-thumbnail-grid a:nth-child(6) { animation-delay: 600ms; }
+.video-thumbnail-grid a:nth-child(7) { animation-delay: 700ms; }
+.video-thumbnail-grid a:nth-child(8) { animation-delay: 800ms; }
+.video-thumbnail-grid a:nth-child(9) { animation-delay: 900ms; }
+.video-thumbnail-grid a:nth-child(10) { animation-delay: 1000ms; }
+.video-thumbnail-grid a:nth-child(11) { animation-delay: 1100ms; }
+.video-thumbnail-grid a:nth-child(12) { animation-delay: 1200ms; }
+
+/* Emphasized contact slides: match the subtitle to the title width in Fact blue. */
+.mondrian-cover.about-contact-emphasis .mondrian-about-copy h2 {
+  color: var(--mondrian-blue);
+  font-size: 2.75rem;
+  margin-bottom: calc(1.15rem + 20px);
+}
+
+/* Content-deck components: semantic HTML keeps headings and table labels
+   editable while treating source-era visual groupings consistently. */
+.deck-table-wrap { padding: 1.7rem 2.5rem; }
+.deck-table-wrap > h1 { margin: 0 0 .75rem; font-size: 2.3rem; }
+.deck-table { width: 100%; border-collapse: separate; border-spacing: .35rem; color: #081a33; font-size: .72rem; }
+.deck-table th, .deck-table td { padding: .55rem .65rem; border: 1px solid #dbe2ed; vertical-align: middle; background: #f9fbff; }
+.deck-table thead th { color: #fff; background: #05070a; text-align: center; font-weight: 800; }
+.deck-table tbody th { width: 17%; color: #08234a; text-align: left; font-weight: 800; }
+.deck-table td { text-align: center; font-weight: 650; line-height: 1.22; }
+.deck-table--source td { height: 4.85rem; padding: 0; overflow: hidden; }
+.deck-table__cell-image { display: block; width: 100%; height: 100%; object-fit: contain; }
+.deck-table--layers th, .deck-table--layers td { text-align: left; font-size: .83rem; }
+.deck-table--gaming thead th { background: #1464e8; }
+.deck-table--gaming tbody th { color: #fff; background: #313842; }
+.deck-table__footer { margin: .75rem 0 0; padding: .35rem .75rem; color: #fff; background: #2e659e; font-size: 1.05rem; }
+.growth-bars { display: grid; grid-template-columns: repeat(6, 1fr); align-items: end; gap: .65rem; height: 12rem; margin: 1rem 0; padding: 1rem; border-bottom: 2px solid #1464e8; }
+.growth-bars span { display: block; min-height: 1.25rem; background: linear-gradient(180deg, #1464e8, #55a0ff); }
+.growth-bars span:nth-child(1) { height: 20%; }.growth-bars span:nth-child(2) { height: 32%; }.growth-bars span:nth-child(3) { height: 45%; }.growth-bars span:nth-child(4) { height: 60%; }.growth-bars span:nth-child(5) { height: 78%; }.growth-bars span:nth-child(6) { height: 100%; }
+.feature-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .65rem; margin-top: 1.15rem; }
+.feature-grid > div { min-height: 7.1rem; padding: .75rem; color: #fff; background: #202a3b; border-top: 4px solid #1464e8; font-size: .87rem; font-weight: 700; }
+.feature-grid > div:nth-child(2n) { border-color: #9d3830; }
+.diagram-art { width: min(100%, 31rem); margin: .6rem auto 0; display: block; }
+.slidev-layout.diagram-template .diagram-art { width: min(100%, 15rem); max-height: 7rem; object-fit: contain; }
+.network-note { color: #b9c7df; text-align: center; font-size: .8rem; }
+
+/* Feedback pass: source assets retain their original aspect ratios and are
+   supplied at 2× their captured resolution so neither charts nor source
+   artwork blur at the 1280-by-720 review viewport. */
+.feedback-source-visual { display: block; max-width: 100%; object-fit: contain; }
+.feedback-source-visual--full { width: min(100%, 68rem); max-height: calc(100vh - 5rem); margin: 0 auto; }
+.feedback-game-essentials { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(10rem, .75fr); gap: 1.5rem; align-items: center; margin-top: .5rem; }
+.feedback-game-essentials__visuals { position: relative; min-height: 21rem; }
+.feedback-source-visual--gameplay { width: 100%; height: 21rem; object-fit: cover; }
+.feedback-source-visual--controller { position: absolute; right: 4%; bottom: -1.4rem; width: 38%; filter: drop-shadow(0 .5rem .5rem rgb(0 0 0 / .45)); }
+.feedback-game-essentials ul { display: grid; gap: .55rem; margin: 0; padding: 0; list-style: none; font-size: 1.35rem; line-height: 1.08; }
+.feedback-game-essentials li { padding-bottom: .42rem; border-bottom: 2px solid var(--mondrian-secondary); }
+.slidev-layout.slide-five-template-eleven .slide-five-template-eleven__skills { display: grid; gap: .4rem; margin: 1rem 0 0; padding: 0; list-style: none; font-size: 1.1rem; line-height: 1.08; }
+.slidev-layout.slide-five-template-eleven .slide-five-template-eleven__skills li { padding-bottom: .35rem; border-bottom: 2px solid var(--mondrian-secondary); }
+.slidev-layout.slide-five-template-eleven { position: relative; }
+.slidev-layout.slide-five-template-eleven::before { display: none; }
+.mondrian-image-layout:has(.slide-five-template-eleven) .slidev-layout { z-index: 2; overflow: visible; }
+.mondrian-image-layout:has(.slide-five-template-eleven) .mondrian-image-pane { position: relative; z-index: 1; }
+.mondrian-image-layout:has(.slide-five-template-eleven) .mondrian-image-pane { background-position: center calc(50% - 10px) !important; background-size: 100% auto !important; }
+.slidev-layout.slide-five-template-eleven .slide-five-template-eleven__controller { position: absolute; right: calc(1rem - 200px); bottom: 1.25rem; z-index: 100; display: block; width: 16rem; height: auto; margin: 0; filter: drop-shadow(0 .4rem .4rem rgb(0 0 0 / .45)); }
+.slidev-layout.diagram-template.feedback-diagram-position .mermaid { position: relative; top: 300px; max-width: 76%; transform: scale(1.3); transform-origin: top center; }
+.feedback-capability-list { display: grid; gap: .22rem; margin: 1.4rem 0 0 1.4rem; font-size: .9rem; line-height: 1.12; }
+.feedback-capability-list--detailed { gap: .22rem; }
+.feedback-capability-list--detailed > li > ul { display: grid; grid-template-columns: minmax(0, 1fr); gap: .05rem; margin: .08rem 0 .08rem 1.1rem; font-size: 1em; }
+.mondrian-image-layout:has(.blockchain-structure-custom-image) .mondrian-image-pane { background-color: transparent; background-position: center; background-repeat: no-repeat; background-size: contain; }

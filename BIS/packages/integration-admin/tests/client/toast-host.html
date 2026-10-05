@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Independent BIS toast verification</title>
+<style>
+  body { margin: 16px; font: 14px system-ui; background: #171c25; color: #eef1f6; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button { padding: 8px; }
+  #host { position: relative; width: min(360px, 100%); height: 560px; background: #263240; }
+  #underlying { position: absolute; top: 14px; left: 14px; }
+  #runtime { position: absolute; inset: 0; pointer-events: none; }
+</style>
+<nav>
+  <button id="show">Default toast</button><button id="long">Five-second toast</button>
+  <button id="image">Trophy image preview</button>
+  <button id="repeat">Repeat three</button><button id="account">Open Account</button>
+  <button id="unmount">Unmount</button><button id="mount">Mount</button><button id="dispose">Dispose</button>
+  <button id="pending">Pending dialog</button><button id="error">Error dialog</button><button id="fresh">Fresh public host</button>
+</nav>
+<p id="result">Ready</p>
+<div id="host"><button id="underlying">Host action</button><div id="runtime"></div></div>
+<script type="module" src="./toast-host.tsx"></script>
+</html>
