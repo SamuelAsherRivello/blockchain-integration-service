@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {Transaction,ArkAddress,Wallet,ReadonlyWallet,RestArkProvider,Extension,createAssetPacket} from '@arkade-os/sdk';
 import {submitContinuation} from '../../src/client/wallet-layer-arkade/continuation.ts';
 import {readContinuations} from '../../src/client/state-layer-core/continuation.ts';
-import {createContext} from '../../src/client/state-layer-core/context.ts';
+import {createContextWithDependencies} from '../../src/client/state-layer-core/context.ts';
+import {createArkadeContextDependencies} from '../../src/client/wallet-layer-arkade/context-dependencies.ts';
 import {writeBoardingRecord,readBoardingRecord} from '../../src/client/state-layer-core/boarding-record.ts';
 import {testLocks} from './locks-fixture.mjs';
 const points=['79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798','c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5'].map(h=>Uint8Array.from(Buffer.from(h,'hex')));
@@ -40,7 +41,7 @@ for(const phase of ['prepared','registered'])test(`B.P.1 reconciles a ${phase} w
  Object.defineProperty(navigator,'locks',{configurable:true,value:testLocks()});
  const account={profileId:'p',phrase:'abandon '.repeat(11)+'about'};
  writeBoardingRecord({version:1,id:'withdrawal',profileId:'p',status:'pending',phase,inputs:[{txid:'a'.repeat(64),vout:0}],bitcoinAddress:'tb1fixture',quote:{profileId:'p',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:2000,bitcoinAfterSats:1000,arkadeAfterSats:1000,totalAfterSats:2000,expiresAt:2000,fingerprint:'c'.repeat(64)}});
- const context=createContext({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:2000,totalSats:2000,arkadeSats:2000,bitcoinSats:0}),undefined,undefined,async()=>{},undefined,undefined,undefined,undefined,undefined,{continueRecipient:recipient.encode()});
+ const context=createContextWithDependencies({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},createArkadeContextDependencies({identifyAccount:async()=>account.profileId,readBalance:async()=>({availableSats:2000,totalSats:2000,arkadeSats:2000,bitcoinSats:0}),observeActivity:async()=>{}}),{continueRecipient:recipient.encode()});
  try {
   await context.ready();
   const result=await context.requestContinue({operationId:'test',sats:1000,context:'run'});

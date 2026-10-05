@@ -1,0 +1,193 @@
+
+> @bis/slidev-documentation@0.0.10 build
+> npm run build:modrian-template
+
+
+> @bis/slidev-documentation@0.0.10 build:modrian-template
+> slidev build modrian-template.md --theme ./themes/mondrian-final --out dist/modrian-template
+
+
+
+  ●■▲
+  Slidev  v53.0.0 
+
+  theme       ./themes/mondrian-final
+  css engine  unocss
+  entry       D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/modrian-template.md
+vite v8.3.2 building client environment for production...
+transforming...
+✓ 732 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/modrian-template/index.html                                               2.45 kB │ gzip:   0.75 kB
+dist/modrian-template/assets/beamable-BFTB2z2e.png                            86.84 kB
+dist/modrian-template/assets/logo-BYkHSa_O.png                                94.32 kB
+dist/modrian-template/assets/udemy-BdWbR24h.png                              115.50 kB
+dist/modrian-template/assets/sierra-CWJ2Cyfy.png                             122.13 kB
+dist/modrian-template/assets/client-list-DZDCNgdx.png                        144.95 kB
+dist/modrian-template/assets/saganworks-Bo2sRuBe.png                         189.97 kB
+dist/modrian-template/assets/packt-BBnQU6i6.png                              389.87 kB
+dist/modrian-template/assets/neopets-U-KRVnoM.png                            465.43 kB
+dist/modrian-template/assets/partners-B3LrSSd6.png                           592.35 kB
+dist/modrian-template/assets/ucla-ih-Mit0f.png                               600.42 kB
+dist/modrian-template/assets/subway-surfers-CS3fpk09.png                     930.92 kB
+dist/modrian-template/assets/usc-BQzb7AKY.png                              1,594.27 kB
+dist/modrian-template/assets/mondrian-template-2-cover-BO7SrTDr.png        1,654.83 kB
+dist/modrian-template/assets/mondrian-cover-reference-DNad05Sd.png         2,441.95 kB
+dist/modrian-template/assets/shiftlings-CVE02btf.png                       2,708.38 kB
+dist/modrian-template/assets/blades-of-brim-qtj9gWjD.png                  20,283.76 kB
+dist/modrian-template/assets/play-D_7yfuao.css                                 0.06 kB │ gzip:   0.08 kB
+dist/modrian-template/assets/DrawingControls-Dhbx0szf.css                      0.07 kB │ gzip:   0.08 kB
+dist/modrian-template/assets/NoteDisplay-DCBzjb4F.css                          0.09 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/md-CHx-5FOs.css                                   0.13 kB │ gzip:   0.12 kB
+dist/modrian-template/assets/overview-Bm2pcStm.css                             0.13 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/404-VQkf1Vlw.css                                  0.15 kB │ gzip:   0.12 kB
+dist/modrian-template/assets/md-C_DhgzZa.css                                   0.31 kB │ gzip:   0.17 kB
+dist/modrian-template/assets/entry-CQkCdRep.css                                0.32 kB │ gzip:   0.21 kB
+dist/modrian-template/assets/md-BUq8zG-w.css                                   0.33 kB │ gzip:   0.22 kB
+dist/modrian-template/assets/mondrian-cover-BpyzDCI0.css                       0.44 kB │ gzip:   0.27 kB
+dist/modrian-template/assets/md-BLnCcJAJ.css                                   0.49 kB │ gzip:   0.24 kB
+dist/modrian-template/assets/md-DZZXXnO6.css                                   0.72 kB │ gzip:   0.40 kB
+dist/modrian-template/assets/md-CUcY-GvA.css                                   0.80 kB │ gzip:   0.39 kB
+dist/modrian-template/assets/md-CeCWFnpN.css                                   0.80 kB │ gzip:   0.39 kB
+dist/modrian-template/assets/md-D1t3m2I7.css                                   0.96 kB │ gzip:   0.35 kB
+dist/modrian-template/assets/md-B07aAkmh.css                                   1.14 kB │ gzip:   0.42 kB
+dist/modrian-template/assets/SlideWrapper-DcHoSV96.css                         1.34 kB │ gzip:   0.54 kB
+dist/modrian-template/assets/shortcuts-3tJ56HnX.css                            1.56 kB │ gzip:   0.66 kB
+dist/modrian-template/assets/presenter-DfUmlyiu.css                            3.38 kB │ gzip:   0.72 kB
+dist/modrian-template/assets/modules/shiki-V4-KMA-J.css                       15.32 kB │ gzip:   2.85 kB
+dist/modrian-template/assets/index-CVOJNY78.css                              108.49 kB │ gzip:  20.77 kB
+dist/modrian-template/assets/mondrian-template-2-cover-DNLGD_0S.js             0.07 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/pie-XZMESJXO-XHHF32UI-BBdrzte7.js                 0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/info-OHQRW6UA-VTSDGN5X-CvEJnsnj.js                0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/radar-ABXABTNO-Z6FSKRS6-BReciyGV.js               0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/packet-JDAUHWVQ-45SN4W4W-DOZUPmfD.js              0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/_plugin-vue_export-helper-BDNMzG2s.js             0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/cynefin-EF2NZ3EQ-VBDZYMZ2-DB8ORiBa.js             0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/treemap-SAJKECNS-H6HDGPCM-ClzM-NJs.js             0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/wardley-7MLQ67FV-VIB3Y7JO-KnsKz4nJ.js             0.08 kB │ gzip:   0.09 kB
+dist/modrian-template/assets/gitGraph-VSP46ZUC-GT4JWGCO-8-so4Onf.js            0.08 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/railroad-I3PHUGI6-VDGZPX7F-D76__84B.js            0.08 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/treeView-D4JQ5SDB-EVSGOMRU-DkbWCTX8.js            0.08 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/railroad-peg-JR7BVNR7-W5VZQNR5-CKjd41fa.js        0.08 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/architecture-WOLXFQ4H-AJQMUXPV-DteQTLlR.js        0.08 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/railroad-abnf-LNEFI6M7-RA2WLIA5-CpWt19GC.js       0.08 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/railroad-ebnf-DWYD2UWJ-CU5TJ57D-BuAgEFtN.js       0.08 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/eventmodeling-K75KTNOO-4T327ZLZ-CLvDnB4y.js       0.09 kB │ gzip:   0.10 kB
+dist/modrian-template/assets/chunk-JWLS7MAM-CR0BQCAY.js                        0.19 kB │ gzip:   0.16 kB
+dist/modrian-template/assets/chunk-X67BZSRO-BW30XYDA.js                        0.22 kB │ gzip:   0.17 kB
+dist/modrian-template/assets/chunk-CJTOMMB5-D8yUB5C4.js                        0.27 kB │ gzip:   0.23 kB
+dist/modrian-template/assets/chunk-RRR7N7RX-Dlveyrvb.js                        0.36 kB │ gzip:   0.27 kB
+dist/modrian-template/assets/blank-template-DRNdpEsO.js                        0.36 kB │ gzip:   0.27 kB
+dist/modrian-template/assets/chunk-7VTSMW4E-CTni9wuK.js                        0.58 kB │ gzip:   0.40 kB
+dist/modrian-template/assets/slidev/IconButton-De5cyRT6.js                     0.59 kB │ gzip:   0.39 kB
+dist/modrian-template/assets/slidev/DrawingLayer-DDOLgxXN.js                   0.61 kB │ gzip:   0.42 kB
+dist/modrian-template/assets/chunk-K2DFZHL5-jp6TV5ne.js                        0.63 kB │ gzip:   0.43 kB
+dist/modrian-template/assets/mondrian-cover-Crmgn6rd.js                        0.64 kB │ gzip:   0.41 kB
+dist/modrian-template/assets/flowDiagram-NRRH2TEX-DM_SLOwV.js                  0.65 kB │ gzip:   0.34 kB
+dist/modrian-template/assets/infoDiagram-GNIPZFHD-nS3ibzGh.js                  0.65 kB │ gzip:   0.42 kB
+dist/modrian-template/assets/slidev/Modal-CE1bdu4f.js                          0.72 kB │ gzip:   0.48 kB
+dist/modrian-template/assets/md-IL6J-Ltc.js                                    0.73 kB │ gzip:   0.43 kB
+dist/modrian-template/assets/md-Dj5A__72.js                                    0.82 kB │ gzip:   0.50 kB
+dist/modrian-template/assets/md-DPilBTjg.js                                    0.84 kB │ gzip:   0.50 kB
+dist/modrian-template/assets/md-DSVTuHju.js                                    0.84 kB │ gzip:   0.50 kB
+dist/modrian-template/assets/sizeCapture-AUIHAOQW-mZBLBArM.js                  0.87 kB │ gzip:   0.51 kB
+dist/modrian-template/assets/chunk-AWL6KFTE-CUazvwj3.js                        0.89 kB │ gzip:   0.46 kB
+dist/modrian-template/assets/md-KcTiGpoD.js                                    0.89 kB │ gzip:   0.53 kB
+dist/modrian-template/assets/swimlanesDiagram-H34O2EMW-DPqof8pd.js             0.91 kB │ gzip:   0.51 kB
+dist/modrian-template/assets/chunk-35ZOQMXA-CyDLOecq.js                        0.92 kB │ gzip:   0.54 kB
+dist/modrian-template/assets/slidev/entry-BUQqMsiw.js                          0.94 kB │ gzip:   0.46 kB
+dist/modrian-template/assets/md-DmmteCsl.js                                    0.99 kB │ gzip:   0.59 kB
+dist/modrian-template/assets/rolldown-runtime-Dd_uD5pT.js                      1.10 kB │ gzip:   0.62 kB
+dist/modrian-template/assets/slidev/404-BCdkXwY5.js                            1.17 kB │ gzip:   0.69 kB
+dist/modrian-template/assets/md-CHt4_NWx.js                                    1.17 kB │ gzip:   0.59 kB
+dist/modrian-template/assets/md-KXlsMaFO.js                                    1.26 kB │ gzip:   0.68 kB
+dist/modrian-template/assets/preload-helper-DjzSQ1t3.js                        1.38 kB │ gzip:   0.75 kB
+dist/modrian-template/assets/md-C1mpvYuB.js                                    1.41 kB │ gzip:   0.62 kB
+dist/modrian-template/assets/chunk-5UYTTKAH-Cru5a8fi.js                        1.42 kB │ gzip:   0.79 kB
+dist/modrian-template/assets/md-DKvxY8Da.js                                    1.43 kB │ gzip:   0.74 kB
+dist/modrian-template/assets/md-CgPiY0Sc.js                                    1.48 kB │ gzip:   0.84 kB
+dist/modrian-template/assets/md-BJKkOsRk.js                                    1.52 kB │ gzip:   0.74 kB
+dist/modrian-template/assets/railroadDiagram-TYQTEMT7-OQe-fwx3.js              1.66 kB │ gzip:   0.78 kB
+dist/modrian-template/assets/md-I3Wu-x3s.js                                    1.71 kB │ gzip:   0.78 kB
+dist/modrian-template/assets/md-BBwEhLyb.js                                    1.82 kB │ gzip:   1.01 kB
+dist/modrian-template/assets/abnfDiagram-P77SJ2CQ-BdVJOfd7.js                  1.84 kB │ gzip:   0.90 kB
+dist/modrian-template/assets/chunk-7PDPRHQ3-Cpw2Ukde.js                        1.95 kB │ gzip:   0.95 kB
+dist/modrian-template/assets/pegDiagram-7BQVDK2U-k2R-UvbA.js                   2.00 kB │ gzip:   0.95 kB
+dist/modrian-template/assets/chunk-HG235WPX-BFuQ7ZHX.js                        2.01 kB │ gzip:   0.90 kB
+dist/modrian-template/assets/ebnfDiagram-BKARPWAD-DKoLMkMP.js                  2.06 kB │ gzip:   0.90 kB
+dist/modrian-template/assets/slidev/notes-edit-BOmNkHze.js                     2.14 kB │ gzip:   1.15 kB
+dist/modrian-template/assets/chunk-445WJIJ4-4_n40hzO.js                        2.20 kB │ gzip:   0.95 kB
+dist/modrian-template/assets/slidev/NoteEditable-DaLKTrgY.js                   2.24 kB │ gzip:   1.17 kB
+dist/modrian-template/assets/md-H_R3iuEz.js                                    2.29 kB │ gzip:   0.99 kB
+dist/modrian-template/assets/slidev/env-jpTvhp0Z.js                            2.53 kB │ gzip:   1.38 kB
+dist/modrian-template/assets/md-W-vPRp0O.js                                    2.61 kB │ gzip:   1.05 kB
+dist/modrian-template/assets/modules/file-saver-YxLd-RBK.js                    2.69 kB │ gzip:   1.29 kB
+dist/modrian-template/assets/slidev/TimerBar-CRvEA3vF.js                       2.76 kB │ gzip:   1.22 kB
+dist/modrian-template/assets/slidev/notes-CuMPNUO4.js                          3.30 kB │ gzip:   1.52 kB
+dist/modrian-template/assets/md-Ba3OZhqC.js                                    3.49 kB │ gzip:   1.04 kB
+dist/modrian-template/assets/diagram-7H4DSIZH-B3dBh4hy.js                      4.38 kB │ gzip:   1.93 kB
+dist/modrian-template/assets/md-DFvZINsm.js                                    4.68 kB │ gzip:   1.69 kB
+dist/modrian-template/assets/pieDiagram-COWAMGTG-Bq4btNVB.js                   4.96 kB │ gzip:   2.11 kB
+dist/modrian-template/assets/slidev/play-ChM1akfe.js                           5.14 kB │ gzip:   2.32 kB
+dist/modrian-template/assets/slidev/DrawingControls-B89cHCfz.js                5.42 kB │ gzip:   2.12 kB
+dist/modrian-template/assets/chunk-JPFC7FMT-BYN3mxy-.js                        5.43 kB │ gzip:   2.49 kB
+dist/modrian-template/assets/md-psa-jPtZ.js                                    5.68 kB │ gzip:   1.43 kB
+dist/modrian-template/assets/slidev/NoteDisplay-ChtVrySN.js                    6.05 kB │ gzip:   2.65 kB
+dist/modrian-template/assets/diagram-SB26O4LI-D3Yc1tpK.js                      6.10 kB │ gzip:   2.59 kB
+dist/modrian-template/assets/chunk-6EKEY7XR-CAGZtHUy.js                        6.22 kB │ gzip:   2.88 kB
+dist/modrian-template/assets/diagram-YYQGE63F-DSddSBBL.js                      8.23 kB │ gzip:   3.68 kB
+dist/modrian-template/assets/slidev/overview-BNXr0EfD.js                       9.31 kB │ gzip:   4.04 kB
+dist/modrian-template/assets/cynefinDiagram-5EZZBLNT-BlRg6FX-.js               9.97 kB │ gzip:   3.54 kB
+dist/modrian-template/assets/slidev/presenter-CKMQjVgl.js                     10.42 kB │ gzip:   4.00 kB
+dist/modrian-template/assets/chunk-43Q6BLE2-B1ZjG968.js                       10.43 kB │ gzip:   4.34 kB
+dist/modrian-template/assets/diagram-LMYWH655-B9HHBAuZ.js                     10.93 kB │ gzip:   4.25 kB
+dist/modrian-template/assets/diagram-RMTA37P5-BTINrJHt.js                     10.99 kB │ gzip:   3.82 kB
+dist/modrian-template/assets/chunk-YMUT4UT5-BwKLfQ6u.js                       14.84 kB │ gzip:   4.23 kB
+dist/modrian-template/assets/chunk-DR4DTVNI-BBCOLhjc.js                       15.65 kB │ gzip:   4.35 kB
+dist/modrian-template/assets/ishikawaDiagram-5TXJX72I-C_lhBZeR.js             17.34 kB │ gzip:   6.55 kB
+dist/modrian-template/assets/chunk-BJIILLN3-BZLSJdvt.js                       18.33 kB │ gzip:   6.83 kB
+dist/modrian-template/assets/kanban-definition-JYZD4CEF-EusqGqvr.js           20.33 kB │ gzip:   7.20 kB
+dist/modrian-template/assets/journeyDiagram-S34O2O4X-DbcKKCWc.js              23.17 kB │ gzip:   8.18 kB
+dist/modrian-template/assets/mindmap-definition-S4JWS7JC-C0JivEm6.js          23.57 kB │ gzip:   8.02 kB
+dist/modrian-template/assets/sankeyDiagram-YFX3YFZM-epjkghcP.js               23.74 kB │ gzip:   8.58 kB
+dist/modrian-template/assets/wardleyDiagram-RBDKWXQY-MuZfy-1K.js              25.24 kB │ gzip:   6.58 kB
+dist/modrian-template/assets/chunk-AWAWVJFC-Di3jquT6.js                       27.88 kB │ gzip:   9.26 kB
+dist/modrian-template/assets/gitGraphDiagram-B5TNACPC-3G03VhpM.js             29.05 kB │ gzip:   8.58 kB
+dist/modrian-template/assets/timeline-definition-TOGYYHPJ-gBiAGn5_.js         30.47 kB │ gzip:  10.01 kB
+dist/modrian-template/assets/erDiagram-5ZI55KUA-TGeZVBGx.js                   30.69 kB │ gzip:  10.59 kB
+dist/modrian-template/assets/requirementDiagram-JS3QJH73-DStMlnHc.js          31.14 kB │ gzip:   9.86 kB
+dist/modrian-template/assets/quadrantDiagram-QNIFSH2I-CgG-HoYN.js             33.49 kB │ gzip:   9.73 kB
+dist/modrian-template/assets/chunk-A6GV2MPI-5eaZSOY2.js                       37.83 kB │ gzip:   8.16 kB
+dist/modrian-template/assets/dagre-T35Z3OEN-BZ9SM6f1.js                       39.21 kB │ gzip:  13.96 kB
+dist/modrian-template/assets/blockDiagram-XWKWNR7N-CrVc2Wgn.js                40.37 kB │ gzip:  13.11 kB
+dist/modrian-template/assets/chunk-6NZQATR6-Dn_dHtiP.js                       40.73 kB │ gzip:  14.81 kB
+dist/modrian-template/assets/stateDiagram-v2-GUE5QCH3-CpR1eRI8.js             41.63 kB │ gzip:  13.92 kB
+dist/modrian-template/assets/vennDiagram-SJPQ2CM4-CvYRHhgF.js                 42.55 kB │ gzip:  15.71 kB
+dist/modrian-template/assets/xychartDiagram-R2AQJ4GL-CJgpf3pP.js              43.18 kB │ gzip:  11.86 kB
+dist/modrian-template/assets/classDiagram-v2-KCO5GXG6-Br-DkUCr.js             49.78 kB │ gzip:  16.19 kB
+dist/modrian-template/assets/ganttDiagram-GX4LYT6X-Ch9clbT6.js                50.77 kB │ gzip:  16.74 kB
+dist/modrian-template/assets/chunk-USSQJR5U-CwmpVVDr.js                       51.72 kB │ gzip:  16.62 kB
+dist/modrian-template/assets/chunk-T3ODRKFR-CCmr68jd.js                       62.76 kB │ gzip:  20.37 kB
+dist/modrian-template/assets/c4Diagram-O3KDULED-DFhHQtpl.js                   65.17 kB │ gzip:  18.66 kB
+dist/modrian-template/assets/slidev/shortcuts-D4pav7xo.js                     67.71 kB │ gzip:  23.93 kB
+dist/modrian-template/assets/SlideWrapper-S1uYkBNN.js                         68.36 kB │ gzip:  22.43 kB
+dist/modrian-template/assets/diagram-3JVT43P7-l-rs57Qo.js                     80.52 kB │ gzip:  25.20 kB
+dist/modrian-template/assets/cose-bilkent-7SFLS5CW-DXIqYa94.js                83.23 kB │ gzip:  22.18 kB
+dist/modrian-template/assets/modules/vue-x6voZAeX.js                          83.42 kB │ gzip:  31.03 kB
+dist/modrian-template/assets/Mermaid-C3_qqiQY.js                              91.30 kB │ gzip:  31.43 kB
+dist/modrian-template/assets/swimlanes-VPBUKIJD-jeH7LARa.js                  106.36 kB │ gzip:  36.19 kB
+dist/modrian-template/assets/chunk-AKQGYOOM-Bk2tDItP.js                      115.49 kB │ gzip:  29.11 kB
+dist/modrian-template/assets/sequenceDiagram-65RTROUO-Bueb1Enc.js            117.73 kB │ gzip:  31.34 kB
+dist/modrian-template/assets/chunk-OHNBJXQ2-a68LuocA.js                      118.86 kB │ gzip:  38.47 kB
+dist/modrian-template/assets/index-rkTc-oBF.js                               127.15 kB │ gzip:  43.38 kB
+dist/modrian-template/assets/architectureDiagram-I2ESILQG-NI8Lh7JG.js        151.68 kB │ gzip:  42.18 kB
+dist/modrian-template/assets/modules/unplugin-icons-DuxKuUmS.js              177.01 kB │ gzip:  65.28 kB
+dist/modrian-template/assets/usecaseDiagram-5QXKYXSB-B1OKk91g.js             194.30 kB │ gzip:  51.68 kB
+dist/modrian-template/assets/chunk-ECXFB5ZE-HzOCqkRc.js                      241.42 kB │ gzip:  39.70 kB
+dist/modrian-template/assets/katex-F5DCXIFN-Cc2pdDRN.js                      263.64 kB │ gzip:  78.95 kB
+dist/modrian-template/assets/chunk-GBM4U3XT-B7ruPlAQ.js                      461.01 kB │ gzip: 146.48 kB
+dist/modrian-template/assets/chunk-II7VFZ6N-CW0xHsP0.js                      670.86 kB │ gzip: 135.18 kB
+dist/modrian-template/assets/elk-XGNYHJS2-CGMf5b60.js                      1,585.48 kB │ gzip: 507.38 kB
+
+✓ built in 2.81s

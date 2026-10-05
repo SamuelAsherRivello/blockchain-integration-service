@@ -33,7 +33,7 @@ The Vite app guides an operator through six steps: create account, fund with a f
 
 ## Evidence on Hand
 
-- [Package README](README.md) documents the workflow, recovery limits, verified runs, and local commands.
+- [Package README](prototype-onboarding-package-readme.md) documents the workflow, recovery limits, verified runs, and local commands.
 - `tests/FAILURE_MATRIX.md` records implemented and remaining robustness boundaries.
 - The app and tests are intentionally isolated from the production integration package.
 

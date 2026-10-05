@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Layout image placeholder</title>
+  <desc id="desc">A dark abstract placeholder used to demonstrate image layouts.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171f35" />
+      <stop offset="1" stop-color="#0f766e" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#background)" />
+  <circle cx="860" cy="270" r="190" fill="#8b5cf6" fill-opacity=".55" />
+  <circle cx="440" cy="610" r="250" fill="#22d3ee" fill-opacity=".35" />
+  <path d="M0 640C220 530 410 740 620 630S990 480 1200 590V800H0Z" fill="#020617" fill-opacity=".38" />
+</svg>

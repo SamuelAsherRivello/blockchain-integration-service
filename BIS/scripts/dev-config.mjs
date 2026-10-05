@@ -111,7 +111,7 @@ export function developmentConfig({ port = 5174 } = {}) {
     appType: 'mpa',
     publicDir: false,
     plugins: [packageEntries()],
-    server: { host: '127.0.0.1', port, strictPort: true, fs: { allow: [root] } },
+    server: { host: '127.0.0.1', port, strictPort: true, fs: { allow: [root] }, watch: { ignored: ['**/output/**'] } },
     optimizeDeps: { entries: packageRoutes.filter(app => !app.readme).map(app => `BIS/packages/${app.directory}/index.html`) },
   };
 }

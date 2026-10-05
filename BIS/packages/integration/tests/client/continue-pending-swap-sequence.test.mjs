@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bech32m} from '@scure/base';
 import {ArkAddress,AssetManager,CSVMultisigTapscript,Extension,Intent,ReadonlyWallet,RestArkProvider,RestIndexerProvider,Transaction,Wallet,createAssetPacket,networks} from '@arkade-os/sdk';
-import {createContext} from '../../src/client/state-layer-core/context.ts';
+import {createContextWithDependencies} from '../../src/client/state-layer-core/context.ts';
+import {createArkadeContextDependencies} from '../../src/client/wallet-layer-arkade/context-dependencies.ts';
 import {clearBrowserPreferences} from '../../src/client/state-layer-core/logout-cleanup.ts';
 import {readBoardingRecord} from '../../src/client/state-layer-core/boarding-record.ts';
 import {walletReservations,eligibleUnreservedCoins} from '../../src/client/state-layer-core/wallet-reservations.ts';
@@ -77,7 +78,7 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
   const issue=w.assetManager.issue.bind(w.assetManager);w.assetManager.issue=async p=>{metadata=p.metadata;return issue(p);};return w;
  });
  const balance=async()=>({availableSats:total(),totalSats:total(),arkadeSats:total(),bitcoinSats:0});
- const context=createContext(storage,undefined,async()=>account.profileId,undefined,balance,undefined,undefined,async()=>{},undefined,undefined,undefined,undefined,undefined,{continueRecipient:game.encode()});
+ const context=createContextWithDependencies(storage,createArkadeContextDependencies({identifyAccount:async()=>account.profileId,readBalance:balance,observeActivity:async()=>{}}),{continueRecipient:game.encode()});
  const pay=operationId=>context.requestContinue({operationId,sats:1000,context:'sequence'});
  let started=false;
  try {

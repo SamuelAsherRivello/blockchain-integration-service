@@ -5,6 +5,8 @@ const props = defineProps({
   image: { type: String, default: '' },
   class: { type: String, default: '' },
   backgroundSize: { type: String, default: 'cover' },
+  backgroundPosition: { type: String, default: 'center' },
+  backgroundColor: { type: String, default: '#111317' },
 })
 
 const isTemplateImage = computed(() => props.image.endsWith('layout-placeholder.svg'))
@@ -12,6 +14,8 @@ const isBImagePlaceholder = computed(() => isTemplateImage.value && props.class.
 const imageStyle = computed(() => props.image ? {
   backgroundImage: `url(${props.image})`,
   backgroundSize: props.backgroundSize,
+  backgroundPosition: props.backgroundPosition,
+  backgroundColor: props.backgroundColor,
 } : undefined)
 </script>
 

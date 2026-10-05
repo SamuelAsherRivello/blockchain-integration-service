@@ -34,8 +34,8 @@ class: slide-three-offset
 
 The flexible baseline layout: headings, prose, bullet points, diagrams, code, and custom components all work here.
 
-- Use it for most information slides.
-- Let the content determine the visual hierarchy.
+- Use it for most information slides
+- Let the content determine the visual hierarchy
 
 ---
 layout: two-cols

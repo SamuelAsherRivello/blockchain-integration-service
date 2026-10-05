@@ -33,7 +33,7 @@ The package is consumed through public exports by a game host and by the sibling
 
 ## Evidence on Hand
 
-- [Package README](README.md) documents the public API and implemented account flows.
+- [Package README](integration-package-readme.md) documents the public API and implemented account flows.
 - `src/client/state-layer-core`, `src/client/ui-layer-react`, and `src/client/wallet-layer-arkade` define the package boundaries.
 - Automated integration and demo-host tests are present in the repository.
 

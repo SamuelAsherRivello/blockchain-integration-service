@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
 test('split width follows the pointer and reserves room for both panes', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const server = await createServer({ server: { middlewareMode: true, watch: { ignored: ['**/output/**'] } }, appType: 'custom' });
   try {
     const { splitPercent } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/ui-layer-react/split-layout.ts');
     assert.equal(splitPercent(400, 1000), 40);
@@ -19,7 +19,7 @@ test('split width follows the pointer and reserves room for both panes', async (
 });
 
 test('split preference round-trips and tolerates invalid or unavailable storage', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const server = await createServer({ server: { middlewareMode: true, watch: { ignored: ['**/output/**'] } }, appType: 'custom' });
   try {
     const { readSplitPercent, saveSplitPercent } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/ui-layer-react/split-layout.ts');
     const values = new Map();
@@ -39,7 +39,7 @@ test('split preference round-trips and tolerates invalid or unavailable storage'
 });
 
 test('split preference uses browser localStorage when no storage is passed', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const server = await createServer({ server: { middlewareMode: true, watch: { ignored: ['**/output/**'] } }, appType: 'custom' });
   const values = new Map();
   const originalStorage = globalThis.localStorage;
   Object.defineProperty(globalThis, 'localStorage', {

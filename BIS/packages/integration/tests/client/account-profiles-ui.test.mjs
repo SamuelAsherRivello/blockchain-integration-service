@@ -19,7 +19,7 @@ function storage(activeProfileId) {
 }
 
 test('Account UI does not expose saved profiles while preserving ordinary account routes',async()=>{
-  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
+  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
   try{
     const {BisView}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/client.tsx');
     const {createContext}=await server.ssrLoadModule('/BIS/packages/integration/src/client/state-layer-core/context.ts');

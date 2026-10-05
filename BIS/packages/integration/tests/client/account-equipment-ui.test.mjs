@@ -6,7 +6,7 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {bisMarketplaceItems,marketplaceItemMetadata} from '../../src/client/state-layer-core/equipment.ts';
 
 test('Account Assets uses the chain icon and offers loadout controls only for recognized equipment',async()=>{
-  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
+  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
   try{
     const {AccountAssets}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountAssets.tsx');
     const item=bisMarketplaceItems[0],chain={assetId:'a'.repeat(64)+'0000',quantity:'1',iconUrl:'https://chain.example/runtime-shoes.png',metadata:{bisSchemaVersion:'1',...marketplaceItemMetadata(item)}};

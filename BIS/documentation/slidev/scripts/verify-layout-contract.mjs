@@ -1,34 +1,44 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import {
+  declaredMondrianInventory,
+  expectedTheme,
+  frontmatterMatches,
+  parseSlides,
+  registeredPages,
+  slidevDirectory,
+} from './mondrian-layout-inventory.mjs'
 
-const scriptDirectory = dirname(fileURLToPath(import.meta.url))
-const slidevDirectory = resolve(scriptDirectory, '..')
-const expectedTheme = './themes/mondrian-final'
-
-function parseSlides(path) {
-  const source = readFileSync(path, 'utf8')
-  const frontmatterBlocks = [...source.matchAll(/(?:^|\r?\n)---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/g)]
-  return frontmatterBlocks.map((block, index) => {
-    const frontmatter = {}
-    const lines = block[1].split(/\r?\n/)
-    for (const line of lines) {
-      const match = line.match(/^([A-Za-z][A-Za-z0-9]*):\s*(.*?)\s*$/)
-      if (match) frontmatter[match[1]] = match[2]
-    }
-    const contentStart = (block.index ?? 0) + block[0].length
-    const contentEnd = frontmatterBlocks[index + 1]?.index ?? source.length
-    return { page: index + 1, frontmatter, content: source.slice(contentStart, contentEnd) }
-  })
+function slideBody(source, page) {
+  const slides = frontmatterMatches(source)
+  const current = slides[page - 1]
+  if (!current) return ''
+  return source.slice(current.index + current[0].length, slides[page]?.index).trim()
 }
 
-function pngDimensions(path) {
-  const header = readFileSync(path)
-  if (header.length < 24 || header.toString('ascii', 1, 4) !== 'PNG') return null
-  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) }
+const requiredGuidanceMarkers = [
+  'subsection-title-capacity',
+  'image-left-choice',
+  'image-right-choice',
+  'image-bottom-capacity',
+  'blank-intent',
+  'right-diagram-capacity',
+  'gallery-density',
+]
+
+const requiredHierarchyMarkers = [
+  'comparison-primary',
+  'fact-primary',
+  'image-primary',
+  'diagram-primary',
+]
+
+function galleryLabels(source) {
+  const grid = source.match(/<div class="video-thumbnail-grid">([\s\S]*?)<\/div>/)?.[1] ?? ''
+  return [...grid.matchAll(/<a\s+[^>]*aria-label="([^"]+)"/g)].map((match) => match[1])
 }
 
-function audit(catalog, deck, manifest, sourceManifest) {
+function auditCatalog(catalog, manifest, catalogSource, themeStyles) {
   const errors = []
   const catalogExamples = new Map()
   const manifestLayouts = manifest.layouts ?? {}
@@ -43,169 +53,177 @@ function audit(catalog, deck, manifest, sourceManifest) {
       errors.push(`Catalog slide ${slide.page} declares ${catalogLayout} but renders ${layout}.`)
     if (!manifestLayouts[catalogLayout])
       errors.push(`Catalog slide ${slide.page} uses unknown layout ${catalogLayout}.`)
-    if (!catalogExamples.has(catalogLayout)) catalogExamples.set(catalogLayout, slide.page)
+    const examples = catalogExamples.get(catalogLayout) ?? []
+    examples.push(slide.page)
+    catalogExamples.set(catalogLayout, examples)
   }
 
   for (const [layout, definition] of Object.entries(manifestLayouts)) {
-    const catalogPage = catalogExamples.get(layout)
-    if (!catalogPage)
+    const actualPages = catalogExamples.get(layout) ?? []
+    const expectedPages = registeredPages(definition)
+    if (!actualPages.length) {
       errors.push(`Theme layout ${layout} has no catalog example.`)
-    else if (catalogPage !== definition.catalogSlide)
-      errors.push(`Theme layout ${layout} is cataloged on slide ${catalogPage}, not declared slide ${definition.catalogSlide}.`)
-  }
-
-  if (deck[0]?.frontmatter.theme !== expectedTheme)
-    errors.push(`Blockchain deck theme must be ${expectedTheme}.`)
-
-  for (const slide of deck) {
-    const { layout, templateLayout, catalogSlide, styleSlide, theme } = slide.frontmatter
-    if (theme && theme !== expectedTheme)
-      errors.push(`Blockchain slide ${slide.page} overrides the Mondrian theme with ${theme}.`)
-    if (!layout?.startsWith('mondrian-'))
-      errors.push(`Blockchain slide ${slide.page} uses non-Mondrian layout ${layout ?? '(missing)'}.`)
-    if (!templateLayout || templateLayout !== layout)
-      errors.push(`Blockchain slide ${slide.page} maps ${templateLayout ?? '(missing)'} but renders ${layout ?? '(missing)'}.`)
-    if (!manifestLayouts[layout])
-      errors.push(`Blockchain slide ${slide.page} uses uncataloged layout ${layout ?? '(missing)'}.`)
-    if (Number(catalogSlide) !== manifestLayouts[layout]?.catalogSlide)
-      errors.push(`Blockchain slide ${slide.page} points to catalog slide ${catalogSlide ?? '(missing)'} instead of ${manifestLayouts[layout]?.catalogSlide ?? 'a known example'}.`)
-    if (styleSlide)
-      errors.push(`Blockchain slide ${slide.page} still uses numeric-only styleSlide metadata.`)
-  }
-
-  const expectedSourceSlides = sourceManifest.slides ?? []
-  if (expectedSourceSlides.length !== sourceManifest.sourceCount)
-    errors.push(`Source manifest declares ${sourceManifest.sourceCount} slides but contains ${expectedSourceSlides.length}.`)
-  if (deck.length !== expectedSourceSlides.length)
-    errors.push(`Blockchain deck has ${deck.length} slides; source manifest has ${expectedSourceSlides.length}.`)
-
-  const seenNumbers = new Set()
-  const seenIds = new Set()
-  for (const slide of deck) {
-    const number = Number(slide.frontmatter.contentSlide)
-    const id = slide.frontmatter.contentSlideId
-    if (!Number.isInteger(number)) errors.push(`Blockchain slide ${slide.page} has no integer contentSlide.`)
-    if (!id) errors.push(`Blockchain slide ${slide.page} has no contentSlideId.`)
-    if (seenNumbers.has(number)) errors.push(`Blockchain source number ${number} is duplicated.`)
-    if (seenIds.has(id)) errors.push(`Blockchain source object ID ${id} is duplicated.`)
-    seenNumbers.add(number)
-    seenIds.add(id)
-  }
-
-  for (const expected of expectedSourceSlides) {
-    const slide = deck.find((item) => Number(item.frontmatter.contentSlide) === expected.number)
-    if (!slide) {
-      errors.push(`Source slide ${expected.number} is missing from the Blockchain deck.`)
       continue
     }
-    if (slide.frontmatter.contentSlideId !== expected.objectId)
-      errors.push(`Source slide ${expected.number} uses ${slide.frontmatter.contentSlideId}, expected ${expected.objectId}.`)
-    if (slide.frontmatter.imageTreatment !== expected.imageTreatment)
-      errors.push(`Source slide ${expected.number} image treatment is ${slide.frontmatter.imageTreatment ?? '(missing)'}, expected ${expected.imageTreatment}.`)
-    if (expected.feedbackAssets) {
-      const references = `${slide.content}\n${slide.frontmatter.image ?? ''}`
-      for (const assetPath of expected.feedbackAssets) {
-        if (!references.includes(assetPath))
-          errors.push(`Source slide ${expected.number} must reference feedback asset ${assetPath}.`)
-        const diskPath = resolve(slidevDirectory, assetPath)
-        const dimensions = existsSync(diskPath) ? pngDimensions(diskPath) : null
-        if (!dimensions || dimensions.width < 1200 || dimensions.height < 600)
-          errors.push(`Source slide ${expected.number} feedback asset ${assetPath} is not a display-ready 2× PNG.`)
-      }
-      if (expected.number === 5 && expected.feedbackAssets.length !== 2)
-        errors.push('Source slide 5 must declare both requested feedback visuals.')
-    }
-    if (expected.table && !slide.content.includes('<table'))
-      errors.push(`Source slide ${expected.number} requires an editable HTML table.`)
-    if (expected.imageTreatment === 'editable-text-table' && /<img\b/i.test(slide.content))
-      errors.push(`Source slide ${expected.number} must keep table cells as text, not images.`)
-    if (expected.assetResolution === 'copied-body-cells-4x') {
-      const sourceReferencePath = expected.sourceReferenceAsset && resolve(slidevDirectory, expected.sourceReferenceAsset)
-      if (!sourceReferencePath || !existsSync(sourceReferencePath)) {
-        errors.push(`Source slide ${expected.number} is missing its declared 2× source reference asset.`)
-      } else {
-        const sourceDimensions = pngDimensions(sourceReferencePath)
-        if (expected.sourceReferenceResolution !== '2x-slide-thumbnail-1600x900' || !sourceDimensions || sourceDimensions.width !== 1600 || sourceDimensions.height !== 900)
-          errors.push(`Source slide ${expected.number} source reference asset is not the declared 2× 1600×900 PNG.`)
-      }
-      const imagePaths = [...slide.content.matchAll(/<img[^>]+src="\.\/([^"?]+)"/g)].map((match) => match[1])
-      if (!slide.content.includes('deck-table--source'))
-        errors.push(`Source slide ${expected.number} must identify the copied visual-cell table.`)
-      if (imagePaths.length !== expected.copiedBodyCellCount)
-        errors.push(`Source slide ${expected.number} must reference ${expected.copiedBodyCellCount} copied body-cell images; found ${imagePaths.length}.`)
-      const uniquePaths = new Set(imagePaths)
-      if (uniquePaths.size !== imagePaths.length)
-        errors.push(`Source slide ${expected.number} reuses a copied body-cell image.`)
-      for (const imagePath of imagePaths) {
-        if (!imagePath.endsWith('-4x.png'))
-          errors.push(`Source slide ${expected.number} references a body-cell asset without a 4× filename: ${imagePath}.`)
-        const diskPath = resolve(slidevDirectory, imagePath)
-        if (!existsSync(diskPath)) {
-          errors.push(`Source slide ${expected.number} references missing body-cell asset ${imagePath}.`)
-          continue
-        }
-        const dimensions = pngDimensions(diskPath)
-        if (!dimensions || dimensions.width < 1128 || dimensions.height < 624)
-          errors.push(`Source slide ${expected.number} body-cell asset ${imagePath} is not a 4× PNG.`)
-      }
-    }
-    if (expected.imageTreatment === 'omit' && /<img\b/i.test(slide.content))
-      errors.push(`Source slide ${expected.number} omits imagery but contains an image.`)
-    if (expected.imageTreatment.includes('mermaid') && !slide.content.includes('```mermaid'))
-      errors.push(`Source slide ${expected.number} requires a Mermaid diagram.`)
+    if (JSON.stringify(actualPages) !== JSON.stringify(expectedPages))
+      errors.push(`Theme layout ${layout} is cataloged on slide(s) ${actualPages.join(', ')}, not declared ${expectedPages.join(', ')}.`)
+    if (definition.catalogSlide !== expectedPages[0])
+      errors.push(`Theme layout ${layout} primary catalog slide must be ${expectedPages[0]}.`)
   }
 
-  const slide31 = deck.find((slide) => Number(slide.frontmatter.contentSlide) === 31)?.content ?? ''
-  const slide32 = deck.find((slide) => Number(slide.frontmatter.contentSlide) === 32)?.content ?? ''
-  const slide33 = deck.find((slide) => Number(slide.frontmatter.contentSlide) === 33)?.content ?? ''
-  if (slide31.includes('#d4af37') || slide31.includes('#c94141')) errors.push('Slide 31 network must use white lines only.')
-  if (!slide32.includes('#d4af37')) errors.push('Slide 32 network must contain gold connection lines.')
-  if (!slide33.includes('#d4af37') || !slide33.includes('#c94141')) errors.push('Slide 33 network must contain gold and red blocked connection lines.')
-
-  for (const sourceNumber of [10, 11, 12]) {
-    const slide = deck.find((item) => Number(item.frontmatter.contentSlide) === sourceNumber)
-    if (slide?.frontmatter.class !== 'feedback-diagram-position')
-      errors.push(`Slide ${sourceNumber} must use the 130% feedback diagram stage.`)
+  for (const marker of requiredGuidanceMarkers) {
+    if (!catalogSource.includes(`data-guidance="${marker}"`))
+      errors.push(`Catalog guidance marker ${marker} is missing.`)
   }
+
+  for (const marker of requiredHierarchyMarkers) {
+    if (!catalogSource.includes(`data-example-hierarchy="${marker}"`))
+      errors.push(`Catalog hierarchy marker ${marker} is missing.`)
+  }
+
+  const labels = galleryLabels(catalogSource)
+  if (labels.length !== 12)
+    errors.push(`Blockchain XP catalog must expose 12 labeled gallery links, found ${labels.length}.`)
+  if (new Set(labels).size !== labels.length)
+    errors.push('Blockchain XP catalog gallery labels must be unique.')
+
+  if (!themeStyles.includes('@media (prefers-reduced-motion: reduce)')
+    || !themeStyles.includes('.mondrian-logos-template__link')
+    || !themeStyles.includes('.video-thumbnail-grid a')
+    || !themeStyles.includes('animation: none !important;'))
+    errors.push('Catalog gallery reduced-motion coverage is missing.')
 
   return { errors, catalogExamples }
 }
 
-const catalog = parseSlides(resolve(slidevDirectory, 'template-deck-b.md'))
-const deck = parseSlides(resolve(slidevDirectory, 'blockchain-for-game.md'))
+function auditDeck(deck, manifest, slides = parseSlides(deck.path)) {
+  const errors = []
+  const manifestLayouts = manifest.layouts ?? {}
+  const label = deck.name
+
+  if (slides[0]?.frontmatter.theme !== expectedTheme)
+    errors.push(`${label} deck theme must be ${expectedTheme}.`)
+
+  for (const slide of slides) {
+    const { layout, templateLayout, catalogSlide, styleSlide, theme, templateExample } = slide.frontmatter
+    if (!layout) continue
+    if (theme && theme !== expectedTheme)
+      errors.push(`${label} slide ${slide.page} overrides the Mondrian theme with ${theme}.`)
+    if (!layout.startsWith('mondrian-'))
+      errors.push(`${label} slide ${slide.page} uses non-Mondrian layout ${layout}.`)
+    if (!templateLayout || templateLayout !== layout)
+      errors.push(`${label} slide ${slide.page} maps ${templateLayout ?? '(missing)'} but renders ${layout}.`)
+    const definition = manifestLayouts[layout]
+    if (!definition) {
+      errors.push(`${label} slide ${slide.page} uses uncataloged layout ${layout}.`)
+      continue
+    }
+    if (!registeredPages(definition).includes(Number(catalogSlide)))
+      errors.push(`${label} slide ${slide.page} points to catalog slide ${catalogSlide ?? '(missing)'} instead of a current ${layout} example (${registeredPages(definition).join(', ')}).`)
+    if (templateExample && Number(templateExample) !== Number(catalogSlide))
+      errors.push(`${label} slide ${slide.page} declares template example ${templateExample} but points to catalog slide ${catalogSlide}.`)
+    if (styleSlide)
+      errors.push(`${label} slide ${slide.page} still uses numeric-only styleSlide metadata.`)
+  }
+  return { errors, slides }
+}
+
+function auditLifecycle(inventory, scripts) {
+  const errors = []
+  for (const entry of [inventory.catalog, ...inventory.decks]) {
+    for (const scriptName of entry.scripts) {
+      const lifecycleName = `pre${scriptName}`
+      if (scripts[lifecycleName] !== 'npm run sync:layout-mappings')
+        errors.push(`${scriptName} must run ${lifecycleName} as npm run sync:layout-mappings before Slidev consumes its entry.`)
+    }
+  }
+  return errors
+}
+
+function auditTableOfContentsStyle(catalogSource, deck, slides) {
+  const errors = []
+  const catalogBullets = slideBody(catalogSource, 4)
+    .split(/\r?\n/)
+    .filter((line) => /^\s*[-*+]\s+/.test(line))
+
+  if (catalogBullets.length !== 3)
+    errors.push('Catalog slide 4 must contain exactly three table-of-contents bullets.')
+  for (const bullet of catalogBullets) {
+    if (/(\*\*|__|<strong\b|<b\b|catalog-primary-example)/iu.test(bullet))
+      errors.push('Catalog slide 4 table-of-contents bullets must use uniform, unbolded formatting.')
+  }
+
+  const deckSource = readFileSync(deck.path, 'utf8')
+  for (const slide of slides.filter((entry) => Number(entry.frontmatter.catalogSlide) === 4)) {
+    const bullets = slideBody(deckSource, slide.page)
+      .split(/\r?\n/)
+      .filter((line) => /^\s*[-*+]\s+/.test(line))
+    for (const bullet of bullets) {
+      if (/(\*\*|__|<strong\b|<b\b|catalog-primary-example)/iu.test(bullet))
+        errors.push(`${deck.name} slide ${slide.page} maps to catalog slide 4 but bolds a table-of-contents bullet.`)
+    }
+  }
+  return errors
+}
+
+const inventory = declaredMondrianInventory()
+const catalogPath = inventory.catalog.path
+const catalogSource = inventory.catalog.source
+const themeStyles = readFileSync(resolve(slidevDirectory, 'themes/mondrian-final/styles/final.css'), 'utf8')
+const catalog = parseSlides(catalogPath)
 const manifest = JSON.parse(readFileSync(resolve(slidevDirectory, 'themes/mondrian-final/layout-catalog.json'), 'utf8'))
-const sourceManifest = JSON.parse(readFileSync(resolve(slidevDirectory, 'content-source-manifest.json'), 'utf8'))
-const result = audit(catalog, deck, manifest, sourceManifest)
+const packageScripts = JSON.parse(readFileSync(resolve(slidevDirectory, 'package.json'), 'utf8')).scripts ?? {}
+const result = auditCatalog(catalog, manifest, catalogSource, themeStyles)
+const deckResults = inventory.decks.map((deck) => ({ deck, ...auditDeck(deck, manifest) }))
+for (const deckResult of deckResults) result.errors.push(...deckResult.errors)
+result.errors.push(...auditLifecycle(inventory, packageScripts))
+
+const blockchain = deckResults.find(({ deck }) => deck.name === 'blockchain-for-game-master-deck')
+if (!blockchain) result.errors.push('Declared Mondrian inventory must include blockchain-for-game-master-deck.')
+else result.errors.push(...auditTableOfContentsStyle(catalogSource, blockchain.deck, blockchain.slides))
 
 if (process.argv.includes('--self-test')) {
-  const mismatch = deck.map((slide) => ({ ...slide, frontmatter: { ...slide.frontmatter } }))
-  mismatch[0].frontmatter.templateLayout = 'mondrian-content'
-  if (!audit(catalog, mismatch, manifest, sourceManifest).errors.some((error) => error.includes('maps mondrian-content')))
-    throw new Error('Layout-contract self-test did not reject a mismatched audit reference.')
+  const primaryDeck = deckResults[0]
+  const mismatchedLayout = primaryDeck.slides.map((slide) => ({ ...slide, frontmatter: { ...slide.frontmatter } }))
+  mismatchedLayout[0].frontmatter.templateLayout = 'mondrian-content'
+  if (!auditDeck(primaryDeck.deck, manifest, mismatchedLayout).errors.some((error) => error.includes('maps mondrian-content')))
+    throw new Error('Layout-contract self-test did not reject a mismatched layout reference.')
 
-  const missing = deck.slice(1)
-  if (!audit(catalog, missing, manifest, sourceManifest).errors.some((error) => error.includes('Source slide 1 is missing')))
-    throw new Error('Source-contract self-test did not reject a missing source mapping.')
+  const staleCatalog = primaryDeck.slides.map((slide) => ({ ...slide, frontmatter: { ...slide.frontmatter } }))
+  staleCatalog[0].frontmatter.catalogSlide = '999'
+  if (!auditDeck(primaryDeck.deck, manifest, staleCatalog).errors.some((error) => error.includes('points to catalog slide 999')))
+    throw new Error('Layout-contract self-test did not reject a stale catalog reference.')
 
-  const duplicate = deck.map((slide) => ({ ...slide, frontmatter: { ...slide.frontmatter } }))
-  duplicate[1].frontmatter.contentSlide = duplicate[0].frontmatter.contentSlide
-  duplicate[1].frontmatter.contentSlideId = duplicate[0].frontmatter.contentSlideId
-  if (!audit(catalog, duplicate, manifest, sourceManifest).errors.some((error) => error.includes('is duplicated')))
-    throw new Error('Source-contract self-test did not reject a duplicate source mapping.')
+  const themeOverride = primaryDeck.slides.map((slide) => ({ ...slide, frontmatter: { ...slide.frontmatter } }))
+  themeOverride[0].frontmatter.theme = 'default'
+  if (!auditDeck(primaryDeck.deck, manifest, themeOverride).errors.some((error) => error.includes('overrides the Mondrian theme')))
+    throw new Error('Layout-contract self-test did not reject a theme override.')
 
-  const reordered = deck.map((slide) => ({ ...slide, frontmatter: { ...slide.frontmatter } }))
-  ;[reordered[0].frontmatter.contentSlide, reordered[1].frontmatter.contentSlide] = [reordered[1].frontmatter.contentSlide, reordered[0].frontmatter.contentSlide]
-  if (!audit(catalog, reordered, manifest, sourceManifest).errors.some((error) => error.includes('uses') && error.includes('expected')))
-    throw new Error('Source-contract self-test did not reject a reordered source mapping.')
+  const missingGuidance = catalogSource.replace('data-guidance="blank-intent"', 'data-guidance="missing"')
+  if (!auditCatalog(catalog, manifest, missingGuidance, themeStyles).errors.some((error) => error.includes('guidance marker blank-intent')))
+    throw new Error('Layout-contract self-test did not reject a missing guidance marker.')
 
-  const missingFeedbackVisual = deck.map((slide) => ({ ...slide, frontmatter: { ...slide.frontmatter } }))
-  const feedbackSlide = missingFeedbackVisual.find((slide) => Number(slide.frontmatter.contentSlide) === 3)
-  const feedbackAsset = sourceManifest.slides.find((slide) => slide.number === 3)?.feedbackAssets?.[0]
-  feedbackSlide.frontmatter.image = feedbackSlide.frontmatter.image?.replace(feedbackAsset, 'missing-source.png')
-  if (!audit(catalog, missingFeedbackVisual, manifest, sourceManifest).errors.some((error) => error.includes('feedback asset')))
-    throw new Error('Layout-contract self-test did not reject a missing feedback visual.')
+  const duplicateLabelSource = catalogSource.replace('aria-label="Moralis tutorial: I7gTbRFBYc0"', 'aria-label="Moralis tutorial: BpimlpUPqDU"')
+  if (!auditCatalog(catalog, manifest, duplicateLabelSource, themeStyles).errors.some((error) => error.includes('gallery labels must be unique')))
+    throw new Error('Layout-contract self-test did not reject duplicate gallery labels.')
 
-  console.log('Layout and source-contract self-tests passed.')
+  if (!auditCatalog(catalog, manifest, catalogSource, '').errors.some((error) => error.includes('reduced-motion coverage')))
+    throw new Error('Layout-contract self-test did not reject missing reduced-motion coverage.')
+
+  const expectedDecks = ['blockchain-for-game-master-deck', 'outro']
+  for (const name of expectedDecks) {
+    if (!inventory.decks.some((deck) => deck.name === name))
+      throw new Error(`Layout-contract self-test did not discover ${name}.`)
+  }
+  if (inventory.decks.some((deck) => deck.name === 'template-deck'))
+    throw new Error('Layout-contract self-test incorrectly discovered a legacy template as a Mondrian content deck.')
+
+  const missingLifecycle = { ...packageScripts }
+  delete missingLifecycle[`pre${inventory.decks[0].scripts[0]}`]
+  if (!auditLifecycle(inventory, missingLifecycle).some((error) => error.includes(`pre${inventory.decks[0].scripts[0]}`)))
+    throw new Error('Layout-contract self-test did not reject a missing synchronization lifecycle.')
+
+  console.log('Layout-contract self-tests passed.')
 }
 
 if (result.errors.length) {
@@ -214,5 +232,8 @@ if (result.errors.length) {
   process.exit(1)
 }
 
-console.log(`Mondrian layout and source contract passed: ${catalog.length} catalog slides, ${deck.length} Blockchain slides.`)
-for (const slide of deck) console.log(`- Blockchain slide ${slide.page}: ${slide.frontmatter.layout} → catalog slide ${slide.frontmatter.catalogSlide}`)
+console.log(`Mondrian layout contract passed: ${catalog.length} catalog slides, ${deckResults.map(({ deck, slides }) => `${slides.length} ${deck.name} slides`).join(', ')}.`)
+for (const { deck, slides } of deckResults) {
+  for (const slide of slides.filter((entry) => entry.frontmatter.layout))
+    console.log(`- ${deck.name} slide ${slide.page}: ${slide.frontmatter.layout} → catalog slide ${slide.frontmatter.catalogSlide}`)
+}

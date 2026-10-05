@@ -1,0 +1,21 @@
+
+> @bis/slidev-documentation@0.0.10 dev:modrian-template-4
+> slidev table-of-contents-template.md --port 3050 --base /slidev/modrian-template-4/
+
+
+
+  ●■▲
+  Slidev  v53.0.0 
+
+  theme       ./themes/mondrian-signal
+  css engine  unocss
+  entry       D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/table-of-contents-template.md
+
+  public slide show   > http://localhost:3050/slidev/modrian-template-4/
+  presenter mode      > http://localhost:3050/slidev/modrian-template-4/presenter/
+  slides overview     > http://localhost:3050/slidev/modrian-template-4/overview/
+  export slides       > http://localhost:3050/slidev/modrian-template-4/export/
+  mcp server         > http://localhost:3050/__mcp
+  remote control      > pass --remote to enable
+
+  shortcuts           > restart | open | edit | quit

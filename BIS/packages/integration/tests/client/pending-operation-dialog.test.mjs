@@ -9,7 +9,7 @@ test('public integration boundary exposes the shared accessible pending dialog',
   const [index, client, services, dialog, style] = await Promise.all([
     text('src/index.ts'),
     text('src/client/ui-layer-react/client.tsx'),
-    text('src/client/state-layer-core/bis-game-services.ts'),
+    text('src/client/integration-layer/bis-service.ts'),
     text('src/client/ui-layer-react/PendingOperationDialog.tsx'),
     text('src/client/ui-layer-react/overlay.css'),
   ]);

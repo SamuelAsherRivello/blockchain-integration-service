@@ -33,7 +33,7 @@ The local Vite app provides development and review flows for account, payment, a
 
 ## Evidence on Hand
 
-- [Package README](README.md) documents the demo role and local development flow.
+- [Package README](integration-admin-package-readme.md) documents the demo role and local development flow.
 - `src/SplitWorkspace.tsx` implements the adjustable admin/runtime composition.
 - The test suite contains focused browser-host and integration behavior fixtures.
 

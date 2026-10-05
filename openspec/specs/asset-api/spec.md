@@ -7,8 +7,25 @@ Provide generic UI-independent asset minting and ownership queries for hosts, wi
 
 ## Requirements
 
+### Requirement: Read-only item support check
+BIS SHALL expose a provider-neutral `hasItemSupport()` check for game hosts. It SHALL report true only when an active Player Wallet exists and the BIS item path is available in the current supported environment and network. It SHALL NOT require a selected Game Wallet, Game Wallet balance, or any Game Wallet operation. It SHALL be read-only and SHALL not mint, reserve, transfer, open UI, or mutate wallet state.
+
+#### Scenario: Item support is available
+- **WHEN** a Player Wallet is active and the BIS item path is available on the active supported network
+- **THEN** `hasItemSupport()` returns true
+- **AND** no Game Wallet is required or inspected for this result
+
+#### Scenario: Item support is unavailable
+- **WHEN** there is no active Player Wallet, the environment cannot safely coordinate item operations, or BIS item support is unavailable
+- **THEN** `hasItemSupport()` returns false
+- **AND** no Game Wallet setup is requested and no wallet mutation occurs
+
+#### Scenario: Game Wallet changes do not affect item support
+- **WHEN** the Game Wallet logs out, changes selection, changes network, or has insufficient currency while the Player Wallet and BIS item path remain available
+- **THEN** `hasItemSupport()` remains true
+
 ### Requirement: Mint through a UI-independent public API
-BIS SHALL accept an operation ID, name, ticker, amount as an exact decimal string, decimals, an optional icon URL, an explicit source wallet, and an explicit destination wallet. It SHALL issue the corresponding positive base-unit supply using the source wallet's funding and signer, with no control asset or reissuance authority. If source and destination differ, it SHALL deliver the issued quantity from source to destination through the production asset-transfer boundary and SHALL report success only after both issuance and delivery are confirmed or safely reconciled. It SHALL preserve accepted text, reject invalid quantities without rounding, and return JSON-safe source, destination, asset identifier, transaction and exact base-unit quantity data on confirmed success. No asset/account UI SHALL open or change as a side effect.
+BIS SHALL accept an operation ID, name, ticker, amount as an exact decimal string, decimals, and an optional icon URL. Generic minting SHALL retain its existing caller-selected source and destination wallet semantics and SHALL NOT acquire a new global Game Wallet prerequisite. It SHALL issue the corresponding positive base-unit supply using the source wallet's funding and signer, with no control asset or reissuance authority. If source and destination differ, it SHALL deliver the issued quantity through the production asset-transfer boundary and SHALL report success only after both issuance and delivery are confirmed or safely reconciled. Admin-owned game items MAY use the Admin/Game Wallet path, while player trophy ownership SHALL be established through the separate reward flow. It SHALL preserve accepted text, reject invalid quantities without rounding, and return JSON-safe source, destination, asset identifier, transaction and exact base-unit quantity data on confirmed success. No asset/account UI SHALL open or change as a side effect.
 
 #### Scenario: Mint and deliver an asset
 - **WHEN** an active funded source wallet submits valid asset details with a distinct active destination wallet and issuance succeeds
@@ -19,6 +36,11 @@ BIS SHALL accept an operation ID, name, ticker, amount as an exact decimal strin
 - **WHEN** an active funded source wallet submits valid asset details and issuance succeeds
 - **THEN** the result identifies the operation, source account, destination, minted asset, and exact base-unit quantity
 - **AND** a subsequent fresh ownership query contains that asset at the destination
+
+#### Scenario: Player item support does not require Game Wallet
+- **WHEN** a game has an active Player Wallet but no selected Game Wallet
+- **THEN** `hasItemSupport()` may return true when BIS item support is available
+- **AND** item support does not create, submit, or reserve a mint
 
 #### Scenario: Mint to the source wallet
 - **WHEN** source and destination identify the same active funded wallet

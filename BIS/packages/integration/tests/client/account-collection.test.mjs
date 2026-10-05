@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 test('Assets, Contracts and Transactions render the same titled collection, refresh control, copy field, scroll area and one Back', async () => {
-  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
+  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
   try {
     const {AccountAssets}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountAssets.tsx');
     const {AccountActivity}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountActivity.tsx');

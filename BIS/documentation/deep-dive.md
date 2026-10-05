@@ -1,5 +1,5 @@
-<!-- AI: These shared diagrams are stored only in BIS/documentation in the BIS repository. If they are updated, store them only there; both Deep Dive pages must keep linking to these single sources. -->
-![BIS sequence diagram](bis-sequence-diagram-2.png)
+<!-- AI: Shared diagram sources live in BIS/documentation/diagrams. Keep every consumer linked to the one canonical asset so updates stay synchronized. -->
+![BIS sequence diagram](diagrams/bis-sequence-diagram-2.png)
 
 ### Legend
 
@@ -7,7 +7,7 @@
 2. [Ark](https://ark-protocol.org/) (Layer 2) — An off-chain Bitcoin transaction-batching protocol for fast, low-cost payments with self-custodied exits to Layer 1.
 3. [Arkade](https://arkadeos.com/) (Layer 2) — A programmable Bitcoin execution layer for wallets, payments, assets, and contracts.
 4. [BIS](https://github.com/SamuelAsherRivello/blockchain-integration-service) (Integration) — A custom TypeScript/React library that connects Signet or Mutinynet Arkade workflows to a game through a small, game-neutral contract.
-5. [Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game) (Application) — The custom Stealth & Steel host game, which owns scenes and gameplay consequences after BIS confirms an outcome.
+5. [Game](https://github.com/SamuelAsherRivello/stealth-and-steel-game) (Application) — The custom Stealth & Steel game, whose `StealthAndSteelBisGame` class implements `IBisGame` and owns scenes and gameplay consequences after BIS confirms an outcome.
 
 
 # Deep Dive
@@ -21,38 +21,83 @@ This project spans 2 repos:
 
 ## BIS
 
-This repository owns the published wallet/workflow boundary. Read the Stealth & Steel Deep Dive from the first list above alongside this document to see where a verified BIS result stops and a game-owned effect begins.
+### Roles
 
-### The shared showcase: `BisHostGame`
+- **BIS** uses `BisService` as its reusable browser-integration facade. It owns the published wallet/workflow boundary, account and wallet UI, and truthful provider outcomes.
+- **Game** implements `IBisGame` through `StealthAndSteelBisGame`. It owns sessions, scenes, gameplay consequences, and the decision whether a confirmed BIS result can affect its current run.
 
-[`BisHostGame`](../packages/integration/src/client/state-layer-core/bis-host-game.ts) is the deliberately complete, protocol-neutral contract the game implements. It has exactly four clearly named methods: identify the active game session, capture an opaque continuation target, apply a confirmed continuation, and present a confirmed reward. The names trade brevity for reviewability.
+Read the Stealth & Steel Deep Dive from the first list above alongside this document to see where a verified BIS result stops and an `IBisGame` effect begins.
 
-```ts
-interface BisHostGame {
-  getActiveGameSessionReference(): BisHostGameSessionReference | undefined;
-  captureContinuationTarget(input: { gameSessionReference: BisHostGameSessionReference }): BisHostGameContinuationTarget | undefined;
-  applyConfirmedContinuation(input: BisHostGameConfirmedContinuation): Promise<BisHostGameEffectReceipt>;
-  presentConfirmedPlayerReward(input: BisHostGameConfirmedPlayerReward): Promise<BisHostGameEffectReceipt>;
-}
-```
+### `BisService`
 
-A session reference carries `gameId` and `gameSessionId`. BIS treats the continuation target as opaque. The game reports `applied`, `already-applied`, or `not-applicable`; those are effect receipts, not financial status. A stale session therefore cannot revive a new run, and an inapplicable delivery cannot charge, reverse, mint, or retry a confirmed BIS operation.
+[`BisService`](../packages/integration/src/client/integration-layer/bis-service.ts) is the package’s lifecycle-owning facade for BIS workflows, UI, and cleanup.
 
-### BIS-specific showcase: `BisGameServices`
+#### Highlights
 
-[`BisGameServices`](../packages/integration/src/client/state-layer-core/bis-game-services.ts) is the package’s lifecycle-owning facade. Its numbered comments are a concise route through the architecture:
-
-1. The public surface is the protocol-neutral host, never Arkade.
-2. Context, game wallet, LTO, and UI are assembled at one ownership boundary.
-3. Account hydration remains the readiness gate.
-4. Confirmed results are delivered to the host without changing financial truth.
-5. Disposal runs in reverse ownership order while pending operations remain recoverable.
+- Retrieves the active `IBisGame` through `getBisGame()`.
+- Hydrates account state before workflows begin.
+- Owns BIS UI mounting and lifecycle cleanup.
 
 ```ts
-const services = new BisGameServices({ getGameHost });
+// Creates the lifecycle facade with a callback that retrieves the current IBisGame.
+const services = new BisService({ getBisGame });
+
+// Waits for account state to hydrate before the game exposes wallet workflows.
 await services.ready();
+
+// Attaches BIS-owned account and wallet UI to the game-provided container.
 services.mount(container);
+
+// Creates the continuation flow and lets the game receive its effect receipt.
 const controller = services.createContinue({ onEffectReceipt });
 ```
 
-The facade intentionally composes existing controllers rather than absorbing their domain rules. Core controllers still own state, validation, persistence, and reconciliation; UI still owns presentation; Arkade adapters remain internal. That makes `BisGameServices` a stable starting point without making it a new catch-all service.
+### `IBisGame`
+
+[`IBisGame`](../packages/integration/src/client/state-layer-core/bis-game.ts) is the protocol-neutral interface that `StealthAndSteelBisGame` implements to receive confirmed BIS outcomes.
+
+#### Highlights
+
+- Identifies the active `BisGameSession`.
+- Captures an opaque continuation target.
+- Applies confirmed continuation and reward effects.
+
+```ts
+interface IBisGame {
+
+  // Identifies the current game run so BIS never delivers an outcome to a different session.
+  getActiveGameSession(): BisGameSession | undefined;
+
+  // Records the game-defined point to resume after a verified BIS operation completes.
+  captureContinuationTarget(input: { gameSession: BisGameSession }): BisGameContinuationTarget | undefined;
+
+  // Applies a confirmed continuation and reports whether the game effect took place.
+  applyConfirmedContinuation(input: BisGameConfirmedContinuation): Promise<BisGameEffectReceipt>;
+
+  // Presents a confirmed player reward and reports whether the game effect took place.
+  presentConfirmedPlayerReward(input: BisGameConfirmedPlayerReward): Promise<BisGameEffectReceipt>;
+}
+```
+
+### `BisGameSession`
+
+The game session is the game-owned identity BIS carries with an operation. It lets the `IBisGame` implementation reject a result that belongs to a prior or different run.
+
+#### Highlights
+
+- `gameId` identifies the game integration.
+- `gameSessionId` identifies one game run.
+- Stale outcomes cannot affect a later run.
+
+```ts
+// Keeps the game and its session identity immutable while BIS processes an operation.
+type BisGameSession = Readonly<{
+
+  // Identifies the game integration that created the session.
+  gameId: string;
+
+  // Identifies one specific game run, so a stale result cannot affect a later run.
+  gameSessionId: string;
+
+}>;
+```

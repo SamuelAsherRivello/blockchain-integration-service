@@ -1,27 +1,21 @@
-import {createOnboardingAdapter,onboardingScope} from '../wallet-layer-arkade/onboarding.ts';
 import {startOnboarding,type OnboardingAdapter,type OnboardingView} from './onboarding-service.ts';
 import {readAccountOnboarding} from './onboarding-record.ts';
-import {reconstructWalletReservations} from '../wallet-layer-arkade/reservation-recovery.ts';
 import { queryAccountContracts, contractController, type BisContractFilter, type BisContractsResult, type BisContractActionResult } from './lto-service.ts';
 import {eligibleUnreservedCoins, walletReservations} from './wallet-reservations.ts';
 import { createPaymentNotifications } from './payment-notifications.ts';
 import { paymentSender, type BisPlayerRecipient } from './game-player-payment.ts';
-import { validContinueRecipient } from '../wallet-layer-arkade/continue-recipient.ts';
-import {submitContinuation,reconcileContinuation} from '../wallet-layer-arkade/continuation.ts';
 import {validateContinue,readContinuations,type BisContinueRequest,type BisContinueResult} from './continuation.ts';
+import { validContinueRecipient as coreValidContinueRecipient } from './continue-recipient.ts';
 import { readWithRetry } from './pending-read.ts';
 import { createToastQueue, type BisToastOptions } from './toasts.ts';
-import { watchActivity } from '../wallet-layer-arkade/activity.ts';
 import { createSharedWalletObserver } from './shared-wallet-observer.ts';
+import { createAssetViewLifecycle } from './asset-view-lifecycle.ts';
 import { pendingLogoutOperations, type LogoutOperations } from './logout-cleanup.ts';
-import { loadSendFunds, quoteSend, submitSend, reconcileSend } from '../wallet-layer-arkade/sending.ts';
 import { assertNoPendingSend, readSendRecord, readSendRecords, sendStatus, SendError, type BisSendQuote, type BisSendStatus } from './sending.ts';
-import { watchAssetChanges, listWalletAssets, mintWalletAsset, burnWalletAsset, deliverWalletAsset, reconcileWalletAssetDelivery, loadMintAvailability } from '../wallet-layer-arkade/assets.ts';
 import { assertNoPendingBurn, BurnError, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult } from './burning.ts';
 import { AssetDeliveryError, validateAssetDelivery, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from './asset-delivery.ts';
 import type { BisAssets } from './asset-presentation';
 import { AssetError, assetError, validateMint, readAssetRecords, type BisMintAssetRequest, type BisMintAssetResult, type BisListAssetsResult, type BisPendingMintResult } from './assets.ts';
-import { getBoardingAvailability, quoteBoarding, submitBoarding, reconcileBoarding } from '../wallet-layer-arkade/boarding.ts';
 import type { WalletOperationAvailability } from './wallet-network-policy.ts';
 import { assertNoPendingBoarding, assertPendingTransfersAcknowledged, withWalletMutation, BoardingBlockedError, readBoardingRecord, readBoardingRecords } from './boarding-record.ts';
 import { boardingSubmissionEnabled, type BoardingQuote } from './boarding-quote.ts';
@@ -30,16 +24,15 @@ import type { BoardingRecord } from './boarding-record.ts';
 export type BisTransferStatus = Readonly<{status:'idle'|'pending'|'succeeded'|'not-submitted'; amountSats?:number; commitmentTxid?:string; operationId?:string; intentId?:string; direction?:BoardingQuote['direction']; phase?:BoardingRecord['phase']; diagnostic?:BoardingRecord['diagnostic'];failure?:BoardingRecord['failure']; verification?:'live'|'unavailable';stage?:NonNullable<BoardingRecord['progress']>['stage'];execution?:'running'|'awaiting-confirmation'|'interrupted'|'unknown'|'complete';observedAt?:number;action?:NonNullable<BoardingRecord['progress']>['action']} >;
 import { unavailableInvoiceReceiving, type BisInvoiceReceiving } from './invoice-receiving.ts';
 import { withTransferActivity, withMintActivity, withSendActivity, type BisActivity, type BisTransaction } from './activity.ts';
-import { createAccount, restoreAccount, identify, type AccountSecret } from '../wallet-layer-arkade/account.ts';
+import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
 import { phraseWords, validRecovery } from './recovery-validation.ts';
-import { createAccountStorage, type AccountStorage, type StoredAccount } from './account-storage.ts';
+import type { AccountStorage, StoredAccount } from './account-storage.ts';
 import { WalletRoleConflictError, withWalletRoleSelection } from './wallet-role.ts';
-import { loadBalance, type BalanceAmounts } from '../wallet-layer-arkade/balance.ts';
-import { loadAddresses, type AccountAddresses } from '../wallet-layer-arkade/addresses.ts';
+import type { BalanceAmounts } from '../wallet-layer-arkade/balance.ts';
+import type { AccountAddresses } from '../wallet-layer-arkade/addresses.ts';
 import type { TestNetwork } from './test-network.ts';
-import { createTestNetworkSession } from './test-network.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
-import { fundTestAccount } from '../wallet-layer-arkade/funding.ts';
+import type { BisContextDependencies } from './context-dependencies.ts';
 export type BisBalance = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
@@ -142,10 +135,36 @@ export function getControls(context: BisContext): Controls {
   if (!result) throw new Error('Expected a BIS context.');
   return result;
 }
-// Private dependency seam for isolated tests; not exported by the package.
-type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined; hasGameWallet?:()=>boolean; resetGameWallet?:()=>Promise<boolean>; getNetwork?:()=>TestNetwork|undefined; selectNetwork?:(network:TestNetwork)=>void; requireNetworkSelection?:boolean};
+// Internal construction options shared with the outer composition façade.
+export type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined; hasGameWallet?:()=>boolean; resetGameWallet?:()=>Promise<boolean>; getNetwork?:()=>TestNetwork|undefined; selectNetwork?:(network:TestNetwork)=>void; requireNetworkSelection?:boolean};
 const playerGameWalletConflict = 'This wallet is already configured as the Game Wallet. Use a different Player Wallet.';
-export function createContext(storage: AccountStorage, create = createAccount, identifyAccount = identify, restore = restoreAccount, readBalance: (account: AccountSecret, signal: AbortSignal) => Promise<BalanceAmounts> = loadBalance, fund = fundTestAccount, readAddresses: (account: AccountSecret, signal: AbortSignal) => Promise<AccountAddresses> = loadAddresses, observeActivity: typeof watchActivity = watchActivity, transfers: {quote:typeof quoteBoarding;submit:typeof submitBoarding;reconcile:typeof reconcileBoarding;availability?:typeof getBoardingAvailability} = {quote:quoteBoarding,submit:submitBoarding,reconcile:reconcileBoarding,availability:getBoardingAvailability}, assets = {list: listWalletAssets, mint: mintWalletAsset}, sends={funds:loadSendFunds,quote:quoteSend,submit:submitSend,reconcile:reconcileSend}, burn=burnWalletAsset, continuation={submit:submitContinuation,reconcile:reconcileContinuation}, options: BisContextOptions = {}, observePayments: typeof watchActivity | undefined = observeActivity === watchActivity ? watchActivity : undefined, observeAssets: typeof watchAssetChanges | undefined = assets.list === listWalletAssets ? watchAssetChanges : undefined, onboardingFactory:((account:AccountSecret,current:()=>boolean)=>OnboardingAdapter)|undefined = create===createAccount&&identifyAccount===identify&&readBalance===loadBalance?createOnboardingAdapter:undefined): BisContext {
+const unavailableOperation = () => { throw new Error('A wallet operation dependency is required.'); };
+const unavailableDependencies = (): BisContextDependencies => ({
+  create: unavailableOperation as BisContextDependencies['create'],
+  identifyAccount: unavailableOperation as BisContextDependencies['identifyAccount'],
+  restore: unavailableOperation as BisContextDependencies['restore'],
+  readBalance: unavailableOperation as BisContextDependencies['readBalance'],
+  fund: unavailableOperation as BisContextDependencies['fund'],
+  readAddresses: unavailableOperation as BisContextDependencies['readAddresses'],
+  observeActivity: unavailableOperation as BisContextDependencies['observeActivity'],
+  transfers: { quote: unavailableOperation as BisContextDependencies['transfers']['quote'], submit: unavailableOperation as BisContextDependencies['transfers']['submit'], reconcile: unavailableOperation as BisContextDependencies['transfers']['reconcile'] },
+  assets: { list: unavailableOperation as BisContextDependencies['assets']['list'], mint: unavailableOperation as BisContextDependencies['assets']['mint'] },
+  deliverAsset: unavailableOperation as BisContextDependencies['deliverAsset'],
+  reconcileAssetDelivery: unavailableOperation as BisContextDependencies['reconcileAssetDelivery'],
+  loadMintAvailability: unavailableOperation as BisContextDependencies['loadMintAvailability'],
+  sends: { funds: unavailableOperation as BisContextDependencies['sends']['funds'], quote: unavailableOperation as BisContextDependencies['sends']['quote'], submit: unavailableOperation as BisContextDependencies['sends']['submit'], reconcile: unavailableOperation as BisContextDependencies['sends']['reconcile'] },
+  burn: unavailableOperation as BisContextDependencies['burn'],
+  continuation: { submit: unavailableOperation as BisContextDependencies['continuation']['submit'], reconcile: unavailableOperation as BisContextDependencies['continuation']['reconcile'] },
+  onboardingScope: unavailableOperation as BisContextDependencies['onboardingScope'],
+  reconstructWalletReservations: unavailableOperation as BisContextDependencies['reconstructWalletReservations'],
+  validContinueRecipient: coreValidContinueRecipient,
+});
+
+/** Preferred named dependency seam for production composition and focused tests. */
+export function createContextWithDependencies(storage: AccountStorage, dependencies: BisContextDependencies, options: BisContextOptions = {}): BisContext {
+  const { create, identifyAccount, restore, readBalance, fund, readAddresses, transfers, assets, sends, burn, continuation, observeAssets, onboardingFactory, onboardingScope, reconstructWalletReservations, validContinueRecipient, deliverAsset, reconcileAssetDelivery, loadMintAvailability } = dependencies;
+  let observeActivity = dependencies.observeActivity;
+  let observePayments = dependencies.observePayments;
   const toasts = createToastQueue();
   const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
   if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
@@ -153,43 +172,6 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const guardIndependentSpend=()=>{if(state.profileId&&globalThis.localStorage)eligibleUnreservedCoins([],walletReservations(state.profileId));};
   const guardSend=()=>{if(globalThis.localStorage){assertNoPendingSend(state.profileId);assertNoPendingBurn(state.profileId);}};
   const idleAssets: BisAssets = Object.freeze({status:'idle'});
-  let assetWatch = new AbortController();
-  let assetRefreshPending = false;
-  let assetRead: Promise<void> | undefined;
-  async function refreshAssetView(background = false): Promise<void> {
-    if (!assetsVisible(state)) return;
-    if (assetRead) { if(background)assetRefreshPending=true; return assetRead; }
-    const work = async () => {
-      do {
-        assetRefreshPending=false;
-        cancelAssets();
-        const request=assetVersion, accountVersion=version, profileId=state.profileId, signal=assetOperation.signal;
-        const current=()=>!disposed&&!signal.aborted&&request===assetVersion&&accountVersion===version&&profileId===state.profileId&&assetsVisible(state);
-        if(!background || state.assets.status!=='ready') update({assets:Object.freeze({status:'loading'})});
-        try {
-          const result=await readWithRetry(readAssetSnapshot,signal);
-          if(current())update({assets:Object.freeze({status:'ready',...(background?{background:true}:{}),assets:result.assets})});
-        } catch { if(current())update({assets:Object.freeze({status:'unavailable'})}); }
-        if(!current())break;
-      } while(assetRefreshPending);
-    };
-    const active=work();assetRead=active;
-    try {await active;} finally {if(assetRead===active)assetRead=undefined;}
-  }
-  function startAssetWatch() {
-    if(!observeAssets)return;
-    const signal=assetWatch.signal, profile=state.profileId;
-    void (async()=>{
-      const saved=await storage.load();
-      if(signal.aborted||disposed||!saved.account||saved.account.profileId!==profile)return;
-      await observeAssets(saved.account,signal,()=>{
-        if(!signal.aborted&&!disposed&&state.profileId===profile&&assetsVisible(state))void refreshAssetView(true);
-      });
-    })().catch(()=>{ /* Manual Refresh remains available if streaming is unavailable. */ });
-  }
-  let assetVersion = 0;
-  let assetOperation = new AbortController();
-  const cancelAssets = () => { assetVersion++; assetOperation.abort(); assetOperation = new AbortController(); };
   const assetsVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && s.accountAssets;
   const idleActivity: BisActivity = Object.freeze({status:'idle'});
   let activityVersion = 0;
@@ -206,6 +188,16 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   const clearRecovery = () => { revealedPhrase = undefined; recoveryVersion++; recoveryOperation.abort(); recoveryOperation=new AbortController(); };
   let previous: BisState['view'] = 'empty';
   let disposed = false, version = 0, generation = 0;
+  const assetView = createAssetViewLifecycle({
+    getState: () => state,
+    getIdentity: () => ({version, profileId: state.profileId}),
+    isDisposed: () => disposed,
+    isVisible: () => assetsVisible(state),
+    readSnapshot: signal => readWithRetry(readAssetSnapshot, signal),
+    setAssets: assets => update({assets}),
+    loadAccount: () => storage.load(),
+    observeAssets,
+  });
   let transferTimer:ReturnType<typeof setTimeout>|undefined;
   function scheduleTransferCheck() {
     if(disposed||transferTimer)return;
@@ -325,8 +317,8 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       state = Object.freeze({...state, accountAssets:false});
     }
     const enteringAssets = assetsVisible(state) && (!assetsVisible(before) || before.profileId !== state.profileId);
-    if (!assetsVisible(state) || enteringAssets) { assetWatch.abort(); assetWatch=new AbortController(); assetRead=undefined;assetRefreshPending=false; cancelAssets(); state = Object.freeze({...state, assets:idleAssets}); }
-    if (enteringAssets) queueMicrotask(() => { if (!disposed && assetsVisible(state) && state.assets.status === 'idle') {void context.refreshAssets();startAssetWatch();} });
+    if (!assetsVisible(state) || enteringAssets) { assetView.reset(); state = Object.freeze({...state, assets:idleAssets}); }
+    if (enteringAssets) assetView.beginVisibleSession();
     const enteringActivity = activityVisible(state) && (!activityVisible(before) || before.profileId !== state.profileId);
     if (!activityVisible(state) || enteringActivity) { cancelActivity(); state=Object.freeze({...state,activity:idleActivity}); }
     const entering=balanceVisible(state) && (!balanceVisible(before) || before.accountReceive!==state.accountReceive || before.accountTransfer!==state.accountTransfer || before.profileId!==state.profileId);
@@ -484,7 +476,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if (disposed || version !== current || state.profileId !== profileId || state.phase !== 'active') return;
       if (balanceVisible(state) && (refresh || foreground && !preserveBalance)) update({balance:idleBalance,addresses:idleAddresses});
       if (!preserveBalance) void refreshBalanceView(!refresh && !foreground);
-      if (refresh) void refreshAssetView(true);
+      if (refresh) void assetView.refresh(true);
       if (refresh) {
         if (sharedWallet) sharedWallet.refresh();
         else void context.refreshActivity();
@@ -611,7 +603,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       const outpoints=records.flatMap(r=>r.inputs?.map(i=>`${i.txid}:${i.vout}`)??[]);
       const reservedInputSats=operations.every(op=>op.reservedInputSats!==undefined)&&new Set(outpoints).size===outpoints.length?operations.reduce((sum,op)=>sum+op.reservedInputSats!,0):undefined;
       try {
-        const [availableSats,balance]=await Promise.all([loadSendFunds(account,operation.signal,true),readBalance(account,operation.signal)]);
+        const [availableSats,balance]=await Promise.all([sends.funds(account,operation.signal,true),readBalance(account,operation.signal)]);
         if(disposed||current!==version)throw Error('Account changed.');
         return {availableSats,totalSats:balance.totalSats,reservedInputSats,operations};
       } catch {return {operations,reason:'Independent spendable funds could not be verified. Receiving and inspection remain available.'};}
@@ -707,7 +699,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
           if(readAssetRecords(profileId!,selectedAccount.network ?? 'signet').some(record=>record.status==='pending'))throw new AssetDeliveryError('unavailable','An asset mint is unresolved.');
           const account=await activeTransferAccount();
           if(!isCurrent())throw new AssetDeliveryError('account-changed','The account changed.');
-          const result=await deliverWalletAsset(account,request,operation.signal,isCurrent);
+          const result=await deliverAsset(account,request,operation.signal,isCurrent);
           if((result.status==='delivered'||result.status==='already-delivered')&&isCurrent())walletChanged(account.profileId);
           return result;
         }, selectedAccount.network ?? 'signet');
@@ -717,7 +709,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       try {
         return await withActiveWalletMutation(async()=>{
           const account=await activeTransferAccount(),current=version;
-          const result=await reconcileWalletAssetDelivery(account,operationId,operation.signal);
+          const result=await reconcileAssetDelivery(account,operationId,operation.signal);
           if((result.status==='delivered'||result.status==='already-delivered')&&!disposed&&current===version)walletChanged(account.profileId);
           return result;
         });
@@ -870,7 +862,7 @@ export function createContext(storage: AccountStorage, create = createAccount, i
     },
     async refreshAssets() {
       assertAlive();
-      return refreshAssetView();
+      return assetView.refresh();
     },
     openAccountRecovery() {
       assertAlive();
@@ -1092,8 +1084,8 @@ export function createContext(storage: AccountStorage, create = createAccount, i
       if(state.view==='account')context.closeAccount();
       else update({error:undefined});
     },
-    assetSession: () => assetVersion,
-    hideAssets(session) { if (!disposed && state.accountAssets && (session === undefined || session === assetVersion)) update({accountAssets:false}); },
+    assetSession: () => assetView.session(),
+    hideAssets(session) { if (!disposed && state.accountAssets && (session === undefined || session === assetView.session())) update({accountAssets:false}); },
     assertAlive,
     async fundingAddress() {
       assertAlive();
@@ -1184,43 +1176,32 @@ export function createContext(storage: AccountStorage, create = createAccount, i
   initialization=hydrate();
   return context;
 }
-export function createBisContext(options: BisContextOptions = {}): BisContext {
-  const session=createTestNetworkSession();
-  const network=session.getSelected();
-  const selected=()=>session.getSelected();
-  const stores=new Map<TestNetwork,AccountStorage>();
-  const currentStore=()=>{
-    const key=selected() ?? 'signet';
-    let store=stores.get(key);
-    if(!store){store=createAccountStorage(key);stores.set(key,store);}
-    return store;
-  };
-  // The selector is available before a wallet exists, so choose the encrypted
-  // store at every operation boundary instead of rebuilding the visible dialog.
-  const storage:AccountStorage={
-    load:()=>currentStore().load(),
-    listProfiles:()=>currentStore().listProfiles(),
-    selectProfile:(...args)=>currentStore().selectProfile(...args),
-    save:(...args)=>currentStore().save(...args),
-    reset:(...args)=>currentStore().reset(...args),
-    forceReset:(...args)=>currentStore().forceReset?.(...args) ?? Promise.resolve(),
-    subscribe:listener=>{
-      const unsubscribers=[...stores.values()].map(store=>store.subscribe(listener));
-      return()=>unsubscribers.forEach(unsubscribe=>unsubscribe());
-    },
-  };
-  const createSelected=(signal:AbortSignal)=>{const value=selected();if(!value)throw Error('Choose a test network first.');return createAccount(signal,value);};
-  const restoreSelected=(phrase:string,signal:AbortSignal)=>{const value=selected();if(!value)throw Error('Choose a test network first.');return restoreAccount(phrase,signal,value);};
-  const contextOptions: BisContextOptions = {
-    ...options,
-    requireNetworkSelection:true,
-    getNetwork:selected,
-    selectNetwork:value=>session.select(value),
-  };
-  // Hosts provide the Game Wallet recipient through a live getter. Spreading
-  // `options` above would otherwise snapshot its initial (usually empty) value.
-  Object.defineProperty(contextOptions,'continueRecipient',{enumerable:true,get:()=>options.continueRecipient});
-  return createContext(storage, createSelected, undefined, restoreSelected, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, contextOptions);
+
+/**
+ * Legacy source-level test seam. Production composition uses the named
+ * `createContextWithDependencies` contract; this wrapper avoids a behavior-risky
+ * all-at-once migration of focused tests that inject one operation at a time.
+ */
+export function createContext(storage: AccountStorage, create = unavailableOperation as BisContextDependencies['create'], identifyAccount = unavailableOperation as BisContextDependencies['identifyAccount'], restore = unavailableOperation as BisContextDependencies['restore'], readBalance = unavailableOperation as BisContextDependencies['readBalance'], fund = unavailableOperation as BisContextDependencies['fund'], readAddresses = unavailableOperation as BisContextDependencies['readAddresses'], observeActivity = unavailableOperation as BisContextDependencies['observeActivity'], transfers = unavailableDependencies().transfers, assets = unavailableDependencies().assets, sends = unavailableDependencies().sends, burn = unavailableOperation as BisContextDependencies['burn'], continuation = unavailableDependencies().continuation, options: BisContextOptions = {}, observePayments: BisContextDependencies['observePayments'] = undefined, observeAssets: BisContextDependencies['observeAssets'] = undefined, onboardingFactory: BisContextDependencies['onboardingFactory'] = undefined): BisContext {
+  const defaults = unavailableDependencies();
+  return createContextWithDependencies(storage, {
+    ...defaults,
+    create,
+    identifyAccount,
+    restore,
+    readBalance,
+    fund,
+    readAddresses,
+    observeActivity,
+    transfers,
+    assets,
+    sends,
+    burn,
+    continuation,
+    observePayments,
+    observeAssets,
+    onboardingFactory,
+  }, options);
 }
 export function createBisAdminContext(context: BisContext) {
   const internal=getControls(context);internal.assertAlive();

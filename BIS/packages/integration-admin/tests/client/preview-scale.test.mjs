@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
 test('preview scale persists supported choices and tolerates invalid or blocked storage', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const server = await createServer({ server: { middlewareMode: true, watch: { ignored: ['**/output/**'] } }, appType: 'custom' });
   try {
     const { readPreviewScale, savePreviewScale } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/preview-layer/preview-scale.ts');
     const values = new Map();

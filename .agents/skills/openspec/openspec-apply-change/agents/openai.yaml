@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenSpec Apply Change"
+  short_description: "Implement a planned OpenSpec change"
+  default_prompt: "Use $openspec-apply-change to implement one completed OpenSpec proposal."

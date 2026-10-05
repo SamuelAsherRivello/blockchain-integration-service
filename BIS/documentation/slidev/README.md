@@ -1,8 +1,10 @@
 # BIS Slidev documentation
 
-This workspace contains two Slidev decks that share the local **Mondrian** theme. `modrian-template.md` opens the Modrian Template catalog: its examples document every public `mondrian-*` layout. `blockchain-for-game.md` is the Blockchain For Gaming content deck: each slide selects one of those same named layouts through frontmatter and supplies only its content and declared slots.
+This workspace contains three Slidev decks that share the local **Mondrian** theme. `modrian-template.md` opens the Modrian Template catalog: its examples document every public `mondrian-*` layout. `blockchain-for-game-master-deck.md` is the Blockchain For Gaming Master Deck and `outro.md` is its six-slide Outro companion; each slide selects one of those same named layouts through frontmatter and supplies only its content and declared slots.
 
 `themes/mondrian-final` is the source of truth for layouts, shared components, responsive styling, and interactive-image behavior. See its [layout catalog](./themes/mondrian-final/layout-catalog.json) and [theme guide](./themes/mondrian-final/README.md). The decks do not inherit Markdown from each other; this is Slidev's supported theme-and-layout model.
+
+Layout geometry belongs in the corresponding theme component, never in a catalog-only class. For example, `mondrian-image-bottom` owns its title, subtitle, and image-pane anchor positions, so a change automatically applies to every deck slide that selects it. `verify:rendered-layouts` checks each Blockchain slide against its mapped catalog example and compares shared Image Bottom text anchors, catching a catalog-only position override before review.
 
 ## Run the local approval preview
 
@@ -13,26 +15,36 @@ npm run dev:modrian-template
 ```
 
 ```powershell
-npm run dev:blockchain-for-game
+npm run dev:blockchain-for-game-master-deck
+```
+
+```powershell
+npm run dev:outro
 ```
 
 ```powershell
 npm run dev
 ```
 
-Open `http://localhost:3032/`. The landing page links to the Modrian Template catalog and Blockchain For Gaming deck. The launcher on port 3032 proxies the catalog server on port 3049 and the content-deck server on port 3051, with no-cache headers for review.
+Open `http://localhost:3032/`. The landing page links to the Modrian Template catalog, Blockchain For Gaming Master Deck, and Outro deck. The launcher on port 3032 proxies the catalog server on port 3049, the content deck server on port 3051, and the Outro server on port 3052, with no-cache headers for review.
 
 ## Layout contract and verification
 
-Use `layout: mondrian-*` in a content deck and pair it with `templateLayout` and `catalogSlide`. The contract check fails when a Blockchain slide selects a non-Mondrian layout, maps to a different layout than it renders, maps to an example absent from the catalog, or declares another theme.
+Use `layout: mondrian-*` in a declared content deck. `templateLayout` and `catalogSlide` are generated, reviewable metadata: authors may select `catalogExample` when a layout has more than one catalog example, but must not hand-maintain page numbers. The contract check audits every declared Mondrian deck and fails when a slide selects a non-Mondrian layout, maps to a different layout than it renders, maps to an example absent from the catalog, or declares another theme.
+
+Every declared Mondrian `dev:*` and `build:*` command runs `sync:layout-mappings` first. It resolves `modrian-template.md` to the canonical catalog, discovers the matching deck entries from `package.json`, refreshes the layout catalog, and updates their generated mapping metadata. A direct `slidev` CLI invocation bypasses that supported lifecycle and is caught by the contract check.
+
+Use `npm run sync:layout-mappings` as the explicit fallback after a suspected mismatch. It validates the complete catalog and declared deck inventory before writing any mapping metadata, then verifies the layout contract. An unknown layout or invalid catalog example stops the operation before a partial mapping set is written.
 
 ```powershell
 npm run verify:layout-contract
 npm run verify:layout-contract:self-test
+npm run verify:layout-mappings:self-test
+npm run sync:layout-mappings
 npm run build:decks
 npm run verify:rendered-layouts
 ```
 
-`verify:rendered-layouts` requires the two Slidev servers above. It uses Playwright Chromium to compare all mapped Blockchain slides to their catalog layout and writes review screenshots under `output/screenshots/mondrian-slidev-refactor/`.
+`verify:rendered-layouts` requires the two Slidev servers above. It uses Playwright Chromium to compare all mapped Blockchain slides to their catalog layout and writes review screenshots under `output/screenshots/resync-deck-to-match-template/`.
 
 The reusable safe-area coordinates remain documented in `riverside-safe-area-guides.md`; the final theme deliberately contains no visible guide overlay. This workspace is independent from the repository’s shared Vite preview and GitHub Pages release unless that is added deliberately later.

@@ -7,6 +7,12 @@
 <!-- AI: Replace {PROJECT_NAME} with the requested project display name. Write one short introduction sentence explaining what the project does and who it is for, based on implemented behavior. -->
 This is a proof-of-concept (POC) demonstrating Blockchain use cases for gaming.
 
+> [!WARNING]
+> **Prototype only.** BIS is a proof of concept, not a production-ready service.
+> It is client-authoritative and insecure by design, and it supports Bitcoin
+> **Signet** and **Mutinynet** test networks only. Do not use it with real funds.
+> See the [Prototype scope and security](BIS/documentation/prototype-scope-and-security-readme.md).
+
 The BIS adds a Blockchain enabled ui and service layer to your games for Signet and Mutinynet networks for Bitcoin.
 
 ### BIS Benefits
@@ -64,7 +70,8 @@ Run the following commands to get started.
 
 <!-- AI: Replace {command} with the actual build command or required editor action. Verify it against manifests, scripts, or project settings. Specify the working directory and dependency installation when necessary; do not assume npm or a particular engine. -->
 1. Run `npm ci` to install the locked workspace dependencies.
-2. Run `npm run build` to check types and build the integration library and demo.
+2. Run `npm run build` to check types and build the integration library, Admin, and Marketplace release surfaces.
+3. Run `npm test` to run their automated suite. When a change affects the shared four-package local preview, run `npm run build:all` and `npm run test:all` to include the independent Onboarding Spike checks.
 
 ### 🛠 Run Project
 
@@ -101,13 +108,15 @@ This is a work in progress with no custom application server. The two supported 
 
 <!-- AI: Link to the main documentation files that actually exist using relative Markdown links and a short purpose for each. Update links when files move; do not reference documentation inherited from another project unless present here. -->
 - [README](README.md): Setup, commands, and repository overview.
+- [Package boundaries](docs/readme/package-boundaries-readme.md): Ownership and allowed dependency direction for the four workspace packages.
+- [Verification scope](docs/readme/verification-scope-readme.md): Default release checks and the opt-in four-package verification commands.
 - [Project brief](BIS/documentation/BGS_PROJECT_BRIEF.md): Original BGS design baseline.
 - [Design discussion](BIS/documentation/design-discussion.md): Confirmed decisions and implementation notes.
 - [User Story Diagrams](BIS/documentation/User%20Story%20Diagrams.md): Flows, scope, and verification status.
 - [Integration package](BIS/packages/integration/integration-package-readme.md): Public API and runtime behavior.
 - [Game smoke test](BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md): Integration setup and acceptance checks.
 - [Integration Admin application](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
-- [Windows Sandbox Setup](BIS/documentation/setup-sandbox-windows.md): Docker Sandboxes setup and Codex usage on Windows.
+- [Windows Sandbox Setup](https://github.com/SamuelAsherRivello/ai-skills-library/blob/main/documentation/sandbox-readme.md): Docker Sandboxes setup and Codex usage on Windows.
 
 ### 📝 Structure
 
@@ -115,6 +124,8 @@ This is a work in progress with no custom application server. The two supported 
 - `BIS/documentation/`: Project documentation and README images.
 - `BIS/packages/integration/`: Reusable runtime UI, core state, and Arkade adapters.
 - `BIS/packages/integration-admin/`: Admin UI, 9:16 preview, and documentation viewer.
+- `BIS/packages/marketplace/`: Equipment catalog and account UI using the public integration API.
+- `BIS/packages/prototype-onboarding/`: Independent Arkade onboarding experiment with separate browser persistence.
 - `BIS/scripts/`: Project automation, including the test runner.
 - `openspec/`: Tracked specifications and change plans.
 - `.agents/skills/`: Local specification workflows.
@@ -125,7 +136,7 @@ The root `package.json`, `package-lock.json`, and `tsconfig.json` configure npm 
 ## Project Details
 
 <!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. Keep this section brief; do not add test commands, test caveats, or dependency-version inventory unless explicitly requested. -->
-React and TypeScript power both packages, with Vite for development and production builds. `@bis/integration-admin` consumes `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. Arkade-specific types and recovery material stay out of public state and events.
+React and TypeScript power the reusable integration, Admin, and Marketplace packages, with Vite for development and production builds. `@bis/integration-admin` and `@bis/marketplace` consume `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. The independent onboarding prototype uses the Arkade SDK directly. Arkade-specific types and recovery material stay out of public state and events.
 
 ### 📦 AI
 
@@ -139,10 +150,10 @@ React and TypeScript power both packages, with Vite for development and producti
 #### External Packages
 
 <!-- AI: Keep the package list limited to React, Arkade SDK, TypeScript, and Vite. Do not restore Mermaid, react-markdown, or @scure/bip39 entries or descriptions in this README unless explicitly requested by the user. Verify listed versions against the repository. -->
-- [React](https://react.dev/): Runtime components and demo UI (`19.2.8`).
-- [Arkade SDK](https://github.com/arkade-os/sdk): Signet and Mutinynet wallet and asset integration (`0.4.67`).
+- [React](https://react.dev/): Runtime components and demo UI (`19.3.0`).
+- [Arkade SDK](https://github.com/arkade-os/sdk): Signet and Mutinynet wallet and asset integration (`0.4.72`).
 - [TypeScript](https://www.typescriptlang.org/): Static type checking (`7.0.2`).
-- [Vite](https://vite.dev/): Local development server and production builds (`8.2.2`).
+- [Vite](https://vite.dev/): Local development server and production builds (`8.3.0`).
 
 #### Internal Packages
 

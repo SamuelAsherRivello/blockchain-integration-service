@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triage Standardize"
+  short_description: "Align project, class, and AI-readiness standards"
+  default_prompt: "Use $triage-standardize to draft or apply an approved standards baseline. Optionally include a short focus or exclusion."

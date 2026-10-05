@@ -1,0 +1,17 @@
+
+
+  ●■▲
+  Slidev  v53.0.0 
+
+  theme       ./themes/mondrian-final
+  css engine  unocss
+  entry       D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/blockchain-for-game.md
+
+  public slide show   > http://localhost:3052/slidev/blockchain-for-game/
+  presenter mode      > http://localhost:3052/slidev/blockchain-for-game/presenter/
+  slides overview     > http://localhost:3052/slidev/blockchain-for-game/overview/
+  export slides       > http://localhost:3052/slidev/blockchain-for-game/export/
+  mcp server         > http://localhost:3052/__mcp
+  remote control      > pass --remote to enable
+
+  shortcuts           > restart | open | edit | quit

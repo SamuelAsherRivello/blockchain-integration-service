@@ -4,7 +4,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
 test('encrypted player profiles migrate, deduplicate, select explicitly, and notify other contexts', {timeout:120000}, async t => {
-  const server=await createServer({configFile:false,root:process.cwd(),cacheDir:`output/tests/client/account-profiles-${process.pid}`,optimizeDeps:{noDiscovery:true,include:[]},plugins:[{name:'account-storage-browser-boundary',enforce:'pre',load(id){return id.replaceAll('\\','/').endsWith('/wallet-layer-arkade/account.ts')?'export const SIGNET_OPERATOR="https://signet.arkade.sh";export const operatorFor=()=>SIGNET_OPERATOR;':undefined;}}],server:{host:'127.0.0.1',port:0}});
+  const server=await createServer({configFile:false,root:process.cwd(),cacheDir:`output/tests/client/account-profiles-${process.pid}`,optimizeDeps:{noDiscovery:true,include:[]},plugins:[{name:'account-storage-browser-boundary',enforce:'pre',load(id){return id.replaceAll('\\','/').endsWith('/wallet-layer-arkade/account.ts')?'export const SIGNET_OPERATOR="https://signet.arkade.sh";export const operatorFor=()=>SIGNET_OPERATOR;':undefined;}}],server:{host:'127.0.0.1',port:0,watch:{ignored:['**/output/**']}}});
   await server.listen();
   const browser=await chromium.launch({headless:true,...(process.env.BIS_PLAYWRIGHT_CHANNEL?{channel:process.env.BIS_PLAYWRIGHT_CHANNEL}:{})});
   t.after(async()=>{await browser.close();await server.close();});

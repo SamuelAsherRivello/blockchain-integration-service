@@ -1050,7 +1050,7 @@ E.P.2 and E.P.3 are independently deliverable stories. E.P.2 provides a read-onl
 
 **User story:** As a player with an unresolved same-account transfer, I want to explicitly cancel it when supported so I can safely use my account again without risking a duplicate transfer.
 
-**Status:** Proposed, not implemented. The confirmed delivery order is feasibility first: establish exact cancellation scope and a verifiable terminal outcome before building cancellation UI. If those guarantees cannot be established, stop and report the blocker; a disabled cancellation button is not delivery. See [proposal](../../openspec/changes/cancel-pending-transfer/proposal.md) and [feasibility findings](../../openspec/changes/cancel-pending-transfer/FEASIBILITY.md).
+**Status:** Proposed, not implemented. The confirmed delivery order is feasibility first: establish exact cancellation scope and a verifiable terminal outcome before building cancellation UI. If those guarantees cannot be established, stop and report the blocker; a disabled cancellation button is not delivery. No proposal or feasibility record currently exists for this deferred work.
 
 **Intended flow after feasibility passes:**
 
@@ -1099,7 +1099,7 @@ A.G.3 appends **(Awaiting Balance)** for loading or insufficient payment funds. 
 
 **User story:** As a player, I want BIS to start onboarding automatically once my account is funded, explain its progress and recover safely, so my intended Arkade funds become usable without manual transfer steps or unnecessary waits.
 
-**Status:** Implemented with deterministic and browser verification; fresh Signet settlement/payment acceptance remains open. See [verification and recovery limits](../../openspec/changes/add-automatic-bis-onboarding/verification.md), [automatic onboarding proposal](../../openspec/changes/add-automatic-bis-onboarding/proposal.md), [design](../../openspec/changes/add-automatic-bis-onboarding/design.md), and [implementation tasks](../../openspec/changes/add-automatic-bis-onboarding/tasks.md). This section defines A.G.4 automatic 50% onboarding decisions. B.P.7 manual transfers and E.P.3 cancellation/recovery retain their separate contracts.
+**Status:** Implemented with deterministic and browser verification; fresh Signet settlement/payment acceptance remains open. See [verification and recovery limits](../../openspec/changes/archive/2026-09-10-add-automatic-bis-onboarding/verification.md), [automatic onboarding proposal](../../openspec/changes/archive/2026-09-10-add-automatic-bis-onboarding/proposal.md), [design](../../openspec/changes/archive/2026-09-10-add-automatic-bis-onboarding/design.md), and [implementation tasks](../../openspec/changes/archive/2026-09-10-add-automatic-bis-onboarding/tasks.md). This section defines A.G.4 automatic 50% onboarding decisions. B.P.7 manual transfers and E.P.3 cancellation/recovery retain their separate contracts.
 
 **Evidence and current BIS gaps:**
 

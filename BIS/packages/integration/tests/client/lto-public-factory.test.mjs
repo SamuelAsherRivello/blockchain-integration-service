@@ -38,7 +38,7 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
     '/state-layer-core/game-wallet-storage.ts':prefix+'export const createGameWalletStorage=()=>d.gameStorage,createNetworkScopedGameWalletStorage=()=>d.gameStorage;',
     '/wallet-layer-arkade/lto-contract.ts':prefix+'export const prepareLtoRecovery=d.prepare,submitLtoSpend=d.submit,reconcileLtoSpend=d.reconcile,resumeLtoFinalization=d.resume;'
   };
-  const server=await createServer({configFile:false,plugins:[{name:'isolated-lto-boundaries',enforce:'pre',load(id){return Object.entries(stubs).find(([suffix])=>id.replaceAll('\\','/').endsWith(suffix))?.[1];}}],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
+  const server=await createServer({configFile:false,plugins:[{name:'isolated-lto-boundaries',enforce:'pre',load(id){return Object.entries(stubs).find(([suffix])=>id.replaceAll('\\','/').endsWith(suffix))?.[1];}}],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
   try {
     const {createBisLto}=await server.ssrLoadModule('/BIS/packages/integration/src/client/state-layer-core/lto-service.ts');
     const context={getState:()=>({profileId:'player',phase:'active',network:'signet'}),showToast:message=>toasts.push(message),refreshBalance:async()=>{}};

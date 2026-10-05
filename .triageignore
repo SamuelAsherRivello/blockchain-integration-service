@@ -1,0 +1,2 @@
+# Triage-only scope exclusions. These do not restrict non-triage AI workflows.
+BIS/documentation/slidev/

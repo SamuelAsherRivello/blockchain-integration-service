@@ -1,8 +1,9 @@
-export { createBisContext, createBisAdminContext } from './client/state-layer-core/context';
-export { BisGameServices } from './client/state-layer-core/bis-game-services';
-export type { BisGameServicesOptions, BisGameContinueDeliveryOptions, BisGameResetResult, BisGameResetErrorCode } from './client/state-layer-core/bis-game-services';
-export { BisGameResetError } from './client/state-layer-core/bis-game-services';
-export type { BisHostGame, BisHostGameSessionReference, BisHostGameContinuationTarget, BisHostGameConfirmedContinuation, BisHostGameConfirmedPlayerReward, BisHostGameEffectReceipt } from './client/state-layer-core/bis-host-game';
+export { createBisAdminContext } from './client/state-layer-core/context';
+export { createBisContext } from './client/wallet-layer-arkade/context-composition';
+export { BisService } from './client/integration-layer/bis-service';
+export type { BisServiceOptions, BisServiceContinueDeliveryOptions, BisServiceResetResult, BisServiceResetErrorCode } from './client/integration-layer/bis-service';
+export { BisServiceResetError } from './client/integration-layer/bis-service';
+export type { IBisGame, BisGameSession, BisGameContinuationTarget, BisGameConfirmedContinuation, BisGameConfirmedPlayerReward, BisGameEffectReceipt } from './client/state-layer-core/bis-game';
 export { createBisGameWallet } from './client/state-layer-core/game-wallet';
 export { arkExplorerAssetUrl, arkExplorerTransactionUrl, testNetwork } from './client/state-layer-core/test-network';
 export type { TestNetwork } from './client/state-layer-core/test-network';

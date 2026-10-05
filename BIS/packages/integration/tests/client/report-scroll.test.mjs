@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 test('long reports expose all text in a scrollable field without page navigation', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const server = await createServer({ server: { middlewareMode: true, watch: { ignored: ['**/output/**'] } }, appType: 'custom' });
   try {
     const { ReportTextArea } = await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/ReportTextArea.tsx');
     const value = 'Long public report 🟢\n'.repeat(100);

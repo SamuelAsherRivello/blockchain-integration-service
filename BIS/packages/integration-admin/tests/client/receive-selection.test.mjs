@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
 test('B.P.3 selects Receive only for active accounts and preserves other story routes', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const server = await createServer({ server: { middlewareMode: true, watch: { ignored: ['**/output/**'] } }, appType: 'custom' });
   try {
     const { selectAccountStory } = await server.ssrLoadModule('/BIS/packages/integration-admin/src/client/admin-layer/selectAccountStory.ts');
     for (const [id, active, expected] of [

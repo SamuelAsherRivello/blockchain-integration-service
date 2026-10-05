@@ -36,7 +36,8 @@ Gameplay and gameplay input SHALL remain paused while Settings or Account owns t
 - **THEN** Account controls and Back remain reachable, inactive modal/game controls cannot receive actions, and the scene remains visibly paused
 
 ### Requirement: Account lifecycle remains origin-local and independent of gameplay
-The game SHALL support the existing A.P.1–A.P.5 Account lifecycle on its own browser origin. It SHALL preserve saved account access across ordinary reload and menu visits, honor existing logout cleanup guards and request host-owned restart after confirmed cleanup, and allow ordinary gameplay without an account or wallet connectivity. It SHALL NOT copy browser wallet storage between the BIS demo and game or expose recovery material through host state, events, diagnostics or test reports. Ordinary Account dismissal or host disposal SHALL NOT clear saved account storage.
+
+The game SHALL support the existing A.P.1–A.P.5 Account lifecycle on its own browser origin. It SHALL preserve saved account access across ordinary reload and menu visits, honor existing logout cleanup guards and request host-owned restart after confirmed cleanup, and allow ordinary gameplay without an account or wallet connectivity. It SHALL NOT copy browser wallet storage between the BIS demo and game or expose recovery material through host state, events, diagnostics or test reports. Ordinary Account dismissal or host disposal SHALL NOT clear saved account storage. The game’s explicit Clear All Settings action SHALL be a separate force-reset path: it SHALL clear game-owned settings and invoke BIS’s public force-reset operation, which clears BIS-owned player-wallet and game-wallet state without applying the interactive logout acknowledgement flow.
 
 #### Scenario: Create and return after reload
 - **WHEN** a user explicitly creates a disposable Signet account, completes the production recovery step and reloads the same game origin
@@ -55,6 +56,11 @@ The game SHALL support the existing A.P.1–A.P.5 Account lifecycle on its own b
 - **WHEN** Account package loading, hydration or a wallet read fails or remains slow
 - **THEN** initial package loading and hydration show only the blocking backdrop; failure or the bounded timeout shows truthful unavailable feedback with a return to Settings
 - **AND** the game does not invent a connected account, balance or successful operation
+
+#### Scenario: Clear All Settings force-reset
+- **WHEN** the player activates the game’s Clear All Settings action
+- **THEN** the game clears its own settings and invokes BIS force reset without an “are you sure” prompt
+- **AND** both BIS wallet roles and BIS-owned local state are absent afterward while ordinary guest gameplay remains available
 
 ### Requirement: Public package works in development and production hosts
 The smoke delivery SHALL identify the exact BIS package artifact and both project revisions tested. The independent game SHALL load that package and its styles in development and production builds without relying on private sibling-source imports. Repeated Account activation SHALL NOT create duplicate active sessions, overlays or subscriptions, and host teardown SHALL release its UI and subscriptions without late callbacks reopening them.
@@ -140,7 +146,6 @@ Only the Accounts Details page SHALL display the Account ID field and its copy i
 - **WHEN** BIS is checked in the user's Windows Chrome at 100% zoom (observed area 743 × 1321) and on their Android browser
 - **THEN** ordinary BIS page/dialog scrolling is absent on both platforms
 - **AND** test evidence records actual available CSS dimensions rather than assuming desktop image dimensions transfer to Android
-
 
 ### Requirement: Silent Account initialization
 The game SHALL NOT display a temporary Account loading dialog or message on first activation. It MAY show the blocking backdrop during initialization. Failed initialization or its bounded timeout SHALL provide an unavailable message and a usable Back to Settings action.

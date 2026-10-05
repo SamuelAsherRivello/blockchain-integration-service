@@ -13,5 +13,6 @@
 .slidev-layout { background-size: 100% 2px, 2px 100%, 100% 100%; }
 .slidev-layout.intro, .slidev-layout.section, .slidev-layout.end, .slidev-layout.fact, .slidev-layout.statement { background-color: var(--mondrian-panel); }
 .slidev-layout h1, .slidev-layout h2, .slidev-layout h3 { color: var(--mondrian-ink); }
+.slidev-layout.intro h2 { line-height: 1.045; }
 .slidev-layout p, .slidev-layout li { color: var(--mondrian-muted); }
 .slidev-layout strong, .slidev-layout.quote blockquote p { color: var(--mondrian-ink); }

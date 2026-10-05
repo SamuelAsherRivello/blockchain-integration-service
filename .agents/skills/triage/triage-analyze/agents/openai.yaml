@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triage Analyze"
+  short_description: "Assess codebase health without code changes"
+  default_prompt: "Use $triage-analyze to assess this repository and write a Markdown report packet. Optionally include a short focus or exclusion."

@@ -32,7 +32,7 @@ test('invoice capability is unavailable and navigation leaves address receiving 
 });
 
 test('production Receive hides deferred invoice UI and keeps address Copy and Back enabled', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
+  const server = await createServer({ server: { middlewareMode: true, watch: { ignored: ['**/output/**'] } }, appType: 'custom' });
   let context;
   try {
     // The UI and context must share Vite's module instance and private controls registry.
