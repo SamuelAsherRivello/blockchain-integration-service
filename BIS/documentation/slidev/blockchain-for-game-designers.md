@@ -3,7 +3,7 @@ theme: ./themes/mondrian-final
 colorSchema: dark
 layout: mondrian-title
 title: Blockchain For Game Designers
-version: 0.0.1
+version: 0.0.2
 titleTemplate: 'Slidev - %s'
 favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
@@ -642,7 +642,7 @@ imageOpacity: 1
 imageScale: 1.5
 imageTint: white
 arrowX: 405
-arrowY: 230
+arrowY: 200
 imageTreatment: generated-transparent
 ---
 
@@ -662,7 +662,7 @@ imageOpacity: 1
 imageScale: 1.5
 imageTint: white
 arrowX: 560
-arrowY: 230
+arrowY: 200
 imageTreatment: generated-transparent
 ---
 
@@ -682,7 +682,7 @@ imageOpacity: 1
 imageScale: 1.5
 imageTint: white
 arrowX: 720
-arrowY: 230
+arrowY: 200
 imageTreatment: generated-transparent
 ---
 
@@ -702,7 +702,7 @@ imageOpacity: 1
 imageScale: 1.5
 imageTint: white
 arrowX: 875
-arrowY: 230
+arrowY: 200
 imageTreatment: generated-transparent
 ---
 
