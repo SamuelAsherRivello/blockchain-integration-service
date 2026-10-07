@@ -114,7 +114,7 @@ catalogLayout: mondrian-demo
 
 # Demo
 
-## <FocusedLink href="https://www.google.com/" name="Google" message="Search engine.">Let's play ... </FocusedLink>
+## <FocusedLink href="https://www.google.com/" name="Google" mode="direct" message="Search engine.">Let's play ... </FocusedLink>
 
 ---
 layout: mondrian-hook

@@ -19,6 +19,7 @@ imageTreatment: none
 
 # Blockchain
 ## For Game Designers
+## & Game Developers
 
 ---
 layout: mondrian-subsection
@@ -29,8 +30,8 @@ catalogSlide: 2
 imageTreatment: none
 ---
 
-# Gaming 
-## Overview
+# Blockchain
+## For Game Designers
 
 ---
 layout: mondrian-image-right
@@ -116,6 +117,15 @@ imageTreatment: copy-upscaled
 # Essentials for Game Development
 <ul class="slide-five-template-eleven__skills"><li>UI</li><li>Input</li><li>Audio</li><li>Graphics</li><li>Animation</li><li>Programming</li></ul><img class="slide-five-template-eleven__controller" src="./assets/blockchain-for-game/source-slides/slide-5-xbox-controller-transparent-2x.png" alt="Xbox controller" />
 ---
+layout: mondrian-center
+templateLayout: mondrian-center
+catalogSlide: 7
+---
+
+# As<br>technology matures
+## gaming can offer more...
+
+---
 layout: mondrian-subsection
 contentSlide: 6
 contentSlideId: h71ce93168c13465f_0_27
@@ -126,6 +136,110 @@ imageTreatment: none
 
 # Blockchain Gaming
 ## Overview
+
+---
+layout: mondrian-image-bottom
+contentSlide: 10
+contentSlideId: g3e50a99ab1a_1_9441
+templateLayout: mondrian-image-bottom
+catalogSlide: 15
+image: ./assets/blockchain-for-game/game-loop-action-reward-expansion-2x.png
+backgroundSize: 70%
+imagePosition: 50% calc(50% - 22.2px)
+imagePaneColor: '#1463F5'
+bleedImagePaneToBottom: true
+imageTreatment: generated-original-2x
+---
+
+# Game Loop
+
+---
+layout: mondrian-image-bottom
+contentSlide: 10
+contentSlideId: g3e50a99ab1a_1_9441
+templateLayout: mondrian-image-bottom
+catalogSlide: 15
+image: ./assets/blockchain-for-game/game-loop-action-reward-expansion-2x.png
+overlayImage: ./assets/blockchain-for-game/game-loop-runner-v1.png
+backgroundSize: 70%
+imagePosition: 50% calc(50% - 22.2px)
+imagePaneColor: '#1463F5'
+bleedImagePaneToBottom: true
+imageTreatment: generated-original-2x
+---
+
+# Game Loop: Action
+
+---
+layout: mondrian-image-bottom
+contentSlide: 11
+contentSlideId: g3e50a99ab1a_1_9459
+templateLayout: mondrian-image-bottom
+catalogSlide: 15
+image: ./assets/blockchain-for-game/game-loop-action-reward-expansion-2x.png
+overlayImage: ./assets/blockchain-for-game/game-loop-runner-v2.png
+backgroundSize: 70%
+imagePosition: 50% calc(50% - 22.2px)
+imagePaneColor: '#1463F5'
+bleedImagePaneToBottom: true
+imageTreatment: generated-original-2x
+---
+
+# Game Loop: Reward
+
+---
+layout: mondrian-image-bottom
+contentSlide: 12
+contentSlideId: g3e50a99ab1a_1_9483
+templateLayout: mondrian-image-bottom
+catalogSlide: 15
+image: ./assets/blockchain-for-game/game-loop-action-reward-expansion-2x.png
+overlayImage: ./assets/blockchain-for-game/game-loop-runner-powered-v1.png
+backgroundSize: 70%
+imagePosition: 50% calc(50% - 22.2px)
+imagePaneColor: '#1463F5'
+bleedImagePaneToBottom: true
+imageTreatment: generated-original-2x
+class: game-loop-image-slide--blockchain
+---
+
+# Game Loop: Expansion
+
+---
+layout: mondrian-image-bottom
+contentSlide: 12
+contentSlideId: g3e50a99ab1a_1_9483
+templateLayout: mondrian-image-bottom
+catalogSlide: 15
+image: ./assets/blockchain-for-game/game-loop-blockchain-2x.png
+overlayImage: ./assets/blockchain-for-game/game-loop-runner-propeller-laser-v1.png
+backgroundSize: 70%
+imagePosition: calc(50% - 7.9px) calc(50% - 0.5px)
+imagePaneColor: '#1463F5'
+bleedImagePaneToBottom: true
+imageTreatment: generated-original-2x
+class: game-loop-image-slide--blockchain
+---
+
+# Game Loop: <span style="color: var(--mondrian-blue)">Blockchain</span>
+
+---
+layout: mondrian-image-bottom
+contentSlide: 12
+contentSlideId: g3e50a99ab1a_1_9483
+templateLayout: mondrian-image-bottom
+catalogSlide: 15
+image: ./assets/blockchain-for-game/game-loop-blockchain-2x.png
+overlayImage: ./assets/blockchain-for-game/game-loop-runner-trophy-v1.png
+backgroundSize: 70%
+imagePosition: calc(50% - 7.9px) calc(50% - 0.5px)
+imagePaneColor: '#1463F5'
+bleedImagePaneToBottom: true
+imageTreatment: generated-original-2x
+class: game-loop-image-slide--blockchain
+---
+
+# Game Loop: <span style="color: var(--mondrian-blue)">Blockchain</span>
 
 ---
 layout: mondrian-content
@@ -177,60 +291,36 @@ imageTreatment: editable-text-table
 
 <table class="deck-table deck-table--generations"><colgroup><col class="deck-table__row-label" /><col /><col /><col /></colgroup><thead><tr><th></th><th>WEB 1</th><th>WEB 2</th><th>WEB 3</th></tr></thead><tbody><tr><th>ACCESS</th><td>Read</td><td>Read / Write</td><td>Read / Write / Execute</td></tr><tr><th>USER-CONTENT<br>CREATION</th><td>None</td><td>Free</td><td>Incentivized</td></tr><tr><th>FOCUS</th><td>Company</td><td>Community</td><td>Individual</td></tr></tbody></table></div>
 
----
-layout: mondrian-image-bottom
-contentSlide: 10
-contentSlideId: g3e50a99ab1a_1_9441
-templateLayout: mondrian-image-bottom
-catalogSlide: 15
-image: ./assets/blockchain-for-game/game-loop-action-reward-expansion-2x.png
-backgroundSize: 70%
-imagePosition: 50% calc(50% - 22.2px)
-imagePaneColor: '#1463F5'
-bleedImagePaneToBottom: true
-imageTreatment: generated-original-2x
----
-# Game Loop
----
-layout: mondrian-image-bottom
-contentSlide: 11
-contentSlideId: g3e50a99ab1a_1_9459
-templateLayout: mondrian-image-bottom
-catalogSlide: 15
-image: ./assets/blockchain-for-game/game-loop-action-reward-expansion-2x.png
-overlayImage: ./assets/blockchain-for-game/game-loop-runner-v1.png
-backgroundSize: 70%
-imagePosition: 50% calc(50% - 22.2px)
-imagePaneColor: '#1463F5'
-bleedImagePaneToBottom: true
-imageTreatment: generated-original-2x
----
-# Game Loop
----
-layout: mondrian-image-bottom
-contentSlide: 12
-contentSlideId: g3e50a99ab1a_1_9483
-templateLayout: mondrian-image-bottom
-catalogSlide: 15
-image: ./assets/blockchain-for-game/game-loop-blockchain-2x.png
-overlayImage: ./assets/blockchain-for-game/game-loop-runner-v1.png
-backgroundSize: 70%
-imagePosition: calc(50% - 7.9px) calc(50% - 0.5px)
-imagePaneColor: '#1463F5'
-bleedImagePaneToBottom: true
-imageTreatment: generated-original-2x
-class: game-loop-image-slide--blockchain
----
-# Game Loop: <span style="color: var(--mondrian-blue)">Blockchain</span>
+
 ---
 layout: mondrian-center
 templateLayout: mondrian-center
 catalogSlide: 7
 ---
 
-# Why Blockchain?
-## To unlock unique benefits
-## & get better results
+# And with Blockchain
+## gaming can offer more…
+
+---
+layout: mondrian-tease
+catalogLayout: mondrian-tease
+---
+
+# [PRE PRODUCTION]
+
+## <FocusedLink href="https://www.google.com/" name="Tea" message="This is temp"> Insert Tease Slides of BIS/Game</FocusedLink>
+
+---
+layout: mondrian-subsection
+contentSlide: 13
+contentSlideId: h71ce93168c13465f_0_31
+templateLayout: mondrian-subsection
+catalogSlide: 2
+imageTreatment: none
+---
+
+# Blockchain Features
+
 
 ---
 layout: mondrian-content
@@ -242,50 +332,21 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# Blockchain Benefits
+# Paradigm Shift
 
-Improve the player experience, game economy, community, and revenue.
+Blockchain takes games **beyond traditional boundaries**. 
 
-- Assets: Give items durable, player-linked records
-- Community Boost: Support player-to-player participation
-- Discovery: Surface collections and markets outside the game
-- Interoperability: Enable compatible experiences where design permits
-- Longevity: Extend the ecosystem beyond launch cycles
-- Monetization: Create optional, player-led market opportunities
+> Players can truly **own** what they earn, collect, or buy.
 
-Source: [MDPI.com](https://www.mdpi.com/1999-5903/14/11/321)
+Games become **living communities**, not closed products. 
 
----
-layout: mondrian-content
-contentSlide: 59
-contentSlideId: blockchain-benefits-kpis-duplicate
-localAddition: true
-templateLayout: mondrian-content
-catalogSlide: 3
-imageTreatment: none
----
+> Players can **create**, discover, and trade value together.
 
-# Blockchain Benefits
+Together, this builds **reasons to return**. 
 
-Stronger KPIs: Improve measurable game outcomes
 
- - Increase game installs
- - Increase player engagement
- - Increase player retention
- - Increase revenue
 
-Source: [UM.edu.mt](https://www.um.edu.mt/library/oar/handle/123456789/132109)
 
----
-layout: mondrian-subsection
-contentSlide: 13
-contentSlideId: h71ce93168c13465f_0_31
-templateLayout: mondrian-subsection
-catalogSlide: 2
-imageTreatment: none
----
-
-# Blockchain Benefits
 
 ---
 layout: mondrian-content
@@ -296,7 +357,8 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What does a Blockchain game need?
+# Core Features 
+
 <ul class="feedback-capability-list"><li>Accounts</li><li>Assets</li><li>Transfers</li><li>Contracts</li><li>Events</li></ul>
 
 ---
@@ -309,9 +371,19 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What does a Blockchain game need?
+# Core Features 
 
 <ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
+
+---
+layout: mondrian-center
+templateLayout: mondrian-center
+catalogSlide: 7
+---
+
+# And<br>these features
+## deliver results
+
 
 ---
 layout: mondrian-subsection
@@ -503,14 +575,16 @@ Source: [ScienceDirect.com](https://www.sciencedirect.com/science/article/abs/pi
 
 ---
 layout: mondrian-subsection
-contentSlide: 28
-contentSlideId: h71ce93168c13465f_0_39
+contentSlide: 2
+contentSlideId: g3e50a99ab1a_1_76
 templateLayout: mondrian-subsection
 catalogSlide: 2
 imageTreatment: none
 ---
 
-# Blockchain Primer
+# Blockchain
+## For Game Developers
+
 
 ---
 layout: mondrian-content
@@ -631,87 +705,6 @@ Cryptography and consensus prevent tampering
 
 Source: [Bitcoin.org](https://bitcoin.org/bitcoin.pdf)
 
----
-layout: mondrian-title
-contentSlide: 34
-contentSlideId: h71ce93168c13465f_0_17
-templateLayout: mondrian-title
-catalogSlide: 1
-imageTreatment: none
----
-
-# Blockchain
-## Gaming Case Study: BIS
-
----
-layout: mondrian-content
-contentSlide: 35
-contentSlideId: p41
-templateLayout: mondrian-content
-catalogSlide: 3
-imageTreatment: none
----
-# Blockchain Gaming:<br>Key Features
-
-- Decentralization: Control is shared across the network
-- Immutability: Records resist alteration after confirmation
-- Transparency: Ledger activity is openly verifiable
-- Security: Cryptography and consensus help prevent tampering
-
-Source: [Bitcoin.org](https://bitcoin.org/bitcoin.pdf)
----
-layout: mondrian-title
-contentSlide: 38
-contentSlideId: g3fb61a5d5fe_0_65
-templateLayout: mondrian-title
-catalogSlide: 1
-imageTreatment: none
----
-# Blockchain & Web3
-## Comparison
----
-layout: mondrian-two-columns-header
-contentSlide: 39
-contentSlideId: g3fb61a5d5fe_0_80
-templateLayout: mondrian-two-columns-header
-catalogSlide: 6
-imageTreatment: none
----
-# Blockchain powers Web3
-
-::left::
-
-## Blockchain
-The shared, verifiable foundation<br>for value, identity, and state
-
-::right::
-
-## Web3
-The application layer built on top<br>of blockchain networks
-
-Draft: Blockchain is the infrastructure that makes Web3 applications possible.
-
----
-layout: mondrian-two-columns-header
-contentSlide: 39
-contentSlideId: g3fb61a5d5fe_0_80
-templateLayout: mondrian-two-columns-header
-catalogSlide: 6
-imageTreatment: none
----
-# The terms have diverged
-
-::left::
-
-## Blockchain
-Often means the underlying technology:<br>networks, consensus, and digital assets
-
-::right::
-
-## Web3
-Often means the industry vision:<br>products, communities, and new business models
-
-Draft: In the industry, “blockchain” and “Web3” now overlap—but they no longer mean exactly the same thing.
 
 ---
 layout: mondrian-title
@@ -1539,6 +1532,24 @@ A programmable extension for financial applications.
 
 Source: [Arkadeos.com](https://arkadeos.com/)
 
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: arkade-official-projects2
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# Arkade Ecosystem
+## The tech
+
+<table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/arkade-os/compiler">Arkade Compiler</a></th><td>Smart-contract language compiler</td></tr><tr><th><a href="https://github.com/arkade-os/demos">Arkade Demos</a></th><td>Example Arkade integrations</td></tr><tr><th><a href="https://github.com/arkade-os/arkade-wdk">Arkade WDK</a></th><td>Wallet development kit integration</td></tr><tr><th><a href="https://github.com/arkade-os/arkd">arkd</a></th><td>Arkade operator backend services</td></tr><tr><th><a href="https://github.com/arkade-os/go-sdk">Go SDK</a></th><td>Go wallet developer SDK</td></tr><tr><th><a href="https://github.com/arkade-os/rust-sdk">Rust SDK</a></th><td>Rust wallet development crates</td></tr><tr><th><a href="https://github.com/arkade-os/tapscripts">Tapscripts</a></th><td>Tapscript contract examples</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/wallet-sdk">TypeScript SDK</a></th><td>TypeScript wallet developer SDK</td></tr></tbody></table>
+
+
+
 ---
 layout: mondrian-content
 contentSlide: 14
@@ -1548,7 +1559,7 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What does a Blockchain game need?
+# Core Features 
 <ul class="feedback-capability-list"><li>Accounts</li><li>Assets</li><li>Transfers</li><li>Contracts</li><li>Events</li></ul>
 
 ---
@@ -1561,7 +1572,7 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What does a Blockchain game need?
+# Core Features 
 
 <ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
 
@@ -1619,32 +1630,12 @@ imageTreatment: none
 
 Source: <FocusedLink href="https://docs.arkadeos.com/" name="Arkade Documentation" message="Official Arkade developer documentation." tone="orange" mode="direct">docs.arkadeos.com</FocusedLink>
 
----
-layout: mondrian-content
-contentSlide: 14
-contentSlideId: arkade-official-projects
-localAddition: true
-templateLayout: mondrian-content
-catalogSlide: 3
-imageTreatment: none
----
-
-# Arkade Ecosystem
-## The tech
-
-<table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/arkade-os/compiler">Arkade Compiler</a></th><td>Smart-contract language compiler</td></tr><tr><th><a href="https://github.com/arkade-os/demos">Arkade Demos</a></th><td>Example Arkade integrations</td></tr><tr><th><a href="https://github.com/arkade-os/arkade-wdk">Arkade WDK</a></th><td>Wallet development kit integration</td></tr><tr><th><a href="https://github.com/arkade-os/arkd">arkd</a></th><td>Arkade operator backend services</td></tr><tr><th><a href="https://github.com/arkade-os/go-sdk">Go SDK</a></th><td>Go wallet developer SDK</td></tr><tr><th><a href="https://github.com/arkade-os/rust-sdk">Rust SDK</a></th><td>Rust wallet development crates</td></tr><tr><th><a href="https://github.com/arkade-os/tapscripts">Tapscripts</a></th><td>Tapscript contract examples</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/wallet-sdk">TypeScript SDK</a></th><td>TypeScript wallet developer SDK</td></tr></tbody></table>
 
 ---
-layout: mondrian-content
-contentSlide: 14
-contentSlideId: arkade-apps-using-ark
-localAddition: true
-templateLayout: mondrian-content
-catalogSlide: 3
-imageTreatment: none
+layout: mondrian-demo
+catalogLayout: mondrian-demo
 ---
 
-# Arkade Ecosystem
-## Apps using the tech
+# Demo
 
-<table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/ArkLabsHQ/arkade-explorer">Arkade Explorer</a></th><td>Browse Arkade network activity</td></tr><tr><th><a href="https://github.com/arkade-os/wallet">Arkade Wallet</a></th><td>Self-custodial Bitcoin wallet</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/btcpay-arkade">BTCPay Arkade</a></th><td>Merchant Bitcoin payments plugin</td></tr><tr><th><a href="https://github.com/IsaqueFranklin/Byzantium-wallet-web">Byzantium Wallet</a></th><td>Experimental Arkade web wallet</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/coinflip">Coinflip Game</a></th><td>Provably fair Bitcoin game</td></tr><tr><th><a href="https://faucet.mutinynet.com/">MutinyNet Faucet</a></th><td>MutinyNet test-sats faucet</td></tr></tbody></table>
+## <FocusedLink href="https://www.google.com/" name="Google" mode="direct" message="Search engine.">Let's play ... </FocusedLink>
