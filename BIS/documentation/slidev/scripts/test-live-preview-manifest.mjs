@@ -29,6 +29,7 @@ test('public release inventory is limited to explicitly public landing decks', (
     'blockchain-for-game-master-deck',
     'outro',
     'tease-subdeck',
+    'games-subdeck',
   ])
 })
 

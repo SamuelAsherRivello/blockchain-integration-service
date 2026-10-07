@@ -147,7 +147,7 @@
       ]
     },
     "mondrian-about-end-cards": {
-      "catalogSlide": 23,
+      "catalogSlide": 24,
       "slots": [
         "default"
       ]
@@ -157,6 +157,16 @@
       "slots": [
         "default",
         "left",
+        "right"
+      ]
+    },
+    "mondrian-product": {
+      "catalogSlide": 23,
+      "slots": [
+        "default",
+        "left-label",
+        "left",
+        "right-label",
         "right"
       ]
     }

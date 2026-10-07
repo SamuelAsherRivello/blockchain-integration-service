@@ -289,6 +289,30 @@ class: about-expanded-copy about-contact-emphasis
 - [LinkedIn profile](https://www.linkedin.com/in/SamuelAsherRivello)
 
 ---
+layout: mondrian-product
+catalogLayout: mondrian-product
+---
+
+# Game Name
+## Description ...
+
+::left-label::
+
+<FocusedLink href="https://example.com/" name="Example website" message="Example game website." tone="orange">Website</FocusedLink>
+
+::left::
+
+<a href="https://example.com/" target="_blank" rel="noopener noreferrer"><img src="layout-placeholder.svg" alt="Website image placeholder" /></a>
+
+::right-label::
+
+<FocusedLink href="https://www.youtube.com/" name="Example YouTube" message="Example game video." tone="orange" mode="direct">YouTube</FocusedLink>
+
+::right::
+
+<a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer"><img src="layout-placeholder.svg" alt="YouTube thumbnail placeholder" /></a>
+
+---
 layout: mondrian-about-end-cards
 catalogLayout: mondrian-about-end-cards
 class: about-expanded-copy about-contact-emphasis

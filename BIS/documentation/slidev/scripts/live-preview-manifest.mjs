@@ -14,6 +14,7 @@ export const livePreviewManifest = Object.freeze([
   { id: 'blockchain-for-game-master-deck', script: 'dev:blockchain-for-game-master-deck', source: 'blockchain-for-game-master-deck.md', theme: './themes/mondrian-final', version: '0.0.1', port: 3051, base: '/slidev/blockchain-for-game-master-deck/', landing: true, visibility: 'public', editorOwner: 'blockchain-for-game-master-deck', label: 'Blockchain For Gaming — Master Deck', group: 'Decks' },
   { id: 'outro', script: 'dev:outro', source: 'outro.md', theme: './themes/mondrian-final', version: '0.0.1', port: 3052, base: '/slidev/outro/', landing: true, visibility: 'public', editorOwner: 'outro', label: 'Outro - Subdeck', group: 'Subdecks' },
   { id: 'tease-subdeck', script: 'dev:tease-subdeck', source: 'tease-subdeck.md', theme: './themes/mondrian-final', version: '0.0.1', port: 3053, base: '/slidev/tease-subdeck/', landing: true, visibility: 'public', editorOwner: 'tease-subdeck', label: 'Tease Subdeck', group: 'Subdecks' },
+  { id: 'games-subdeck', script: 'dev:games-subdeck', source: 'games-subdeck.md', theme: './themes/mondrian-final', version: '0.0.1', port: 3055, base: '/slidev/games-subdeck/', landing: true, visibility: 'public', editorOwner: 'games-subdeck', label: 'Games Subdeck', group: 'Subdecks' },
   { id: 'live-preview-fixture', script: 'dev:live-preview-fixture', source: 'fixtures/live-preview-fixture.md', port: 3054, base: '/slidev/live-preview-fixture/', landing: false, editorOwner: 'live-preview-fixture', testOnly: true },
 ])
 

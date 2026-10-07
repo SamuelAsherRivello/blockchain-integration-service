@@ -896,6 +896,51 @@ imageTreatment: none
 — [Bitcoin Foundation](https://bitcoinfoundation.org/news/bitcoin/jpmorgan-opens-bitcoin-backed-lending-as-wall-street-pushes-deeper-into-crypto/) · 2026
 
 ---
+layout: mondrian-quote
+contentSlide: 39.1
+contentSlideId: bitcoin-gaming-volatility-response
+templateLayout: mondrian-quote
+catalogSlide: 11
+imageTreatment: none
+---
+
+## <span class="quote-red-label">“Too volatile?”</span>
+
+# <span class="quote-bitcoin-label">Price in USD or EUR.<br>Settle in sats.</span>
+
+— [Receiving payments](https://docs.strike.me/walkthrough/receiving-payments/) · 2026
+
+---
+layout: mondrian-quote
+contentSlide: 39.2
+contentSlideId: bitcoin-gaming-speed-response
+templateLayout: mondrian-quote
+catalogSlide: 11
+imageTreatment: none
+---
+
+## <span class="quote-red-label">“Too slow?”</span>
+
+# <span class="quote-bitcoin-label">Lightning delivers sats<br>in milliseconds to seconds.</span>
+
+— [Transactions for the Future](https://lightning.network/post/first/) · 2016
+
+---
+layout: mondrian-quote
+contentSlide: 39.3
+contentSlideId: bitcoin-gaming-flexibility-response
+templateLayout: mondrian-quote
+catalogSlide: 11
+imageTreatment: none
+---
+
+## <span class="quote-red-label">“Too inflexible?”</span>
+
+# <span class="quote-bitcoin-label">Arkade moves in-game currency,<br>items, NFTs, and more.</span>
+
+— [Ark Protocol](https://ark-protocol.org/) · 2026
+
+---
 layout: mondrian-subsection
 contentSlide: 40
 contentSlideId: g3fb61a5d5fe_0_75
@@ -1461,6 +1506,29 @@ imageTreatment: none
 # What does a Blockchain game need?
 
 <ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: p42-duplicate
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# What does Arkade OS provide?
+
+<ul class="feedback-capability-list"><li><strong>Accounts</strong>: Create a new player account in seconds</li><li><strong>Assets</strong>: Deliver an in-game power-up instantly</li><li><strong>Transfers</strong>: Send sats to a player in seconds</li><li><strong>Contracts</strong>: Resolve game rules in under a second</li><li><strong>Events</strong>: Sync game state instantly</li></ul>
+
+<div class="arkade-speed-caveats"><p><em>Each operation runs at Arkade’s off-chain execution speed, not Bitcoin Layer 1 block time</em></p><p><strong>Funding from Bitcoin Layer 1 and settlement back to Layer 1 follow traditional Bitcoin timing, about 10 minutes per block and roughly 60 minutes for finality</strong></p></div>
+
+Source: <FocusedLink href="https://docs.arkadeos.com/" name="Arkade Documentation" message="Official Arkade developer documentation." tone="orange" mode="direct">docs.arkadeos.com</FocusedLink>
+
+<style>
+.arkade-speed-caveats { margin: .7rem 0 .5rem 1.4rem; font-size: .95rem; line-height: 1.25; }
+.arkade-speed-caveats p { margin: .22rem 0; }
+</style>
 
 ---
 layout: mondrian-content

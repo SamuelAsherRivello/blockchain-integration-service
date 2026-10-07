@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Cataloged product layout supports Games Subdeck
-The Mondrian template catalog SHALL include a `product-layout` example for the shared game-product composition. The Games Subdeck SHALL use that cataloged Mondrian layout and remain available through the shared documentation preview.
+The Mondrian template catalog SHALL include a `product-layout` example for the shared game-product composition: title, subtitle, and two equal label-and-image columns. The Games Subdeck SHALL use that cataloged Mondrian layout and remain available through the shared documentation preview.
 
 #### Scenario: Reviewer compares catalog and content deck
 - **WHEN** a reviewer opens the product-layout catalog example and a Games Subdeck game slide

@@ -6,9 +6,9 @@ The presentation currently explains blockchain-game concepts without a compact, 
 
 ## What Changes
 
-- Add a reusable `mondrian-product` Slidev layout and a `product-layout` catalog example with a title, subtitle, and two equal 16:9 image panes separated by a small gap.
+- Add a reusable `mondrian-product` Slidev layout and a `product-layout` catalog example with a title, subtitle, and two equal columns. Each column has a FocusedLink label above a 16:9 image: `Website` for the official-game screenshot and `YouTube` for the official-video thumbnail.
 - Add a Games Subdeck containing one product slide for each previously selected example: Bitmap.Game, SHRAPNEL, and Big Time.
-- Populate each slide with an official gameplay screenshot, the HD thumbnail from the selected official YouTube video, and a FocusedLink to the official game website that opens in a new tab.
+- Populate each slide with an official gameplay screenshot and the HD thumbnail from the selected official YouTube video. The Website and YouTube FocusedLink labels, and their respective images, open their matching destinations in a new tab.
 - Update the focused-link flow to attempt the official site in its framed experience and offer a direct new-window destination when embedding is blocked.
 - Register the subdeck in the shared Slidev preview and verification workflow.
 
