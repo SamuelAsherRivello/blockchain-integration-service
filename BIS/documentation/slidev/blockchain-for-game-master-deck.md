@@ -1474,9 +1474,16 @@ imageTreatment: none
 
 # What does Arkade OS provide?
 
-<ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
+<ul class="feedback-capability-list"><li><strong>Accounts</strong>: Create a new player account in seconds</li><li><strong>Assets</strong>: Deliver an in-game power-up instantly</li><li><strong>Transfers</strong>: Send sats to a player in seconds</li><li><strong>Contracts</strong>: Resolve game rules in under a second</li><li><strong>Events</strong>: Sync game state instantly</li></ul>
+
+<div class="arkade-speed-caveats"><p><em>Each operation runs at Arkade’s off-chain execution speed, not Bitcoin Layer 1 block time</em></p><p><strong>Funding from Bitcoin Layer 1 and settlement back to Layer 1 follow traditional Bitcoin timing, about 10 minutes per block and roughly 60 minutes for finality</strong></p></div>
 
 Source: <FocusedLink href="https://docs.arkadeos.com/" name="Arkade Documentation" message="Official Arkade developer documentation." tone="orange" mode="direct">docs.arkadeos.com</FocusedLink>
+
+<style>
+.arkade-speed-caveats { margin: .7rem 0 .5rem 1.4rem; font-size: .95rem; line-height: 1.25; }
+.arkade-speed-caveats p { margin: .22rem 0; }
+</style>
 
 ---
 layout: mondrian-content
