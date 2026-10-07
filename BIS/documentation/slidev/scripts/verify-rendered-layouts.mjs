@@ -6,7 +6,7 @@ import { chromium } from 'playwright-chromium'
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const slidevDirectory = resolve(scriptDirectory, '..')
 const templateUrl = process.env.MONDRIAN_TEMPLATE_URL ?? 'http://localhost:3049/slidev/modrian-template'
-const blockchainUrl = process.env.BLOCKCHAIN_DECK_URL ?? 'http://localhost:3051/slidev/blockchain-for-game-master-deck'
+const blockchainUrl = process.env.BLOCKCHAIN_DECK_URL ?? 'http://localhost:3051/slidev/blockchain-for-game-designers'
 const screenshotDirectory = resolve(process.env.SLIDEV_SCREENSHOT_DIR ?? resolve(slidevDirectory, '../../../output/screenshots/resync-deck-to-match-template'))
 const requestedPages = new Set((process.env.SLIDEV_REVIEW_SLIDES ?? '').split(',').map((value) => value.trim()).filter(Boolean).map(Number).filter(Number.isInteger))
 const guidanceExpectations = [
@@ -162,7 +162,7 @@ async function reviewCatalogGuidance(page) {
   return { guidance: review, reducedMotion, issues }
 }
 
-const deck = parseSlides(resolve(slidevDirectory, 'blockchain-for-game-master-deck.md'))
+const deck = parseSlides(resolve(slidevDirectory, 'blockchain-for-game-designers.md'))
 const slidesToReview = requestedPages.size ? deck.filter((slide) => requestedPages.has(slide.page)) : deck
 if (requestedPages.size && slidesToReview.length !== requestedPages.size)
   throw new Error(`Requested rendered-review slide pages were not found: ${[...requestedPages].join(', ')}.`)

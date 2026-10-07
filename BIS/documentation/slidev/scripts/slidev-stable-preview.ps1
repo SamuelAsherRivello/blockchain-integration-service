@@ -22,7 +22,8 @@ $services = @(
   @{ Name = 'modrian-template-2'; Script = 'dev:modrian-template-2'; Port = 3047; Path = '/slidev/modrian-template-2/1' },
   @{ Name = 'modrian-template-3'; Script = 'dev:modrian-template-3'; Port = 3048; Path = '/slidev/modrian-template-3/1' },
   @{ Name = 'modrian-template'; Script = 'dev:modrian-template'; Port = 3049; Path = '/slidev/modrian-template/1' },
-  @{ Name = 'blockchain-for-game-master-deck'; Script = 'dev:blockchain-for-game-master-deck'; Port = 3051; Path = '/slidev/blockchain-for-game-master-deck/1' },
+  @{ Name = 'blockchain-for-game-designers'; Script = 'dev:blockchain-for-game-designers'; Port = 3051; Path = '/slidev/blockchain-for-game-designers/1' },
+  @{ Name = 'bitcoin-for-games'; Script = 'dev:bitcoin-for-games'; Port = 3056; Path = '/slidev/bitcoin-for-games/1' },
   @{ Name = 'outro'; Script = 'dev:outro'; Port = 3052; Path = '/slidev/outro/1' },
   @{ Name = 'landing'; Script = 'dev'; Port = 3032; Path = '/' }
 )

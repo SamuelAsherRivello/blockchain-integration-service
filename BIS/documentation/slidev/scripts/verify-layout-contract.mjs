@@ -178,8 +178,8 @@ const deckResults = inventory.decks.map((deck) => ({ deck, ...auditDeck(deck, ma
 for (const deckResult of deckResults) result.errors.push(...deckResult.errors)
 result.errors.push(...auditLifecycle(inventory, packageScripts))
 
-const blockchain = deckResults.find(({ deck }) => deck.name === 'blockchain-for-game-master-deck')
-if (!blockchain) result.errors.push('Declared Mondrian inventory must include blockchain-for-game-master-deck.')
+const blockchain = deckResults.find(({ deck }) => deck.name === 'blockchain-for-game-designers')
+if (!blockchain) result.errors.push('Declared Mondrian inventory must include blockchain-for-game-designers.')
 else result.errors.push(...auditTableOfContentsStyle(catalogSource, blockchain.deck, blockchain.slides))
 
 if (process.argv.includes('--self-test')) {
@@ -210,7 +210,7 @@ if (process.argv.includes('--self-test')) {
   if (!auditCatalog(catalog, manifest, catalogSource, '').errors.some((error) => error.includes('reduced-motion coverage')))
     throw new Error('Layout-contract self-test did not reject missing reduced-motion coverage.')
 
-  const expectedDecks = ['blockchain-for-game-master-deck', 'outro']
+  const expectedDecks = ['blockchain-for-game-designers', 'bitcoin-for-games', 'outro']
   for (const name of expectedDecks) {
     if (!inventory.decks.some((deck) => deck.name === name))
       throw new Error(`Layout-contract self-test did not discover ${name}.`)

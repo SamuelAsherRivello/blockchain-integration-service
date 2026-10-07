@@ -27,7 +27,8 @@ test('manifest preflight maps every declared deck to its package script, landing
 test('public release inventory is limited to explicitly public landing decks', () => {
   assert.deepEqual(publicPreviews().map((entry) => entry.id), [
     'modrian-template',
-    'blockchain-for-game-master-deck',
+    'blockchain-for-game-designers',
+    'bitcoin-for-games',
     'outro',
     'tease-subdeck',
     'games-subdeck',

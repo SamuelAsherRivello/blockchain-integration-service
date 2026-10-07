@@ -27,8 +27,8 @@ class: about-expanded-copy about-contact-emphasis
 
 - Senior game developer (remote)
 - 20+ years experience
-- [Samuel Asher Rivello](http://samuelasherrivello.com)
-- [LinkedIn profile](https://www.linkedin.com/in/SamuelAsherRivello)
+- [Samuel Asher Rivello.com](http://samuelasherrivello.com)
+- [LinkedIn/in/SamuelAsherRivello](https://www.linkedin.com/in/SamuelAsherRivello)
 
 ---
 layout: mondrian-logos

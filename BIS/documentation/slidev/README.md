@@ -1,6 +1,6 @@
 # BIS Slidev documentation
 
-This workspace contains five Slidev decks that share the local **Mondrian** theme. `modrian-template.md` opens the Modrian Template catalog: its examples document every public `mondrian-*` layout. `blockchain-for-game-master-deck.md` is the Blockchain For Gaming Master Deck, `tease-subdeck.md` is its five-slide Tease Subdeck, `games-subdeck.md` is its game-example companion, and `outro.md` is its six-slide Outro companion; each slide selects one of those same named layouts through frontmatter and supplies only its content and declared slots.
+This workspace contains six Slidev decks that share the local **Mondrian** theme. `modrian-template.md` opens the Modrian Template catalog: its examples document every public `mondrian-*` layout. `blockchain-for-game-designers.md` contains slides 1–42 of the former master deck, and `bitcoin-for-games.md` contains the remaining Bitcoin-focused slides. `tease-subdeck.md` is the five-slide Tease Subdeck, `games-subdeck.md` is its game-example companion, and `outro.md` is its six-slide Outro companion; each slide selects one of those same named layouts through frontmatter and supplies only its content and declared slots.
 
 `themes/mondrian-final` is the source of truth for layouts, shared components, responsive styling, and interactive-image behavior. See its [layout catalog](./themes/mondrian-final/layout-catalog.json) and [theme guide](./themes/mondrian-final/README.md). The decks do not inherit Markdown from each other; this is Slidev's supported theme-and-layout model.
 
@@ -14,7 +14,7 @@ From this folder, start or reuse the single supervised authoring runtime:
 npm run dev:stable-preview
 ```
 
-Open `http://localhost:3032/`. Every deck URL uses one pathname slide number, for example `http://localhost:3032/slidev/blockchain-for-game-master-deck/29`; it never uses `#/29`. The landing page links to the Modrian Template catalog, Blockchain For Gaming Master Deck, Tease Subdeck, Games Subdeck, and Outro deck. The launcher on port 3032 proxies the catalog server on port 3049, the content deck server on port 3051, the Tease Subdeck server on port 3053, the Games Subdeck server on port 3055, and the Outro server on port 3052, with no-cache headers for review.
+Open `http://localhost:3032/`. Every deck URL uses one pathname slide number, for example `http://localhost:3032/slidev/blockchain-for-game-designers/29`; it never uses `#/29`. The landing page links to the Modrian Template catalog, Blockchain For Game Designers, Bitcoin For Games, Tease Subdeck, Games Subdeck, and Outro deck. The launcher on port 3032 proxies the catalog server on port 3049, the Blockchain for Game Designers deck on port 3051, Bitcoin For Games on port 3056, the Tease Subdeck server on port 3053, the Games Subdeck server on port 3055, and the Outro server on port 3052, with no-cache headers for review.
 
 Use `npm run preview:status` for the supervisor state and `npm run
 verify:live-preview:proxy` for a non-authoring editor-routing check. Do not

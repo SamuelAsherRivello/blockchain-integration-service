@@ -20,7 +20,9 @@
 .slidev-layout.mondrian-center > div > h1:first-child {
   display: inline-block;
   margin-inline: 0;
-  padding: .04em .28em .09em;
+  /* Give right-leaning glyphs such as ? and ! the same breathing room as
+     the text selection, without changing individual slide content. */
+  padding: .04em 1.2em .09em .28em;
   color: #fff;
   background: var(--mondrian-secondary, #1464e8);
 }
