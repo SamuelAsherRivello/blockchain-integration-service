@@ -68,6 +68,21 @@ detached process because it survives an ephemeral assistant command without
 creating a visible console. A Windows service is rejected as unnecessary
 machine-wide installation and administration for local documentation preview.
 
+### Evaluate a consolidated route-aware Slidev runtime
+
+The current launcher proxies one independent Slidev/Vite server per declared
+deck. A single local server is technically possible only if it can select each
+deck's source, generated modules, editor API owner, and HMR channel from the
+manifest-backed route without cross-deck state leakage. Treat this as a
+measurable replacement candidate, not an assumed simplification: retain the
+independent-server runtime until a consolidated proof covers every declared
+route, editor save, HMR connection, stale-module recovery, and isolation case.
+
+A blind reverse proxy consolidation is rejected because it preserves process
+count while failing to prove module and editor isolation. Keeping the current
+model indefinitely is also rejected if a verified one-server runtime can meet
+the same contract with lower operational complexity.
+
 ### Use layered readiness rather than an HTTP-only health check
 
 Each service state machine moves through `declared`, `starting`, `ready`,
@@ -198,3 +213,6 @@ artifacts are not part of rollback or version control.
 - The exact default concurrency for full-deck browser scans can be tuned after
   measuring this repository's 80-slide master deck; it does not alter the
   behavioral contract or task breakdown.
+- Whether the installed Slidev server APIs can host multiple independently
+  addressed deck roots without an adapter remains to be proven before the
+  consolidated runtime is selected.

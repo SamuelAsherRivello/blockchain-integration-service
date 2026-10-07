@@ -9,6 +9,13 @@ export default defineConfig({
   // A port-specific cache prevents one deck from invalidating another deck's
   // optimized dependency metadata while both are running behind the launcher.
   cacheDir: fileURLToPath(new URL(`./node_modules/.vite/slidev-${port}`, import.meta.url)),
+  // Slidev's nested yaml dependency can retain an invalid optimized-dependency
+  // entry after a deck recovery, yielding Vite's 504 "Outdated Optimize Dep"
+  // response and a blank presentation. Serving it as a normal module keeps the
+  // independently cached deck previews stable.
+  optimizeDeps: {
+    exclude: ['@slidev/cli/node_modules/@slidev/client/node_modules/yaml'],
+  },
   resolve: {
     alias: {
       '@shikijs/vitepress-twoslash/client': fileURLToPath(new URL('./setup/twoslash-noop.ts', import.meta.url)),

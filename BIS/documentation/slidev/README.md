@@ -8,29 +8,24 @@ Layout geometry belongs in the corresponding theme component, never in a catalog
 
 ## Run the local approval preview
 
-Use two PowerShell terminals from this folder:
+From this folder, start or reuse the single supervised authoring runtime:
 
 ```powershell
-npm run dev:modrian-template
-```
-
-```powershell
-npm run dev:blockchain-for-game-master-deck
-```
-
-```powershell
-npm run dev:tease-subdeck
-```
-
-```powershell
-npm run dev:outro
-```
-
-```powershell
-npm run dev
+npm run dev:stable-preview
 ```
 
 Open `http://localhost:3032/`. The landing page links to the Modrian Template catalog, Blockchain For Gaming Master Deck, Tease Subdeck, and Outro deck. The launcher on port 3032 proxies the catalog server on port 3049, the content deck server on port 3051, the Tease Subdeck server on port 3053, and the Outro server on port 3052, with no-cache headers for review.
+
+Use `npm run preview:status` for the supervisor state and `npm run
+verify:live-preview:proxy` for a non-authoring editor-routing check. Do not
+start individual `dev:*` commands alongside the supervisor: it owns their
+ports and will report an unowned conflict rather than replacing a listener.
+
+Before moving, duplicating, editing, renaming, creating, linking,
+resynchronizing, or changing a slide layout, use the `slidev-run` workflow to
+start or reuse this runtime. The focused author-operation workflows then act
+on a manifest-declared deck and check its existing shared-origin route; they
+do not start a second preview server.
 
 ## Layout contract and verification
 

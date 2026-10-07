@@ -4,11 +4,14 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright-chromium'
 import { landingService, livePreviewManifest, routeFor } from './live-preview-manifest.mjs'
+import { fingerprintEditorRecord, scanWithStableSource } from './live-preview-coherence.mjs'
+import { classifyCoherenceFailure } from './live-preview-diagnostics.mjs'
 
 const profile = process.argv.includes('--profile') ? process.argv[process.argv.indexOf('--profile') + 1] : 'integration'
 const root = fileURLToPath(new URL('../../../../', import.meta.url))
 const reportRoot = path.join(root, 'output', 'reports', 'slidev-live-preview')
 const reportId = new Date().toISOString().replace(/[:.]/g, '-')
+const slidevRoot = fileURLToPath(new URL('..', import.meta.url))
 const statusUrl = `http://localhost:${landingService.port}/__slidev/preview-status.json`
 const failures = []
 const summary = { profile, startedAt: new Date().toISOString(), inventory: [], failures }
@@ -70,7 +73,7 @@ async function inspectDeck(browser, entry, fullScan) {
     }
   })
   const route = `http://localhost:${landingService.port}${routeFor(entry)}`
-  const result = { id: entry.id, route: routeFor(entry), slides: 0, hmr: null, state: 'failed' }
+  const result = { id: entry.id, route: routeFor(entry), slides: 0, hmr: null, fingerprints: [], state: 'failed' }
   let currentSlide = 1
   try {
     await page.goto(route, { waitUntil: 'networkidle', timeout: 30_000 })
@@ -79,7 +82,13 @@ async function inspectDeck(browser, entry, fullScan) {
     const sockets = await page.evaluate(() => window.__slidevHmrSockets)
     result.hmr = sockets
     if (!first || errorOverlay || !sockets.open) throw new Error(`render/HMR readiness failed: canvas=${first}, errors=${errorOverlay}, sockets=${JSON.stringify(sockets)}`)
-    const generated = await pageSlideRecords(page)
+    const enumeration = await scanWithStableSource({
+      readSource: () => readFile(path.join(slidevRoot, entry.source), 'utf8'),
+      scan: async () => ({ records: await pageSlideRecords(page) }),
+    })
+    const generated = enumeration.records
+    result.sourceFingerprint = enumeration.sourceFingerprint
+    result.enumerationAttempts = enumeration.attempts
     const scan = fullScan ? generated : generated.slice(0, 1)
     result.slides = generated.length
     for (const generatedRecord of scan) {
@@ -91,7 +100,8 @@ async function inspectDeck(browser, entry, fullScan) {
       const slidePage = number === 1 ? page : await browser.newPage()
       try {
         if (number !== 1) await slidePage.goto(`http://localhost:${landingService.port}${routeFor(entry, number)}`, { waitUntil: 'networkidle', timeout: 30_000 })
-        const api = await editorRecord(slidePage, number)
+      const api = await editorRecord(slidePage, number)
+      result.fingerprints.push({ slide: number, editor: fingerprintEditorRecord(api.body), revision: generatedRecord.revision ?? null })
       const apiContent = api.body.content ?? api.body.slide?.content ?? ''
         const generated = await generatedSlideSource(slidePage, number)
       if (api.status !== 200 || !/no-store/i.test(api.cacheControl ?? '')) throw new Error(`transport mismatch ${entry.id}/${number}: editor status/cache ${api.status}/${api.cacheControl}`)
@@ -109,7 +119,14 @@ async function inspectDeck(browser, entry, fullScan) {
   }
   catch (error) {
     result.error = `slide ${currentSlide}: ${error instanceof Error ? error.message : String(error)}`
-    failures.push({ kind: 'coherence-or-hmr', id: entry.id, route: result.route, message: result.error })
+    failures.push(classifyCoherenceFailure({
+      id: entry.id,
+      route: result.route,
+      slide: currentSlide,
+      revision: result.fingerprints.find((fingerprint) => fingerprint.slide === currentSlide)?.revision,
+      hmr: result.hmr,
+      message: result.error,
+    }))
     await page.screenshot({ path: path.join(reportRoot, `${reportId}-${entry.id}-failure.png`), fullPage: true }).catch(() => undefined)
   }
   finally { await page.close() }

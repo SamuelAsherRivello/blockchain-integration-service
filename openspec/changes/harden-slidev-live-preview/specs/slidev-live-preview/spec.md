@@ -19,6 +19,21 @@ and verification set from one declared inventory of supported Slidev previews.
 - **WHEN** a declared preview lacks a landing route or a landing route lacks an inventory entry
 - **THEN** startup verification fails with the affected route and declaration identified
 
+### Requirement: Optional consolidated preview ownership
+The runtime MAY serve the landing page and multiple declared deck routes from
+one local server only when every route retains its manifest-declared source,
+editor ownership, generated-module identity, and HMR isolation. Until that
+contract is verified, the runtime SHALL retain the independent deck servers.
+
+#### Scenario: A consolidated runtime is evaluated
+- **WHEN** maintainers enable a consolidated local runtime candidate
+- **THEN** every declared route, editor save, HMR connection, and source-to-render coherence check succeeds without cross-deck ownership
+- **AND** a failed deck route can be recovered without interrupting unrelated declared routes
+
+#### Scenario: Consolidation fails isolation verification
+- **WHEN** a consolidated runtime candidate routes an editor save, generated module, or HMR connection to the wrong deck
+- **THEN** verification rejects the candidate and the independent deck runtime remains available
+
 ### Requirement: Twelve-hour self-healing local session
 The stable local preview SHALL run for a configurable duration of at least 12
 hours, retain ownership evidence for each project process, and recover a failed

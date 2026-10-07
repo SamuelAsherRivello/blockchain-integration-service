@@ -34,6 +34,10 @@ best-effort collection of dev servers.
   supported author workflow: start or reuse the supervised preview first, then
   move, duplicate, edit, rename, create, or resynchronize slides through the
   relevant focused skill without replacing the runtime contract.
+- Evaluate a consolidated local runtime in which one server owns the landing
+  page and all declared deck routes. It must retain per-deck source ownership,
+  editor routing, HMR isolation, and targeted recovery before it can replace
+  the current independently served deck model.
 
 The phrase “no bugs” is treated as a quality objective, not a claim that can
 be proved. This change instead defines the observable failure modes that must

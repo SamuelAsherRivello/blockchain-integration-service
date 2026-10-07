@@ -81,8 +81,14 @@ Start or inspect the preview from `BIS/documentation/slidev`:
 npm run dev:stable-preview
 npm run preview:status
 npm run verify:live-preview:fast
+npm run verify:live-preview:proxy
 npm run verify:live-preview
 ```
+
+`verify:live-preview:proxy` is a small, non-authoring transport check. It
+proves that navigation acknowledgements leave Markdown unchanged, an editor
+save reaches the declared fixture owner, and an unrecognized editor origin is
+rejected with a diagnostic rather than routed to an arbitrary deck.
 
 The no-window Windows task `BIS-Slidev-Stable-Preview` runs
 `scripts/slidev-live-preview-host.ps1`, which invokes the same Node runtime for
@@ -99,6 +105,17 @@ instead of allowing Vite to silently move to port 3033. Recovery checks the
 landing first and again after deck recovery; healthy deck listeners are left
 untouched.
 
+Readiness is layered: the supervisor requires a direct Slidev document and
+marker, its corresponding proxied document and marker, and an open Vite HMR
+WebSocket on the shared-origin route. An HTML response by itself therefore
+cannot make a service `ready`. Run `npm run preview:status` to see the latest
+probe evidence, including the layer that failed.
+
+Service states are `declared`, `starting`, `ready`, `waiting-for-landing`,
+`recovering`, `blocked`, `failed`, and `stopping`. Recovery backs off and is
+bounded to five attempts per service in one session; expiry or exhaustion is a
+visible `failed` state rather than an endless restart loop.
+
 The browser integration fixture is deliberately excluded from the landing
 page. It saves a unique token through the normal editor API, requires the
 generated component and rendered route to show it within five seconds, and
@@ -108,6 +125,27 @@ The full verifier inspects the editor record, generated Slidev virtual module,
 rendered route, and HMR socket for every declared slide. A stale virtual module
 is actionable evidence for recycling only that deck server; do not alter the
 author Markdown merely to clear a generated-module mismatch.
+
+## Verification profiles and host migration
+
+`npm run verify:live-preview:fast` runs the manifest, policy, readiness, and
+fast browser checks. It is intended for a short pre-edit or post-recovery
+check. `npm run verify:live-preview` scans every declared slide and performs
+the isolated fixture round trip; allow several minutes for a large deck.
+`npm run verify:live-preview:soak` runs the supervised session for 12 hours
+and writes its summary under `output/reports/slidev-live-preview/`.
+
+Every browser profile writes JSON evidence there and writes a failure screenshot
+when a rendered route fails. A `routing`, `editor`, `generated-module`,
+`render`, `HMR`, or `transport` failure identifies the affected deck and slide;
+inspect that service's session log before asking the supervisor to recycle it.
+
+Before replacing an active Windows Scheduled Task session, check
+`npm run preview:status`. Wait for a current editor save to complete, retain
+the reported evidence path, cancel the old task only after its owned processes
+are known, then start `BIS-Slidev-Stable-Preview`. Re-check status and the
+affected shared-origin route. A `blocked` conflict means an operator must
+resolve a foreign listener; do not terminate it from the supervisor.
 
 ## Are we using Slidev correctly?
 

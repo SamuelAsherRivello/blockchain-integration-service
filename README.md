@@ -43,6 +43,7 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 
 * [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.11)
 * [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.11)
+* [Slidev Presentations](https://samuelasherrivello.github.io/blockchain-integration-service/slidev/)
 
 ### Game
 

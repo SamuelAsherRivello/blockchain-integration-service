@@ -5,6 +5,8 @@ import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { landingService, livePreviewManifest, routeFor, validateLivePreviewManifest } from './live-preview-manifest.mjs'
+import { createServiceState, ownedProcessTarget, recoveryDecision } from './live-preview-policy.mjs'
+import { evaluateReadiness, probeHmr } from './live-preview-readiness.mjs'
 
 const execFile = promisify(execFileCallback)
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -24,10 +26,7 @@ const sessionId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUI
 const sessionRoot = path.join(outputRoot, sessionId)
 const deadline = new Date(Date.now() + durationHours * 60 * 60 * 1000)
 const services = [landingService, ...livePreviewManifest]
-const state = new Map(services.map((service) => [service.id, {
-  id: service.id, route: service.id === 'landing' ? '/' : routeFor(service), port: service.port,
-  state: 'declared', recoveryCount: 0, owned: false, processId: null, listenerProcessId: null, latestProbe: null, conflict: null,
-}]))
+const state = new Map(services.map((service) => [service.id, createServiceState(service, service.id === 'landing' ? '/' : routeFor(service))]))
 const children = new Map()
 let stopping = false
 let holdsSupervisorLock = false
@@ -107,7 +106,9 @@ async function probe(service) {
   const proxied = service.id === 'landing'
     ? direct
     : await fetchDocument(landingService.port, routeFor(service)).catch((error) => ({ ok: false, error: safeError(error) }))
-  return { at: new Date().toISOString(), ok: direct.ok && proxied.ok, direct, proxied }
+  const hmrPath = service.id === 'landing' ? '/' : routeFor(service)
+  const hmr = await probeHmr(`ws://localhost:${landingService.port}${hmrPath}`).catch((error) => ({ ok: false, error: safeError(error) }))
+  return { at: new Date().toISOString(), ...evaluateReadiness({ direct, proxied, hmr }) }
 }
 
 async function portIsListening(port) {
@@ -133,7 +134,7 @@ async function terminateOwned(service) {
   // proved that its listener belongs to this session, the listener PID is the
   // durable ownership target; it prevents a later recovery from creating a
   // second server on the same port.
-  const processId = runnerProcessId ?? (detail.owned ? detail.listenerProcessId : null)
+  const processId = ownedProcessTarget({ runnerProcessId, listenerProcessId: detail.listenerProcessId, owned: detail.owned })
   if (!processId) return false
   await event('owned-process-stop', { service: service.id, processId, runnerProcessId, listenerProcessId: detail.listenerProcessId })
   if (process.platform === 'win32') await execFile('taskkill.exe', ['/pid', String(processId), '/t', '/f']).catch(() => undefined)
@@ -235,10 +236,17 @@ async function ensureService(service) {
   }
   if (detail.state === 'blocked') return false
   if (children.has(service.id)) await terminateOwned(service)
+  const decision = recoveryDecision({ recoveryCount: detail.recoveryCount, deadline })
+  if (!decision.allowed) {
+    detail.state = decision.state
+    detail.conflict = decision.reason
+    await event('recovery-blocked', { service: service.id, reason: decision.reason })
+    return false
+  }
   detail.recoveryCount += 1
   detail.state = 'recovering'
   await event('recovery-start', { service: service.id, recoveryCount: detail.recoveryCount, failedProbe: outcome })
-  await new Promise((resolve) => setTimeout(resolve, Math.min(5_000, detail.recoveryCount * 500)))
+  await new Promise((resolve) => setTimeout(resolve, decision.delayMs))
   if (!await startService(service)) return false
   const ready = await waitForReady(service)
   if (!ready) detail.state = 'failed'
@@ -249,6 +257,15 @@ async function preflight() {
   const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
   const result = validateLivePreviewManifest(livePreviewManifest, packageJson.scripts)
   if (!result.valid) throw new Error(`Live preview manifest preflight failed:\n${result.errors.join('\n')}`)
+}
+
+async function stopOwnedServices() {
+  // Shutdown is ledger-bound: only processes started by this supervisor are
+  // candidates. This prevents a normal session end from orphaning a child,
+  // while retaining the foreign-listener protection used during recovery.
+  for (const service of [...services].reverse()) {
+    await terminateOwned(service)
+  }
 }
 
 async function run() {
@@ -271,6 +288,8 @@ async function run() {
     await writeStatus()
   }
   finally {
+    stopping = true
+    await stopOwnedServices()
     await releaseSupervisorLock()
   }
 }

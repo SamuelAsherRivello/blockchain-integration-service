@@ -1438,4 +1438,44 @@ A programmable extension for financial applications.
 
 ::bottom::
 
-Source: <FocusedLink href="https://arkadeos.com/" name="Arkade OS" message="A leading SDK for finance (and games?)..." tone="orange" mode="direct">Arkadeos.com</FocusedLink>
+Source: <FocusedLink href="https://docs.arkadeos.com/" name="Arkade Documentation" message="Official Arkade developer documentation." tone="orange" mode="direct">docs.arkadeos.com</FocusedLink>
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: p42
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# What can a Blockchain game need?
+<ul class="feedback-capability-list"><li>Accounts</li><li>Assets</li><li>Transfers</li><li>Contracts</li><li>Events</li></ul>
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: p42-duplicate
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# What can a Blockchain game need?
+
+<ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: p42-duplicate
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# What can a Blockchain game need?
+
+<ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>

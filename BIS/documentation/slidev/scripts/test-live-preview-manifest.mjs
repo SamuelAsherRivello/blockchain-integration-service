@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { editorOwnerForPath, livePreviewManifest, normalizedBase, routeFor, validateLivePreviewManifest, visiblePreviews } from './live-preview-manifest.mjs'
+import { editorOwnerForPath, livePreviewManifest, normalizedBase, publicPreviews, routeFor, validateLivePreviewManifest, visiblePreviews } from './live-preview-manifest.mjs'
 
 const packageScripts = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).scripts
 
@@ -18,7 +18,26 @@ test('manifest preflight maps every declared deck to its package script, landing
     assert.match(routeFor(entry), /^\/slidev\/[a-z0-9-]+\/1$/, `${entry.id}: invalid landing route`)
     assert.ok(entry.label, `${entry.id}: landing entry lacks label`)
     assert.ok(entry.group, `${entry.id}: landing entry lacks group`)
+    assert.match(entry.visibility, /^(private|public)$/, `${entry.id}: landing entry lacks valid visibility`)
   }
+})
+
+test('public release inventory is limited to explicitly public landing decks', () => {
+  assert.deepEqual(publicPreviews().map((entry) => entry.id), [
+    'modrian-template',
+    'blockchain-for-game-master-deck',
+    'outro',
+    'tease-subdeck',
+  ])
+})
+
+test('the browser editing fixture is isolated from author-facing decks', () => {
+  const fixture = livePreviewManifest.find((entry) => entry.id === 'live-preview-fixture')
+  assert.ok(fixture, 'missing live preview fixture')
+  assert.equal(fixture.testOnly, true)
+  assert.equal(fixture.landing, false)
+  assert.match(fixture.source, /^fixtures\//)
+  assert.equal(visiblePreviews().some((entry) => entry.source === fixture.source), false)
 })
 
 test('normalizes bases and rejects duplicate ports, routes, owners, and scripts', () => {
