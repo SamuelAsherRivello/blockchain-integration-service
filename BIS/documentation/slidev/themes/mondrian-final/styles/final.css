@@ -11,6 +11,10 @@
 
 .bitcoin-orange { color: var(--mondrian-bitcoin-orange); }
 
+/* Tease headings commonly use bracketed production labels. Preserve the
+   compact display style while giving the bracket and first word a little air. */
+.slidev-layout.mondrian-tease h1 { word-spacing: .08em; }
+
 /* Markdown blockquotes on content slides are outcomes and elaborations, not
    quotations. Give them a distinct, quieter reading rhythm while preserving
    the dedicated treatment used by the quote layout. */

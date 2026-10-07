@@ -306,7 +306,7 @@ templateLayout: mondrian-tease
 catalogSlide: 10
 ---
 
-# [PRE PRODUCTION]
+# [ PRE PRODUCTION ]
 
 ## <FocusedLink href="https://www.google.com/" name="Tea" message="This is temp"> Insert Tease Slides of BIS/Game</FocusedLink>
 
@@ -754,5 +754,3 @@ imageTreatment: none
 
 # Blockchain
 ## Gaming Case Study
-
----

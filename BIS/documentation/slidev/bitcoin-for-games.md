@@ -353,6 +353,16 @@ imageTreatment: user-provided
 #
 
 ---
+layout: mondrian-tease
+templateLayout: mondrian-tease
+catalogSlide: 10
+---
+
+# [ PRE PRODUCTION ]
+
+## <FocusedLink href="https://www.google.com/" name="Tea" message="This is temp"> Insert Tease Slides of BIS/Game</FocusedLink>
+
+---
 layout: mondrian-image-left
 contentSlide: 39.9
 contentSlideId: bitcoin-layers-city-block
@@ -391,6 +401,8 @@ imageTreatment: generated-original
 <!--
 The illustration is supplied by the left image pane.
 -->
+
+
 
 ---
 layout: mondrian-image-left
