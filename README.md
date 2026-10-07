@@ -36,7 +36,7 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 <a href="BIS/documentation/marketplace.png"><img src="BIS/documentation/marketplace.png" width="400" alt="BIS marketplace catalog" /></a>
 
 
-## Demo
+## Live Demo
 
 <!-- AI: Keep the verified public demo URLs. Use a hidden ?v=<published-version> cache buster in each destination while leaving the labels unchanged. Advance both values for every published version. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
 ### BIS
