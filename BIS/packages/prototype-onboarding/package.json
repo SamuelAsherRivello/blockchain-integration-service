@@ -1,6 +1,6 @@
 {
   "name": "@spike/prototype-onboarding",
-  "version": "0.0.0",
+  "version": "0.0.13",
   "private": true,
   "type": "module",
   "scripts": {
