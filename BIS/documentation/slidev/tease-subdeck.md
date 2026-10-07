@@ -112,6 +112,6 @@ catalogSlide: 8
 
 # Demo
 
-## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" name="BIS" message="Service, UI, Admin, Marketplace." >Bis </FocusedLink>
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" name="BIS" message="Service, UI, Admin, Marketplace." >BIS</FocusedLink>
 
 ## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-stealth-and-steel-game" name="Game" message="Gameplay w/o BIS, w/ BIS" >Game</FocusedLink>

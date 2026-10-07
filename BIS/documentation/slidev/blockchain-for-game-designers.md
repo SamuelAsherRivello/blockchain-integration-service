@@ -744,14 +744,15 @@ imageTreatment: none
 # Let's see Blockchain
 ## In Action ...
 
+
 ---
-layout: mondrian-subsection
-contentSlide: 6
-contentSlideId: h71ce93168c13465f_0_27
-templateLayout: mondrian-subsection
-catalogSlide: 2
-imageTreatment: none
+layout: mondrian-demo
+templateLayout: mondrian-demo
+catalogSlide: 8
 ---
 
-# Blockchain
-## Gaming Case Study
+# Demo
+
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" name="BIS" message="Service, UI, Admin, Marketplace." >BIS</FocusedLink>
+
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-stealth-and-steel-game" name="Game" message="Gameplay w/o BIS, w/ BIS" >Game</FocusedLink>
