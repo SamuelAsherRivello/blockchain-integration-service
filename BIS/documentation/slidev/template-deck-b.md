@@ -155,7 +155,7 @@ of the audience can repeat the key point after a focused close.
 ---
 layout: mondrian-image-left
 catalogLayout: mondrian-image-left
-image: layout-placeholder.svg
+image: /layout-placeholder.svg
 class: slide-image-left-offset b-safe-image-left
 ---
 
@@ -166,7 +166,7 @@ class: slide-image-left-offset b-safe-image-left
 ---
 layout: mondrian-image-right
 catalogLayout: mondrian-image-right
-image: layout-placeholder.svg
+image: /layout-placeholder.svg
 class: slide-image-right-offset b-safe-image-right b-slide-eleven
 ---
 
@@ -177,7 +177,7 @@ class: slide-image-right-offset b-safe-image-right b-slide-eleven
 ---
 layout: mondrian-image-bottom
 catalogLayout: mondrian-image-bottom
-image: layout-placeholder.svg
+image: /layout-placeholder.svg
 backgroundSize: contain
 ---
 
@@ -302,7 +302,7 @@ catalogLayout: mondrian-product
 
 ::left::
 
-<a href="https://example.com/" target="_blank" rel="noopener noreferrer"><img src="layout-placeholder.svg" alt="Website image placeholder" /></a>
+<a href="https://example.com/" target="_blank" rel="noopener noreferrer"><img src="/layout-placeholder.svg" alt="Website image placeholder" /></a>
 
 ::right-label::
 
@@ -310,7 +310,7 @@ catalogLayout: mondrian-product
 
 ::right::
 
-<a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer"><img src="layout-placeholder.svg" alt="YouTube thumbnail placeholder" /></a>
+<a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer"><img src="/layout-placeholder.svg" alt="YouTube thumbnail placeholder" /></a>
 
 ---
 layout: mondrian-about-end-cards

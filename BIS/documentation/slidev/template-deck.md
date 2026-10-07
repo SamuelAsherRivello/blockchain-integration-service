@@ -107,7 +107,7 @@ Use these to change pace, introduce a chapter, or bring the deck to a clear end.
 
 ---
 layout: image-left
-image: layout-placeholder.svg
+image: /layout-placeholder.svg
 class: slide-image-left-offset
 ---
 
@@ -117,7 +117,7 @@ Place an image on the left and your explanation on the right. Replace this sampl
 
 ---
 layout: image-right
-image: layout-placeholder.svg
+image: /layout-placeholder.svg
 class: slide-image-right-offset
 ---
 
