@@ -9,6 +9,7 @@ favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
 aspectRatio: 16/9
 canvasWidth: 1280
+routerMode: hash
 contentSlide: 1
 contentSlideId: tease-subdeck-title
 templateLayout: mondrian-title

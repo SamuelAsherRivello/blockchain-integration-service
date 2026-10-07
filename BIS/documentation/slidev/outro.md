@@ -6,6 +6,7 @@ titleTemplate: 'Slidev - %s'
 favicon: /favicon-outro.svg
 aspectRatio: 16/9
 canvasWidth: 1280
+routerMode: hash
 layout: mondrian-thank-you
 templateLayout: mondrian-thank-you
 catalogSlide: 19

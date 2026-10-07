@@ -9,6 +9,7 @@ favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
 aspectRatio: 16/9
 canvasWidth: 1280
+routerMode: hash
 contentSlide: 1
 contentSlideId: p1
 templateLayout: mondrian-title
@@ -904,9 +905,9 @@ catalogSlide: 11
 imageTreatment: none
 ---
 
-## <span class="quote-red-label">“Too volatile?”</span>
+## <span class="quote-red-label">Q: Too volatile?</span>
 
-# <span class="quote-bitcoin-label">Price in USD or EUR.<br>Settle in sats.</span>
+# <span class="quote-bitcoin-label">A: Price in fiat.<br>Settle in sats.</span>
 
 — [Receiving payments](https://docs.strike.me/walkthrough/receiving-payments/) · 2026
 
@@ -919,9 +920,9 @@ catalogSlide: 11
 imageTreatment: none
 ---
 
-## <span class="quote-red-label">“Too slow?”</span>
+## <span class="quote-red-label">Q: Too slow?</span>
 
-# <span class="quote-bitcoin-label">Lightning delivers sats<br>in milliseconds to seconds.</span>
+# <span class="quote-bitcoin-label">A: Layer 2 delivers sats<br>in milliseconds to seconds.</span>
 
 — [Transactions for the Future](https://lightning.network/post/first/) · 2016
 

@@ -7,6 +7,7 @@ version: 0.0.1
 author: Samuel Asher Rivello
 aspectRatio: 16/9
 canvasWidth: 1280
+routerMode: hash
 templateLayout: mondrian-product
 catalogSlide: 23
 ---
