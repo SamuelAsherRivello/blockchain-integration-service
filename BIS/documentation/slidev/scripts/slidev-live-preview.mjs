@@ -1,4 +1,5 @@
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { watch } from 'node:fs'
 import { createHash, randomUUID } from 'node:crypto'
 import { spawn, execFile as execFileCallback } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -28,10 +29,19 @@ const deadline = new Date(Date.now() + durationHours * 60 * 60 * 1000)
 const services = [landingService, ...livePreviewManifest]
 const state = new Map(services.map((service) => [service.id, createServiceState(service, service.id === 'landing' ? '/' : canonicalSlideRouteFor(service))]))
 const children = new Map()
+const sourceWatchers = []
+const sourceRestartTimers = new Map()
+const sourceFingerprints = new Map()
 let stopping = false
 let holdsSupervisorLock = false
 
 function safeError(error) { return error instanceof Error ? error.message : String(error) }
+
+async function sourceFingerprint(service) {
+  if (!service.source) return null
+  const source = await readFile(path.join(root, service.source))
+  return createHash('sha256').update(source).digest('hex')
+}
 
 function processIsAlive(processId) {
   if (!Number.isInteger(processId) || processId <= 0) return false
@@ -268,11 +278,68 @@ async function stopOwnedServices() {
   }
 }
 
+async function restartForSourceSave(service) {
+  if (stopping || service.id === 'landing') return
+  const fingerprint = await sourceFingerprint(service).catch(() => null)
+  if (!fingerprint || fingerprint === sourceFingerprints.get(service.id)) return
+  sourceFingerprints.set(service.id, fingerprint)
+
+  const detail = state.get(service.id)
+  await event('source-save', { service: service.id, source: service.source })
+  // A Slidev server can retain generated modules for the old slide ordering
+  // after an external Markdown save. Recycle only a listener this supervisor
+  // owns, which makes the visible deck reparse from the saved source without
+  // touching a foreign authoring process.
+  if (!detail.owned) {
+    detail.conflict = 'Source changed, but this supervisor does not own the deck process to refresh it.'
+    await writeStatus()
+    return
+  }
+  await terminateOwned(service)
+  detail.state = 'recovering'
+  await startService(service)
+  if (await waitForReady(service)) detail.conflict = null
+  else detail.state = 'failed'
+  await writeStatus()
+}
+
+async function beginSourceWatchers() {
+  for (const service of livePreviewManifest) {
+    sourceFingerprints.set(service.id, await sourceFingerprint(service).catch(() => null))
+    const sourcePath = path.join(root, service.source)
+    const directory = path.dirname(sourcePath)
+    const filename = path.basename(sourcePath)
+    const watcher = watch(directory, { persistent: false }, (_eventType, changed) => {
+      if (String(changed ?? '') !== filename || stopping) return
+      clearTimeout(sourceRestartTimers.get(service.id))
+      sourceRestartTimers.set(service.id, setTimeout(() => {
+        sourceRestartTimers.delete(service.id)
+        restartForSourceSave(service).catch(async (error) => {
+          const detail = state.get(service.id)
+          detail.state = 'failed'
+          detail.conflict = `Source-save refresh failed: ${safeError(error)}`
+          await event('source-save-refresh-failed', { service: service.id, error: safeError(error) })
+          await writeStatus()
+        })
+      }, 150))
+    })
+    sourceWatchers.push(watcher)
+  }
+}
+
+function stopSourceWatchers() {
+  for (const timer of sourceRestartTimers.values()) clearTimeout(timer)
+  sourceRestartTimers.clear()
+  for (const watcher of sourceWatchers) watcher.close()
+  sourceWatchers.length = 0
+}
+
 async function run() {
   await acquireSupervisorLock()
   try {
     await mkdir(sessionRoot, { recursive: true })
     await preflight()
+    await beginSourceWatchers()
     await writeFile(path.join(sessionRoot, 'ownership-ledger.json'), `${JSON.stringify({ sessionId, startedAt: new Date().toISOString(), services: services.map(({ id, script, port }) => ({ id, script, port })) }, null, 2)}\n`)
     await event('session-start', { deadline: deadline.toISOString(), durationHours })
     while (!stopping && Date.now() < deadline.getTime()) {
@@ -289,6 +356,7 @@ async function run() {
   }
   finally {
     stopping = true
+    stopSourceWatchers()
     await stopOwnedServices()
     await releaseSupervisorLock()
   }

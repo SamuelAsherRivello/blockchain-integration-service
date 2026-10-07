@@ -716,6 +716,7 @@
    editable while treating source-era visual groupings consistently. */
 .deck-table-wrap { padding: 1.7rem 2.5rem; }
 .deck-table-wrap > h1 { margin: 0 0 .75rem; font-size: 2.3rem; }
+table { margin-top: 20px; }
 .deck-table { width: 100%; border-collapse: separate; border-spacing: .35rem; color: #081a33; font-size: .72rem; }
 .deck-table th, .deck-table td { padding: .55rem .65rem; border: 1px solid #dbe2ed; vertical-align: middle; background: #f9fbff; }
 .deck-table thead th { color: #fff; background: #05070a; text-align: center; font-weight: 800; }

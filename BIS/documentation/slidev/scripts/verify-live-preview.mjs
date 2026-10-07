@@ -139,7 +139,7 @@ async function inspectDeck(browser, entry, fullScan) {
   return result
 }
 
-async function editorRoundTrip(browser) {
+async function sourceHotReloadRoundTrip(browser) {
   const entry = livePreviewManifest.find((item) => item.id === 'live-preview-fixture')
   const page = await browser.newPage()
   const sourcePath = path.join(fileURLToPath(new URL('..', import.meta.url)), entry.source)
@@ -148,31 +148,23 @@ async function editorRoundTrip(browser) {
   const result = { id: entry.id, beforeHash: hash(sourceBefore), restored: false, latencyMs: null }
   try {
     await page.goto(`http://localhost:${landingService.port}${canonicalSlideRouteFor(entry)}`, { waitUntil: 'networkidle', timeout: 30_000 })
-    const before = await editorRecord(page, 1)
-    const body = before.body
-    const previousContent = body.content ?? body.slide?.content
-    if (typeof previousContent !== 'string') throw new Error('fixture editor record has no writable content')
-    const updated = { ...body, content: `${previousContent}\n\n${token}` }
     const start = Date.now()
-    const save = await page.evaluate(async (payload) => {
-      const response = await fetch('/__slidev/slides/1.json', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
-      return { status: response.status, body: await response.text() }
-    }, updated)
-    if (save.status < 200 || save.status >= 300) throw new Error(`fixture save failed: ${save.status} ${save.body.slice(0, 200)}`)
+    // This deliberately bypasses Slidev's browser editor API. It proves the
+    // normal author workflow: an external save to a deck Markdown file is
+    // detected by the watcher and applied to the *already open* presentation.
+    await writeFile(sourcePath, `${sourceBefore.trimEnd()}\n\n${token}\n`)
     let observed = false
     while (Date.now() - start <= 5_000) {
-      await page.reload({ waitUntil: 'networkidle', timeout: 15_000 })
-      const generated = await generatedSlideSource(page, 1)
       const visible = await page.locator('#page-root, .slidev-page').first().innerText()
-      if (generated.source.includes(token) && visible.includes(token)) { observed = true; break }
+      if (visible.includes(token)) { observed = true; break }
       await wait(150)
     }
     result.latencyMs = Date.now() - start
-    if (!observed) throw new Error(`fixture propagation exceeded 5s (editor revision ${before.body.revision ?? 'unknown'})`)
+    if (!observed) throw new Error('fixture source-save hot reload exceeded 5s without a browser reload')
   }
   catch (error) {
     result.error = error instanceof Error ? error.message : String(error)
-    failures.push({ kind: 'editor-round-trip', id: entry.id, message: result.error })
+    failures.push({ kind: 'source-hot-reload', id: entry.id, message: result.error })
   }
   finally {
     // The fixture is the only file this verifier writes. Restore from the
@@ -204,7 +196,7 @@ for (const entry of livePreviewManifest) {
 }
 if (profile !== 'fast') {
   const browser = await chromium.launch({ headless: true })
-  try { summary.fixture = await editorRoundTrip(browser) }
+  try { summary.fixture = await sourceHotReloadRoundTrip(browser) }
   finally { await browser.close() }
 }
 summary.finishedAt = new Date().toISOString()

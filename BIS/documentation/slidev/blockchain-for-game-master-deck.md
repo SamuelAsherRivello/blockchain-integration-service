@@ -1549,6 +1549,77 @@ imageTreatment: none
 <table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/arkade-os/compiler">Arkade Compiler</a></th><td>Smart-contract language compiler</td></tr><tr><th><a href="https://github.com/arkade-os/demos">Arkade Demos</a></th><td>Example Arkade integrations</td></tr><tr><th><a href="https://github.com/arkade-os/arkade-wdk">Arkade WDK</a></th><td>Wallet development kit integration</td></tr><tr><th><a href="https://github.com/arkade-os/arkd">arkd</a></th><td>Arkade operator backend services</td></tr><tr><th><a href="https://github.com/arkade-os/go-sdk">Go SDK</a></th><td>Go wallet developer SDK</td></tr><tr><th><a href="https://github.com/arkade-os/rust-sdk">Rust SDK</a></th><td>Rust wallet development crates</td></tr><tr><th><a href="https://github.com/arkade-os/tapscripts">Tapscripts</a></th><td>Tapscript contract examples</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/wallet-sdk">TypeScript SDK</a></th><td>TypeScript wallet developer SDK</td></tr></tbody></table>
 
 
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: arkade-official-projects2
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# Arkade Ecosystem
+## Apps using the tech
+
+<table class="deck-table deck-table--ecosystem">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>
+        <a href="https://github.com/ArkLabsHQ/arkade-explorer">
+          Arkade Explorer
+        </a>
+      </th>
+      <td>Browse Arkade network activity</td>
+    </tr>
+    <tr>
+      <th>
+        <a href="https://github.com/arkade-os/wallet">
+          Arkade Wallet
+        </a>
+      </th>
+      <td>Self-custodial Bitcoin wallet</td>
+    </tr>
+    <tr>
+      <th>
+        <a href="https://github.com/ArkLabsHQ/btcpay-arkade">
+          BTCPay Arkade
+        </a>
+      </th>
+      <td>Merchant Bitcoin payments plugin</td>
+    </tr>
+    <tr>
+      <th>
+        <a href="https://github.com/IsaqueFranklin/Byzantium-wallet-web">
+          Byzantium Wallet
+        </a>
+      </th>
+      <td>Experimental Arkade web wallet</td>
+    </tr>
+    <tr>
+      <th>
+        <a href="https://github.com/ArkLabsHQ/coinflip">
+          Coinflip
+        </a>
+      </th>
+      <td>Provably fair Bitcoin game</td>
+    </tr>
+    <tr>
+      <th>
+        <a href="https://faucet.mutinynet.com/">
+          MutinyNet Faucet
+        </a>
+      </th>
+      <td>MutinyNet test-sats faucet</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 layout: mondrian-content
@@ -1586,7 +1657,7 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What does Arkade OS provide?
+# Core Features, Fast
 
 <ul class="feedback-capability-list"><li><strong>Accounts</strong>: Create a new player account <em>instantly</em></li><li><strong>Assets</strong>: Deliver an in-game power-up <em>instantly</em></li><li><strong>Transfers</strong>: Send sats to a player <em>instantly</em></li><li><strong>Contracts</strong>: Resolve game rules <em>instantly</em></li><li><strong>Events</strong>: Sync game state <em>instantly</em></li></ul>
 
@@ -1638,4 +1709,7 @@ catalogLayout: mondrian-demo
 
 # Demo
 
-## <FocusedLink href="https://www.google.com/" name="Google" mode="direct" message="Search engine.">Let's play ... </FocusedLink>
+Let's fund the game ...
+
+## <FocusedLink href="https://samuelasherrivello.github.io/blockchain-stealth-and-steel-game/" name="Google" mode="direct" message="Search engine.">Game</FocusedLink>
+## <FocusedLink href="https://faucet.mutinynet.com/" name="Google" mode="direct" message="Search engine.">Faucet</FocusedLink>
