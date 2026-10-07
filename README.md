@@ -36,18 +36,22 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 <a href="BIS/documentation/marketplace.png"><img src="BIS/documentation/marketplace.png" width="400" alt="BIS marketplace catalog" /></a>
 
 
-## Demo
+## Live Demo
 
 <!-- AI: Keep the verified public demo URLs. Use a hidden ?v=<published-version> cache buster in each destination while leaving the labels unchanged. Advance both values for every published version. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
 ### BIS
 
 * [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.13)
 * [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.13)
-* [Slidev Presentations](https://samuelasherrivello.github.io/blockchain-integration-service/slidev/)
 
 ### Game
 
 - See [Stealth & Steel](https://github.com/SamuelAsherRivello/stealth-and-steel-game)
+
+### Presentations
+
+<!-- AI: For any updates to the slidev presentations put them here. Only keep the one latest of each-->
+* [Slidev Presentations](https://samuelasherrivello.github.io/blockchain-integration-service/slidev/)
 
 ## Table of Contents
 
