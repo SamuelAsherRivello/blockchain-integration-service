@@ -9,7 +9,7 @@ favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
 aspectRatio: 16/9
 canvasWidth: 1280
-routerMode: history
+routerMode: hash
 contentSlide: 1
 contentSlideId: p1
 templateLayout: mondrian-title
@@ -224,7 +224,8 @@ class: game-loop-image-slide--blockchain
 # Game Loop: <span style="color: var(--mondrian-blue)">Blockchain</span>
 ---
 layout: mondrian-center
-catalogLayout: mondrian-center
+templateLayout: mondrian-center
+catalogSlide: 7
 ---
 
 # Why Blockchain?

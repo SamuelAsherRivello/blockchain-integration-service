@@ -8,7 +8,7 @@ const template = await readFile(resolve(slidevRoot, 'launcher', 'index.html'), '
 const publicBase = '/blockchain-integration-service/slidev'
 
 const links = Object.entries(Object.groupBy(publicPreviews(), (entry) => entry.group))
-  .map(([group, entries]) => `<section aria-labelledby="${group.toLowerCase()}-heading"><h2 id="${group.toLowerCase()}-heading">${group}</h2>${entries.map((entry) => `<a href="${publicBase}/${entry.id}/1">${entry.label} <small>v${entry.version}</small></a>`).join('')}</section>`)
+  .map(([group, entries]) => `<section aria-labelledby="${group.toLowerCase()}-heading"><h2 id="${group.toLowerCase()}-heading">${group}</h2>${entries.map((entry) => `<a href="${publicBase}/${entry.id}/#/1?v=${entry.version}">${entry.label} <small>v${entry.version}</small></a>`).join('')}</section>`)
   .join('')
 
 await mkdir(destination, { recursive: true })
