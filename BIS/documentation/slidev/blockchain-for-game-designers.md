@@ -641,7 +641,7 @@ backgroundSize: contain
 imageOpacity: 1
 imageScale: 1.5
 imageTint: white
-arrowX: 405
+arrowX: 390
 arrowY: 200
 imageTreatment: generated-transparent
 ---
@@ -661,7 +661,7 @@ backgroundSize: contain
 imageOpacity: 1
 imageScale: 1.5
 imageTint: white
-arrowX: 560
+arrowX: 550
 arrowY: 200
 imageTreatment: generated-transparent
 ---
@@ -701,7 +701,7 @@ backgroundSize: contain
 imageOpacity: 1
 imageScale: 1.5
 imageTint: white
-arrowX: 875
+arrowX: 890
 arrowY: 200
 imageTreatment: generated-transparent
 ---
@@ -721,7 +721,8 @@ imageTreatment: none
 
 # Blockchain: Key Features
 
-### For gaming
+### For gaming ...
+<br>
 
 <ol>
   <li>Decentralization: Players <span class="text-blue">own</span> their content</li>
