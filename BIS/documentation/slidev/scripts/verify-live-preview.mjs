@@ -17,6 +17,7 @@ const failures = []
 const summary = { profile, startedAt: new Date().toISOString(), inventory: [], failures }
 const hash = (value) => createHash('sha256').update(String(value).replace(/\r\n/g, '\n').trim()).digest('hex').slice(0, 16)
 const cleanText = (value) => String(value ?? '').replace(/<[^>]*>/g, ' ').replace(/[#*_`>|]/g, ' ').replace(/\s+/g, ' ').trim()
+const nonVisibleMarkdownTokens = new Set(['table', 'thead', 'tbody', 'tr', 'td', 'th', 'layout', 'class', 'src', 'style', 'true', 'false'])
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function request(url, options) {
@@ -106,12 +107,17 @@ async function inspectDeck(browser, entry, fullScan) {
         const generated = await generatedSlideSource(slidePage, number)
       if (api.status !== 200 || !/no-store/i.test(api.cacheControl ?? '')) throw new Error(`transport mismatch ${entry.id}/${number}: editor status/cache ${api.status}/${api.cacheControl}`)
       if (generated.status !== 200) throw new Error(`generated-module transport mismatch ${entry.id}/${number}: ${generated.status}`)
-      const contentToken = cleanText(apiContent).match(/[A-Za-z]{5,}/g)?.[0]
-      if (contentToken) {
-        if (!generated.source.toLowerCase().includes(contentToken.toLowerCase())) throw new Error(`generated-module mismatch ${entry.id}/${number}: editor token ${contentToken} is absent`)
-          const visible = await slidePage.locator('#page-root, .slidev-page').first().innerText({ timeout: 10_000 })
-        if (!visible.toLowerCase().includes(contentToken.toLowerCase())) throw new Error(`render mismatch ${entry.id}/${number}: expected visible token ${contentToken}`)
-      }
+      // Style blocks describe presentation plumbing, not slide content. Their
+      // CSS class names need not be visible in the rendered slide and must
+      // not create a coherence expectation.
+      const authoredContent = apiContent.split(/<style\b/i)[0]
+      const candidates = [...new Set(cleanText(authoredContent).match(/[A-Za-z]{5,}/g) ?? [])]
+        .filter((token) => !nonVisibleMarkdownTokens.has(token.toLowerCase()))
+      const generatedTokens = candidates.filter((token) => generated.source.toLowerCase().includes(token.toLowerCase()))
+      if (!generatedTokens.length && candidates.length) throw new Error(`generated-module mismatch ${entry.id}/${number}: no editor content token is present`)
+      const visible = await slidePage.locator('#page-root, .slidev-page').first().innerText({ timeout: 10_000 })
+      const visibleToken = generatedTokens.find((token) => visible.toLowerCase().includes(token.toLowerCase()))
+      if (!visibleToken && generatedTokens.length) throw new Error(`render mismatch ${entry.id}/${number}: no generated editor token is visible`)
       }
       finally { if (number !== 1) await slidePage.close() }
     }

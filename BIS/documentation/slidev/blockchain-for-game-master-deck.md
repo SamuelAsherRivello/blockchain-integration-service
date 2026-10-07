@@ -284,7 +284,7 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What can a Blockchain game need?
+# What does a Blockchain game need?
 <ul class="feedback-capability-list"><li>Accounts</li><li>Assets</li><li>Transfers</li><li>Contracts</li><li>Events</li></ul>
 
 ---
@@ -297,7 +297,7 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What can a Blockchain game need?
+# What does a Blockchain game need?
 
 <ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
 
@@ -1221,13 +1221,7 @@ imageTreatment: none
 ---
 # Bitcoin Ecosystem
 
-## Table of contents
-
-- Lightning Network: Instant low-fee Bitcoin payments
-- Liquid: Confidential Bitcoin asset sidechain
-- Taproot: Layer 1 privacy and smart-contract flexibility
-- Ark Protocol: Off-chain scalable Bitcoin payments
-- Arkade: Developer tools for Ark
+<table class="deck-table deck-table--layers deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://lightning.network/">Lightning Network</a></th><td>Instant low-fee Bitcoin payments</td></tr><tr><th><a href="https://liquid.net/">Liquid</a></th><td>Confidential Bitcoin asset sidechain</td></tr><tr><th><a href="https://bitcoin.org/">Taproot</a></th><td>Layer 1 privacy and smart-contract flexibility</td></tr><tr><th><a href="https://ark-protocol.org/">Ark Protocol</a></th><td>Off-chain scalable Bitcoin payments</td></tr><tr><th><a href="https://arkadeos.com/">Arkade</a></th><td>Developer tools for Ark</td></tr></tbody></table>
 
 ---
 layout: mondrian-subsection
@@ -1329,7 +1323,7 @@ imageTreatment: none
 ---
 
 # Taproot
-## Layer 1
+## <span class="bitcoin-orange">Layer 1</span>
 Makes transactions smarter, more private, and more efficient.
 
 - Simple cooperative payments stay compact
@@ -1438,7 +1432,8 @@ A programmable extension for financial applications.
 
 ::bottom::
 
-Source: <FocusedLink href="https://docs.arkadeos.com/" name="Arkade Documentation" message="Official Arkade developer documentation." tone="orange" mode="direct">docs.arkadeos.com</FocusedLink>
+
+Source: [Arkadeos.com](https://arkadeos.com/)
 
 ---
 layout: mondrian-content
@@ -1449,7 +1444,7 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What can a Blockchain game need?
+# What does a Blockchain game need?
 <ul class="feedback-capability-list"><li>Accounts</li><li>Assets</li><li>Transfers</li><li>Contracts</li><li>Events</li></ul>
 
 ---
@@ -1462,7 +1457,7 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What can a Blockchain game need?
+# What does a Blockchain game need?
 
 <ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
 
@@ -1476,6 +1471,38 @@ catalogSlide: 3
 imageTreatment: none
 ---
 
-# What can a Blockchain game need?
+# What does Arkade OS provide?
 
 <ul class="feedback-capability-list"><li><strong>Accounts</strong>: Player identity and wallet connection</li><li><strong>Assets</strong>: Items and collectible ownership</li><li><strong>Transfers</strong>: Send, receive, buy, sell, or trade</li><li><strong>Contracts</strong>: Rules and transaction execution</li><li><strong>Events</strong>: Game-state synchronization</li></ul>
+
+Source: <FocusedLink href="https://docs.arkadeos.com/" name="Arkade Documentation" message="Official Arkade developer documentation." tone="orange" mode="direct">docs.arkadeos.com</FocusedLink>
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: arkade-official-projects
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# Arkade Ecosystem
+## The tech
+
+<table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/arkade-os/compiler">Arkade Compiler</a></th><td>Smart-contract language compiler</td></tr><tr><th><a href="https://github.com/arkade-os/demos">Arkade Demos</a></th><td>Example Arkade integrations</td></tr><tr><th><a href="https://github.com/arkade-os/arkade-wdk">Arkade WDK</a></th><td>Wallet development kit integration</td></tr><tr><th><a href="https://github.com/arkade-os/arkd">arkd</a></th><td>Arkade operator backend services</td></tr><tr><th><a href="https://github.com/arkade-os/covclaimd">Covclaimd</a></th><td>Covenant claim service</td></tr><tr><th><a href="https://github.com/arkade-os/emulator">Emulator</a></th><td>Contract execution emulator</td></tr><tr><th><a href="https://github.com/arkade-os/go-sdk">Go SDK</a></th><td>Go wallet developer SDK</td></tr><tr><th><a href="https://github.com/arkade-os/rust-sdk">Rust SDK</a></th><td>Rust wallet development crates</td></tr><tr><th><a href="https://github.com/arkade-os/tapscripts">Tapscripts</a></th><td>Tapscript contract examples</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/wallet-sdk">TypeScript SDK</a></th><td>TypeScript wallet developer SDK</td></tr></tbody></table>
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: arkade-apps-using-ark
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# Arkade Ecosystem
+## Apps using the tech
+
+<table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/ArkLabsHQ/arkade-explorer">Arkade Explorer</a></th><td>Browse Arkade network activity</td></tr><tr><th><a href="https://github.com/arkade-os/wallet">Arkade Wallet</a></th><td>Self-custodial Bitcoin wallet</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/btcpay-arkade">BTCPay Arkade</a></th><td>Merchant Bitcoin payments plugin</td></tr><tr><th><a href="https://github.com/IsaqueFranklin/Byzantium-wallet-web">Byzantium Wallet</a></th><td>Experimental Arkade web wallet</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/coinflip">Coinflip Game</a></th><td>Provably fair Bitcoin game</td></tr><tr><th><a href="https://faucet.mutinynet.com/">MutinyNet Faucet</a></th><td>MutinyNet test-sats faucet</td></tr></tbody></table>

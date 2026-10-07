@@ -710,6 +710,7 @@
 .deck-table--generations tbody tr, .deck-table--generations tbody th, .deck-table--generations tbody td { height: 4.85rem; }
 .deck-table__cell-image { display: block; width: 100%; height: 100%; object-fit: contain; }
 .deck-table--layers th, .deck-table--layers td { text-align: left; font-size: .83rem; }
+.deck-table--ecosystem tbody th { width: 31%; white-space: nowrap; }
 .deck-table--gaming thead th { background: #1464e8; }
 .deck-table--gaming tbody th { color: #fff; background: #313842; }
 /* Match the Layer 3 and Layer 1 bands on the preceding Bitcoin Layers slide,
