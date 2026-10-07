@@ -7,7 +7,7 @@ aspectRatio: 16/9
 canvasWidth: 1280
 layout: mondrian-thank-you
 templateLayout: mondrian-thank-you
-catalogSlide: 17
+catalogSlide: 19
 ---
 
 # <span class="primary-label-one-line" style="display: inline-block; transform: translateY(-10px)">Thank You!</span>
@@ -15,7 +15,7 @@ catalogSlide: 17
 ---
 layout: mondrian-about
 templateLayout: mondrian-about
-catalogSlide: 20
+catalogSlide: 22
 class: about-expanded-copy about-contact-emphasis
 ---
 
@@ -31,7 +31,7 @@ class: about-expanded-copy about-contact-emphasis
 ---
 layout: mondrian-logos
 templateLayout: mondrian-logos
-catalogSlide: 18
+catalogSlide: 20
 ---
 
 # Game XP
@@ -41,7 +41,7 @@ catalogSlide: 18
 ---
 layout: mondrian-video-xp
 templateLayout: mondrian-video-xp
-catalogSlide: 19
+catalogSlide: 21
 ---
 
 # Blockchain XP
@@ -66,7 +66,7 @@ catalogSlide: 19
 ---
 layout: mondrian-about
 templateLayout: mondrian-about
-catalogSlide: 20
+catalogSlide: 22
 ---
 
 # Say Hi :)
@@ -81,7 +81,7 @@ catalogSlide: 20
 ---
 layout: mondrian-about-end-cards
 templateLayout: mondrian-about-end-cards
-catalogSlide: 21
+catalogSlide: 23
 ---
 
 # Say Hi :)

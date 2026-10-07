@@ -114,7 +114,25 @@ catalogLayout: mondrian-demo
 
 # Demo
 
-## Let's play ...
+## <FocusedLink href="https://www.google.com/" name="Google" message="Search engine.">Let's play ...</FocusedLink>
+
+---
+layout: mondrian-hook
+catalogLayout: mondrian-hook
+---
+
+# [POST PRODUCTION]
+
+## <FocusedLink href="https://www.google.com/" name="Go" message="This is temp"> Insert Hook</FocusedLink>
+
+---
+layout: mondrian-tease
+catalogLayout: mondrian-tease
+---
+
+# [PRE PRODUCTION]
+
+## <FocusedLink href="https://www.google.com/" name="Tea" message="This is temp"> Insert Tease Slides</FocusedLink>
 
 ---
 layout: mondrian-quote

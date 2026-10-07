@@ -6,8 +6,10 @@ const props = withDefaults(defineProps<{
   name: string
   message: string
   tone?: 'yellow' | 'orange'
+  mode?: 'frame' | 'direct'
 }>(), {
   tone: 'yellow',
+  mode: 'frame',
 })
 
 const destination = computed(() => {
@@ -15,6 +17,7 @@ const destination = computed(() => {
     url: props.href,
     name: props.name,
     message: props.message,
+    mode: props.mode,
   })
 
   return `./focused-link.html?${search}`

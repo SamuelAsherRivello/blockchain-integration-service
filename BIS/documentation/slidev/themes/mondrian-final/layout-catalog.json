@@ -52,20 +52,32 @@
         "default"
       ]
     },
-    "mondrian-quote": {
+    "mondrian-hook": {
       "catalogSlide": 9,
       "slots": [
         "default"
       ]
     },
-    "mondrian-fact": {
+    "mondrian-tease": {
       "catalogSlide": 10,
       "slots": [
         "default"
       ]
     },
-    "mondrian-image-left": {
+    "mondrian-quote": {
       "catalogSlide": 11,
+      "slots": [
+        "default"
+      ]
+    },
+    "mondrian-fact": {
+      "catalogSlide": 12,
+      "slots": [
+        "default"
+      ]
+    },
+    "mondrian-image-left": {
+      "catalogSlide": 13,
       "slots": [
         "default"
       ],
@@ -75,7 +87,7 @@
       ]
     },
     "mondrian-image-right": {
-      "catalogSlide": 12,
+      "catalogSlide": 14,
       "slots": [
         "default"
       ],
@@ -85,7 +97,7 @@
       ]
     },
     "mondrian-image-bottom": {
-      "catalogSlide": 13,
+      "catalogSlide": 15,
       "slots": [
         "default"
       ],
@@ -99,49 +111,49 @@
       ]
     },
     "mondrian-blank": {
-      "catalogSlide": 14,
+      "catalogSlide": 16,
       "slots": [
         "default"
       ]
     },
     "mondrian-diagram": {
-      "catalogSlide": 15,
-      "slots": [
-        "default"
-      ]
-    },
-    "mondrian-thank-you": {
       "catalogSlide": 17,
       "slots": [
         "default"
       ]
     },
-    "mondrian-about": {
-      "catalogSlide": 20,
-      "slots": [
-        "default"
-      ]
-    },
-    "mondrian-video-xp": {
+    "mondrian-thank-you": {
       "catalogSlide": 19,
       "slots": [
         "default"
       ]
     },
-    "mondrian-logos": {
-      "catalogSlide": 18,
+    "mondrian-about": {
+      "catalogSlide": 22,
       "slots": [
         "default"
       ]
     },
-    "mondrian-about-end-cards": {
+    "mondrian-video-xp": {
       "catalogSlide": 21,
       "slots": [
         "default"
       ]
     },
+    "mondrian-logos": {
+      "catalogSlide": 20,
+      "slots": [
+        "default"
+      ]
+    },
+    "mondrian-about-end-cards": {
+      "catalogSlide": 23,
+      "slots": [
+        "default"
+      ]
+    },
     "mondrian-right-diagram": {
-      "catalogSlide": 16,
+      "catalogSlide": 18,
       "slots": [
         "default",
         "left",

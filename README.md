@@ -8,10 +8,7 @@
 This is a proof-of-concept (POC) demonstrating Blockchain use cases for gaming.
 
 > [!WARNING]
-> **Prototype only.** BIS is a proof of concept, not a production-ready service.
-> It is client-authoritative and insecure by design, and it supports Bitcoin
-> **Signet** and **Mutinynet** test networks only. Do not use it with real funds.
-> See the [Prototype scope and security](BIS/documentation/prototype-scope-and-security-readme.md).
+> Prototype only, not a production-ready project. See the [Prototype scope and security](BIS/documentation/prototype-scope-and-security-readme.md).
 
 The BIS adds a Blockchain enabled ui and service layer to your games for Signet and Mutinynet networks for Bitcoin.
 

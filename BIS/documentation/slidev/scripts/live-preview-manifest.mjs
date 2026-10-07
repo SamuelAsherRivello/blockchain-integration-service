@@ -13,6 +13,7 @@ export const livePreviewManifest = Object.freeze([
   { id: 'modrian-template', script: 'dev:modrian-template', source: 'modrian-template.md', port: 3049, base: '/slidev/modrian-template/', landing: true, editorOwner: 'modrian-template', label: 'Modrian Template', group: 'Templates' },
   { id: 'blockchain-for-game-master-deck', script: 'dev:blockchain-for-game-master-deck', source: 'blockchain-for-game-master-deck.md', port: 3051, base: '/slidev/blockchain-for-game-master-deck/', landing: true, editorOwner: 'blockchain-for-game-master-deck', label: 'Blockchain For Gaming — Master Deck', group: 'Decks' },
   { id: 'outro', script: 'dev:outro', source: 'outro.md', port: 3052, base: '/slidev/outro/', landing: true, editorOwner: 'outro', label: 'Outro - Subdeck', group: 'Subdecks' },
+  { id: 'tease-subdeck', script: 'dev:tease-subdeck', source: 'tease-subdeck.md', port: 3053, base: '/slidev/tease-subdeck/', landing: true, editorOwner: 'tease-subdeck', label: 'Tease Subdeck', group: 'Subdecks' },
   { id: 'live-preview-fixture', script: 'dev:live-preview-fixture', source: 'fixtures/live-preview-fixture.md', port: 3054, base: '/slidev/live-preview-fixture/', landing: false, editorOwner: 'live-preview-fixture', testOnly: true },
 ])
 

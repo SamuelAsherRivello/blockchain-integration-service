@@ -26,14 +26,21 @@
       const name = params.get('name') || 'Link'
       const message = params.get('message') || ''
       const url = params.get('url') || ''
+      const mode = params.get('mode') || 'frame'
       const frame = document.querySelector('#site')
       document.title = name
-      document.querySelector('#name').textContent = `${name}:`
-      document.querySelector('#message').textContent = message ? ` ${message}` : ''
+      document.querySelector('#name').textContent = name
+      document.querySelector('#message').textContent = message ? ` - ${message}` : ''
       try {
         const destination = new URL(url)
         if (!['http:', 'https:'].includes(destination.protocol)) throw new Error('Unsupported URL')
         document.querySelector('#destination-favicon').href = `${destination.origin}/favicon.ico`
+        // Arkade blocks third-party framing; direct navigation also supports
+        // focused-link URLs generated before the explicit mode was introduced.
+        if (mode === 'direct' || destination.hostname === 'arkadeos.com') {
+          window.location.replace(destination.href)
+          return
+        }
         frame.src = destination.href
         frame.title = `${name} website`
       } catch {
