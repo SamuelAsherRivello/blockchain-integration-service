@@ -40,6 +40,10 @@ for (const deck of publicPreviews()) {
     child.once('error', rejectBuild)
     child.once('exit', (code) => code === 0 ? resolveBuild() : rejectBuild(new Error(`${deck.id}: Slidev build exited ${code}`)))
   })
+  // Slidev preserves frontmatter image URLs such as `./assets/...` instead of
+  // bundling them. Publish the shared source tree beneath every deck base so
+  // those URLs resolve on GitHub Pages as well as in local preview.
+  await cp(resolve(slidevRoot, 'assets'), resolve(destination, deck.id, 'assets'), { recursive: true })
   await materializeDeepLinks(deck)
 }
 

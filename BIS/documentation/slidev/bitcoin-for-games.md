@@ -3,7 +3,7 @@ theme: ./themes/mondrian-final
 colorSchema: dark
 layout: mondrian-title
 title: Bitcoin For Game Development
-version: 0.0.3
+version: 0.0.4
 titleTemplate: 'Slidev - %s'
 favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
