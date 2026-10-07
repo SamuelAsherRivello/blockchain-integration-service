@@ -4,7 +4,7 @@ import { validateReleaseVersion, validateTransition, validateVersion } from './c
 
 test('active published release surfaces are synchronized', async () => {
   const result = await validateReleaseVersion();
-  assert.equal(result.version, '0.0.14');
+  assert.equal(result.version, '0.0.15');
 });
 
 test('accepts the initial baseline and valid patch transitions', () => {
