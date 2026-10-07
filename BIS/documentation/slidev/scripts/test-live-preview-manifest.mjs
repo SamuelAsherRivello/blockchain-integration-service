@@ -19,6 +19,7 @@ test('manifest preflight maps every declared deck to its package script, landing
     assert.ok(entry.label, `${entry.id}: landing entry lacks label`)
     assert.ok(entry.group, `${entry.id}: landing entry lacks group`)
     assert.match(entry.visibility, /^(private|public)$/, `${entry.id}: landing entry lacks valid visibility`)
+    assert.match(entry.version, /^\d+\.\d+\.\d+$/, `${entry.id}: landing entry lacks semantic version`)
   }
 })
 

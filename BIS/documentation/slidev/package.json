@@ -41,7 +41,7 @@
     "prebuild:decks": "npm run sync:layout-mappings",
     "build:decks": "npm run verify:bullet-style && npm run build:modrian-template && npm run build:blockchain-for-game-master-deck && npm run build:tease-subdeck && npm run build:outro",
     "prebuild:public": "npm run sync:layout-mappings",
-    "build:public": "slidev build modrian-template.md --theme ./themes/mondrian-final --base /blockchain-integration-service/slidev/modrian-template/ --out dist/public/modrian-template && slidev build blockchain-for-game-master-deck.md --theme ./themes/mondrian-final --base /blockchain-integration-service/slidev/blockchain-for-game-master-deck/ --out dist/public/blockchain-for-game-master-deck && slidev build tease-subdeck.md --theme ./themes/mondrian-final --base /blockchain-integration-service/slidev/tease-subdeck/ --out dist/public/tease-subdeck && slidev build outro.md --theme ./themes/mondrian-final --base /blockchain-integration-service/slidev/outro/ --out dist/public/outro && node scripts/build-public-landing.mjs",
+    "build:public": "node scripts/build-public-decks.mjs",
     "sync:layout-mappings": "node scripts/sync-layout-mappings.mjs && node scripts/verify-layout-contract.mjs",
     "verify:layout-mappings:self-test": "node scripts/sync-layout-mappings.mjs --self-test",
     "verify:layout-contract": "node scripts/verify-layout-contract.mjs",

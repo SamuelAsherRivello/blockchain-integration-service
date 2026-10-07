@@ -3,6 +3,7 @@ theme: ./themes/mondrian-final
 colorSchema: dark
 layout: mondrian-title
 title: Blockchain For Gaming — Master Deck
+version: 0.0.1
 titleTemplate: 'Slidev - %s'
 favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
@@ -1490,7 +1491,7 @@ imageTreatment: none
 # Arkade Ecosystem
 ## The tech
 
-<table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/arkade-os/compiler">Arkade Compiler</a></th><td>Smart-contract language compiler</td></tr><tr><th><a href="https://github.com/arkade-os/demos">Arkade Demos</a></th><td>Example Arkade integrations</td></tr><tr><th><a href="https://github.com/arkade-os/arkade-wdk">Arkade WDK</a></th><td>Wallet development kit integration</td></tr><tr><th><a href="https://github.com/arkade-os/arkd">arkd</a></th><td>Arkade operator backend services</td></tr><tr><th><a href="https://github.com/arkade-os/covclaimd">Covclaimd</a></th><td>Covenant claim service</td></tr><tr><th><a href="https://github.com/arkade-os/emulator">Emulator</a></th><td>Contract execution emulator</td></tr><tr><th><a href="https://github.com/arkade-os/go-sdk">Go SDK</a></th><td>Go wallet developer SDK</td></tr><tr><th><a href="https://github.com/arkade-os/rust-sdk">Rust SDK</a></th><td>Rust wallet development crates</td></tr><tr><th><a href="https://github.com/arkade-os/tapscripts">Tapscripts</a></th><td>Tapscript contract examples</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/wallet-sdk">TypeScript SDK</a></th><td>TypeScript wallet developer SDK</td></tr></tbody></table>
+<table class="deck-table deck-table--ecosystem"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody><tr><th><a href="https://github.com/arkade-os/compiler">Arkade Compiler</a></th><td>Smart-contract language compiler</td></tr><tr><th><a href="https://github.com/arkade-os/demos">Arkade Demos</a></th><td>Example Arkade integrations</td></tr><tr><th><a href="https://github.com/arkade-os/arkade-wdk">Arkade WDK</a></th><td>Wallet development kit integration</td></tr><tr><th><a href="https://github.com/arkade-os/arkd">arkd</a></th><td>Arkade operator backend services</td></tr><tr><th><a href="https://github.com/arkade-os/go-sdk">Go SDK</a></th><td>Go wallet developer SDK</td></tr><tr><th><a href="https://github.com/arkade-os/rust-sdk">Rust SDK</a></th><td>Rust wallet development crates</td></tr><tr><th><a href="https://github.com/arkade-os/tapscripts">Tapscripts</a></th><td>Tapscript contract examples</td></tr><tr><th><a href="https://github.com/ArkLabsHQ/wallet-sdk">TypeScript SDK</a></th><td>TypeScript wallet developer SDK</td></tr></tbody></table>
 
 ---
 layout: mondrian-content
