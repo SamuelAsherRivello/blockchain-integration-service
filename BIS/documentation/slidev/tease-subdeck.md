@@ -46,7 +46,7 @@ imageTreatment: documentation-screenshot
 
 # Game
 
-Add the Blockchain Integration Service (BIS). Checkout the demo "Stealth & Steel".
+Add the Blockchain Integration Service (BIS). The BIS includes a runtime UI layer and service layer.
 
 ---
 layout: mondrian-diagram
@@ -78,14 +78,14 @@ contentSlide: 35.1
 contentSlideId: bis-admin-screenshot
 templateLayout: mondrian-image-bottom
 catalogSlide: 15
-image: https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/docs/images/Screenshot_Admin_01.png
+image: https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/docs/images/Screenshot_Marketplace_01.png?v=81b0e3db6d8ed7f937eb39d743e3acf19d28eba4
 backgroundSize: contain
 imageTreatment: documentation-screenshot
 ---
 
-# BIS
+# Marketplace
 
-The BIS includes a runtime service layer and UI layer. Test workflows in the admin.
+The BIS includes a admin UI layer and service layer.
 
 ---
 layout: mondrian-image-bottom
@@ -98,6 +98,18 @@ backgroundSize: contain
 imageTreatment: documentation-screenshot
 ---
 
-# Marketplace
+# Admin
 
-The BIS includes a service layer and a marketplace interface.
+The BIS includes a developer-facing admin for testing workflows and new features.
+
+---
+layout: mondrian-demo
+templateLayout: mondrian-demo
+catalogSlide: 8
+---
+
+# Demo
+
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" name="BIS" message="Service, UI, Admin, Marketplace." >Bis </FocusedLink>
+
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-stealth-and-steel-game" name="Game" message="Gameplay w/o BIS, w/ BIS" >Game</FocusedLink>

@@ -35,9 +35,10 @@
         const destination = new URL(url)
         if (!['http:', 'https:'].includes(destination.protocol)) throw new Error('Unsupported URL')
         document.querySelector('#destination-favicon').href = `${destination.origin}/favicon.ico`
-        // Arkade blocks third-party framing; direct navigation also supports
-        // focused-link URLs generated before the explicit mode was introduced.
-        if (mode === 'direct' || destination.hostname === 'arkadeos.com') {
+        // Arkade and GitHub block third-party framing; direct navigation also
+        // supports focused-link URLs generated before the explicit mode.
+        const directOnlyHosts = new Set(['arkadeos.com', 'github.com'])
+        if (mode === 'direct' || directOnlyHosts.has(destination.hostname)) {
           window.location.replace(destination.href)
           return
         }
