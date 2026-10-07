@@ -13,11 +13,12 @@ const props = withDefaults(defineProps<{
 })
 
 const destination = computed(() => {
+  if (props.mode === 'direct') return props.href
+
   const search = new URLSearchParams({
     url: props.href,
     name: props.name,
     message: props.message,
-    mode: props.mode,
   })
 
   return `./focused-link.html?${search}`

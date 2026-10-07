@@ -14,7 +14,7 @@ From this folder, start or reuse the single supervised authoring runtime:
 npm run dev:stable-preview
 ```
 
-Open `http://localhost:3032/`. The landing page links to the Modrian Template catalog, Blockchain For Gaming Master Deck, Tease Subdeck, Games Subdeck, and Outro deck. The launcher on port 3032 proxies the catalog server on port 3049, the content deck server on port 3051, the Tease Subdeck server on port 3053, the Games Subdeck server on port 3055, and the Outro server on port 3052, with no-cache headers for review.
+Open `http://localhost:3032/`. Every deck URL uses one pathname slide number, for example `http://localhost:3032/slidev/blockchain-for-game-master-deck/29`; it never uses `#/29`. The landing page links to the Modrian Template catalog, Blockchain For Gaming Master Deck, Tease Subdeck, Games Subdeck, and Outro deck. The launcher on port 3032 proxies the catalog server on port 3049, the content deck server on port 3051, the Tease Subdeck server on port 3053, the Games Subdeck server on port 3055, and the Outro server on port 3052, with no-cache headers for review.
 
 Use `npm run preview:status` for the supervisor state and `npm run
 verify:live-preview:proxy` for a non-authoring editor-routing check. Do not

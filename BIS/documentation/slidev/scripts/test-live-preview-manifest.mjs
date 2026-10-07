@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { editorOwnerForPath, livePreviewManifest, normalizedBase, publicPreviews, routeFor, validateLivePreviewManifest, visiblePreviews } from './live-preview-manifest.mjs'
+import { canonicalSlideRouteFor, editorOwnerForPath, livePreviewManifest, normalizedBase, publicPreviews, validateLivePreviewManifest, visiblePreviews } from './live-preview-manifest.mjs'
 
 const packageScripts = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).scripts
 
@@ -12,10 +12,11 @@ test('checked-in live preview inventory validates', () => {
 test('manifest preflight maps every declared deck to its package script, landing route, and proxy owner', () => {
   for (const entry of livePreviewManifest) {
     assert.ok(packageScripts[entry.script], `${entry.id}: missing package script ${entry.script}`)
-    assert.equal(editorOwnerForPath(routeFor(entry)), entry, `${entry.id}: proxy route has the wrong owner`)
+    assert.equal(editorOwnerForPath(canonicalSlideRouteFor(entry)), entry, `${entry.id}: proxy route has the wrong owner`)
   }
   for (const entry of visiblePreviews()) {
-    assert.match(routeFor(entry), /^\/slidev\/[a-z0-9-]+\/1$/, `${entry.id}: invalid landing route`)
+    assert.match(canonicalSlideRouteFor(entry), /^\/slidev\/[a-z0-9-]+\/1$/, `${entry.id}: invalid landing route`)
+    assert.doesNotMatch(canonicalSlideRouteFor(entry), /#/, `${entry.id}: canonical route contains a hash`)
     assert.ok(entry.label, `${entry.id}: landing entry lacks label`)
     assert.ok(entry.group, `${entry.id}: landing entry lacks group`)
     assert.match(entry.visibility, /^(private|public)$/, `${entry.id}: landing entry lacks valid visibility`)

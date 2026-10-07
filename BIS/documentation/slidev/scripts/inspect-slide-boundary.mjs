@@ -31,7 +31,7 @@ function titleAt(index) {
   return heading ?? contentSlideId ?? '(untitled)'
 }
 
-console.log(`Insertion boundary after rendered page ${page} (route #/${page - 1}):`)
+console.log(`Insertion boundary after rendered page ${page} (route /${page - 1}):`)
 for (const index of [page - 2, page - 1, page]) {
   const label = index === page - 1 ? 'current' : index < page - 1 ? 'previous' : 'next'
   console.log(`- ${label}: page ${index + 1}, ${titleAt(index)}`)

@@ -2,27 +2,25 @@
 
 ## Why
 
-The local Slidev launcher currently puts a slide number in both its pathname
-and Slidev's browser hash. Those independent values can diverge, making a
-copied presentation link ambiguous and misleading.
+Slidev preview URLs currently carry browser navigation in a hash fragment,
+while older launcher routes can also include a pathname slide number. That
+creates confusing, duplicate state rather than one clear presentation URL.
 
 ## What Changes
 
-- Make the Slidev hash fragment the sole canonical authority for the active
-  slide in local preview URLs.
-- Remove slide numbers from launcher-generated proxy paths; deck identity ends
-  at its declared base path.
-- Update landing links, runtime probes, verification, documentation, and theme
-  navigation links to produce and validate one canonical URL form.
-- Add regression coverage that rejects pathname slide suffixes and conflicting
-  pathname/hash slide positions.
+- Make the pathname the sole authority for the active slide: `/slidev/<deck>/<slide>`.
+- **BREAKING** Replace hash-routed deck URLs with Slidev history routing.
+- Generate canonical path-only local and public landing links and reject hash or
+  duplicate-position routes in verification.
+- Publish a static entry point for every public deck slide so direct GitHub Pages
+  requests and refreshes retain the canonical path.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `slidev-canonical-navigation`: Provides unambiguous, shareable local Slidev
-  deck URLs with exactly one authoritative active-slide position.
+- `slidev-canonical-navigation`: Provides unambiguous, shareable Slidev deck
+  URLs with exactly one pathname slide position.
 
 ### Modified Capabilities
 
@@ -31,7 +29,6 @@ copied presentation link ambiguous and misleading.
 
 ## Impact
 
-- `BIS/documentation/slidev/scripts/live-preview-manifest.mjs` and its tests
-- Local launcher links, readiness/coherence verification, and preview
-  documentation
-- Mondrian theme links that navigate among local deck and template routes
+- Slidev deck frontmatter, manifest, local launcher, supervisor, verification,
+  landing generation, theme navigation, and preview documentation.
+- The public Slidev build adds static deep-link entry points for GitHub Pages.

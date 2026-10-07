@@ -2,70 +2,61 @@
 
 ## Context
 
-See [proposal.md](./proposal.md) for motivation. The manifest currently builds
-routes as `base + slide`, while Slidev itself keeps the active slide in a hash
-route. The shared launcher only needs the base path to choose a deck, so the
-pathname slide suffix is redundant state.
+See [proposal.md](./proposal.md) for motivation. Slidev supports both hash and
+history routers. The launcher owns deck selection by manifest base path, while
+the browser router owns active-slide navigation.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Give every local deck view one authoritative, copyable slide position.
-- Keep manifest-based deck ownership, proxy behavior, editor routing, and HMR
-  isolation intact.
-- Make canonical URL generation and rejection of duplicate slide state testable.
+- Use one stable, copyable URL form: `<deck-base><slide>`.
+- Preserve manifest-backed ownership, editor routing, HMR isolation, and direct
+  deep links in both local preview and GitHub Pages builds.
 
 **Non-Goals:**
 
-- Replace Slidev's hash router with a custom history router.
-- Change published GitHub Pages URLs or authored slide content.
-- Add redirects for legacy local URLs; local preview state is ephemeral.
+- Include a build/version segment in canonical presentation URLs.
+- Preserve hash URL compatibility or add redirects for old ephemeral local links.
 
 ## Decisions
 
-### Treat the hash fragment as the active-slide authority
+### Use Slidev history routing and pathname slide numbers
 
-Canonical local links will be `<deck-base>#/N`; the pathname ends at the
-manifest-declared trailing-slash base. Slidev already reads and updates this
-fragment, so it prevents route drift without adapting the dependency's router.
+Each deck will set `routerMode: history`. Canonical helpers produce a normalized
+deck base for server operations and `base + N` for browser navigation. The
+alternative hash mode was rejected because it hides the one meaningful route
+component and made duplicate slide state easy to create.
 
-Path-only URLs were considered because they are server-readable, but they
-would require owning browser history fallback and replacing Slidev's router.
-Synchronizing both formats was rejected because duplicated state can still
-diverge.
+### Route local deep paths through the owning deck
 
-### Separate deck-base ownership from browser navigation
+The Vite proxy already matches each manifest deck prefix. It will pass a
+pathname such as `/slidev/deck/29` through to that deck's history-enabled
+Slidev server; probes that only need a document continue to request its base.
 
-Manifest helpers will expose a deck-base route for proxy, readiness, and editor
-ownership, plus a canonical browser URL helper for a selected slide. Callers
-that fetch documents will use the base pathname; callers that open a browser
-slide will use the hash URL. Tests will make that distinction explicit.
+### Materialize public deep-link pages at build time
 
-### Keep public release links unchanged
-
-Public Pages already use Slidev's hash format and retain their version query.
-This change confines canonicalization to the local launcher and must not alter
-the release contract.
+GitHub Pages has no configurable history fallback. After each public Slidev
+build, the release builder will copy its generated `index.html` to a numbered
+`<slide>/index.html` directory for every rendered slide. This retains the
+browser URL on first request and lets Slidev continue normal history navigation.
 
 ## Risks / Trade-offs
 
-- [Hash fragments are not sent to the server] → Server probes will validate the
-  deck base, while browser probes verify the hash-selected active slide.
-- [Old bookmarks can retain duplicate state] → The application will neither
-  emit nor report them; new links are canonical and verification detects any
-  reintroduction.
-- [A call site uses a base URL where a selected-slide URL is needed] → Use
-  separate helpers and focused unit/browser coverage.
+- [Published output contains one small HTML entry per slide] → Reuse the same
+  built shell and generate only declared slide positions.
+- [A route helper is used for a server fetch rather than browser navigation] →
+  Keep base and canonical helpers separate and cover both in focused tests.
+- [Old hash bookmarks stop being canonical] → Landing pages and runtime never
+  emit them; they are intentionally outside this local-preview migration.
 
 ## Migration Plan
 
-1. Replace the overloaded manifest route helper with explicit base and
-   canonical-browser URL helpers.
-2. Update all launcher, supervisor, verifier, documentation, and theme call
-   sites according to whether they need server routing or browser navigation.
-3. Add unit and browser regression tests, then run the focused live-preview
-   verification profile.
+1. Change all declared decks to history routing and replace manifest URL helpers.
+2. Update launcher, supervisor, verification, theme links, documentation, and
+   public landing to use pathname slide routes.
+3. Generate public static deep-link entry points, then verify local deep links,
+   navigation, and release-build output.
 
-Rollback restores the former helper and call sites; it affects only local
-preview URLs and does not modify deck source or release artifacts.
+Rollback restores hash router configuration and its corresponding helpers; no
+deck content or external data is altered.

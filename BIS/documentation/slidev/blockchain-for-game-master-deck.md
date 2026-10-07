@@ -9,7 +9,7 @@ favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
 aspectRatio: 16/9
 canvasWidth: 1280
-routerMode: hash
+routerMode: history
 contentSlide: 1
 contentSlideId: p1
 templateLayout: mondrian-title
@@ -30,7 +30,7 @@ imageTreatment: none
 ---
 
 # Gaming 
-## Recap
+## Overview
 
 ---
 layout: mondrian-image-right
@@ -43,10 +43,12 @@ backgroundSize: 121.2%
 class: slide-image-right-offset b-safe-image-right b-slide-eleven
 imageTreatment: copy-upscaled
 ---
-# Gen Alpha
-## Leisure time by entertainment platform
+
+# Gaming Is Popular
+## & Growing
 
 Source: [GWI.com](https://www.gwi.com/reports/gen-alpha)
+
 ---
 layout: mondrian-image-right
 contentSlide: 4
@@ -58,10 +60,12 @@ backgroundSize: contain
 class: slide-image-right-offset b-safe-image-right b-slide-eleven
 imageTreatment: copy-upscaled
 ---
-# Global Games Market
-## Regional market size — 2026
 
-Source: [Newzoo — Global Games Market Report 2026](https://newzoo.com/articles/executive-summary-ggmr-2026-free-edition)
+# Gaming Is Global
+## & Expanding
+
+Source: [Newzoo](https://newzoo.com/articles/executive-summary-ggmr-2026-free-edition)
+
 ---
 layout: mondrian-image-bottom
 contentSlide: 4.1
@@ -78,7 +82,7 @@ imageTreatment: generated-original
 # Where Players Play ...
 #
 
-Source: [theesa.com](https://www.theesa.com/wp-content/uploads/2025/06/2025-Essential-Facts-Booklet-05-30-25-RGB.pdf)
+Source: [Theesa.com](https://www.theesa.com/wp-content/uploads/2025/06/2025-Essential-Facts-Booklet-05-30-25-RGB.pdf)
 
 ---
 layout: mondrian-image-bottom
@@ -121,7 +125,7 @@ imageTreatment: none
 ---
 
 # Blockchain Gaming
-## Recap
+## Overview
 
 ---
 layout: mondrian-content
@@ -138,8 +142,6 @@ imageTreatment: editable-table
 
 <table class="deck-table deck-table--source deck-table--generations"><colgroup><col class="deck-table__row-label" /><col /><col /><col /></colgroup><thead><tr><th></th><th>WEB 1</th><th>WEB 2</th><th>WEB 3</th></tr></thead><tbody><tr><th>APPLICATION<br>LAYER</th><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r1-c1-application-transparent-4x.png" alt="Chrome, Excel, and Photoshop logos" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r1-c2-application-transparent-4x.png" alt="Spotify, Facebook, and Netflix logos" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r1-c3-application-transparent-4x.png" alt="CryptoKitties, Uniswap, and OpenSea logos" /></td></tr><tr><th>PLATFORM<br>LAYER</th><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r2-c1-platform-transparent-4x.png" alt="Apple and Microsoft logos" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r2-c2-platform-transparent-4x.png" alt="AWS logo" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r2-c3-platform-ark-transparent-4x.png" alt="Bark, Second, Arkade, and Lightning Network logos" /></td></tr><tr><th>PROTOCOL<br>LAYER</th><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r3-c1-protocol-transparent-4x.png" alt="Computer, RAM, CPU, and HDD infrastructure icons" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r3-c2-protocol-transparent-4x.png" alt="Server, internet, cloud, HTTP, FTP, and SMTP icons" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/web-r3-c3-protocol-transparent-4x.png" alt="QuickNode, GetBlock, Alchemy, Run, Infura, Ethereum, and Solana logos" /></td></tr></tbody></table></div>
 
-Source: [Ethereum.org](https://ethereum.org/en/web3/)
-
 ---
 layout: mondrian-content
 contentSlide: 8
@@ -148,13 +150,13 @@ templateLayout: mondrian-content
 catalogSlide: 3
 imageTreatment: editable-table
 ---
+
 <div class="deck-table-wrap">
 
 # Generations<br>In Games
 
 <table class="deck-table deck-table--source deck-table--generations"><colgroup><col class="deck-table__row-label" /><col /><col /><col /></colgroup><thead><tr><th></th><th>SINGLE PLAYER</th><th>SOCIAL / MULTIPLAYER</th><th>WEB3 / METAVERSE</th></tr></thead><tbody><tr><th>GAME<br>LAYER</th><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r1-c1-application-transparent-4x.png" alt="Tetris and Super Mario logos" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r1-c2-application-transparent-4x.png" alt="Candy Crush and Call of Duty logos" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r1-c3-application-transparent-4x.png" alt="CryptoKitties, Axie Infinity, and Decentraland logos" /></td></tr><tr><th>MIDDLEWARE<br>LAYER</th><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r2-c1-platform-transparent-4x.png" alt="Godot Engine, HTML5, and Unity logos" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r2-c2-platform-transparent-4x.png" alt="Godot Engine, HTML5, and Unity logos with AWS below" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r2-c3-platform-ark-transparent-4x.png" alt="Bark, Second, Arkade, and Lightning Network logos" /></td></tr><tr><th>PROTOCOL<br>LAYER</th><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r3-c1-protocol-transparent-4x.png" alt="Computer, RAM, CPU, and HDD infrastructure icons" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r3-c2-protocol-transparent-4x.png" alt="Server, internet, cloud, HTTP, FTP, and SMTP icons" /></td><td><img class="deck-table__cell-image" src="./assets/blockchain-for-game/table-cells/games-r3-c3-protocol-transparent-4x.png" alt="QuickNode, GetBlock, Alchemy, Run, Infura, Ethereum, and Solana logos" /></td></tr></tbody></table></div>
 
-Source: [Ethereum.org](https://ethereum.org/en/web3/)
 ---
 layout: mondrian-content
 contentSlide: 9
@@ -174,8 +176,6 @@ imageTreatment: editable-text-table
 # Generations<br>In Approach
 
 <table class="deck-table deck-table--generations"><colgroup><col class="deck-table__row-label" /><col /><col /><col /></colgroup><thead><tr><th></th><th>WEB 1</th><th>WEB 2</th><th>WEB 3</th></tr></thead><tbody><tr><th>ACCESS</th><td>Read</td><td>Read / Write</td><td>Read / Write / Execute</td></tr><tr><th>USER-CONTENT<br>CREATION</th><td>None</td><td>Free</td><td>Incentivized</td></tr><tr><th>FOCUS</th><td>Company</td><td>Community</td><td>Individual</td></tr></tbody></table></div>
-
-Source: [Ethereum.org](https://ethereum.org/en/web3/)
 
 ---
 layout: mondrian-image-bottom
@@ -223,6 +223,15 @@ class: game-loop-image-slide--blockchain
 ---
 # Game Loop: <span style="color: var(--mondrian-blue)">Blockchain</span>
 ---
+layout: mondrian-center
+catalogLayout: mondrian-center
+---
+
+# Why Blockchain?
+## To unlock unique benefits
+## & get better results
+
+---
 layout: mondrian-content
 contentSlide: 59
 contentSlideId: blockchain-benefits-kpis
@@ -236,14 +245,14 @@ imageTreatment: none
 
 Improve the player experience, game economy, community, and revenue.
 
-Source: [MDPI.com](https://www.mdpi.com/1999-5903/14/11/321)
-
 - Assets: Give items durable, player-linked records
 - Community Boost: Support player-to-player participation
 - Discovery: Surface collections and markets outside the game
 - Interoperability: Enable compatible experiences where design permits
 - Longevity: Extend the ecosystem beyond launch cycles
 - Monetization: Create optional, player-led market opportunities
+
+Source: [MDPI.com](https://www.mdpi.com/1999-5903/14/11/321)
 
 ---
 layout: mondrian-content
@@ -499,7 +508,9 @@ templateLayout: mondrian-subsection
 catalogSlide: 2
 imageTreatment: none
 ---
-# Blockchain Details
+
+# Blockchain Primer
+
 ---
 layout: mondrian-content
 contentSlide: 29
@@ -508,14 +519,29 @@ templateLayout: mondrian-content
 catalogSlide: 3
 imageTreatment: none
 ---
+
+# Blockchain
+
+<Youtube id="MjibPL4tGqo" controls=0 width="100%" height="500" />
+
+---
+layout: mondrian-content
+contentSlide: 29
+contentSlideId: p36
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
 # Blockchain: Key Features
 
 - Decentralization: Control is shared across the network
 - Immutability: Records resist alteration after confirmation
 - Transparency: Ledger activity is openly verifiable
-- Security: Cryptography and consensus help prevent tampering
+- Security: Cryptography and consensus prevent tampering
 
 Source: [Bitcoin.org](https://bitcoin.org/bitcoin.pdf)
+
 ---
 layout: mondrian-image-bottom
 contentSlide: 30
@@ -527,10 +553,11 @@ backgroundSize: contain
 imageOpacity: 1
 imageScale: 1.5
 imageTint: white
-arrowX: 380
-arrowY: 180
+arrowX: 405
+arrowY: 230
 imageTreatment: generated-transparent
 ---
+
 # The Four Pillars
 
 Control is shared across the network
@@ -548,15 +575,17 @@ backgroundSize: contain
 imageOpacity: 1
 imageScale: 1.5
 imageTint: white
-arrowX: 555
-arrowY: 180
+arrowX: 560
+arrowY: 230
 imageTreatment: generated-transparent
 ---
+
 # The Four Pillars
 
 Records resist alteration after confirmation
 
 Source: [Bitcoin.org](https://bitcoin.org/bitcoin.pdf)
+
 ---
 layout: mondrian-image-bottom
 contentSlide: 32
@@ -568,15 +597,17 @@ backgroundSize: contain
 imageOpacity: 1
 imageScale: 1.5
 imageTint: white
-arrowX: 730
-arrowY: 180
+arrowX: 720
+arrowY: 230
 imageTreatment: generated-transparent
 ---
+
 # The Four Pillars
 
 Ledger activity is openly verifiable
 
 Source: [Bitcoin.org](https://bitcoin.org/bitcoin.pdf)
+
 ---
 layout: mondrian-image-bottom
 contentSlide: 33
@@ -588,15 +619,17 @@ backgroundSize: contain
 imageOpacity: 1
 imageScale: 1.5
 imageTint: white
-arrowX: 905
-arrowY: 180
+arrowX: 875
+arrowY: 230
 imageTreatment: generated-transparent
 ---
+
 # The Four Pillars
 
-Cryptography and consensus help prevent tampering
+Cryptography and consensus prevent tampering
 
 Source: [Bitcoin.org](https://bitcoin.org/bitcoin.pdf)
+
 ---
 layout: mondrian-title
 contentSlide: 34
@@ -897,6 +930,14 @@ imageTreatment: none
 — [Bitcoin Foundation](https://bitcoinfoundation.org/news/bitcoin/jpmorgan-opens-bitcoin-backed-lending-as-wall-street-pushes-deeper-into-crypto/) · 2026
 
 ---
+layout: mondrian-center
+localAddition: true
+templateLayout: mondrian-center
+catalogSlide: 7
+imageTreatment: none
+---
+
+---
 layout: mondrian-quote
 contentSlide: 39.1
 contentSlideId: bitcoin-gaming-volatility-response
@@ -909,7 +950,7 @@ imageTreatment: none
 
 # <span class="quote-bitcoin-label">A: Price in fiat.<br>Settle in sats.</span>
 
-— [Receiving payments](https://docs.strike.me/walkthrough/receiving-payments/) · 2026
+— [Strike payments](https://docs.strike.me/walkthrough/receiving-payments/)
 
 ---
 layout: mondrian-quote
@@ -924,7 +965,7 @@ imageTreatment: none
 
 # <span class="quote-bitcoin-label">A: Layer 2 delivers sats in seconds.</span>
 
-— [Lighting Avg. Time (1-3 secs)](https://lightning.network/post/first/) · 2026
+— [Lighting Avg. Time (1-3 secs)](https://lightning.network/post/first/)
 
 ---
 layout: mondrian-quote
@@ -935,11 +976,26 @@ catalogSlide: 11
 imageTreatment: none
 ---
 
-## <span class="quote-red-label">“Too inflexible?”</span>
+## <span class="quote-red-label">Q: Too limited?</span>
 
-# <span class="quote-bitcoin-label">Layer 2 moves in-game currency,<br>items, NFTs, and more ...</span>
+# <span class="quote-bitcoin-label">A: Layer 2 moves in-game currency,<br>items, NFTs, and more ...</span>
 
-— [Ark Protocol](https://ark-protocol.org/) · 2026
+— [Ark Protocol](https://ark-protocol.org/)
+
+---
+layout: mondrian-quote
+contentSlide: 39.3
+contentSlideId: bitcoin-gaming-flexibility-response
+templateLayout: mondrian-quote
+catalogSlide: 11
+imageTreatment: none
+---
+
+## <span class="quote-red-label">Q: Too confusing?</span>
+
+# <span class="quote-bitcoin-label">A: Offer blockchain login as well as username & password.</span>
+
+- <FocusedLink href="https://www.openfort.io/solutions/gaming" tone="orange" mode="direct" >OpenFort</FocusedLink>
 
 ---
 layout: mondrian-subsection
@@ -1511,7 +1567,7 @@ imageTreatment: none
 ---
 layout: mondrian-content
 contentSlide: 14
-contentSlideId: p42-duplicate
+contentSlideId: arkade-os-capabilities
 localAddition: true
 templateLayout: mondrian-content
 catalogSlide: 3
@@ -1520,9 +1576,28 @@ imageTreatment: none
 
 # What does Arkade OS provide?
 
-<ul class="feedback-capability-list"><li><strong>Accounts</strong>: Create a new player account <em>instantly</em></li><li><strong>Assets</strong>: Deliver an in-game power-up <em>instantly</em></li><li><strong>Transfers</strong>: Send sats to a player <em>instantly</em></li><li><strong>Contracts</strong>: Resolve game rules <em>instantly</em></li><li><strong>Events</strong>: Save game state <em>instantly</em></li></ul>
+<ul class="feedback-capability-list"><li><strong>Accounts</strong>: Create a new player account <em>instantly</em></li><li><strong>Assets</strong>: Deliver an in-game power-up <em>instantly</em></li><li><strong>Transfers</strong>: Send sats to a player <em>instantly</em></li><li><strong>Contracts</strong>: Resolve game rules <em>instantly</em></li><li><strong>Events</strong>: Sync game state <em>instantly</em></li></ul>
 
 Source: <FocusedLink href="https://docs.arkadeos.com/" name="Arkade Documentation" message="Official Arkade developer documentation." tone="orange" mode="direct">docs.arkadeos.com</FocusedLink>
+
+---
+layout: mondrian-content
+contentSlide: 14
+contentSlideId: p42-duplicate
+localAddition: true
+templateLayout: mondrian-content
+catalogSlide: 3
+imageTreatment: none
+---
+
+# Instantly?
+
+<ul class="feedback-capability-list">
+  <li><strong>Layer 1 ↔ Layer 2</strong>: Bitcoin on-chain block time — ~10 minutes per block and ~60 minutes for finality</li>
+  <li><strong>Layer 2 ↔ Layer 2</strong>: Arkade off-chain execution — nearly instant, often under one second</li>
+</ul>
+
+Source: [Arkade Transactions](https://docs.arkadeos.com/learn/core-concepts/transactions-and-execution)
 
 ---
 layout: mondrian-content

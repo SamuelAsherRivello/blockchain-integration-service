@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { chromium } from 'playwright-chromium'
-import { landingService, livePreviewManifest, routeFor } from './live-preview-manifest.mjs'
+import { canonicalSlideRouteFor, landingService, livePreviewManifest } from './live-preview-manifest.mjs'
 import { fingerprintEditorRecord, scanWithStableSource } from './live-preview-coherence.mjs'
 import { classifyCoherenceFailure } from './live-preview-diagnostics.mjs'
 
@@ -73,8 +73,8 @@ async function inspectDeck(browser, entry, fullScan) {
       }
     }
   })
-  const route = `http://localhost:${landingService.port}${routeFor(entry)}`
-  const result = { id: entry.id, route: routeFor(entry), slides: 0, hmr: null, fingerprints: [], state: 'failed' }
+  const route = `http://localhost:${landingService.port}${canonicalSlideRouteFor(entry)}`
+  const result = { id: entry.id, route: canonicalSlideRouteFor(entry), slides: 0, hmr: null, fingerprints: [], state: 'failed' }
   let currentSlide = 1
   try {
     await page.goto(route, { waitUntil: 'networkidle', timeout: 30_000 })
@@ -100,7 +100,7 @@ async function inspectDeck(browser, entry, fullScan) {
       // makes every route an independent render assertion.
       const slidePage = number === 1 ? page : await browser.newPage()
       try {
-        if (number !== 1) await slidePage.goto(`http://localhost:${landingService.port}${routeFor(entry, number)}`, { waitUntil: 'networkidle', timeout: 30_000 })
+        if (number !== 1) await slidePage.goto(`http://localhost:${landingService.port}${canonicalSlideRouteFor(entry, number)}`, { waitUntil: 'networkidle', timeout: 30_000 })
       const api = await editorRecord(slidePage, number)
       result.fingerprints.push({ slide: number, editor: fingerprintEditorRecord(api.body), revision: generatedRecord.revision ?? null })
       const apiContent = api.body.content ?? api.body.slide?.content ?? ''
@@ -147,7 +147,7 @@ async function editorRoundTrip(browser) {
   const token = `live-preview-token-${Date.now()}`
   const result = { id: entry.id, beforeHash: hash(sourceBefore), restored: false, latencyMs: null }
   try {
-    await page.goto(`http://localhost:${landingService.port}${routeFor(entry)}`, { waitUntil: 'networkidle', timeout: 30_000 })
+    await page.goto(`http://localhost:${landingService.port}${canonicalSlideRouteFor(entry)}`, { waitUntil: 'networkidle', timeout: 30_000 })
     const before = await editorRecord(page, 1)
     const body = before.body
     const previousContent = body.content ?? body.slide?.content

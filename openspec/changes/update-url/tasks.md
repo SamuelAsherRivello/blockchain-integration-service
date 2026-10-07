@@ -1,12 +1,11 @@
 # Tasks
 
-## 1. Canonical route helpers and callers
+## 1. Path-only canonical navigation
 
-- [x] 1.1 Replace the overloaded manifest slide-path helper with explicit deck-base and hash-canonical browser URL helpers; verify focused manifest tests assert `base#/N` and reject pathname slide suffixes.
-- [x] 1.2 Update the launcher, supervisor, readiness/coherence verifier, and Mondrian theme navigation to use the correct base or canonical browser helper; verify no local generated route contains both pathname and hash slide positions.
-- [x] 1.3 Update local Slidev preview documentation to explain the deck-base plus hash route contract; verify every documented local deck link uses the canonical form.
+- [ ] 1.1 Change declared Slidev decks to history routing and replace the manifest helper with explicit deck-base and pathname canonical-route helpers; verify focused manifest tests accept `baseN` and reject `#/N`.
+- [ ] 1.2 Update launcher, supervisor, readiness/coherence verifier, Mondrian theme navigation, and documentation to use the correct base or pathname helper; verify no generated local route contains a hash or duplicate slide state.
 
-## 2. End-to-end canonical navigation verification
+## 2. Direct-link and release support
 
-- [x] 2.1 Add browser coverage that opens a canonical deep link, confirms the declared deck and slide, then advances navigation while only the hash changes; verify the focused live-preview test passes.
-- [x] 2.2 Run manifest, proxy, and live-preview fast verification and inspect their reports; verify declared deck ownership, HMR readiness, and canonical route output remain valid.
+- [ ] 2.1 Update the public landing and release builder to emit path-only links and static per-slide entry points; verify the public build contains `<deck>/<slide>/index.html` for every declared slide.
+- [ ] 2.2 Add browser coverage for opening `/slidev/<deck>/<slide>`, refreshing it, and advancing navigation while only the pathname changes; verify focused live-preview tests pass.

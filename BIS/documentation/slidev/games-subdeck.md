@@ -7,7 +7,7 @@ version: 0.0.1
 author: Samuel Asher Rivello
 aspectRatio: 16/9
 canvasWidth: 1280
-routerMode: hash
+routerMode: history
 templateLayout: mondrian-product
 catalogSlide: 23
 ---
@@ -25,11 +25,11 @@ catalogSlide: 23
 
 ::right-label::
 
-<FocusedLink href="https://www.youtube.com/results?search_query=Bitmap.Game+official" name="Bitmap.Game YouTube" message="Official Bitmap.Game videos." tone="orange" mode="direct">YouTube</FocusedLink>
+<FocusedLink href="https://www.youtube.com/watch?v=a4hoZyQrnU0" name="Bitmap.Game YouTube" message="Bitmap metaverse overview." tone="orange" mode="direct">YouTube</FocusedLink>
 
 ::right::
 
-<a href="https://www.youtube.com/results?search_query=Bitmap.Game+official" target="_blank" rel="noopener noreferrer" aria-label="Open Bitmap.Game official videos on YouTube"><img src="./assets/games-subdeck/bitmap-game-website.png" alt="Bitmap.Game YouTube video search" /></a>
+<a href="https://www.youtube.com/watch?v=a4hoZyQrnU0" target="_blank" rel="noopener noreferrer" aria-label="Open the Bitmap metaverse overview on YouTube"><img src="https://i.ytimg.com/vi/a4hoZyQrnU0/maxresdefault.jpg" alt="Bitmap.Game YouTube video thumbnail" /></a>
 
 ---
 layout: mondrian-product
@@ -75,8 +75,8 @@ catalogSlide: 23
 
 ::right-label::
 
-<FocusedLink href="https://www.youtube.com/results?search_query=Big+Time+official+game" name="Big Time YouTube" message="Official Big Time videos." tone="orange" mode="direct">YouTube</FocusedLink>
+<FocusedLink href="https://www.youtube.com/watch?v=BIVsy_CyzsU" name="Big Time YouTube" message="Official Big Time preseason trailer." tone="orange" mode="direct">YouTube</FocusedLink>
 
 ::right::
 
-<a href="https://www.youtube.com/results?search_query=Big+Time+official+game" target="_blank" rel="noopener noreferrer" aria-label="Open Big Time official videos on YouTube"><img src="./assets/games-subdeck/big-time-website.png" alt="Big Time YouTube video search" /></a>
+<a href="https://www.youtube.com/watch?v=BIVsy_CyzsU" target="_blank" rel="noopener noreferrer" aria-label="Open the official Big Time preseason trailer on YouTube"><img src="https://i.ytimg.com/vi/BIVsy_CyzsU/maxresdefault.jpg" alt="Big Time official YouTube trailer thumbnail" /></a>

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
-import { editorOwnerForPath, landingService, livePreviewManifest, routeFor, validateLivePreviewManifest, visiblePreviews } from './scripts/live-preview-manifest.mjs'
+import { canonicalSlideRouteFor, editorOwnerForPath, landingService, livePreviewManifest, validateLivePreviewManifest, visiblePreviews } from './scripts/live-preview-manifest.mjs'
 
 const statusFile = fileURLToPath(new URL('../../../output/logs/slidev-landing/current-status.json', import.meta.url))
 const packageJson = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8'))
@@ -40,7 +40,7 @@ function editorServerForRequest(referer) {
 }
 
 const landingLinks = () => Object.entries(Object.groupBy(visiblePreviews(), (entry) => entry.group))
-  .map(([group, entries]) => `<section aria-labelledby="${group.toLowerCase()}-heading"><h2 id="${group.toLowerCase()}-heading">${group}</h2>${entries.map((entry) => `<a href="${routeFor(entry)}">${entry.label}</a>`).join('')}</section>`)
+  .map(([group, entries]) => `<section aria-labelledby="${group.toLowerCase()}-heading"><h2 id="${group.toLowerCase()}-heading">${group}</h2>${entries.map((entry) => `<a href="${canonicalSlideRouteFor(entry)}">${entry.label}</a>`).join('')}</section>`)
   .join('')
 
 function readRequestBody(request) {

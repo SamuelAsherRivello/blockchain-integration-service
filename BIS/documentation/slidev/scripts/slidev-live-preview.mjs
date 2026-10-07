@@ -4,7 +4,7 @@ import { spawn, execFile as execFileCallback } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { landingService, livePreviewManifest, routeFor, validateLivePreviewManifest } from './live-preview-manifest.mjs'
+import { canonicalSlideRouteFor, deckBaseFor, landingService, livePreviewManifest, validateLivePreviewManifest } from './live-preview-manifest.mjs'
 import { createServiceState, ownedProcessTarget, recoveryDecision } from './live-preview-policy.mjs'
 import { evaluateReadiness, probeHmr } from './live-preview-readiness.mjs'
 
@@ -26,7 +26,7 @@ const sessionId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUI
 const sessionRoot = path.join(outputRoot, sessionId)
 const deadline = new Date(Date.now() + durationHours * 60 * 60 * 1000)
 const services = [landingService, ...livePreviewManifest]
-const state = new Map(services.map((service) => [service.id, createServiceState(service, service.id === 'landing' ? '/' : routeFor(service))]))
+const state = new Map(services.map((service) => [service.id, createServiceState(service, service.id === 'landing' ? '/' : canonicalSlideRouteFor(service))]))
 const children = new Map()
 let stopping = false
 let holdsSupervisorLock = false
@@ -101,12 +101,12 @@ async function fetchDocument(port, pathname) {
 }
 
 async function probe(service) {
-  const directPath = service.id === 'landing' ? '/' : routeFor(service)
+  const directPath = service.id === 'landing' ? '/' : deckBaseFor(service)
   const direct = await fetchDocument(service.port, directPath).catch((error) => ({ ok: false, error: safeError(error) }))
   const proxied = service.id === 'landing'
     ? direct
-    : await fetchDocument(landingService.port, routeFor(service)).catch((error) => ({ ok: false, error: safeError(error) }))
-  const hmrPath = service.id === 'landing' ? '/' : routeFor(service)
+    : await fetchDocument(landingService.port, deckBaseFor(service)).catch((error) => ({ ok: false, error: safeError(error) }))
+  const hmrPath = service.id === 'landing' ? '/' : deckBaseFor(service)
   const hmr = await probeHmr(`ws://localhost:${landingService.port}${hmrPath}`).catch((error) => ({ ok: false, error: safeError(error) }))
   return { at: new Date().toISOString(), ...evaluateReadiness({ direct, proxied, hmr }) }
 }

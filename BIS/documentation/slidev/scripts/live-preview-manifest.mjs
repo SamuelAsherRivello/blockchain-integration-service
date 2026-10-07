@@ -52,7 +52,8 @@ export function validateLivePreviewManifest(manifest = livePreviewManifest, pack
   return { valid: errors.length === 0, errors }
 }
 
-export const routeFor = (entry, slide = 1) => `${entry.base}${slide}`
+export const deckBaseFor = (entry) => normalizedBase(entry.base)
+export const canonicalSlideRouteFor = (entry, slide = 1) => `${deckBaseFor(entry)}${slide}`
 export const editorOwnerForPath = (pathname) => livePreviewManifest.find((entry) => pathname === entry.base.slice(0, -1) || pathname.startsWith(entry.base)) ?? null
 export const visiblePreviews = () => livePreviewManifest.filter((entry) => entry.landing)
 export const publicPreviews = () => livePreviewManifest.filter((entry) => entry.landing && entry.visibility === 'public')
