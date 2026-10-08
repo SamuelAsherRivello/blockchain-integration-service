@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 
 export const slidevDirectory = resolve(scriptDirectory, '..')
-export const expectedTheme = './themes/mondrian-final'
+export const expectedTheme = './themes/mondrian'
 
 export function frontmatterMatches(source) {
   return [...source.matchAll(/(?:^|\r?\n)---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/g)]

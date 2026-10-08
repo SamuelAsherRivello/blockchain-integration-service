@@ -8,7 +8,7 @@ import {
   slidevDirectory,
 } from './mondrian-layout-inventory.mjs'
 
-const catalogPath = resolve(slidevDirectory, 'themes/mondrian-final/layout-catalog.json')
+const catalogPath = resolve(slidevDirectory, 'themes/mondrian/layout-catalog.json')
 
 function replaceField(block, name, value) {
   const expression = new RegExp(`^${name}:\\s*.*$`, 'm')

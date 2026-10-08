@@ -1,5 +1,5 @@
 {
-  "theme": "./themes/mondrian-final",
+  "theme": "./themes/mondrian",
   "layouts": {
     "mondrian-title": {
       "catalogSlide": 1,

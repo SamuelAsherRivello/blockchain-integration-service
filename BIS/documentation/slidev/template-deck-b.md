@@ -1,5 +1,5 @@
 ---
-theme: ./themes/mondrian-final
+theme: ./themes/mondrian
 colorSchema: dark
 layout: mondrian-title
 catalogLayout: mondrian-title

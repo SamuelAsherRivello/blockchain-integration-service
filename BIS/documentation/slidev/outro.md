@@ -1,5 +1,5 @@
 ---
-theme: ./themes/mondrian-final
+theme: ./themes/mondrian
 title: Outro
 version: 0.0.4
 titleTemplate: 'Slidev - %s'

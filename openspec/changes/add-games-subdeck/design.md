@@ -23,7 +23,7 @@ The final Mondrian theme owns reusable layouts, while `template-deck-b.md` is th
 
 ### Theme-owned `mondrian-product` layout
 
-Create a layout under `themes/mondrian-final/layouts/` with title/subtitle slots and two equal columns. Each column supplies one FocusedLink label and one 16:9 linked image: Website over the official screenshot, and YouTube over the official video thumbnail. Keep geometry in the layout so the catalog and content deck cannot drift. A Markdown-only grid was rejected because it would duplicate structural styling per deck.
+Create a layout under `themes/mondrian/layouts/` with title/subtitle slots and two equal columns. Each column supplies one FocusedLink label and one 16:9 linked image: Website over the official screenshot, and YouTube over the official video thumbnail. Keep geometry in the layout so the catalog and content deck cannot drift. A Markdown-only grid was rejected because it would duplicate structural styling per deck.
 
 ### Local game image plus official YouTube thumbnail
 

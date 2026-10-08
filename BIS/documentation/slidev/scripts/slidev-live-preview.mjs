@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { canonicalSlideRouteFor, deckBaseFor, landingService, livePreviewManifest, validateLivePreviewManifest } from './live-preview-manifest.mjs'
-import { createServiceState, ownedProcessTarget, recoveryDecision } from './live-preview-policy.mjs'
+import { MAX_RECOVERY_ATTEMPTS, createServiceState, listenerProcessIdFromNetstat, ownedProcessTarget, rearmRecoveryAfterEdit, recoveryDecision } from './live-preview-policy.mjs'
 import { evaluateReadiness, probeHmr } from './live-preview-readiness.mjs'
 
 const execFile = promisify(execFileCallback)
@@ -127,11 +127,9 @@ async function portIsListening(port) {
 
 async function listenerProcessForPort(port) {
   try {
-    const { stdout } = await execFile(process.platform === 'win32' ? 'netstat.exe' : 'sh', process.platform === 'win32' ? ['-ano', '-p', 'tcp'] : ['-lc', `lsof -ti tcp:${port}`])
+    const { stdout } = await execFile(process.platform === 'win32' ? 'netstat.exe' : 'sh', process.platform === 'win32' ? ['-ano'] : ['-lc', `lsof -ti tcp:${port}`])
     if (process.platform !== 'win32') return Number(stdout.trim()) || null
-    const listener = stdout.split(/\r?\n/).find((line) => new RegExp(`:${port}\\s+.*LISTENING\\s+\\d+\\s*$`, 'i').test(line))
-    const pid = listener?.trim().split(/\s+/).at(-1)
-    return Number(pid) || null
+    return listenerProcessIdFromNetstat(stdout, port)
   }
   catch { return null }
 }
@@ -291,7 +289,15 @@ async function restartForSourceSave(service) {
   // owns, which makes the visible deck reparse from the saved source without
   // touching a foreign authoring process.
   if (!detail.owned) {
-    detail.conflict = 'Source changed, but this supervisor does not own the deck process to refresh it.'
+    if (await portIsListening(service.port)) {
+      detail.conflict = 'Source changed, but this supervisor does not own the deck process to refresh it.'
+      await writeStatus()
+      return
+    }
+    // A predev/compiler failure can exit before Slidev opens its port. Once
+    // the author saves a fix, rearm the bounded recovery loop for this deck.
+    rearmRecoveryAfterEdit(detail)
+    await event('source-save-recovery-rearmed', { service: service.id, source: service.source })
     await writeStatus()
     return
   }
@@ -301,6 +307,18 @@ async function restartForSourceSave(service) {
   if (await waitForReady(service)) detail.conflict = null
   else detail.state = 'failed'
   await writeStatus()
+}
+
+async function rearmFailedDecksAfterDependencySave(directory, filename) {
+  let rearmed = false
+  for (const service of livePreviewManifest) {
+    const detail = state.get(service.id)
+    if (detail.owned || detail.recoveryCount < MAX_RECOVERY_ATTEMPTS || await portIsListening(service.port)) continue
+    rearmRecoveryAfterEdit(detail)
+    await event('dependency-save-recovery-rearmed', { service: service.id, directory, filename })
+    rearmed = true
+  }
+  if (rearmed) await writeStatus()
 }
 
 async function beginSourceWatchers() {
@@ -320,6 +338,19 @@ async function beginSourceWatchers() {
           detail.conflict = `Source-save refresh failed: ${safeError(error)}`
           await event('source-save-refresh-failed', { service: service.id, error: safeError(error) })
           await writeStatus()
+        })
+      }, 150))
+    })
+    sourceWatchers.push(watcher)
+  }
+  for (const directory of ['themes', 'components']) {
+    const watcher = watch(path.join(root, directory), { recursive: true, persistent: false }, (_eventType, changed) => {
+      if (stopping) return
+      clearTimeout(sourceRestartTimers.get(directory))
+      sourceRestartTimers.set(directory, setTimeout(() => {
+        sourceRestartTimers.delete(directory)
+        rearmFailedDecksAfterDependencySave(directory, String(changed ?? '')).catch(async (error) => {
+          await event('dependency-save-recovery-failed', { directory, error: safeError(error) })
         })
       }, 150))
     })

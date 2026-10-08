@@ -27,4 +27,4 @@ Riverside and is a recording check, not the general composition boundary.
 
 The previous validation implementation remains in
 `themes/mondrian-night/global-top.vue` as a reference. The selected final deck
-uses `themes/mondrian-final`, which deliberately has no global overlay.
+uses `themes/mondrian`, which deliberately has no global overlay.

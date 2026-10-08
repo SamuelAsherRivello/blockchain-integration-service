@@ -1,7 +1,7 @@
 ---
-theme: ./themes/mondrian-final
+theme: ./themes/mondrian
 colorSchema: dark
-layout: mondrian-title
+layout: mondrian-subsection
 title: Tease Subdeck
 version: 0.0.4
 titleTemplate: 'Slidev - %s'
@@ -12,13 +12,13 @@ canvasWidth: 1280
 routerMode: hash
 contentSlide: 1
 contentSlideId: tease-subdeck-title
-templateLayout: mondrian-title
-catalogSlide: 1
+templateLayout: mondrian-subsection
+catalogSlide: 2
 imageTreatment: none
 ---
 
-# Bis & Game
-## Tease Subdeck
+# BIS<br>& Game
+## Blockchain Integration Service
 
 ---
 layout: mondrian-image-bottom
@@ -105,13 +105,3 @@ imageTreatment: documentation-screenshot
 The BIS includes a developer-facing admin for testing workflows and new features.
 
 ---
-layout: mondrian-demo
-templateLayout: mondrian-demo
-catalogSlide: 8
----
-
-# Demo
-
-## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" name="BIS" message="Service, UI, Admin, Marketplace." >BIS</FocusedLink>
-
-## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-stealth-and-steel-game" name="Game" message="Gameplay w/o BIS, w/ BIS" >Game</FocusedLink>

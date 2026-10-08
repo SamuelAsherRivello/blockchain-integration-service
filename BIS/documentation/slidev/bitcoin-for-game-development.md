@@ -1,10 +1,10 @@
 ---
-theme: ./themes/mondrian-final
+theme: ./themes/mondrian
 colorSchema: dark
 layout: mondrian-title
 title: Bitcoin For Game Development
 version: 0.0.4
-titleTemplate: 'Slidev - %s'
+titleTemplate: '%s'
 favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
 aspectRatio: 16/9
@@ -28,7 +28,7 @@ localAddition: true
 templateLayout: mondrian-image-bottom
 catalogSlide: 15
 image: ./assets/blockchain-for-game/bitcoin-coin-no-start.png
-backgroundSize: contain
+backgroundSize: "auto 80%"
 backgroundColor: '#050608'
 imageTreatment: user-provided
 ---
@@ -322,7 +322,7 @@ catalogSlide: 7
 imageTreatment: none
 ---
 
-# Ok.<br>Bitcoin is a<br>proven investment.
+# Ok.<br>Bitcoin is <br>proven as money.
 ## But, games?
 
 ---
@@ -345,7 +345,7 @@ localAddition: true
 templateLayout: mondrian-image-bottom
 catalogSlide: 15
 image: ./assets/blockchain-for-game/bitcoin-press-start.png
-backgroundSize: contain
+backgroundSize: "auto 80%"
 backgroundColor: '#050608'
 imageTreatment: user-provided
 ---
@@ -1193,6 +1193,9 @@ imageTreatment: none
     <strong>Layer 2 ↔ Layer 2 (Common)</strong>: <span class="bitcoin-orange">Currencies, items, NFTs, smart contracts, ...</span>
   </li>
 </ul>
+
+
+
 
 ---
 layout: mondrian-center

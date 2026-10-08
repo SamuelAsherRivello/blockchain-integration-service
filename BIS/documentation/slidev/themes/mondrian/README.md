@@ -1,6 +1,6 @@
 # Mondrian Slidev theme
 
-`mondrian-final` is the local Slidev theme shared by the Modrian Template catalog and the Blockchain For Gaming Master Deck. Its public layouts are the `mondrian-*` components listed in [`layout-catalog.json`](./layout-catalog.json). The catalog is the source of review examples; content decks select the same layout name in Slidev frontmatter and provide only Markdown content and declared slots.
+`mondrian` is the local Slidev theme shared by the Modrian Template catalog and the Blockchain For Gaming Master Deck. Its public layouts are the `mondrian-*` components listed in [`layout-catalog.json`](./layout-catalog.json). The catalog is the source of review examples; content decks select the same layout name in Slidev frontmatter and provide only Markdown content and declared slots.
 
 | Layout family | Public layouts | Content inputs |
 | --- | --- | --- |

@@ -169,9 +169,9 @@ function auditTableOfContentsStyle(catalogSource, deck, slides) {
 const inventory = declaredMondrianInventory()
 const catalogPath = inventory.catalog.path
 const catalogSource = inventory.catalog.source
-const themeStyles = readFileSync(resolve(slidevDirectory, 'themes/mondrian-final/styles/final.css'), 'utf8')
+const themeStyles = readFileSync(resolve(slidevDirectory, 'themes/mondrian/styles/final.css'), 'utf8')
 const catalog = parseSlides(catalogPath)
-const manifest = JSON.parse(readFileSync(resolve(slidevDirectory, 'themes/mondrian-final/layout-catalog.json'), 'utf8'))
+const manifest = JSON.parse(readFileSync(resolve(slidevDirectory, 'themes/mondrian/layout-catalog.json'), 'utf8'))
 const packageScripts = JSON.parse(readFileSync(resolve(slidevDirectory, 'package.json'), 'utf8')).scripts ?? {}
 const result = auditCatalog(catalog, manifest, catalogSource, themeStyles)
 const deckResults = inventory.decks.map((deck) => ({ deck, ...auditDeck(deck, manifest) }))

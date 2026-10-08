@@ -14,6 +14,18 @@ export function recoveryDecision({ recoveryCount, deadline, now = Date.now() }) 
   return { allowed: true, delayMs: Math.min(5_000, (recoveryCount + 1) * 500) }
 }
 
+export function rearmRecoveryAfterEdit(detail) {
+  detail.recoveryCount = 0
+  detail.state = 'recovering'
+  detail.conflict = null
+}
+
 export function ownedProcessTarget({ runnerProcessId, listenerProcessId, owned }) {
   return runnerProcessId ?? (owned ? listenerProcessId : null)
+}
+
+export function listenerProcessIdFromNetstat(output, port) {
+  const listener = output.split(/\r?\n/).find((line) => new RegExp(`:${port}\\s+.*LISTENING\\s+\\d+\\s*$`, 'i').test(line))
+  const pid = listener?.trim().split(/\s+/).at(-1)
+  return Number(pid) || null
 }

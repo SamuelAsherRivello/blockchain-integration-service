@@ -1,10 +1,10 @@
 ---
-theme: ./themes/mondrian-final
+theme: ./themes/mondrian
 colorSchema: dark
 layout: mondrian-title
 title: Blockchain For Game Designers
 version: 0.0.4
-titleTemplate: 'Slidev - %s'
+titleTemplate: '%s'
 favicon: /favicon-blockchain-for-gaming.svg
 author: Samuel Asher Rivello
 aspectRatio: 16/9
@@ -733,6 +733,7 @@ imageTreatment: none
 
 Source: [Bitcoin.org](https://bitcoin.org/bitcoin.pdf)
 
+
 ---
 layout: mondrian-center
 localAddition: true
@@ -753,6 +754,11 @@ catalogSlide: 8
 
 # Demo
 
-## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" name="BIS" message="Service, UI, Admin, Marketplace." >BIS</FocusedLink>
+Let's play the game. Then add BIS.
 
-## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-stealth-and-steel-game" name="Game" message="Gameplay w/o BIS, w/ BIS" >Game</FocusedLink>
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-stealth-and-steel-game" mode="direct" name="Game" message="Gameplay w/o BIS, w/ BIS" >Game</FocusedLink>
+
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" mode="direct" name="BIS" message="Service, UI, Admin, Marketplace." >BIS Marketplace</FocusedLink>
+
+## <FocusedLink href="https://github.com/SamuelAsherRivello/blockchain-integration-service/" mode="direct" name="BIS" message="Service, UI, Admin, Marketplace." >BIS Admin</FocusedLink>
+
