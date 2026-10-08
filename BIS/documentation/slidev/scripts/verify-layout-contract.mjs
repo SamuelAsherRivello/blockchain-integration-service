@@ -210,7 +210,7 @@ if (process.argv.includes('--self-test')) {
   if (!auditCatalog(catalog, manifest, catalogSource, '').errors.some((error) => error.includes('reduced-motion coverage')))
     throw new Error('Layout-contract self-test did not reject missing reduced-motion coverage.')
 
-  const expectedDecks = ['blockchain-for-game-designers', 'bitcoin-for-games', 'outro']
+  const expectedDecks = ['blockchain-for-game-designers', 'bitcoin-for-game-development', 'outro']
   for (const name of expectedDecks) {
     if (!inventory.decks.some((deck) => deck.name === name))
       throw new Error(`Layout-contract self-test did not discover ${name}.`)

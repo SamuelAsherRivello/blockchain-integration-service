@@ -9,7 +9,7 @@ const deckFiles = [
   'template-deck.md',
   'template-deck-b.md',
   'blockchain-for-game-designers.md',
-  'bitcoin-for-games.md',
+  'bitcoin-for-game-development.md',
   'outro.md',
 ]
 const terminalPunctuation = /[.!?;:]$/u

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
-import { canonicalSlideRouteFor, editorOwnerForPath, landingService, livePreviewManifest, validateLivePreviewManifest, visiblePreviews } from './scripts/live-preview-manifest.mjs'
+import { canonicalSlideRouteFor, editorOwnerForPath, landingLabelFor, landingService, livePreviewManifest, validateLivePreviewManifest, visiblePreviews } from './scripts/live-preview-manifest.mjs'
 
 const statusFile = fileURLToPath(new URL('../../../output/logs/slidev-landing/current-status.json', import.meta.url))
 const packageJson = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8'))
@@ -39,9 +39,12 @@ function editorServerForRequest(referer) {
   }
 }
 
-const landingLinks = () => Object.entries(Object.groupBy(visiblePreviews(), (entry) => entry.group))
-  .map(([group, entries]) => `<section aria-labelledby="${group.toLowerCase()}-heading"><h2 id="${group.toLowerCase()}-heading">${group}</h2>${entries.map((entry) => `<a href="${canonicalSlideRouteFor(entry)}">${entry.label}</a>`).join('')}</section>`)
-  .join('')
+const landingLinks = async () => {
+  const previews = await Promise.all(visiblePreviews().map(async (entry) => ({ entry, label: await landingLabelFor(entry) })))
+  return Object.entries(Object.groupBy(previews, ({ entry }) => entry.group))
+    .map(([group, entries]) => `<section aria-labelledby="${group.toLowerCase()}-heading"><h2 id="${group.toLowerCase()}-heading">${group}</h2>${entries.map(({ entry, label }) => `<a href="${canonicalSlideRouteFor(entry)}">${label}</a>`).join('')}</section>`)
+    .join('')
+}
 
 function readRequestBody(request) {
   return new Promise((resolve, reject) => {
@@ -58,8 +61,8 @@ export default defineConfig({
   plugins: [
     {
       name: 'manifest-backed-slidev-landing-and-status',
-      transformIndexHtml(html) {
-        return html.replace('<!-- preview-links -->', landingLinks())
+      async transformIndexHtml(html) {
+        return html.replace('<!-- preview-links -->', await landingLinks())
       },
       configureServer(server) {
         server.middlewares.stack.unshift({ route: '', handle: async (request, response, next) => {

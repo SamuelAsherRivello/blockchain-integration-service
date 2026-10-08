@@ -1,6 +1,6 @@
 ---
 src: ./template-deck-b.md
-title: Modrian Template
+title: Modrian - Template
 version: 0.0.4
 titleTemplate: 'Slidev - %s'
 favicon: /favicon-modrian-template.svg

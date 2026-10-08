@@ -17,8 +17,8 @@ catalogSlide: 1
 imageTreatment: none
 
 ---
-# Blockchain
-## <span class="bitcoin-orange">Bitcoin</span> for Game Development
+# <span class="bitcoin-orange">Bitcoin</span>
+## For Game Development
 
 ---
 layout: mondrian-image-bottom
@@ -194,7 +194,7 @@ imageTreatment: none
 ## Bitcoin IBIT becomes the fastest ETF
 ## <span class="bitcoin-orange"><i>ever to reach</i></span> $10 billion in assets.
 
-Source: [ETF.com](https://www.etf.com/sections/news/blackrocks-ibit-hits-10b-faster-any-other-etf)
+Source: [ETF.com](https://www.etf.com/sections/news/blackrocks-ibit-hits-10b-faster-any-other-etf) (January 11 – March 1, 2024)
 
 
 ---
@@ -983,6 +983,18 @@ Source: [Arkadeos.com](https://arkadeos.com/)
 
 
 ---
+layout: mondrian-image-bottom
+contentSlide: 57.5
+contentSlideId: bitcoin-arkade-execution-engine-infographic
+localAddition: true
+templateLayout: mondrian-image-bottom
+catalogSlide: 15
+image: ./assets/blockchain-for-game/bitcoin-arkade-execution-engine.png
+backgroundSize: contain
+backgroundColor: '#050608'
+imageTreatment: generated-infographic
+---
+---
 layout: mondrian-content
 contentSlide: 14
 contentSlideId: arkade-official-projects2
@@ -1181,6 +1193,17 @@ imageTreatment: none
     <strong>Layer 2 ↔ Layer 2 (Common)</strong>: <span class="bitcoin-orange">Currencies, items, NFTs, smart contracts, ...</span>
   </li>
 </ul>
+
+---
+layout: mondrian-center
+localAddition: true
+templateLayout: mondrian-center
+catalogSlide: 7
+imageTreatment: none
+---
+
+# Let's see Blockchain
+## In Action ...
 
 
 ---

@@ -100,7 +100,7 @@ async function inspectDeck(browser, entry, fullScan) {
       // makes every route an independent render assertion.
       const slidePage = number === 1 ? page : await browser.newPage()
       try {
-        if (number !== 1) await slidePage.goto(`http://localhost:${landingService.port}${canonicalSlideRouteFor(entry, number)}`, { waitUntil: 'networkidle', timeout: 30_000 })
+        if (number !== 1) await slidePage.goto(`http://localhost:${landingService.port}${canonicalSlideRouteFor(entry, number)}#/${number}`, { waitUntil: 'networkidle', timeout: 30_000 })
       const api = await editorRecord(slidePage, number)
       result.fingerprints.push({ slide: number, editor: fingerprintEditorRecord(api.body), revision: generatedRecord.revision ?? null })
       const apiContent = api.body.content ?? api.body.slide?.content ?? ''
@@ -115,7 +115,14 @@ async function inspectDeck(browser, entry, fullScan) {
         .filter((token) => !nonVisibleMarkdownTokens.has(token.toLowerCase()))
       const generatedTokens = candidates.filter((token) => generated.source.toLowerCase().includes(token.toLowerCase()))
       if (!generatedTokens.length && candidates.length) throw new Error(`generated-module mismatch ${entry.id}/${number}: no editor content token is present`)
-      const visible = await slidePage.locator('#page-root, .slidev-page').first().innerText({ timeout: 10_000 })
+      let visible
+      try { visible = await slidePage.locator('#page-root, .slidev-page').first().innerText({ timeout: 10_000 }) }
+      catch {
+        // A fresh Slidev page can briefly miss its canvas while Vite serves
+        // a generated slide module. Reload once, then require the same check.
+        await slidePage.reload({ waitUntil: 'networkidle', timeout: 30_000 })
+        visible = await slidePage.locator('#page-root, .slidev-page').first().innerText({ timeout: 10_000 })
+      }
       const visibleToken = generatedTokens.find((token) => visible.toLowerCase().includes(token.toLowerCase()))
       if (!visibleToken && generatedTokens.length) throw new Error(`render mismatch ${entry.id}/${number}: no generated editor token is visible`)
       }
