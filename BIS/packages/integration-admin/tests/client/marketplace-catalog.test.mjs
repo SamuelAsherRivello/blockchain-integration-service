@@ -21,7 +21,13 @@ test('the public Stealth & Steel catalog requires all nine verified mint records
     'Shield I', 'Shield II', 'Shield III',
   ]);
   assert.deepEqual(marketplaceCatalogItems.map(item => item.priceSats), [1000, 2000, 3000, 1100, 2100, 3100, 1200, 2200, 3200]);
-  assert.deepEqual(marketplaceCatalogItems.map(item => item.effectPercent), [10, 20, 30, 10, 20, 30, 10, 20, 30]);
+  assert.deepEqual(marketplaceCatalogItems.map(item => item.attributeDeltas[0].bisAttributeDelta), [10, 20, 30, 10, 20, 30, -10, -20, -30]);
+});
+
+test("registering Rogue's Dungeon does not add a mintable Admin catalog", () => {
+  assert.equal(marketplaceCatalogItems.some(item => item.id.includes('rogue')), false);
+  assert.equal(marketplaceCatalogItems.every(item => marketplaceMintRequest(item).metadata.bisGameId === 'stealth-and-steel'), true);
+  assert.equal(marketplaceCatalogItems.some(item => marketplaceMintRequest(item).metadata.bisGameId === "Rogue's Dungeon"), false);
 });
 
 test('every catalog mint uses a deterministic, distinct operation ID for recovery', () => {
@@ -37,6 +43,8 @@ test('every catalog mint uses a deterministic, distinct operation ID for recover
       bisAssetType: 'item',
       bisCatalogId: 'stealth-steel-shoes-1',
       bisEquipmentFamily: 'Shoes',
+      bisAttributeDeltas: [{ bisAttribute: 'movementSpeed', bisAttributeDelta: 10 }],
+      bisDescription: 'Increases movement speed by 10%.',
       bisGameId: 'stealth-and-steel',
       bisPriceSats: '1000',
       bisTier: '1',
@@ -66,10 +74,10 @@ test('C.G.2, C.G.3, and C.G.4 report Marketplace progress and results only throu
   assert.match(panel, /Minting \$\{progress\.itemName\}/);
   assert.match(panel, /Verifying fresh marketplace inventory/);
   assert.match(panel, /status:'verified', message:'Nine verified catalog items are now available from this Game Wallet’s live inventory\.'/);
-  assert.match(panel, /onLog\(\{operation:'C.G.3\. Burn All Items for Marketplace'/);
+  assert.match(panel, /onLog\(\{operation:'C.G.3\. Burn Marketplace Listing'/);
   assert.match(panel, /Refreshing marketplace inventory after/);
   assert.match(panel, /Burning \$\{label\}/);
-  assert.match(panel, /status:batch\.status, message:batch\.status==='error'\?'Marketplace item burn is unavailable\.':`\$\{batch\.burned\} item\(s\) burned;/);
+  assert.match(panel, /status:batch\.status, message:batch\.status==='error'\?'Marketplace listing burn is unavailable\.':`\$\{batch\.burned\} item\(s\) burned;/);
   assert.match(panel, /C.G.4\. List All Items For Marketplace/);
   assert.match(panel, /Reading fresh game-wallet assets/);
   assert.match(panel, /Classifying \$\{progress\.total\} asset\(s\)/);
@@ -86,6 +94,7 @@ test('fresh chain holdings must contain exactly one fully classified asset per c
       bisSchemaVersion: '1', bisGameId: 'stealth-and-steel', bisAssetType: 'item',
       bisCatalogId: item.id, bisEquipmentFamily: item.family,
       bisTier: String(item.tier), bisPriceSats: String(item.priceSats),
+      bisDescription: item.description, bisAttributeDeltas: item.attributeDeltas,
     },
   }));
   assert.equal(verifiedMarketplaceRecordsFromAssets(assets).length, 9);

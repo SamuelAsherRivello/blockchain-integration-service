@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Players and reviewers browse a read-only catalog of Stealth & Steel equipment and inspect its associated game-wallet availability and gameplay metadata.
+Players and reviewers browse registered games, including the read-only catalog of Stealth & Steel equipment and the pre-launch empty state for Rogue's Dungeon.
 
 ## Product Purpose
 
@@ -16,7 +16,7 @@ Present the game's issued equipment catalog before play, making its public asset
 
 ## Positioning
 
-The marketplace reads a verified nine-item catalog and can read public inventory for the published game-wallet address. It deliberately shows Buy and Sell as unavailable rather than fabricating purchase behavior.
+The marketplace reads registered game configuration, a verified nine-item Stealth & Steel catalog, and public inventory for the published game-wallet address. Rogue's Dungeon is visible as a registration-only game until its own wallet and equipment catalog exist. The product deliberately shows unavailable or empty states rather than fabricating purchase behavior.
 
 ## Operating Context
 
@@ -26,6 +26,7 @@ The app loads `public/catalog.json`, filters equipment by owner, game, and gamep
 
 - React and TypeScript Vite application.
 - Catalog is for Stealth & Steel shoes, daggers, and shields across three tiers.
+- Rogue's Dungeon may be selected before its game or assets exist, but has no wallet, inventory lookup, or issuance behavior.
 - Inventory reads are public and read-only.
 - Buying, selling, and player-owned inventory are not implemented.
 - Network is Signet; availability must not be overstated when catalog or inventory data cannot be read.

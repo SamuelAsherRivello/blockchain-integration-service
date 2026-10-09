@@ -8,10 +8,12 @@ const text = path => readFile(new URL(path, root), 'utf8');
 test('public catalog contains only the versioned publisher trust anchor and no wallet secret fields', async () => {
   const catalog = JSON.parse(await text('public/catalog.json'));
   assert.equal(catalog.version, 2);
-  assert.equal(catalog.gameId, 'stealth-and-steel');
-  assert.equal(typeof catalog.gameWalletAddress, 'string');
+  assert.deepEqual(catalog.games.map(game => game.gameId), ['stealth-and-steel', "Rogue's Dungeon"]);
+  assert.deepEqual(catalog.games.map(game => game.displayName), ['Stealth & Steel', "Rogue's Dungeon"]);
+  assert.equal(typeof catalog.games[0].gameWalletAddress, 'string');
+  assert.equal('gameWalletAddress' in catalog.games[1], false);
   assert.equal('items' in catalog, false);
-  assert.equal(Object.keys(catalog).sort().join(','), 'gameId,gameWalletAddress,version');
+  assert.equal(Object.keys(catalog).sort().join(','), 'games,version');
   assert.equal(JSON.stringify(catalog).match(/phrase|private|secret|seed/i), null);
 });
 
@@ -33,8 +35,8 @@ test('Marketplace enables exactly the action offered by the selected owner only 
   const [app, style] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/square-grid.css')]);
   assert.match(app, /const gameOwnsSelected=Boolean\(selected&&gameItems\?\.some\(item=>item\.assetId===selected\.assetId\)\)/);
   assert.match(app, /const playerOwnsSelected=Boolean\(selected&&playerItems\.some\(item=>item\.assetId===selected\.assetId\)\)/);
-  assert.match(app, /const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending;/);
-  assert.match(app, /const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending;/);
+  assert.match(app, /const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;/);
+  assert.match(app, /const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;/);
   assert.match(app, /disabled=\{!canBuy\}/);
   assert.match(app, /disabled=\{!canSell\}/);
   assert.match(app, /player\.getSendSpendable\(true\)/);
@@ -53,14 +55,23 @@ test('Marketplace restores the pending exact-item checkout after a page reload',
   assert.doesNotMatch(app, /checkout-status|Checkout complete\.|Checkout recovery status/);
 });
 
+test('Marketplace represents a pending transfer inline and disables both trade actions', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /const pendingTransferFor=\(item:BisEquipmentItem\)=>pendingCheckout\?\.request\.assetId===item\.assetId\?pendingCheckout:undefined/);
+  assert.match(app, /Pending transfer/);
+  assert.match(app, /Transfer from Game Wallet to Player Wallet is pending \.\.\./);
+  assert.match(app, /!checkoutIsPending&&!pendingTransferIsSelected/);
+  assert.match(app, /className=\{`asset-card\$\{pending\?' asset-card-pending':''\}`\}/);
+});
+
 test('item detail uses the active local-sales session state and never asks users to reconcile checkout', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /className="detail-actions"><button className="trade-action trade-action-buy" disabled=\{!canBuy\}/);
   assert.match(app, /id="sales-disabled-reason"/);
   assert.doesNotMatch(app, /Reconcile checkout|pending checkout\. Reconcile|awaiting fresh ownership confirmation/);
   assert.match(app, /setTimeout\(run,2500\)/);
-  assert.match(app, /title=\{checkoutIsPending\?'Pending transaction':undefined\}/);
-  assert.match(app, /className="trade-action trade-action-sell" disabled=\{!canSell\} title=\{checkoutIsPending\?'Pending transaction':undefined\}/);
+  assert.match(app, /title=\{pendingTransferTitle\?\?\(checkoutIsPending\?'Pending transaction':undefined\)\}/);
+  assert.match(app, /className="trade-action trade-action-sell" disabled=\{!canSell\} title=\{pendingTransferTitle\?\?\(checkoutIsPending\?'Pending transaction':undefined\)\}/);
   assert.doesNotMatch(app, /Buying and selling are not enabled/);
 });
 
@@ -119,7 +130,7 @@ test('item detail shows copyable generic and gameplay values without decimals or
   assert.doesNotMatch(app, /Decimals/);
   assert.match(app, /Gameplay metadata/);
   assert.match(app, /gameplayMetadata\(selected\)\.map\(stat=><CopyableValueField key=\{stat\.label\} label=\{stat\.label\} value=\{stat\.value\}/);
-  assert.match(app, /item\.effectPercent/);
+  assert.match(app, /item\.attributeDeltas/);
   assert.doesNotMatch(app, /Trading is not available/);
   assert.doesNotMatch(app, /later Marketplace account flow/);
 });
@@ -140,6 +151,8 @@ test('catalog filters game and nonzero gameplay metadata independently', async (
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /aria-label="Game"/);
   assert.match(app, /Stealth &amp; Steel/);
+  assert.match(app, /Rogue's Dungeon/);
+  assert.match(app, /catalog\.games\.map/);
   assert.match(app, /aria-label="Type"/);
   assert.match(app, />Speed<\/button>/);
   assert.match(app, />Offense<\/button>/);
@@ -150,8 +163,17 @@ test('catalog filters game and nonzero gameplay metadata independently', async (
 test('Marketplace opens with the Game Wallet, Stealth & Steel, and all item types selected', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /const \[owner,setOwner\]=useState<'all'\|'game'\|'player'>\('game'\)/);
-  assert.match(app, /\[game,setGame\]=useState<'all'\|'stealth-and-steel'>\('stealth-and-steel'\)/);
+  assert.match(app, /\[game,setGame\]=useState<string>\('stealth-and-steel'\)/);
   assert.match(app, /\[type,setType\]=useState<'all'\|'speed'\|'offense'\|'defense'>\('all'\)/);
+});
+
+test('Rogue\'s Dungeon is browseable without a wallet or inventory source', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
+  assert.match(app, /game!=='all'&&!selectedGame\?\.gameWalletAddress/);
+  assert.match(app, /No equipment is currently available for/);
+  assert.match(app, /if\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)void gameWallet\.refresh\(\)/);
+  assert.match(app, /catalog\.games\.map/);
 });
 
 
@@ -167,7 +189,7 @@ test('Marketplace refreshes Game Wallet inventory after a completed checkout wit
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
   assert.match(app, /setInventoryRevision\(value=>value\+1\)/);
-  assert.match(app, /\[inventoryAddress,inventoryRevision,network\]/);
+  assert.match(app, /\[inventoryAddress,inventoryRevision,network,game,selectedGame\?\.gameId,selectedGame\?\.gameWalletAddress,gameState\.status\]/);
 });
 
 test('Marketplace delegates visible Marketplace loading to the shared pending prompt', async () => {
@@ -179,7 +201,7 @@ test('Marketplace delegates visible Marketplace loading to the shared pending pr
   assert.match(app, /setIsGameInventoryLoading\(false\)/);
   assert.match(app, /usePendingNotice\(isMarketplaceLoading\|\|!!operationLabel/);
   assert.doesNotMatch(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.'/);
-  assert.match(app, /:'No freshly verified equipment matches these filters\.'/);
+  assert.match(app, /No equipment is currently available for/);
 });
 
 test('Marketplace renders its Wallets and Instructions as left-aligned lists in one panel',async()=>{
@@ -188,7 +210,7 @@ test('Marketplace renders its Wallets and Instructions as left-aligned lists in 
   assert.match(app,/className="marketplace-info"/);assert.match(app,/This marketplace requires the player wallet for item display and items sales\./);assert.match(app,/In production the game wallet will be controlled by the server\. However, for this simple POC, you must also login the game wallet which has balance and has any items to display\./);
   assert.match(app,/<div className="marketplace-info-group"><h2>Wallets<\/h2><ul>/);assert.match(app,/Player Wallet:/);assert.match(app,/Game Wallet:/);
   assert.match(app,/<hr\/>/);assert.match(app,/<div className="marketplace-info-group"><h2>Instructions<\/h2><ol>/);assert.match(app,/Enable Item Listing: <strong title="Requirement complete: the Game Wallet is logged in and has items to display\.">Enabled ℹ️<\/strong>/);
-  assert.match(app,/const salesEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&playerState\.profileId!==gameState\.profileId\)/);
+  assert.match(app,/const salesEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&playerState\.profileId!==gameState\.profileId&&\(game==='all'\|\|game==='stealth-and-steel'\)\)/);
   assert.match(app,/Enable Item Sales: \{salesEnabled\?<><strong title="Requirement complete: different Player and Game Wallets are logged in\.">Enabled ℹ️<\/strong><\/>:<span title="Requirement: log in to different Player and Game Wallets from Account\.">Disabled ℹ️<\/span>\}/);
   assert.doesNotMatch(app,/>Enable Item Sales<\/button>/);assert.doesNotMatch(app,/upper-right Account button/);
   assert.doesNotMatch(app,/>Player Wallet Login<\/button>/);assert.doesNotMatch(app,/>Game Wallet Login<\/button>/);

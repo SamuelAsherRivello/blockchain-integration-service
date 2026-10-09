@@ -60,6 +60,29 @@ The Marketplace SHALL use the registered game-wallet public address for anonymou
 - **THEN** the Marketplace refreshes inventory and trade context from the logged-in address for that browser session
 - **AND** it retains the registered address as public catalog configuration and labels the session override accurately
 
+### Requirement: Empty registered games are browseable
+
+The Marketplace SHALL expose each registered game identity as a selectable game option, including games with no implementation, wallet address, catalog items, or inventory. Selecting a game without published assets SHALL show a truthful empty state and SHALL NOT fabricate equipment or minting availability.
+
+#### Scenario: Visitor selects Rogue's Dungeon before the game exists
+
+- **WHEN** a visitor selects `Rogue's Dungeon` in the Marketplace game filter
+- **THEN** `Rogue's Dungeon` remains visibly selected
+- **AND** the Marketplace shows that no equipment is currently available for that game
+- **AND** the Marketplace does not require a Rogue's Dungeon wallet, request Rogue's Dungeon inventory, or start a mint, transfer, or trading operation
+
+#### Scenario: Stealth & Steel remains available beside the empty game
+
+- **WHEN** a visitor switches from `Rogue's Dungeon` to `Stealth & Steel`
+- **THEN** the existing Stealth & Steel catalog and registered game-wallet inventory behavior remains available
+- **AND** the presence of `Rogue's Dungeon` does not change Stealth & Steel item classification, prices, artwork, or ownership state
+
+#### Scenario: Empty game is not an Admin mint target
+
+- **WHEN** an administrator uses the existing Marketplace catalog issuance workflow
+- **THEN** only the existing defined Stealth & Steel catalog items are eligible for that workflow
+- **AND** the registered `Rogue's Dungeon` identity is not represented as a mintable item or as a verified issued catalog
+
 ### Requirement: Nine durable game-equipment assets
 
 The public catalog SHALL contain exactly these nine named equipment entries for the Stealth & Steel game ID: Shoes I, Shoes II, Shoes III; Dagger I, Dagger II, Dagger III; and Shield I, Shield II, Shield III. Each entry SHALL identify its game ID, Signet asset ID after issuance, tier, equipment family, artwork, and a player-facing effect description: Shoes increase movement speed, Daggers increase player damage, and Shields reduce player damage taken. Each higher tier SHALL describe a stronger effect than the preceding tier in the same family.
