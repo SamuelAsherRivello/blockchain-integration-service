@@ -51,7 +51,7 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 ### Presentations
 
 <!-- AI: For any updates to the slidev presentations put them here. Only keep the one latest of each-->
-* [Slidev Presentations](https://github.com/SamuelAsherRivello/blockchain-presentations) — [migration note](BIS/documentation/presentations.md)
+* [Slidev Presentations](https://github.com/SamuelAsherRivello/blockchain-presentations)
 
 ## Table of Contents
 
