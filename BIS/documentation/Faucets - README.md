@@ -1,21 +1,25 @@
 # Faucets
 
-Use these free browser faucets to fund test accounts. Make sure the faucet and wallet use the same network and address type.
+## Mutinynet
 
-## Mutinynet BTC
+### BTC
 
-- [Mutinynet Faucet](https://faucet.mutinynet.com/): Official browser faucet for ordinary Mutinynet on-chain BTC.
+- [Mutinynet Faucet](https://faucet.mutinynet.com/)
+- [Mutinynet](https://mutinynet.com/)
 
-## Mutinynet Arkade BTC
+### Arkade BTC
 
-- [Mutinynet Arkade Faucet](https://mutinynet.arkade.money/): Browser faucet for Mutinynet Arkade BTC. Paste a Mutinynet Arkade address beginning with `tark1...` and request test funds.
-- [Arkade Wallet](https://arkade.money/): Use the built-in Faucet section and configure the Ark server/ASP as `https://mutinynet.arkade.sh` before requesting Mutinynet Arkade BTC.
+- [Mutinynet Arkade Faucet](https://mutinynet.arkade.money/)
+- [Arkade Wallet](https://arkade.money/)
 
-## Signet Arkade BTC
+## Signet
 
-- [Second Signet Faucet](https://signet.2nd.dev/): Browser faucet for Signet Arkade BTC. Enter a compatible Bark or Ark address.
-- [ArkFaucet](https://arkfaucet.com/): Browser faucet offering Signet Ark, Lightning, and on-chain test BTC.
+### BTC
 
-## Safety
+- [Signet Faucet](https://signet.2nd.dev/)
+- [Bitcoin Signet Faucet](https://bitcoinsignetfaucet.com/)
 
-Never enter a seed phrase, private key, or recovery material into a faucet. Testnet and signet funds have no monetary value, and faucet limits may change.
+### Arkade BTC
+
+- [Second Signet Faucet](https://signet.2nd.dev/)
+- [ArkFaucet](https://arkfaucet.com/)
