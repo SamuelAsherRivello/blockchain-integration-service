@@ -85,16 +85,6 @@ Run the following commands to get started.
 2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), or the [Integration README](http://127.0.0.1:5174/integration/).
 3. In Admin, select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
 
-For a remote preview, start the same command on the SSH server. In Windows PowerShell, paste this entire line before pressing Enter and leave the terminal open (reuse an existing working tunnel):
-
-```powershell
-ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:15174:127.0.0.1:5174 contabo-srive
-```
-
-Then open [BIS Admin](http://127.0.0.1:15174/admin/), [BIS Marketplace](http://127.0.0.1:15174/marketplace/), [Onboarding Spike](http://127.0.0.1:15174/onboarding/), or the [Integration README](http://127.0.0.1:15174/integration/). Admin and Marketplace share BIS account storage on this origin; the spike keeps separate window-scoped storage. Wallet data saved on other ports stays on those origins and is not migrated automatically.
-
-Use `npm run preview` to serve the production build locally.
-
 ### 🛠 Release Version
 
 <!-- AI: Describe the repository's existing release workflow in the fewest steps, based on checked-in workflows or release scripts. Distinguish builds, tags, releases, and deployment accurately. If no release process exists, retain a placeholder rather than inventing one. Documentation edits do not authorize publishing or changing Git history. -->
@@ -105,22 +95,21 @@ Use `npm run preview` to serve the production build locally.
 ## Project Overview
 
 <!-- AI: Summarize the project's purpose, main capabilities, and intended use cases. Describe current implementation; label planned capabilities explicitly rather than presenting them as complete. Keep detailed tooling under Project Details. Keep this section brief; do not add release-specific status, smoke-test, or future-work detail unless explicitly requested. -->
-BIS separates reusable game integration from its development demo. The integration owns account creation and restoration, browser persistence, balances, transaction history, receiving addresses, Arkade sending, Bitcoin/Arkade transfer flows, and generic asset minting, listing, and burning across the selected Signet or Mutinynet network. The demo provides admin controls, a console, and a portrait runtime preview through the public API.
-
-This is a work in progress with no custom application server. The two supported network options are Signet and Mutinynet. Payment and transfer flows have documented verification limits; Lightning invoice receiving is currently unavailable. Games remain separate and can be playable without an account. See the user stories and package documentation for implementation status and remaining checks.
+BIS separates reusable game integration from its development demos for Signet and Mutinynet Bitcoin networks. The integration package provides account, payment, transfer, and asset capabilities through a public API, while the Admin, Marketplace, and onboarding packages demonstrate those capabilities in the browser.
 
 ### 📝 Documentation
 
 <!-- AI: Link to the main documentation files that actually exist using relative Markdown links and a short purpose for each. Update links when files move; do not reference documentation inherited from another project unless present here. -->
-- [README](README.md): Setup, commands, and repository overview.
-- [Package boundaries](docs/readme/package-boundaries-readme.md): Ownership and allowed dependency direction for the four workspace packages.
-- [Verification scope](docs/readme/verification-scope-readme.md): Default release checks and the opt-in four-package verification commands.
-- [Project brief](BIS/documentation/BGS_PROJECT_BRIEF.md): Original BGS design baseline.
 - [Design discussion](BIS/documentation/design-discussion.md): Confirmed decisions and implementation notes.
 - [User Story Diagrams](BIS/documentation/User%20Story%20Diagrams.md): Flows, scope, and verification status.
-- [Integration package](BIS/packages/integration/integration-package-readme.md): Public API and runtime behavior.
+- [Faucets - README.md](BIS/documentation/Faucets%20-%20README.md): Faucets for funding an account.
 - [Game smoke test](BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md): Integration setup and acceptance checks.
 - [Integration Admin application](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
+- [Integration package](BIS/packages/integration/integration-package-readme.md): Public API and runtime behavior.
+- [Package boundaries](docs/readme/package-boundaries-readme.md): Ownership and allowed dependency direction for the four workspace packages.
+- [Project brief](BIS/documentation/BGS_PROJECT_BRIEF.md): Original BGS design baseline.
+- [README](README.md): Setup, commands, and repository overview.
+- [Verification scope](docs/readme/verification-scope-readme.md): Default release checks and the opt-in four-package verification commands.
 - [Windows Sandbox Setup](https://github.com/SamuelAsherRivello/ai-skills-library/blob/main/documentation/sandbox-readme.md): Docker Sandboxes setup and Codex usage on Windows.
 
 ### 📝 Structure
@@ -131,17 +120,11 @@ This is a work in progress with no custom application server. The two supported 
 - `BIS/packages/integration-admin/`: Admin UI, 9:16 preview, and documentation viewer.
 - `BIS/packages/marketplace/`: Equipment catalog and account UI using the public integration API.
 - `BIS/packages/prototype-onboarding/`: Independent Arkade onboarding experiment with separate browser persistence.
-- `BIS/scripts/`: Project automation, including the test runner.
-- `openspec/`: Tracked specifications and change plans.
-- `.agents/skills/`: Local specification workflows.
-- `.github/workflows/`: GitHub Pages deployment.
-
-The root `package.json`, `package-lock.json`, and `tsconfig.json` configure npm workspaces and shared tooling.
 
 ## Project Details
 
 <!-- AI: Replace this placeholder with a short description of implementation details useful to developers. Verify the stack from repository files and avoid repeating the overview or claiming unverified package versions. Keep this section brief; do not add test commands, test caveats, or dependency-version inventory unless explicitly requested. -->
-React and TypeScript power the reusable integration, Admin, and Marketplace packages, with Vite for development and production builds. `@bis/integration-admin` and `@bis/marketplace` consume `@bis/integration` through its public exports; the reusable package owns its UI, core state, and Arkade adapters. The independent onboarding prototype uses the Arkade SDK directly. Arkade-specific types and recovery material stay out of public state and events.
+React and TypeScript power the reusable integration, Admin, Marketplace, and onboarding packages, with Vite for development and production builds while the integration package owns the public UI, state, and Arkade adapter boundaries consumed by the other packages.
 
 ### 📦 AI
 
@@ -150,7 +133,7 @@ React and TypeScript power the reusable integration, Admin, and Marketplace pack
 - [OpenSpec](https://openspec.dev/): Specifications and change planning in `openspec/`.
 
 
-### Packages
+### 📦 Packages
 
 #### External Packages
 
@@ -169,12 +152,7 @@ React and TypeScript power the reusable integration, Admin, and Marketplace pack
 
 ## Deep Dive
 
-
-<a href="https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/BIS/documentation/bis-concept-diagram-1.png"><img src="https://raw.githubusercontent.com/SamuelAsherRivello/blockchain-integration-service/main/BIS/documentation/bis-concept-diagram-1.png" width="400" alt="BIS concept diagram" /></a>
-
-Deep Dive takes a closer look at a few representative files and the cross-repository contract that connects them. 
-
-Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
+- Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
 
 
 
