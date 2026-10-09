@@ -4,6 +4,8 @@ Blockchain Integration Service uses npm workspaces to keep reusable game integra
 
 `@bis/integration` is the reusable browser-game library. It owns the public host contract, account and wallet workflows, browser persistence, production Account UI, core state, and Arkade adapter composition. Consumers start from its public exports and stylesheet; they do not import private library source files.
 
+The game boundary is `IBis` for named commands and safe snapshots, and `IBisGame` for session/target reads, confirmed effects and typed notifications. `BisService` implements the facade; `Bis…` and `BisGame…` payloads are readonly data rather than controller handles. Paired game migration and publication remain separate verification gates in `formalize-bis-game-contracts`. Existing lower-level public exports remain supported for Admin/Marketplace, not promoted as game backdoors. See the [typechecked public boundary example](../../BIS/packages/integration/tests/fixtures/game-contract-types.ts).
+
 `@bis/integration-admin` is the development harness. It composes the public integration API into Admin controls, a console, a portrait preview, and documentation views. It does not define reusable wallet behavior. `@bis/marketplace` is another public-API consumer that owns catalog and equipment presentation while relying on the integration package for wallet and transaction rules.
 
 `@spike/prototype-onboarding` is intentionally different. It is an independent Signet experiment that uses the Arkade SDK directly to observe onboarding and recovery behavior. Its accounts, browser persistence, and timing records are separate from Admin and Marketplace data. It is not a production game-host API and does not establish the integration package’s contract.

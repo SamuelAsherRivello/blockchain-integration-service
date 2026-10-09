@@ -10,7 +10,9 @@ BIS is a reusable browser-game integration layer, not the game. A consuming game
 
 The integration package separates core state/workflow ownership, production UI, and Arkade adapters. Core code owns validation, persistence, operation coordination, and public state/events. Production UI owns presentation and interaction. Arkade adapters own SDK-specific calls. This separation keeps protocol-specific types and recovery material out of the host-facing contract.
 
-`BisService` is the lifecycle-facing composition boundary for games. It composes existing controllers and context rather than taking ownership of their domain rules. Games provide effects through the protocol-neutral `IBisGame` interface and retain responsibility for applying a confirmed outcome.
+`BisService implements IBis` is the lifecycle-facing composition boundary for games. It privately composes existing controllers and context rather than replacing their domain rules. Games implement all five `IBisGame` methods, including the single `onBisEvent` notification channel. They use named workflow commands and copied snapshots, not controller factories, raw service properties, DOM observers or parallel context subscriptions. Admin and Marketplace retain their supported public non-game APIs.
+
+Application/run identity (`BisGameSession`), wallet profile identity (`BisWalletReference`) and financial offer identity (`offerSessionId`) are distinct. BIS captures the originating host/run/target before asynchronous financial work. The host guards its own effect commit and deduplicates operation IDs. Asset and sats reward payloads are discriminated; `BisGameEffectReceipt` never changes financial confirmation or triggers another payment/mint. Reset invalidates transient delivery and late local writes, while disposal may preserve contract recovery; neither promises cancellation of remote transactions.
 
 ## Truthful financial and recovery behavior
 

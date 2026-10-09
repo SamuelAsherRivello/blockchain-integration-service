@@ -8,6 +8,7 @@ export { networkLabel } from './test-network.ts';
 export function getContinuePriceSats(): number { return 1000; }
 export type BisGameContinueState = Readonly<{
   sats: number; status: 'idle' | 'pending' | 'succeeded' | 'failed'; canPay: boolean; message: string;
+  operationId?: string;
 }>;
 export type BisGameContinueOptions = Readonly<{
   context: string; onSuccess: (result: BisContinueResult) => void;
@@ -26,7 +27,7 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
     return state.hasProfile && state.phase === 'active' && Boolean(state.profileId);
   };
   const getState = (): BisGameContinueState => Object.freeze({
-    sats: getContinuePriceSats(), status, message: message || (context.getContinueRecipient && !context.getContinueRecipient() ? 'Game wallet recipient is not configured.' : ''),
+    sats: getContinuePriceSats(), status, ...(request ? { operationId: request.operationId } : {}), message: message || (context.getContinueRecipient && !context.getContinueRecipient() ? 'Game wallet recipient is not configured.' : ''),
     canPay: !disposed && (!context.getContinueRecipient || !!context.getContinueRecipient()) && loggedIn() && (status === 'idle' || status === 'failed'),
   });
   const publish = () => { if (!disposed) for (const listener of listeners) listener(); };

@@ -1,162 +1,336 @@
-import { createBisAssetCollection, type BisAssetCollectionOptions } from '../state-layer-core/asset-collection';
-import { getControls, type BisContext } from '../state-layer-core/context';
+import { createBisAssetCollection } from '../state-layer-core/asset-collection';
+import { getControls } from '../state-layer-core/context';
 import { createBisContext } from '../wallet-layer-arkade/context-composition';
-import { createBisContinue, type BisGameContinueOptions as BisGameContinueControllerOptions } from '../state-layer-core/game-continue';
+import { createBisContinue } from '../state-layer-core/game-continue';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
-import { createBisLto } from '../state-layer-core/lto-service';
+import { createBisLto, type BisContractFilter, type BisContractActionResult, type BisContractsResult } from '../state-layer-core/lto-service';
 import { createBisEquipment } from '../state-layer-core/equipment-loadout';
-import type { IBisGame, BisGameEffectReceipt } from '../state-layer-core/bis-game';
+import type { IBisGame, BisGameSession, BisGameEffectReceipt, BisGameConfirmedPlayerReward } from '../state-layer-core/bis-game';
 import { createBisUi } from '../ui-layer-react/client';
-import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable } from '../state-layer-core/capabilities.ts';
+import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable,
+  assetMintingSupportFeedback, contractSupportFeedback, itemSupportFeedback } from '../state-layer-core/capabilities.ts';
+import { version } from '../../../package.json';
+import type { IBis, BisOptions, BisDisposeOptions, BisSnapshot, BisEvent, BisResetResult,
+  BisGameContinuationRequest, BisGameContinuationState, BisGameRewardRequest,
+  BisGameRewardState, BisGameEquipmentFamily, BisGameOperationReference,
+  BisContractRequest, BisContractQueryResult } from './bis';
 
-export type BisServiceResetResult = Readonly<{ status: 'completed'; resetId: string }>;
+/** Compatibility names for non-game consumers; games use BisOptions/BisResetResult. */
+export type BisServiceOptions = BisOptions;
+export type BisServiceResetResult = BisResetResult;
 export type BisServiceResetErrorCode = 'disposed' | 'cleanup-failed';
 export class BisServiceResetError extends Error {
-  readonly code: BisServiceResetErrorCode;
-  constructor(code: BisServiceResetErrorCode, message: string) { super(message); this.name = 'BisServiceResetError'; this.code = code; }
+  constructor(readonly code: BisServiceResetErrorCode, message: string) {
+    super(message); this.name = 'BisServiceResetError';
+  }
 }
+export type BisServiceContinueDeliveryOptions = Readonly<{ onEffectReceipt?(receipt: BisGameEffectReceipt): void }>;
+type Origin = Readonly<{ host: IBisGame; session: BisGameSession; generation: number }>;
+type Continuation = {
+  controller: ReturnType<typeof createBisContinue>; unsubscribe: () => void; origin: Origin;
+  operation?: BisGameOperationReference; receipt?: BisGameEffectReceipt;
+};
+type Reward = {
+  controller: ReturnType<typeof createBisAssetCollection>; unsubscribe: () => void; origin?: Origin;
+  operation?: BisGameOperationReference; receipt?: BisGameEffectReceipt;
+  asset?: BisGameConfirmedPlayerReward & { kind: 'asset' };
+};
+function frozenCopy<T>(value: T): T {
+  const copy = structuredClone(value);
+  function freeze(item: unknown): void {
+    if (!item || typeof item !== 'object' || Object.isFrozen(item)) return;
+    for (const child of Object.values(item)) freeze(child);
+    Object.freeze(item);
+  }
+  freeze(copy); return copy;
+}
+const sameSession = (a: BisGameSession | undefined, b: BisGameSession) => a?.gameId === b.gameId && a.gameSessionId === b.gameSessionId;
 
-export type BisServiceOptions = Readonly<{
-  getBisGame(): IBisGame | undefined;
-}>;
-
-export type BisServiceContinueDeliveryOptions = Readonly<{
-  onEffectReceipt?(receipt: BisGameEffectReceipt): void;
-}>;
-
-/** Public lifecycle facade for a game embedding BIS. */
-export class BisService {
-  /** 1. The game sees only the protocol-neutral IBisGame interface, never Arkade. */
-  readonly context: BisContext;
-  readonly gameWallet;
-  readonly lto;
-  readonly ui;
+/** Lifecycle-owned game facade. Private resources cannot escape to a host. */
+export class BisService implements IBis {
+  #context: ReturnType<typeof createBisContext>;
+  #gameWallet: ReturnType<typeof createBisGameWallet>;
+  #lto: ReturnType<typeof createBisLto>;
+  #ui: ReturnType<typeof createBisUi>;
+  #equipment: ReturnType<typeof createBisEquipment>;
+  #getBisGame: BisOptions['getBisGame'];
+  #subscriptions: (() => void)[] = [];
+  #continuations = new Map<string, Continuation>();
+  #rewards = new Map<string, Reward>();
+  #offerOrigins = new Map<string, Origin>();
+  #endedOffers = new Set<string>();
+  #deliveredContracts = new Set<string>();
+  #contracts: BisContractQueryResult = { status: 'unavailable', contracts: [] };
+  #contractsAccountKey: string | undefined;
   #disposed = false;
-  #getBisGame: BisServiceOptions['getBisGame'];
-  #resetPromise: Promise<BisServiceResetResult> | undefined;
+  #generation = 0;
+  #revision = 0;
+  #notifying = false;
+  #queryRevision = 0;
+  #resetPromise: Promise<BisResetResult> | undefined;
 
-  constructor(options: BisServiceOptions) {
+  constructor(options: BisOptions) {
     this.#getBisGame = options.getBisGame;
     let wallet: ReturnType<typeof createBisGameWallet> | undefined;
-    /** 2. Compose BIS internals at one boundary and retain their ownership here. */
-    this.context = createBisContext({
+    this.#context = createBisContext({
       get continueRecipient() { return wallet?.getState().addresses?.arkadeAddress; },
       gameWalletProfileId: () => wallet?.getState().profileId,
       hasGameWallet: () => !!wallet?.getState().profileId,
       resetGameWallet: async () => wallet ? wallet.reset() : true,
     });
-    wallet = createBisGameWallet({ playerProfileId: () => this.context.getState().profileId, playerNetwork: () => this.context.getState().network });
-    this.context.subscribe(() => { void wallet?.refresh(); });
-    this.gameWallet = wallet;
-    this.lto = createBisLto({ context: this.context, gameWallet: wallet });
-    this.ui = createBisUi(this.context, {
-      gameWallet: wallet,
-      hasItemSupport: () => this.hasItemSupport(),
-      hasAssetMintingSupport: () => this.hasAssetMintingSupport(),
-      hasContractSupport: () => this.hasContractSupport(),
+    wallet = createBisGameWallet({ playerProfileId: () => this.#context.getState().profileId, playerNetwork: () => this.#context.getState().network });
+    this.#gameWallet = wallet;
+    this.#lto = createBisLto({ context: this.#context, gameWallet: wallet });
+    this.#equipment = createBisEquipment(this.#context);
+    this.#ui = createBisUi(this.#context, {
+      gameWallet: wallet, hasItemSupport: () => this.hasItemSupport(),
+      hasAssetMintingSupport: () => this.hasAssetMintingSupport(), hasContractSupport: () => this.hasContractSupport(),
     });
+    let accountVisible = this.#context.getState().view === 'account';
+    let accountKey = this.#accountKey();
+    const refreshAccountProjection = () => {
+      const next = this.#accountKey();
+      if (next !== accountKey) { accountKey = next; void this.#readContracts(); }
+    };
+    this.#subscriptions.push(
+      this.#context.subscribe(() => {
+        const visible = this.#context.getState().view === 'account', closed = accountVisible && !visible;
+        accountVisible = visible; this.#publish();
+        refreshAccountProjection();
+        if (closed) this.#emit({ type: 'accountClosed' });
+        if (!this.#resetPromise) void wallet?.refresh().catch(() => {});
+      }),
+      this.#context.onEvent(event => this.#emit(event)),
+      this.#gameWallet.subscribe(() => { this.#publish(); refreshAccountProjection(); }),
+      this.#equipment.subscribe(() => this.#publish()),
+      this.#lto.subscribe(() => { void this.#readContracts(); }),
+    );
   }
-
-  /** 3. Hydrate account state before IBisGame asks BIS to start an operation. */
-  ready() { return this.context.ready(); }
-  mount(container: HTMLElement) { this.ui.mount(container); }
-  openAccountDialog() { this.context.openAccountDialog(); }
-  isBisVisible() { return this.ui.isBisVisible(); }
-  showLoading() { this.ui.showLoading(); }
-  hideLoading() { this.ui.hideLoading(); }
-
-  /** Item support is Player Wallet-only; admin-minted items do not require a Game Wallet. */
-  hasItemSupport(): boolean {
-    return !this.#disposed && itemSupportAvailable(this.context.getState());
+  #assertAlive() {
+    if (this.#disposed || this.#resetPromise) throw Error('BIS is unavailable during reset or after disposal.');
   }
-
-  /** Asset minting also requires a distinct, funded Game Wallet. */
-  hasAssetMintingSupport(): boolean {
-    return !this.#disposed && assetMintingSupportAvailable(this.context.getState(), this.gameWallet.getState());
+  #host(): IBisGame | undefined { try { return this.#getBisGame(); } catch { return undefined; } }
+  #accountKey(): string {
+    const player = this.#context.getState(), game = this.#gameWallet.getState();
+    return JSON.stringify([player.profileId, player.network, game.profileId, game.network]);
   }
-
-  /** Contract support requires distinct ready wallets; contract calls still verify their exact funding needs. */
-  hasContractSupport(): boolean {
-    return !this.#disposed && contractSupportAvailable(this.context.getState(), this.gameWallet.getState());
+  #capture(): Origin | undefined {
+    const host = this.#host();
+    try {
+      const session = host?.getActiveGameSession();
+      return host && session ? { host, session: frozenCopy(session), generation: this.#generation } : undefined;
+    } catch { return undefined; }
   }
-
-  /** Force-clears BIS-owned local game state without changing remote funds. */
-  resetForGame(): Promise<BisServiceResetResult> {
-    if (this.#disposed) return Promise.reject(new BisServiceResetError('disposed', 'BIS service is disposed.'));
+  #current(origin: Origin): boolean {
+    if (this.#disposed || this.#resetPromise || origin.generation !== this.#generation || this.#host() !== origin.host) return false;
+    try { return sameSession(origin.host.getActiveGameSession(), origin.session); } catch { return false; }
+  }
+  #emit(event: BisEvent) {
+    if (this.#disposed || this.#resetPromise || this.#notifying) return;
+    this.#notifying = true;
+    try { this.#host()?.onBisEvent(frozenCopy(event)); } catch { /* A host failure is not a financial result. */ }
+    finally { this.#notifying = false; }
+  }
+  #publish() {
+    if (this.#disposed || this.#resetPromise) return;
+    this.#revision++; this.#emit({ type: 'stateChanged', snapshot: this.getSnapshot() });
+  }
+  #workflowChanged(id: string, workflow: Continuation | Reward | undefined) {
+    if (!workflow) return;
+    const operationId = workflow.controller.getState().operationId;
+    if (operationId && workflow.origin && operationId !== workflow.operation?.operationId) {
+      workflow.operation = frozenCopy({ operationId, gameSession: workflow.origin.session, workflowId: id });
+      workflow.receipt = undefined;
+    }
+    this.#publish();
+    if ((this.#continuations.get(id) ?? this.#rewards.get(id)) === workflow && workflow.operation) {
+      this.#emit({ type: 'operationChanged', operation: workflow.operation });
+    }
+  }
+  #continuationState(id: string, workflow = this.#continuations.get(id)): BisGameContinuationState {
+    if (!workflow) throw Error('Unknown or ended BIS continuation.');
+    const state = workflow.controller.getState();
+    const operation = workflow.operation ?? (state.operationId ? { operationId: state.operationId, gameSession: workflow.origin.session, workflowId: id } : undefined);
+    return frozenCopy({ ...state, workflowId: id, gameSession: workflow.origin.session,
+      ...(operation ? { operation } : {}), ...(workflow.receipt ? { effectReceipt: workflow.receipt } : {}) });
+  }
+  #rewardState(id: string, workflow = this.#rewards.get(id)): BisGameRewardState {
+    if (!workflow) throw Error('Unknown or ended BIS reward.');
+    const state = workflow.controller.getState();
+    const operation = workflow.operation ?? (state.operationId && workflow.origin ? { operationId: state.operationId, gameSession: workflow.origin.session, workflowId: id } : undefined);
+    return frozenCopy({ ...state, workflowId: id,
+      ...(workflow.origin ? { gameSession: workflow.origin.session } : {}),
+      ...(operation ? { operation } : {}), ...(workflow.receipt ? { effectReceipt: workflow.receipt } : {}),
+      ...(workflow.asset ? { asset: workflow.asset.asset } : {}) });
+  }
+  async #deliver(origin: Origin | undefined, operation: BisGameOperationReference | undefined,
+    effect: () => Promise<BisGameEffectReceipt>): Promise<BisGameEffectReceipt> {
+    let receipt: BisGameEffectReceipt = { status: 'not-applicable' };
+    if (origin && this.#current(origin)) {
+      try {
+        const result = await effect();
+        // The host guards its commit; a run ending after that commit must not rewrite its receipt.
+        if (['applied', 'already-applied', 'not-applicable'].includes(result?.status)) receipt = { status: result.status };
+      } catch { /* A rejected effect never retries a financial operation. */ }
+    }
+    if (origin && operation && !this.#disposed && origin.generation === this.#generation) this.#emit({ type: 'operationChanged', operation, effectReceipt: receipt });
+    return frozenCopy(receipt);
+  }
+  async ready() {
+    this.#assertAlive(); await this.#context.ready();
+    if (!this.#disposed && !this.#resetPromise) { await this.#readContracts(); this.#publish(); }
+  }
+  mount(container: HTMLElement) { this.#assertAlive(); this.#ui.mount(container); }
+  openAccountDialog() { this.#assertAlive(); this.#context.openAccountDialog(); }
+  isBisVisible() { return !this.#disposed && this.#ui.isBisVisible(); }
+  showLoading() { this.#assertAlive(); this.#ui.showLoading(); }
+  hideLoading() { if (!this.#disposed) this.#ui.hideLoading(); }
+  hasItemSupport() { return !this.#disposed && !this.#resetPromise && itemSupportAvailable(this.#context.getState()); }
+  hasAssetMintingSupport() { return !this.#disposed && !this.#resetPromise && assetMintingSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
+  hasContractSupport() { return !this.#disposed && !this.#resetPromise && contractSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
+  getSnapshot(): BisSnapshot {
+    const player = this.#context.getState(), game = this.#gameWallet.getState();
+    return frozenCopy({ revision: this.#revision, version, disposed: this.#disposed,
+      account: { visible: !this.#disposed && player.view === 'account', hasProfile: !this.#disposed && player.hasProfile, phase: player.phase,
+        ...(player.profileId ? { playerWallet: { profileId: player.profileId, network: player.network } } : {}),
+        ...(game.profileId ? { gameWallet: { profileId: game.profileId, network: game.network } } : {}) },
+      capabilities: {
+        items: { available: this.hasItemSupport(), reason: itemSupportFeedback(player) },
+        assetMinting: { available: this.hasAssetMintingSupport(), reason: assetMintingSupportFeedback(player, game) },
+        contracts: { available: this.hasContractSupport(), reason: contractSupportFeedback(player, game) } },
+      equipment: this.#equipment.getState(),
+      continuations: [...this.#continuations].map(([id, workflow]) => this.#continuationState(id, workflow)),
+      rewards: [...this.#rewards].map(([id, workflow]) => this.#rewardState(id, workflow)),
+      contracts: this.#contractsAccountKey === this.#accountKey() ? this.#contracts : { status: 'unavailable', contracts: [] } });
+  }
+  beginContinuation(request: BisGameContinuationRequest = {}): BisGameContinuationState {
+    this.#assertAlive(); const origin = this.#capture();
+    if (!origin || (request.gameSession && !sameSession(request.gameSession, origin.session))) throw Error('A current game continuation session is required.');
+    const target = origin.host.captureContinuationTarget({ gameSession: origin.session });
+    if (!target) throw Error('A current game continuation target is required.');
+    const continuationTarget = frozenCopy(target), id = crypto.randomUUID();
+    const controller = createBisContinue(this.#context, {
+      context: `${origin.session.gameId}/${origin.session.gameSessionId}/${target.continuationTargetId}`,
+      onSuccess: result => {
+        const workflow = this.#continuations.get(id); if (!workflow) return;
+        workflow.operation = frozenCopy({ operationId: result.operationId, gameSession: origin.session, workflowId: id });
+        void this.#deliver(origin, workflow.operation, () => origin.host.applyConfirmedContinuation({ operationId: result.operationId, gameSession: origin.session, continuationTarget }))
+          .then(receipt => { if (this.#continuations.get(id) === workflow && origin.generation === this.#generation) { workflow.receipt = receipt; this.#publish(); } });
+      },
+    });
+    this.#continuations.set(id, { controller, origin, unsubscribe: controller.subscribe(() => this.#workflowChanged(id, this.#continuations.get(id))) });
+    this.#publish(); return this.#continuationState(id);
+  }
+  async payContinuation(id: string) {
+    this.#assertAlive(); const workflow = this.#continuations.get(id);
+    if (!workflow) throw Error('Unknown or ended BIS continuation.');
+    if (!this.#current(workflow.origin)) throw Error('The continuation session has ended.');
+    await workflow.controller.pay(); return this.#continuationState(id);
+  }
+  async checkContinuation(id: string) {
+    this.#assertAlive(); const workflow = this.#continuations.get(id);
+    if (!workflow) throw Error('Unknown or ended BIS continuation.');
+    await workflow.controller.check(); return this.#continuationState(id);
+  }
+  endContinuation(id: string) {
+    const workflow = this.#continuations.get(id); if (!workflow) return;
+    this.#continuations.delete(id); workflow.unsubscribe(); workflow.controller.dispose(); this.#publish();
+  }
+  beginReward(request: BisGameRewardRequest): BisGameRewardState {
+    this.#assertAlive(); const origin = this.#capture(), id = crypto.randomUUID();
+    const controller = createBisAssetCollection(this.#context, { ...frozenCopy(request), onCollected: result => {
+      const workflow = this.#rewards.get(id); if (!workflow || !origin) return;
+      workflow.operation = frozenCopy({ operationId: result.operationId, gameSession: origin.session, workflowId: id });
+      const reward: BisGameConfirmedPlayerReward & { kind: 'asset' } = frozenCopy({ kind: 'asset', asset: result.asset,
+        operationId: result.operationId, gameSession: origin.session, rewardId: result.asset.ticker ?? result.asset.assetId,
+        rewardDisplayName: result.asset.name ?? result.asset.ticker ?? result.asset.assetId });
+      workflow.asset = reward;
+      void this.#deliver(origin, workflow.operation, () => origin.host.presentConfirmedPlayerReward(reward))
+        .then(receipt => { if (this.#rewards.get(id) === workflow && origin.generation === this.#generation) { workflow.receipt = receipt; this.#publish(); } });
+    } });
+    this.#rewards.set(id, { controller, origin, unsubscribe: controller.subscribe(() => this.#workflowChanged(id, this.#rewards.get(id))) });
+    this.#publish(); return this.#rewardState(id);
+  }
+  async #rewardAction(id: string, action: 'refresh' | 'collect' | 'check' | 'acknowledge') {
+    this.#assertAlive(); const workflow = this.#rewards.get(id);
+    if (!workflow) throw Error('Unknown or ended BIS reward.');
+    if (action === 'collect' && (!workflow.origin || !this.#current(workflow.origin))) throw Error('The reward session has ended.');
+    await workflow.controller[action](); return this.#rewardState(id);
+  }
+  refreshReward(id: string) { return this.#rewardAction(id, 'refresh'); }
+  collectReward(id: string) { return this.#rewardAction(id, 'collect'); }
+  checkReward(id: string) { return this.#rewardAction(id, 'check'); }
+  acknowledgeReward(id: string) { return this.#rewardAction(id, 'acknowledge'); }
+  endReward(id: string) {
+    const workflow = this.#rewards.get(id); if (!workflow) return;
+    this.#rewards.delete(id); workflow.unsubscribe(); workflow.controller.dispose(); this.#publish();
+  }
+  async refreshEquipment() { this.#assertAlive(); return frozenCopy(await this.#equipment.refresh()); }
+  async selectEquipment(assetId: string) { this.#assertAlive(); return frozenCopy(await this.#equipment.select(assetId)); }
+  async clearEquipment(family: BisGameEquipmentFamily) { this.#assertAlive(); return frozenCopy(await this.#equipment.clear(family)); }
+  async #readContracts(filter: BisContractFilter = {}): Promise<BisContractQueryResult> {
+    if (this.#disposed || this.#resetPromise) return frozenCopy({ status: 'unavailable', contracts: [] });
+    const unfiltered = Object.keys(filter).length === 0;
+    const generation = this.#generation, revision = unfiltered ? ++this.#queryRevision : this.#queryRevision, accountKey = this.#accountKey();
+    let result: BisContractsResult;
+    try { result = await this.#lto.checkContracts(filter); }
+    catch { result = { status: 'unavailable', contracts: [] }; }
+    if (this.#disposed || this.#resetPromise || generation !== this.#generation || accountKey !== this.#accountKey()) return frozenCopy({ status: 'unavailable', contracts: [] });
+    const projected: BisContractQueryResult = frozenCopy({ status: result.status, contracts: result.contracts.map(contract => ({ ...contract, offerSessionId: contract.sessionId })) });
+    if (unfiltered && revision === this.#queryRevision) { this.#contracts = projected; this.#contractsAccountKey = accountKey; this.#publish(); }
+    for (const contract of projected.contracts) {
+      if (contract.financial !== 'claimed' || !contract.operationId) continue;
+      const origin = this.#offerOrigins.get(contract.offerSessionId), key = `${contract.id}/${contract.operationId}`;
+      if (!origin || this.#deliveredContracts.has(key)) continue;
+      this.#deliveredContracts.add(key);
+      const operation = { operationId: contract.operationId, gameSession: origin.session, contractId: contract.id };
+      void this.#deliver(origin, operation, () => origin.host.presentConfirmedPlayerReward({ kind: 'sats', amountSats: contract.amountSats,
+        operationId: contract.operationId!, gameSession: origin.session, rewardId: contract.id, rewardDisplayName: contract.purpose }));
+    }
+    return projected;
+  }
+  async startContract(request: BisContractRequest): Promise<BisContractActionResult> {
+    this.#assertAlive(); const existing = this.#offerOrigins.get(request.offerSessionId);
+    if (this.#endedOffers.has(request.offerSessionId) || (existing && !this.#current(existing))) return { status: 'unavailable' };
+    const origin = existing ?? this.#capture(); if (!origin) return { status: 'unavailable' };
+    if (!this.#offerOrigins.has(request.offerSessionId)) this.#offerOrigins.set(request.offerSessionId, origin);
+    const { offerSessionId, ...rest } = frozenCopy(request);
+    const result = await this.#lto.start({ ...rest, sessionId: offerSessionId });
+    await this.#readContracts(); return frozenCopy(result);
+  }
+  queryContracts(filter: BisContractFilter = {}) { return this.#readContracts(filter); }
+  async checkContracts(filter: BisContractFilter = {}) { this.#assertAlive(); await this.#lto.reconcile(); return this.#readContracts(filter); }
+  async claimContract(id: string) { this.#assertAlive(); const result = await this.#lto.claim(id); await this.#readContracts(); return frozenCopy(result); }
+  async rejectContract(id: string) { this.#assertAlive(); const result = await this.#lto.reject(id); await this.#readContracts(); return frozenCopy(result); }
+  async endContractSession(id: string) { this.#assertAlive(); this.#endedOffers.add(id); this.#offerOrigins.delete(id); await this.#lto.endSession(id); await this.#readContracts(); }
+  #endWorkflows() {
+    for (const id of this.#continuations.keys()) this.endContinuation(id);
+    for (const id of this.#rewards.keys()) this.endReward(id);
+    this.#offerOrigins.clear(); this.#endedOffers.clear(); this.#deliveredContracts.clear();
+  }
+  resetForGame(): Promise<BisResetResult> {
     if (this.#resetPromise) return this.#resetPromise;
     const resetId = crypto.randomUUID();
-    this.#resetPromise = (async () => {
+    if (this.#disposed) return Promise.resolve({ status: 'failed', resetId, error: { code: 'disposed', message: 'BIS is disposed.' } });
+    this.#generation++; this.#queryRevision++;
+    this.#resetPromise = Promise.resolve().then(async (): Promise<BisResetResult> => {
       try {
-        const gameWalletReset = await this.gameWallet.reset();
-        if (!gameWalletReset) throw new Error('Game Wallet reset could not be confirmed.');
-        await this.lto.reset();
-        await getControls(this.context).forceReset(resetId);
-        return Object.freeze({status: 'completed' as const, resetId});
-      } catch (error) {
-        if (error instanceof BisServiceResetError) throw error;
-        throw new BisServiceResetError('cleanup-failed', error instanceof Error ? error.message : 'BIS reset did not finish.');
-      } finally {
-        this.#resetPromise = undefined;
-      }
-    })();
+        if (!await this.#gameWallet.reset()) throw Error();
+        await this.#lto.reset(); await getControls(this.#context).forceReset(resetId);
+        if (this.#disposed) return { status: 'failed', resetId, error: { code: 'disposed', message: 'BIS was disposed during reset.' } };
+        this.#contracts = { status: 'ready', contracts: [] }; this.#contractsAccountKey = this.#accountKey(); await this.#equipment.refresh();
+        return frozenCopy({ status: 'completed', resetId });
+      } catch { return frozenCopy({ status: 'failed', resetId, error: { code: 'cleanup-failed', message: 'BIS local cleanup did not finish. Retry Clear All Settings.' } }); }
+      finally { this.#resetPromise = undefined; this.#publish(); }
+    });
+    this.#endWorkflows();
     return this.#resetPromise;
   }
-
-  createEquipment() {
-    if (this.#disposed) throw Error('BIS service is disposed.');
-    return createBisEquipment(this.context);
-  }
-
-  createAssetCollection(options: BisAssetCollectionOptions) {
-    if (this.#disposed) throw Error('BIS service is disposed.');
-    const original = options.onCollected;
-    return createBisAssetCollection(this.context, {
-      ...options,
-      onCollected: result => {
-        original?.(result);
-        const bisGame = this.#getBisGame();
-        const gameSession = bisGame?.getActiveGameSession();
-        if (!bisGame || !gameSession) return;
-        /** 4. Deliver confirmed outcomes to IBisGame without altering financial truth. */
-        void bisGame.presentConfirmedPlayerReward({
-          operationId: result.operationId,
-          gameSession,
-          rewardId: result.asset.ticker ?? result.asset.assetId,
-          rewardDisplayName: result.asset.name ?? result.asset.ticker ?? result.asset.assetId,
-        }).catch(() => {});
-      },
-    });
-  }
-
-  createContinue(options: BisServiceContinueDeliveryOptions = {}) {
-    if (this.#disposed) throw Error('BIS service is disposed.');
-    const bisGame = this.#getBisGame();
-    const gameSession = bisGame?.getActiveGameSession();
-    const continuationTarget = bisGame && gameSession
-      ? bisGame.captureContinuationTarget({ gameSession })
-      : undefined;
-    if (!bisGame || !gameSession || !continuationTarget) {
-      throw Error('A current game continuation target is required.');
-    }
-    const context = `${gameSession.gameId}/${gameSession.gameSessionId}/${continuationTarget.continuationTargetId}`;
-    const controllerOptions: BisGameContinueControllerOptions = {
-      context,
-      onSuccess: result => {
-        void bisGame.applyConfirmedContinuation({ operationId: result.operationId, gameSession, continuationTarget })
-          .then(receipt => options.onEffectReceipt?.(receipt))
-          .catch(() => options.onEffectReceipt?.({ status: 'not-applicable' }));
-      },
-    };
-    return createBisContinue(this.context, controllerOptions);
-  }
-
-  /** 5. Dispose in reverse ownership order; pending payments remain recoverable. */
-  dispose(options: { preserveContracts?: boolean } = {}) {
+  dispose(options: BisDisposeOptions = {}) {
     if (this.#disposed) return;
-    this.#disposed = true;
-    this.lto.dispose({ endSessions: !options.preserveContracts });
-    this.gameWallet.dispose();
-    this.ui.unmount();
-    this.context.dispose();
+    this.#disposed = true; this.#generation++; this.#queryRevision++; this.#endWorkflows();
+    for (const unsubscribe of this.#subscriptions.splice(0)) unsubscribe();
+    this.#equipment.dispose(); this.#lto.dispose({ endSessions: !options.preserveContracts });
+    this.#gameWallet.dispose(); this.#ui.unmount(); this.#context.dispose();
   }
 }

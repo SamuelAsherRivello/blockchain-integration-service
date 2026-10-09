@@ -38,6 +38,47 @@ function setup(overrides={}) {
   return{service,storage,calls,toasts,request,playerState,gameState,dependencies,context,gameWallet};
 }
 
+test('contract observers receive durable progress and throwing observers cannot interrupt funding',async()=>{
+  const s=setup();let changes=0;
+  const unsubscribe=s.service.subscribe(()=>{changes++;throw Error('isolated observer');});
+  const result=await s.service.start(s.request);
+  assert.equal(result.status,'confirmed');assert.ok(changes>=2);assert.deepEqual(s.calls,['fund']);
+  unsubscribe();const previous=changes;await s.service.reconcile();assert.equal(changes,previous);
+});
+
+test('local reset invalidates preparation before it can persist or submit an offer',async()=>{
+  let release,prepared=false;
+  const gate=new Promise(resolve=>{release=resolve;});
+  const s=setup(),prepare=s.dependencies.prepare;
+  s.dependencies.prepare=async(...args)=>{prepared=true;await gate;return prepare(...args);};
+  const work=s.service.start(s.request);await until(()=>prepared);
+  await s.service.reset();release();
+  assert.equal((await work).status,'unavailable');await delay();
+  assert.equal((await s.storage.load()).ledger.contracts.length,0);
+  assert.deepEqual(s.calls,[]);assert.deepEqual(s.toasts,[]);
+});
+
+test('late remote completion after reset cannot restore local contracts or notifications',async()=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const s=setup({wait:kind=>kind==='fund'?gate:undefined});
+  const work=s.service.start(s.request);await until(()=>s.calls.length===1);
+  await s.service.reset();const notifications=s.toasts.length;release();
+  assert.equal((await work).status,'unavailable');await delay();
+  assert.equal((await s.storage.load()).ledger.contracts.length,0);
+  assert.equal(s.toasts.length,notifications);assert.deepEqual(s.calls,['fund']);
+});
+
+test('reset drains an already-started local write before clearing its result',async()=>{
+  const s=setup(),save=s.storage.save.bind(s.storage);let release,writing=false;
+  const gate=new Promise(resolve=>{release=resolve;});
+  s.storage.save=async document=>{writing=true;await gate;return save(document);};
+  const work=s.service.start(s.request);await until(()=>writing);
+  let resetFinished=false;const reset=s.service.reset().then(()=>{resetFinished=true;});
+  await delay();assert.equal(resetFinished,false);release();await reset;
+  assert.equal((await work).status,'unavailable');await delay();
+  assert.equal((await s.storage.load()).ledger.contracts.length,0);assert.deepEqual(s.calls,[]);
+});
+
 test('disposed recovery worker refunds its offer and stops even when an unrelated operator record stays unresolved',async t=>{
   const s=setup(),timers=[],cleared=[];
   t.mock.method(globalThis,'setInterval',callback=>{timers.push(callback);return timers.length;});

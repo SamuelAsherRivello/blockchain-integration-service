@@ -20,9 +20,9 @@ test('public integration boundary exposes the shared accessible pending dialog',
   assert.match(client, /isBisVisible\(\) \{ return bisVisible; \}/);
   assert.match(client, /showLoading\(\) \{ internal\.assertAlive\(\); setHostLoading\(true\); \}/);
   assert.match(client, /hideLoading\(\) \{ setHostLoading\(false\); \}/);
-  assert.match(services, /isBisVisible\(\) \{ return this\.ui\.isBisVisible\(\); \}/);
-  assert.match(services, /showLoading\(\) \{ this\.ui\.showLoading\(\); \}/);
-  assert.match(services, /hideLoading\(\) \{ this\.ui\.hideLoading\(\); \}/);
+  assert.match(services, /isBisVisible\(\) \{ return !this\.#disposed && this\.#ui\.isBisVisible\(\); \}/);
+  assert.match(services, /showLoading\(\) \{ this\.#assertAlive\(\); this\.#ui\.showLoading\(\); \}/);
+  assert.match(services, /hideLoading\(\) \{ if \(!this\.#disposed\) this\.#ui\.hideLoading\(\); \}/);
   assert.match(dialog, /inert=\{open\}/);
   assert.match(dialog, /aria-hidden=\{open \|\| undefined\}/);
   assert.match(dialog, /aria-label="Pending Operation Dialog"/);

@@ -2,10 +2,10 @@
  * Copy this template when a class is the clearest fit for the responsibility.
  * Prefer a function when there is no meaningful state or lifecycle to model.
  */
-export class ExampleService {
-  constructor(private readonly dependency: ExampleDependency) {}
+export class BisExampleService {
+  constructor(private readonly dependency: IBisExampleDependency) {}
 
-  execute(input: ExampleInput): ExampleOutput {
+  execute(input: BisExampleInput): BisExampleOutput {
     this.dependency.record(input);
 
     return {
@@ -14,14 +14,14 @@ export class ExampleService {
   }
 }
 
-export interface ExampleDependency {
-  record(input: ExampleInput): void;
+export interface IBisExampleDependency {
+  record(input: BisExampleInput): void;
 }
 
-export interface ExampleInput {
+export type BisExampleInput = Readonly<{
   id: string;
-}
+}>;
 
-export interface ExampleOutput {
+export type BisExampleOutput = Readonly<{
   success: boolean;
-}
+}>;

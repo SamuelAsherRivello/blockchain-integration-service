@@ -18,7 +18,7 @@ The project is intended for development and portfolio exploration, not productio
 
 The repository uses React, TypeScript, Vite, npm workspaces, and the Arkade SDK. BIS supports the project’s configured Signet and Mutinynet workflows. Browser-local persistence is origin-scoped; it is not a substitute for production-grade custody controls. Games must remain usable without an account when their own design permits it.
 
-Public consumers use documented exports such as context/UI creation and the game-services facade instead of private source imports. The host-facing contract is deliberately protocol-neutral. Arkade details remain behind adapters so that a game is not required to model wallet internals or financial state.
+Games consume `IBis`, implemented by lifecycle-owning `BisService`, and implement the five-method `IBisGame` callback contract. Named commands, copied snapshots and `onBisEvent` carry the complete game communication vocabulary; raw context, wallet, LTO and UI objects stay private. Admin and Marketplace retain documented lower-level public exports as non-game consumers. The host-facing contract is deliberately protocol-neutral: Arkade details remain behind adapters rather than entering game models.
 
 ## Verification and change control
 

@@ -10,6 +10,7 @@ export type BisAssetCollectionOptions = Readonly<{
 export type BisAssetCollectionState = Readonly<{
   status: 'checking' | 'available' | 'owned' | 'guest' | 'pending' | 'uncertain' | 'blocked' | 'error';
   message: string; busy: boolean; canCollect: boolean; canCheck: boolean; needsAcknowledgment: boolean;
+  operationId?: string;
 }>;
 
 /** Optional collection policy for hosts; metadata is supplied by the host, not a game catalog. */
@@ -23,7 +24,7 @@ export function createBisAssetCollection(context: BisContext, options: BisAssetC
   let identity = context.getState().profileId;
   const listeners = new Set<() => void>();
   const active = () => { const s = context.getState(); return s.hasProfile && s.phase === 'active'; };
-  const getState = (): BisAssetCollectionState => Object.freeze({status, message, busy,
+  const getState = (): BisAssetCollectionState => Object.freeze({status, message, busy, ...(request ? {operationId: request.operationId} : {}),
     canCollect: !disposed && !busy && !needsAcknowledgment && active() && status === 'available',
     canCheck: !disposed && !busy && !needsAcknowledgment && active() && ['uncertain','blocked','error'].includes(status), needsAcknowledgment});
   const publish = () => { if (!disposed) for (const listener of listeners) listener(); };

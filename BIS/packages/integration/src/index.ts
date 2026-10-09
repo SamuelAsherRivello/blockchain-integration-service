@@ -1,6 +1,15 @@
 export { createBisAdminContext } from './client/state-layer-core/context';
 export { createBisContext } from './client/wallet-layer-arkade/context-composition';
 export { BisService } from './client/integration-layer/bis-service';
+export type {
+  IBis, BisOptions, BisDisposeOptions, BisNetwork, BisWalletReference,
+  BisError, BisOperationResult, BisResetResult, BisCapabilities, BisSnapshot, BisEvent,
+  BisGameOperationReference, BisGameContinuationRequest, BisGameContinuationState,
+  BisGameRewardRequest, BisGameRewardState, BisGameEquipmentDefinition,
+  BisGameEquipmentFamily, BisGameEquipmentTier, BisGameEquipmentItem,
+  BisGameEquipmentSlots, BisGameEquipmentState, BisContractRequest,
+  BisContractState, BisContractQueryResult,
+} from './client/integration-layer/bis';
 export type { BisServiceOptions, BisServiceContinueDeliveryOptions, BisServiceResetResult, BisServiceResetErrorCode } from './client/integration-layer/bis-service';
 export { BisServiceResetError } from './client/integration-layer/bis-service';
 export type { IBisGame, BisGameSession, BisGameContinuationTarget, BisGameConfirmedContinuation, BisGameConfirmedPlayerReward, BisGameEffectReceipt } from './client/state-layer-core/bis-game';
@@ -17,7 +26,7 @@ export type { BisAssetCollectionOptions, BisAssetCollectionState } from './clien
 export type { BisAsset, BisAssetMetadata, BisAssetMetadataValue, BisMintAssetRequest, BisMintAssetResult, BisListAssetsResult, BisAssetError, BisPendingMintResult } from './client/state-layer-core/assets';
 export type { BisAssets } from './client/state-layer-core/asset-presentation';
 export type { BisBurnAssetRequest, BisBurnAssetResult } from './client/state-layer-core/burning';
-export type { BisContext, BisState, BisEvent, BisBalance } from './client/state-layer-core/context';
+export type { BisContext, BisState, BisEvent as BisContextEvent, BisBalance } from './client/state-layer-core/context';
 export type { BisToastOptions } from './client/state-layer-core/toasts';
 export type { BisActivity, BisTransaction } from './client/state-layer-core/activity';
 export type { BisInvoiceReceiving } from './client/state-layer-core/invoice-receiving';

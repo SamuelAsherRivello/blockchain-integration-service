@@ -22,6 +22,8 @@ Admin and Marketplace use the same BIS storage namespaces when served on one ori
 
 ## Structure and development
 
+The promoted game boundary is `IBis`/`IBisGame`. Marketplace remains a supported non-game consumer of public catalog, checkout, context and UI exports; those APIs do not authorize games to bypass the facade or access its private wallet controllers.
+
 `src/client/marketplace-layer` contains application composition and catalog presentation. `src/client/inventory-layer` handles inventory presentation, while `src/client/account-layer` groups Account integration. `src/client/ui-layer-react` owns Marketplace styles and artwork. The application entry is `src/main.tsx`, and `public/catalog.json` supplies the public configuration loaded by the browser. Changes to production wallet behavior belong in the integration package rather than duplicated Marketplace services.
 
 Run `npm run dev` from the repository root and open the printed `/marketplace/` URL. The default server port is `5174`; one Vite instance also serves Admin, onboarding, and integration documentation. Prefer the printed address when the launcher uses a different local port. Public catalog requests must remain under the Marketplace base rather than falling through to another application's HTML.

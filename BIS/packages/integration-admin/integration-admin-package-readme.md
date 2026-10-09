@@ -16,6 +16,8 @@ The console shows public operation progress and results. Recovery phrases and pr
 
 ## Structure and documentation
 
+The promoted game boundary is `IBis` plus the five-method `IBisGame`, implemented by `BisService` and a game-owned adapter. Admin remains a supported non-game consumer of public context/UI/controller exports; it need not implement a gameplay session or use private facade fields.
+
 `src/client/admin-layer` contains the story controls and Admin composition. `src/client/preview-layer` owns the portrait host. `src/client/ui-layer-react` contains the application shell, demo styling, and documentation presentation. The application creates and subscribes to public production contexts, mounts their UI, and disposes those resources when the host changes. Wallet implementation belongs in the integration package.
 
 The Documentation link opens the current [user-story source](../../documentation/User%20Story%20Diagrams.md) through the documentation renderer. Under the shared server it is available at `/admin/documentation/user-stories/`; its Back link returns to Admin. The separate book entry remains available at `/admin/book.html`. Documentation changes should describe actual behavior and keep stable story identifiers rather than treating historical planning notes as current acceptance.

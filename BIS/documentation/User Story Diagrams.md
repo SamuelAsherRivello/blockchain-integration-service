@@ -133,11 +133,13 @@ Stories are sized to be completed independently. A.P.1 covers entry; A.P.2 owns 
 
 Based on [the original brief](BGS_PROJECT_BRIEF.md), especially sections 4, 5, 7, 8, and 14, and [confirmed design decisions](design-discussion.md).
 
-These diagrams include implemented and planned user journeys. Use the current implementation table and each story’s status for delivery evidence; unmarked stories may be partly implemented. A.P.2 real stored-data reset verification and the separately listed financial acceptance gates remain pending. A.P.4, E.P.1, and A.P.5 are complete. API names and events below come from the brief's proposed contract; additional behavior is marked as proposed or unresolved.
+These diagrams include implemented and planned user journeys. Use the current implementation table and each story’s status for delivery evidence; unmarked stories may be partly implemented. A.P.2 real stored-data reset verification and the separately listed financial acceptance gates remain pending. A.P.4, E.P.1, and A.P.5 are complete. The precise current game API is the [two-contract deep dive](deep-dive.md), not the historical/proposed pseudo-API labels in journey diagrams below.
 
-Diagram key: `Game` = the separate Babylon.js game; `UI`, `Core`, and `Arkade` = internal layers of `BIS/packages/integration`. UI uses React + TypeScript; Core owns workflows/state/events; Arkade wraps `@arkade-os/sdk` and public Signet infrastructure. The demo app substitutes for the game host, using the same public integration surface.
+Game hosts consume `IBis`, implemented by `BisService`, and provide all five `IBisGame` callbacks. Account entry uses `openAccountDialog`; state, dismissal and restart arrive through `onBisEvent`. Continue uses begin/pay/check/end commands with a captured run/target; trophy collection uses begin/refresh/collect/check/acknowledge/end reward commands. Equipment uses refresh/select/clear commands, and contract recovery publishes copied snapshots without game UI polling. Financial confirmation is separate from the game effect receipt. Context/UI/controller references below describe internal BIS or supported non-game Admin composition, not promoted game backdoors.
 
-Diagrams use plain ASCII and omit the lightning icon; actual player-facing account/action buttons retain the brief's lightning prefix. Developer technology labels are not button text. All wallet activity is Signet-only, with no project-operated application server.
+Diagram key: `Game` = the separate JavaScript Babylon.js game; `UI`, `Core`, and `Arkade` = internal layers of `BIS/packages/integration`. UI uses React + TypeScript; Core owns workflows/state/events; Arkade wraps `@arkade-os/sdk` and configured Signet/Mutinynet infrastructure. The Admin demonstration may compose supported lower-level public APIs without defining the game contract.
+
+Diagrams use plain ASCII and omit the lightning icon; actual player-facing account/action buttons retain the brief's lightning prefix. Developer technology labels are not button text. Dated Signet acceptance below is not evidence for Mutinynet; configured test-network support retains no project-operated application server.
 
 Step references use the story ID and a step number, such as `[A.P.2.09]`. Each labeled action, state, or branch can be referenced independently; connector lines and explanatory annotations are not numbered. Keep existing IDs when revising a diagram; assign new steps the next unused number.
 
@@ -502,7 +504,7 @@ When the trophy is owned, the existing completion body ends with **You already o
   +--> Restart Game
 ```
 
-**Scope:** C.P.1 uses existing generic public mint/list APIs. The game owns completion and trophy eligibility. F.P.1 supplies the shared toast presentation, including the awarded asset image via its optional image URL. [A.G.1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) / Accept User Pay To Continue will introduce the game-controlled wallet later as a separate feature; it is not part of C.P.1.
+**Scope:** BIS uses existing generic mint/list implementations; game hosts use `IBis` reward commands. The game owns completion and trophy eligibility. F.P.1 supplies shared toast presentation, including the awarded asset image. [A.G.1. Admin game wallet](#f1-admin-game-wallet-and-pay-to-continue) records the separately implemented game-wallet workflow; its presence does not change the existing trophy source policy.
 
 **Collection policy:** Positive holdings with the preset's exact name, ticker and decimals count, including existing Admin trophies and older icon versions. This demo policy does not prove trusted issuance. Burning/transferring the trophy permits collection after a later completion. Ownership is checked again before minting. Missing trophy configuration disables collection without blocking progression. All menu actions lock during a bounded mint attempt. Definitive errors require an in-menu acknowledgment; uncertainty restores navigation and offers **Check Trophy Status** using the same operation ID. Account changes or abandoned menus invalidate late UI results. No automatic new issuance or success on timeout.
 
@@ -535,7 +537,7 @@ flowchart TD
   FP1_7 -->|No| FP1_8[Idle]
 ```
 
-**API:** `context.showToast(message, { durationMs, imageUrl })`, with the options object and both fields optional. For a confirmed trophy result, use `context.showToast('Trophy collected.', { imageUrl: result.asset.iconUrl })`. The C.P.1 host owns confirmation of the award; this API only displays its message.
+**Internal/non-game API:** `context.showToast(message, { durationMs, imageUrl })`, with optional options/fields, remains supported for Admin composition. Game hosts do not access the facade's private context: BIS reward commands own production toast feedback and deliver `BisGameConfirmedPlayerReward` through `IBisGame` for guarded game presentation. A toast never confirms ownership or an applied gameplay effect.
 
 **Presentation:** Shared context-local API and BIS UI; plain text, polite announcements, unchanged keyboard focus, pointer pass-through, and reduced-motion support. Notifications are temporary and confined to the runtime viewport. Optional artwork is prepared before entry, with a 3-second deadline and text-only fallback on failure. Preparation never consumes the full visible hold. The image stays proportional in a 48px thumbnail on the left.
 
