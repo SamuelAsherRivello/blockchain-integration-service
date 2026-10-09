@@ -18,7 +18,9 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.match(app, /export function App\(\)\{return <PendingOperations className="marketplace-pending-runtime"><MarketplaceContent\/><\/PendingOperations>;\}/);
   assert.match(app, /function MarketplaceContent\(\)\{/);
   assert.match(app, /const \[operationLabel,setOperationLabel\]=useState<string>\(\);/);
-  assert.match(app, /usePendingNotice\(isMarketplaceLoading\|\|!!operationLabel,operationLabel\?\?'Loading\.\.\.',operationError,\(\)=>setOperationError\(undefined\)\);/);
+  assert.match(app, /usePendingNotice\(isMarketplaceLoading\|\|!!operationLabel\|\|checkoutIsPending,operationLabel\?\?checkoutLabel\?\?'Loading\.\.\.',operationError,\(\)=>setOperationError\(undefined\)\);/);
+  assert.match(app, /const checkoutLabel=activeCheckout\?\.phase==='payment-submitted'/);
+  assert.match(app, /'Payment submitted; awaiting confirmation\.'/);
   assert.match(dialog, /\{failed\?'Error':current\.info\?\.title\?\?displayLabel\}/);
   assert.match(dialog, /\{failed \? <><div className="bis-pending-error-field">/);
   assert.match(dialog, /<CopyFieldLabel label="Message" copied=\{errorCopy\.status === 'copied'\} disabled=\{errorCopy\.status === 'copying'\} onCopy=\{\(\)=>void errorCopy\.copy\(\)\} \/>/);

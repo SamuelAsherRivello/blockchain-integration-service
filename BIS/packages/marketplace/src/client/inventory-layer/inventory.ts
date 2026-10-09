@@ -13,12 +13,13 @@ export async function readPublicInventory(address: string, signal: AbortSignal, 
     if (coin.isSpent || coin.isSwept || coin.isUnrolled) continue;
     for (const asset of coin.assets ?? []) totals.set(asset.assetId, (totals.get(asset.assetId) ?? 0n) + BigInt(asset.amount));
   }
-  const assets:BisAsset[]=[];
-  for(const [assetId,amount] of totals){
+  // Asset details are independent requests. Fetch them together so inventory
+  // latency is bounded by the slowest asset rather than the sum of all assets.
+  const assets=await Promise.all([...totals].map(async ([assetId,amount])=>{
     const details=await indexer.getAssetDetails(assetId);signal.throwIfAborted();
     if(details.assetId!==assetId)throw Error('Asset details mismatch.');
     const metadata=normalizeAssetMetadata(details.metadata,'list'),m=details.metadata;
-    assets.push({assetId,quantity:amount.toString(),...(typeof m?.name==='string'?{name:m.name}:{}),...(typeof m?.ticker==='string'?{ticker:m.ticker}:{}),...(typeof m?.icon==='string'?{iconUrl:m.icon}:{}),...(Number.isInteger(m?.decimals)&&Number(m?.decimals)>=0?{decimals:Number(m?.decimals)}:{}),...(metadata?{metadata}:{})});
-  }
+    return {assetId,quantity:amount.toString(),...(typeof m?.name==='string'?{name:m.name}:{}),...(typeof m?.ticker==='string'?{ticker:m.ticker}:{}),...(typeof m?.icon==='string'?{iconUrl:m.icon}:{}),...(Number.isInteger(m?.decimals)&&Number(m?.decimals)>=0?{decimals:Number(m?.decimals)}:{}),...(metadata?{metadata}:{})};
+  }));
   return Object.freeze(assets.sort((a,b)=>a.assetId.localeCompare(b.assetId)));
 }

@@ -62,10 +62,14 @@ function MarketplaceContent(){
   useEffect(()=>{if(playerState.profileId)void equipment.refresh();},[playerState.profileId,equipment]);
   useEffect(()=>{void gameWallet.refresh();},[gameWallet,network,playerState.profileId]);
   const sessionGameAddress=gameState.addresses?.arkadeAddress;
-  const inventoryAddress=sessionGameAddress??catalog.gameWalletAddress;
+  const inventoryAddress=isCatalogLoading||gameState.status==='loading'?undefined:sessionGameAddress??catalog.gameWalletAddress;
   const salesEnabled=Boolean(playerState.profileId&&gameState.profileId&&playerState.profileId!==gameState.profileId);
   useEffect(()=>{
     const controller=new AbortController();let active=true;
+    // Wait for both sources of the inventory address to settle. Starting with
+    // the published fallback and then switching to the logged-in Game Wallet
+    // caused an empty request followed by a second loading prompt.
+    if(isCatalogLoading||gameState.status==='loading')return()=>{active=false;controller.abort();};
     setGameItems(undefined);setIsGameInventoryLoading(true);
     if(!network){setGameItems([]);setIsGameInventoryLoading(false);return()=>{active=false;controller.abort();};}
     if(!inventoryAddress) {setIsGameInventoryLoading(false);return()=>{active=false;controller.abort();};}
@@ -79,11 +83,16 @@ function MarketplaceContent(){
   const source=owner==='player'?playerItems:owner==='game'?gameItems??[]:[...(gameItems??[]),...playerItems].filter((item,index,all)=>all.findIndex(candidate=>candidate.assetId===item.assetId)===index);
   const visibleItems=source.filter(item=>(game==='all'||game==='stealth-and-steel')&&(type==='all'||gameplayMetadata(item).some(stat=>stat.label.toLowerCase()===type&&stat.value!=='0')));
   const isMarketplaceLoading=isCatalogLoading||isGameInventoryLoading;
-  usePendingNotice(isMarketplaceLoading||!!operationLabel,operationLabel??'Loading...',operationError,()=>setOperationError(undefined));
   const activeCheckout=checkout?.request.assetId===selected?.assetId?checkout:undefined;
   const gameOwnsSelected=Boolean(selected&&gameItems?.some(item=>item.assetId===selected.assetId));
   const playerOwnsSelected=Boolean(selected&&playerItems.some(item=>item.assetId===selected.assetId));
   const checkoutIsPending=activeCheckout?.status==='pending';
+  const checkoutLabel=activeCheckout?.phase==='payment-submitted'
+    ?'Payment submitted; awaiting confirmation.'
+    :activeCheckout?.phase==='delivery-submitted'
+      ?'Payment confirmed; completing item delivery.'
+      :undefined;
+  usePendingNotice(isMarketplaceLoading||!!operationLabel||checkoutIsPending,operationLabel??checkoutLabel??'Loading...',operationError,()=>setOperationError(undefined));
   const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending;
   const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending;
   const explorerUrl=selected&&/^[a-f0-9]{68}$/i.test(selected.assetId)?arkExplorerAssetUrl(network,selected.assetId):undefined;

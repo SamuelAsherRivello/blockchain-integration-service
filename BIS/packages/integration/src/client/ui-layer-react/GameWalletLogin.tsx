@@ -59,11 +59,11 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
   if (state.profileId) return <div className="bis-actions">
     <p role="status">Game wallet configured.</p>
     <div className="bis-addresses">
-      <CopyableValueField label="Arkade address" value={state.addresses?.arkadeAddress ?? ''} disabled={!state.addresses?.arkadeAddress} />
-      <CopyableValueField label="Arkade balance" value={formatBalanceSats(state.balance?.arkadeSats)} disabled={!state.balance} tooltipName="Arkade balance" tooltip={<BalanceTooltip title="Arkade balance" balance={formatBalanceSats(state.balance?.arkadeSats)} available={formatBalanceSats(state.balance?.availableSats)} />} />
+      <CopyableValueField label="Arkade address" value={state.addresses?.arkadeAddress ?? '—'} disabled={!state.addresses?.arkadeAddress} />
+      <CopyableValueField label="Arkade balance" value={formatBalanceSats(state.balance?.arkadeSats, '—')} disabled={!state.balance} tooltipName="Arkade balance" tooltip={<BalanceTooltip title="Arkade balance" balance={formatBalanceSats(state.balance?.arkadeSats, '—')} available={formatBalanceSats(state.balance?.availableSats, '—')} />} />
     </div>
     <button className="bis-button bis-danger" disabled={busy} onClick={() => void logout()}>Log Out Game Wallet</button>
-    {state.message && <p role="alert">{state.message}</p>}
+    {state.message && state.status !== 'unavailable' && <p role="alert">{state.message}</p>}
     <button className="bis-button bis-back" disabled={busy} onClick={onBack}>Back</button>
   </div>;
   if (page === 'created' && candidate) return <>

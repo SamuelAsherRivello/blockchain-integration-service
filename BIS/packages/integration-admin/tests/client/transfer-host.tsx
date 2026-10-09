@@ -83,7 +83,7 @@ document.getElementById('run')!.onclick = async () => {
     button('Back').click();await tick();check(host.querySelector('h2')?.textContent==='Accounts Details','Back to Details');
     c.openAccountTransfer();await tick();check(button('Review Transfer').disabled,'Reopen resets amount');
     button('Back').click();await tick();fail=true;await c.refreshBalance();await tick();
-    check(value('Total balance')==='' && value('Arkade balance')==='' && !!host.querySelector('.bis-pending-dialog'),'Failed refresh stays covered');
+    check(value('Total balance')==='—' && value('Arkade balance')==='—' && !!host.querySelector('.bis-pending-dialog'),'Failed refresh stays covered');
     check([...host.querySelectorAll('button[aria-label^="Copy"]')].every(b=>(b as HTMLButtonElement).disabled),'Failed copy disabled');
     fail=false;button('OK').click();await tick();c.openAccountDetails();await tick();
     c.openAccountTransfer();await tick();button('Max').click();await tick();button('Review Transfer').click();await tick();

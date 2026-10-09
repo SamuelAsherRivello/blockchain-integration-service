@@ -1,5 +1,5 @@
-export function formatBalanceSats(amount: number | undefined) {
-  return amount === undefined ? 'Unavailable' : `${amount.toLocaleString('en-US')} sats`;
+export function formatBalanceSats(amount: number | undefined, unknown = 'Unavailable') {
+  return amount === undefined ? unknown : `${amount.toLocaleString('en-US')} sats`;
 }
 
 export function BalanceTooltip({ title, balance, available }: {
