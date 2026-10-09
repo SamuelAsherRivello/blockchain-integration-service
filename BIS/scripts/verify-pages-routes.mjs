@@ -6,11 +6,16 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const artifactRoot = resolve(import.meta.dirname, '..', '..', 'output', 'pages', 'deploy-separate-pages-demos');
+const legacyRoutes = JSON.parse(await readFile(new URL('./slidev-legacy-routes.json', import.meta.url), 'utf8'));
 const releaseVersion = JSON.parse(await readFile(resolve(import.meta.dirname, '..', '..', 'package.json'), 'utf8')).version;
 const mime = new Map([['.css', 'text/css'], ['.html', 'text/html'], ['.js', 'text/javascript'], ['.json', 'application/json'], ['.png', 'image/png'], ['.svg', 'image/svg+xml']]);
 const server = createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://127.0.0.1').pathname);
+    if (pathname.startsWith('/blockchain-presentations/')) {
+      response.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>Redirect target</title>');
+      return;
+    }
     const candidate = resolve(artifactRoot, `.${normalize(pathname)}`);
     if (!candidate.startsWith(artifactRoot)) throw Error('outside artifact');
     const file = (await stat(candidate)).isDirectory() ? join(candidate, 'index.html') : candidate;
@@ -42,7 +47,27 @@ try {
   assert.equal(catalog.status(), 200);
   const artwork = await marketplace.request.get(`${base}assets/marketplace/v1/shoes-1.png`);
   assert.equal(artwork.status(), 200);
+  const stagedRoot = resolve(artifactRoot, 'blockchain-integration-service');
+  await access(resolve(stagedRoot, 'slidev', 'index.html'));
+  for (const [deck, count] of Object.entries(legacyRoutes.decks)) {
+    await access(resolve(stagedRoot, 'slidev', deck, 'index.html'));
+    for (let slide = 1; slide <= count; slide++) {
+      await access(resolve(stagedRoot, 'slidev', deck, String(slide), 'index.html'));
+    }
+  }
+  const redirects = await browser.newPage();
+  const deck = 'blockchain-for-game-designers';
+  for (const [oldRoute, newRoute] of [
+    ['slidev/', ''],
+    [`slidev/${deck}/`, `${deck}/`],
+    [`slidev/${deck}/29/`, `${deck}/29/#/29`],
+    [`slidev/${deck}/#/29?v=0.0.4`, `${deck}/29/#/29?v=0.0.4`],
+  ]) {
+    await redirects.goto(`${base}${oldRoute}`, { waitUntil: 'domcontentloaded' });
+    await redirects.waitForURL(`${new URL(base).origin}/blockchain-presentations/${newRoute}`);
+  }
   console.log(`PASS ${base}admin/ and ${base}marketplace/`);
+  console.log(`PASS ${Object.keys(legacyRoutes.decks).length} Slidev deck redirect trees and legacy URL forms`);
 } finally {
   await browser.close();
   await new Promise(resolveServer => server.close(resolveServer));

@@ -1,6 +1,6 @@
 {
   "name": "@bis/marketplace",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@arkade-os/sdk": "0.4.72",
-    "@bis/integration": "0.0.16",
+    "@bis/integration": "0.0.17",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   }

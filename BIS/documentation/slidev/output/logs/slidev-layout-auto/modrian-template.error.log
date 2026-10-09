@@ -1,7 +1,0 @@
-Error: Port 3049 is already in use
-    at httpServerStart (file:///D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/node_modules/vite/dist/node/chunks/node.js:14540:10)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async startServer (file:///D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/node_modules/vite/dist/node/chunks/node.js:24946:30)
-    at async Object.listen (file:///D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/node_modules/vite/dist/node/chunks/node.js:24760:4)
-    at async initServer (file:///D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/node_modules/@slidev/cli/dist/cli.mjs:162:3)
-    at async Object.handler (file:///D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/documentation/slidev/node_modules/@slidev/cli/dist/cli.mjs:264:20)

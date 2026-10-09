@@ -1,0 +1,13 @@
+{
+  "legacyBase": "/blockchain-integration-service/slidev/",
+  "destinationBase": "/blockchain-presentations/",
+  "decks": {
+    "modrian-template": 47,
+    "blockchain-for-game-designers": 91,
+    "blockchain-for-game-developers": 13,
+    "bitcoin-for-games": 145,
+    "tease-subdeck": 12,
+    "outro": 11,
+    "games-subdeck": 5
+  }
+}

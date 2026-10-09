@@ -1,4 +1,0 @@
-
-> @bis/slidev-documentation@0.0.10 dev:modrian-template
-> slidev modrian-template.md --theme ./themes/mondrian-final --port 3049 --base /slidev/modrian-template/
-
