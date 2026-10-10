@@ -341,19 +341,19 @@ Complete, confirmed by the user on 2026-09-09: production SDK history, transacti
 
 **Status:** Complete, confirmed by the user on 2026-09-09. Earlier manual logout acceptance is closed on that confirmation.
 
-**Current logout behavior (2026-09-08):** Require the wallet-backup checkbox and, when the pending count is greater than zero, `I accept losing my (N) pending transactions.` with the actual count. Unresolved transactions do not prevent logout. Logout removes saved wallet access, demo preferences and player transaction/recovery journals, including continuation and reservation records. Separate Admin game-wallet records remain intact. Logout does not cancel submitted transactions. Administrative reset retains its separate guards.
+**Current logout behavior (2026-10-10):** The Account Log Out page leads with `Backup your recovery phrase before logging out.` and shows zero through three applicable warning checkboxes for backup, pending operations, and a separate Game Wallet. These checkboxes acknowledge consequences but never disable Log Out. Logout removes saved wallet access and the selected Player profile's transaction/recovery journals, including continuation and reservation records. Separate Admin game-wallet records remain intact. Logout does not cancel submitted transactions. Administrative reset retains its separate guards.
 
 
 ```text
 [A.P.5.01] Player: Account --> Log Out
                        |
                        v
-[A.P.5.10] UI: backup confirmation; checkbox initially unchecked
+[A.P.5.10] UI: concise backup reminder; applicable warning checkboxes initially unchecked
            |
            +--> Back --> Account; account remains active and saved
            |
-           +--> [A.P.5.11] Check "I have backed up my wallet"
-                       --> enable Log Out --> Player confirms
+           +--> [A.P.5.11] Optional warning acknowledgements
+                       --> Log Out remains available --> Player confirms
                        |
                        v
 [A.P.5.02] Core: validate the confirmed account and storage generation
@@ -382,7 +382,7 @@ Complete, confirmed by the user on 2026-09-09: production SDK history, transacti
 - Implemented with manual real-storage verification pending. See [A.P.5 verification](../../openspec/changes/archive/2026-09-03-add-a6-account-logout/A6_VERIFICATION.md). Game observes the non-secret `accountDisconnected` event after confirmed active-to-absent state; normal gameplay remains usable.
 - Service: Core owns session transition and pending-work policy; UI explains consequences; Arkade handles SDK-specific lifecycle cleanup. Logout is not an on-chain transaction and does not erase wallet assets.
 - Confirmed scope: use the supplied Arkade Reset wallet screenshots as the behavioral reference for a backup confirmation, with our heading "Account Log Out" and action "Log Out". Ask "Did you back up your wallet?" and warn that clearing the account from this browser cannot be undone locally; restoring access requires the saved recovery phrase. This confirmation is permanent A.P.5 behavior, independent of A.P.3 restoration availability.
-- The "I have backed up my wallet" checkbox starts unchecked every time the confirmation opens. Log Out is disabled until checked and becomes disabled again if unchecked. Checking the box alone does not log out; the player must press Log Out. Back cancels without clearing account material or ending the session.
+- Applicable warning checkboxes start unchecked every time the confirmation opens. Their state never gates Log Out; checking a box alone does not log out, and the player must still press Log Out. Back cancels without clearing account material or ending the session.
 - The Admin Log Out demonstration opens the real Account dialogue, recognizing a saved account or showing the chooser if none exists. Successful logout preserves selection and shows Create Account / Account Dialog (Restore is enabled). Back restores the preceding host presentation.
 - Failures show an operation error with OK closing the confirmation page. No success is reported until storage clearing is confirmed; retries reconcile ambiguous completion and never clear a replacement account using an old confirmation. Other live contexts reconcile confirmed logout. Arkade wallets are already disposed after creation, so this slice has no additional network cleanup.
 - A.P.5 offers no recovery-phrase access. Pending-payment handling is deferred until payments exist. Game-specific mid-run policy is also deferred; the brief's connected-run eligibility rule is unchanged.

@@ -103,11 +103,8 @@ export function assertLogoutResolvable(storage: WebStorage | undefined = globalT
   if(pendingLogoutOperations(storage).count>0)throw Error('Wallet operations are unresolved. Open Account → Transactions and check recovery status before logging out.');
 }
 
-// Exclusive logout cannot overlap an SDK mutation from any wallet on this origin.
+// Exclusive logout waits behind an SDK mutation from any wallet on this origin.
 export function withBrowserMutation<T>(work: () => Promise<T>, exclusive = false): Promise<T> {
   if (!globalThis.navigator?.locks) return Promise.reject(Error('This browser cannot safely coordinate wallet operations.'));
-  return navigator.locks.request(browserMutationLock, {mode: exclusive ? 'exclusive' : 'shared', ifAvailable: true}, lock => {
-    if (!lock) throw Error('Another wallet operation is in progress. Try logout again after it finishes.');
-    return work();
-  });
+  return navigator.locks.request(browserMutationLock, {mode: exclusive ? 'exclusive' : 'shared'}, () => work());
 }

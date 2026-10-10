@@ -40,32 +40,28 @@ test('logout passes the reviewed operation snapshot to complete cleanup', async 
   c.dispose();
 });
 
-test('active Game Wallet needs an explicit third acknowledgement and is reset before Player cleanup', async () => {
+test('active Game Wallet warning does not block independent Player cleanup', async () => {
   const f = fixture(); let resets = 0;
   const c = createContext(f.storage, async () => identity, async () => identity.profileId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, {
     hasGameWallet: () => true,
-    resetGameWallet: async () => { resets++; return true; },
+    resetGameWallet: async () => { resets++; return false; },
   });
   await confirm(c);
   assert.equal(c.getState().hasGameWallet, true);
-  await c.confirmLogout(); assert.equal(f.clears(), 0); assert.equal(resets, 0);
-  c.setLogoutGameWalletAcknowledged(true);
   await c.confirmLogout();
-  assert.equal(resets, 1); assert.equal(f.clears(), 1); assert.equal(c.getState().hasProfile, false);
+  assert.equal(resets, 0); assert.equal(f.clears(), 1); assert.equal(c.getState().hasProfile, false);
   c.dispose();
 });
 
-test('logout requires acknowledgement, cancels, resets checkbox and preserves host destination', async () => {
+test('logout warnings reset on reopen and preserve host destination', async () => {
   const f = fixture(), c = f.make(); await c.readyAsync(); getControls(c).present(); c.openAccountDialog();
-  c.openLogoutConfirmation(); await c.confirmLogout(); assert.equal(f.clears(), 0);
-  c.setLogoutBackupAcknowledged(true); c.cancelLogout(); assert.equal(c.getState().phase, 'active');
-  c.openLogoutConfirmation(); assert.equal(c.getState().logoutBackupAcknowledged, false);
-  c.setLogoutBackupAcknowledged(true); c.setLogoutBackupAcknowledged(false); await c.confirmLogout(); assert.equal(f.clears(), 0);
-  c.setLogoutBackupAcknowledged(true); await c.confirmLogout();
-  assert.equal(c.getState().hasProfile, false); assert.equal(c.getState().view, 'account-button');
-  c.closeAccount(); assert.equal(c.getState().view, 'account-button');
-  const reload = f.make(); await reload.readyAsync(); assert.equal(reload.getState().hasProfile, false);
-  c.dispose(); reload.dispose();
+  c.openLogoutConfirmation(); await c.confirmLogout(); assert.equal(f.clears(), 1);
+  const reopened = f.make(); await reopened.readyAsync(); assert.equal(reopened.getState().hasProfile, false); reopened.dispose();
+  const second = fixture(), d = second.make(); await d.readyAsync(); getControls(d).present(); d.openAccountDialog();
+  d.openLogoutConfirmation();
+  d.setLogoutBackupAcknowledged(true); d.cancelLogout(); assert.equal(d.getState().phase, 'active');
+  d.openLogoutConfirmation(); assert.equal(d.getState().logoutBackupAcknowledged, false); d.dispose();
+  assert.equal(c.getState().view, 'account-button'); c.dispose();
 });
 
 test('failed clearing stays in dialogue with retry and no premature event', async () => {
@@ -74,8 +70,8 @@ test('failed clearing stays in dialogue with retry and no premature event', asyn
   const events = []; c.onEvent(e => events.push(e)); await confirm(c); await c.confirmLogout();
   assert.equal(c.getState().phase, 'logout-error'); assert.equal(c.getState().view, 'account');
   assert.equal(c.getState().error.includes('private details'), false); assert.equal(events.length, 0);
-  c.setLogoutBackupAcknowledged(false); await c.retry(); assert.equal(f.clears(), 0);
-  c.setLogoutBackupAcknowledged(true); fail = false; await c.retry();
+  await c.retry(); assert.equal(f.clears(), 0);
+  fail = false; await c.retry();
   assert.deepEqual(events, [{ type: 'accountDisconnected', profileId: identity.profileId }]); c.dispose();
 });
 
@@ -166,7 +162,7 @@ test('successful logout never publishes a create/restore dialog, including recon
   }
 });
 
-test('pending operations require the second checkbox before logout', async () => {
+test('pending operations are a warning and never block logout', async () => {
   const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
   const data=new Map([['bis-signet-mints-v1:profile-a',JSON.stringify({operations:Array.from({length:5},(_,i)=>({request:{operationId:String(i)},status:'pending'}))})]]);
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return data.size;},key:i=>[...data.keys()][i]??null,getItem:key=>data.get(key)??null}});
@@ -175,13 +171,6 @@ test('pending operations require the second checkbox before logout', async () =>
     await confirm(c);
     assert.equal(c.getState().logoutPendingCount,5);
     assert.equal(c.getState().logoutPendingAcknowledged,false);
-    await c.confirmLogout();assert.equal(f.clears(),0);
-    c.setLogoutPendingAcknowledged(true);
-    c.setLogoutPendingAcknowledged(false);
-    await c.confirmLogout();assert.equal(f.clears(),0);
-    c.cancelLogout();await c.readyAsync();
-    c.openLogoutConfirmation();assert.equal(c.getState().logoutPendingAcknowledged,false);
-    c.setLogoutBackupAcknowledged(true);c.setLogoutPendingAcknowledged(true);
     await c.confirmLogout();assert.equal(f.clears(),1);
     assert.equal(c.getState().hasProfile,false);
     assert.equal(data.size,1);

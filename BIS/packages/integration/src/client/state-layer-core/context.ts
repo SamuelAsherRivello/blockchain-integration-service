@@ -1089,11 +1089,9 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     },
     async confirmLogout() {
       assertAlive();
-      if (state.accountRecovery || !logoutTarget || !state.logoutBackupAcknowledged || (state.hasGameWallet && !state.logoutGameWalletAcknowledged) || !['logout-confirmation','logout-error'].includes(state.phase)) return;
-      if (state.logoutPendingCount !== null && state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged) return;
-      // Logout clears identity and player transaction records after acknowledgement.
+      if (state.accountRecovery || !logoutTarget || !['logout-confirmation','logout-error'].includes(state.phase)) return;
+      // Warning acknowledgements are informational; Player logout always remains available.
       const target=logoutTarget;
-      const approvedOperations=logoutOperations;
       invalidate(); const current=version;
       update({phase:'logging-out',error:undefined});
       try {
@@ -1102,8 +1100,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         if (!loaded.account || loaded.generation!==target.generation || loaded.account.profileId!==target.profileId) {
           acceptLoaded(loaded,current,true); return;
         }
-        if (state.hasGameWallet && !(await options.resetGameWallet?.())) throw Error('Game Wallet reset could not be confirmed.');
-        await storage.reset(target.generation, {purpose:'logout',profileId:target.profileId,operations:approvedOperations ?? {count:0,fingerprint:''}});
+        await storage.reset(target.generation, {purpose:'logout',profileId:target.profileId,operations:logoutOperations ?? {count:0,fingerprint:''}});
         if (disposed || version!==current) return;
         const after=await readStable(current);
         if (disposed || version!==current) return;
@@ -1113,7 +1110,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       } catch (error) {
         if (!disposed && version===current) {
           try {logoutOperations=pendingLogoutOperations(globalThis.localStorage,target.profileId);} catch {logoutOperations=undefined;}
-          update({phase:'logout-error',logoutPendingCount:logoutOperations?.count ?? null,logoutPendingAcknowledged:logoutOperations?.fingerprint === approvedOperations?.fingerprint && state.logoutPendingAcknowledged,error:error instanceof BoardingBlockedError ? error.message : 'Log out did not finish. Browser cleanup could not be confirmed.'});
+          update({phase:'logout-error',logoutPendingCount:logoutOperations?.count ?? null,error:error instanceof BoardingBlockedError ? error.message : 'Log out did not finish. Browser cleanup could not be confirmed.'});
         }
       }
     },

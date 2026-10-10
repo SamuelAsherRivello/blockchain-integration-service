@@ -1,12 +1,6 @@
-# account-logout Specification
+# Spec Delta
 
-## Purpose
-
-Allow players to deliberately end their local account session after acknowledging their backup, with reliable clearing and observable completion.
-
-**Story status:** A.P.5 ✓ — complete, confirmed by the user on 2026-09-09.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Backup confirmation
 The active account's Log Out action SHALL open a confirmation titled "Account Log Out" with the lead text "Backup your recovery phrase before logging out." It SHALL show only applicable acknowledgement checkboxes for backup, unresolved operations, and separate Game Wallet state. Every checkbox SHALL start unchecked on each opening, but no checkbox state SHALL disable the final Log Out action. A.P.5 SHALL NOT display recovery material or offer recovery-phrase access.
