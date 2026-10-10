@@ -44,10 +44,10 @@ export function PendingOperations({children, overlay, className, hostLoading, on
     : [...notices.values(), ...(hostEntry ? [hostEntry] : [])];
   const waiting=entries.filter(entry=>!entry.error&&!entry.info);
   const failure=waiting.length ? undefined : entries.find(entry=>entry.error);
-  const pending=waiting.find(entry=>entry.label!=='Loading...') ?? waiting[0];
-  const label=useRef('Loading...');
-  if(pending && (pending.label!=='Loading...' || !notices.size))label.current=pending.label;
-  if(!pending)label.current='Loading...';
+  const pending=waiting.find(entry=>entry.label!=='Loading ...') ?? waiting[0];
+  const label=useRef('Loading ...');
+  if(pending && (pending.label!=='Loading ...' || !notices.size))label.current=pending.label;
+  if(!pending)label.current='Loading ...';
   const active=failure ?? pending ?? entries.find(entry=>entry.info);
   const [retained,setRetained]=useState<{notice:Notice;label:string}|undefined>();
   useLayoutEffect(()=>{

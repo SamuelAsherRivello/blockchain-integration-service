@@ -32,7 +32,7 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
     return()=>{generation.current++;clearInterval(timer);};
   },[refresh]);
   const loading=status==='loading';
-  usePendingNotice(loading,'Loading...',undefined,()=>context.closeAccount());
+  usePendingNotice(loading,'Loading ...',undefined,()=>context.closeAccount());
   async function act(kind:'claim'|'reject'|'refund') {
     if(!detail||acting.current)return;
     acting.current=true;const current=generation.current;setBusy(true);setMessage('');

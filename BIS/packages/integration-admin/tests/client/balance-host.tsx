@@ -10,7 +10,7 @@ document.getElementById('run')!.onclick=async()=>{
  cleanup();result.textContent='Running';let writes=0,calls=0,fail=false;
  let resolve!:(value:{availableSats:number;totalSats:number;bitcoinSats:number;arkadeSats:number})=>void;
  const account={phrase:'isolated-placeholder',profileId:'1234567890abcdef'};
- const c=createContext({load:async()=>({account,generation:0}),save:async()=>{writes++;},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>{calls++;if(fail)throw Error('private');return new Promise(yes=>{resolve=yes;});});
+ const c=createContext({load:async()=>({account,generation:0}),save:async()=>{writes++;},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>{calls++;if(fail)throw Error('private');return new Promise(yes=>{resolve=yes;});},undefined,async()=>({arkadeAddress:'tark1'+'a'.repeat(150),bitcoinAddress:'tb1p'+'b'.repeat(58)}));
  const ui=createBisUi(c);ui.mount(host);cleanup=()=>{ui.unmount();c.dispose();};
  const button=(label:string)=>[...host.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')??b.textContent)===label)!;
  const values=()=>[...host.querySelectorAll<HTMLInputElement>('input')].map(input=>input.value);
@@ -19,7 +19,7 @@ document.getElementById('run')!.onclick=async()=>{
  try {
   await c.readyAsync();c.openAccountDialog();await tick();check(calls===0&&!!button('Accounts Details')&&!!button('Log Out'),'Menu does not read');
   button('Accounts Details').click();await wait(()=>calls===1);await tick();check(host.querySelector('h2')?.textContent==='Accounts Details'&&!button('Log Out'),'Account details title/actions');
-  check(values()[0]===account.profileId&&host.querySelectorAll('input').length===4,'Account ID and all three balance fields share Account Details');
+  check(values()[0].startsWith('tark1')&&host.querySelectorAll('input').length===4,'Arkade address and all three balance fields share Account Details');
   check(['Assets','Contracts','Transactions','Get Recovery Phrase','Developer','Back'].every(label=>!!button(label)),'Account detail actions remain available');
   check(!host.querySelector('.bis-pending-dialog')&&!button('Refresh Accounts Details').disabled&&balanceValues().every(value=>value==='—'),'Account details remains usable before balances arrive');await finish();
   check(balanceValues().join('|')==='1,500 sats|500 sats|1,000 sats','Full balance split');
@@ -36,6 +36,6 @@ document.getElementById('run')!.onclick=async()=>{
   c.openAccountDetails();await wait(()=>calls===6);c.closeAccount();c.openLogoutConfirmation();await tick();
   resolve({availableSats:999,totalSats:999,bitcoinSats:0,arkadeSats:999});await tick();check(!host.textContent?.includes('999'),'Abandoned read ignored');
   check(host.querySelector('h2')?.textContent==='Account Log Out','Logout destination');button('Back').click();await tick();check(calls===6&&writes===0,'No extra reads or persistence');
-  result.textContent='PASS: Account Details combines ID and balances, retains balance loading/values/zero, refresh clearing, bounded retry and error/OK, Back/reopen, logout and stale read isolation, no persistence.';
+  result.textContent='PASS: Account Details combines Arkade address and balances, retains balance loading/values/zero, refresh clearing, bounded retry and error/OK, Back/reopen, logout and stale read isolation, no persistence.';
  }catch(e){result.textContent=`FAIL: ${e instanceof Error?e.message:'balance checks'}`;}
 };

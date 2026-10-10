@@ -38,12 +38,11 @@ document.getElementById('run')!.onclick=async()=>{
   check(button('Confirm Send').disabled && submissions===0,'Expired send cannot submit');
   button('Back').click();await tick();quoteLifetime=60000;button('Review Send').click();await tick();check(!button('Confirm Send').disabled,'Fresh send quote enables confirmation');
   button('Confirm Send').click();button('Confirm Send')?.click();await tick();
-  check(submissions===1,'No duplicate click submission');check(!!host.querySelector('.bis-send-status')&&!host.textContent?.includes('Send completed'),'Prepared result without completion banner');
-  button('New Send').click();await tick();
+  check(submissions===1,'No duplicate click submission');check(!host.querySelector('.bis-send-status')&&!input('Recipient address').value&&input('Amount (sats)').value==='0','Successful send returns to a fresh compose form');
   c.confirmAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test',verification:'unavailable'});
   fill('Recipient address','tark1'+'q'.repeat(120));fill('Amount (sats)','500');await tick();button('Review Send').click();await tick();button('Confirm Send').click();await tick();
-  check(!button('Confirm Send')&&host.textContent?.includes('Do not send again'),'Pending prevents new payment');
-  c.closeAccount();c.checkAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test'});c.openAccountSend();await tick();check(host.textContent?.includes('Do not send again'),'Reopening pending');
+  check(!!button('Review Send')&&!host.querySelector('.bis-send-status')&&!input('Recipient address').value&&input('Amount (sats)').value==='0','Pending send returns to a fresh compose form');
+  c.closeAccount();c.checkAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test'});c.openAccountSend();await tick();check(!host.textContent?.includes('Do not send again')&&!host.querySelector('.bis-send-status'),'Reopening Send never shows transaction history');
   const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No overflow');
   result.textContent='PASS: entry, no unsupported routes, clipboard race/denial, exact review, focus, Back, Max, duplicate click, success, pending/reopen, 320px layout. Isolated test doubles; no live payment.';
  }catch(e){result.textContent='FAIL: '+(e instanceof Error?e.message:'Send checks');}

@@ -35,7 +35,7 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.doesNotMatch(app, /Operation unavailable/);
   assert.match(app, /setOperationLabel\(direction==='buy'\?'Buying\.\.\.':'Selling\.\.\.'\);/);
   assert.match(app, /finally \{window\.clearTimeout\(loadingTimer\);setOperationLabel\(undefined\);\}/);
-  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),\.\.\.inventorySources\.map\(source=>inventory\.retry\(source\)\)\]\);/);
+  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources,true\)\]\);/);
   assert.doesNotMatch(app, /funds-backdrop|funds-dialog|Reconcile checkout/);
   assert.match(style, /\.marketplace-pending-runtime \{ z-index: 100; \}/);
   assert.match(style, /\.marketplace-pending-runtime \.bis-pending-backdrop \{ z-index: 60; \}/);

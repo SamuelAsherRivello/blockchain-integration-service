@@ -18,7 +18,7 @@ test('one Vite server serves package applications, resources, and linked READMEs
     return response.text();
   }
 
-  for (const [path, title] of [['/admin/', 'BIS Admin'], ['/marketplace/', 'BIS Marketplace'], ['/onboarding/', 'BIS Onboarding - Spike'], ['/prototype-faucet/', 'BIS Prototype Faucet']]) {
+  for (const [path, title] of [['/admin/', 'BIS - Admin'], ['/marketplace/', 'BIS - Marketplace'], ['/onboarding/', 'BIS - Onboarding'], ['/prototype-faucet/', 'BIS Prototype Faucet']]) {
     const html = await get(path);
     assert.ok(html.includes(`<title>${title}</title>`));
     const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1]);
@@ -28,10 +28,15 @@ test('one Vite server serves package applications, resources, and linked READMEs
     await get(new URL(entry, origin + path).pathname, 'javascript');
   }
   const catalog = JSON.parse(await get('/marketplace/catalog.json', 'application/json'));
-  assert.equal(catalog.gameId, 'stealth-and-steel');
   assert.equal(catalog.version, 2);
+  assert.ok(catalog.games.some(game => game.gameId === 'stealth-and-steel'));
   for (const app of packageRoutes.filter(app => !app.readme)) {
-    await get(app.route + 'favicon.png', 'image/png');
+    const favicon = await fetch(origin + app.route + 'favicon.png');
+    if (app.directory === 'prototype-faucet') assert.equal(favicon.status, 404, app.route + 'favicon.png');
+    else {
+      assert.equal(favicon.status, 200, app.route + 'favicon.png');
+      assert.ok(favicon.headers.get('content-type')?.includes('image/png'));
+    }
     assert.equal((await fetch(origin + app.route + 'missing.html')).status, 404);
   }
   await get('/admin/assets/achievements/v2/level-1-trophy.png', 'image/png');
@@ -44,6 +49,8 @@ test('one Vite server serves package applications, resources, and linked READMEs
   assert.ok(marketplaceModule.includes('/marketplace/'));
 
   const readme = await get('/integration/');
+  assert.match(readme, /<link rel="icon" type="image\/png" href="\/favicon\.png">/);
+  assert.match(readme, /<title>BIS - Integration<\/title>/);
   assert.match(readme, /<h1[^>]*>Integration package<\/h1>/);
   assert.match(readme, /<base href="\/BIS\/packages\/integration\/">/);
   assert.match(readme, /href="\.\.\/\.\.\/\.\.\/README.md"/);

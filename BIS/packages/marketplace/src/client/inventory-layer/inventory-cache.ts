@@ -19,7 +19,7 @@ export type MarketplaceInventorySource = Readonly<{
   read(): Promise<readonly BisEquipmentItem[]>;
 }>;
 
-export const MARKETPLACE_INVENTORY_CACHE_TTL_MS = 30_000;
+export const MARKETPLACE_INVENTORY_CACHE_TTL_MS = 5 * 60_000;
 const cachePrefix = 'bis-marketplace-inventory-v1:';
 const maxCacheBytes = 128 * 1024;
 const emptyRecord = (role: MarketplaceInventoryRole): MarketplaceInventoryRecord => Object.freeze({ role, status: 'idle', items: Object.freeze([]) });
@@ -95,6 +95,9 @@ export function createMarketplaceInventoryCoordinator(options: {now?: () => numb
     listeners.forEach(listener => listener());
   };
   async function refresh(source: MarketplaceInventorySource, force = false) {
+    if (force) {
+      try { store?.removeItem(key(source.role, source.walletId, source.network)); } catch { /* Live refresh still proceeds. */ }
+    }
     const cached = force ? undefined : readMarketplaceInventoryCache(source.role, source.walletId, source.network, now(), store);
     if (cached) { publish(source.role, cached); return; }
     const request = ++sequence[source.role];
@@ -114,7 +117,7 @@ export function createMarketplaceInventoryCoordinator(options: {now?: () => numb
   return {
     getState: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
-    refresh(sources: readonly MarketplaceInventorySource[]) { clearMissing(sources); return Promise.all(sources.map(source => refresh(source))); },
+    refresh(sources: readonly MarketplaceInventorySource[], force = false) { clearMissing(sources); return Promise.all(sources.map(source => refresh(source, force))); },
     retry(source: MarketplaceInventorySource) { return refresh(source, true); },
     dispose() { disposed = true; sequence = { player: sequence.player + 1, game: sequence.game + 1 }; listeners.clear(); },
   };

@@ -56,7 +56,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
   const foreground=useRef(true);
   if(loading)foreground.current=true;
   if(activity.status==='ready')foreground.current=false;
-  usePendingNotice(loading,'Loading...', foreground.current && !rows.length && activity.status==='unavailable'?'Transactions could not be loaded.':undefined,()=>{
+  usePendingNotice(loading,'Loading ...', foreground.current && !rows.length && activity.status==='unavailable'?'Transactions could not be loaded.':undefined,()=>{
     if(detailOpen){setDetailOpen(false);setSelectedId(undefined);void context?.refreshActivity();}
     else context?.closeAccount();
   });

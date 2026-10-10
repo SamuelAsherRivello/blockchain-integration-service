@@ -8,11 +8,11 @@ import remarkGfm from 'remark-gfm';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export const packageRoutes = [
-  { label: 'BIS Admin', route: '/admin/', directory: 'integration-admin' },
-  { label: 'BIS Marketplace', route: '/marketplace/', directory: 'marketplace' },
-  { label: 'Onboarding Spike', route: '/onboarding/', directory: 'prototype-onboarding' },
+  { label: 'BIS - Admin', route: '/admin/', directory: 'integration-admin' },
+  { label: 'BIS - Marketplace', route: '/marketplace/', directory: 'marketplace' },
+  { label: 'BIS - Onboarding', route: '/onboarding/', directory: 'prototype-onboarding' },
   { label: 'Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
-  { label: 'Integration README', route: '/integration/', directory: 'integration', readme: true },
+  { label: 'BIS - Integration', route: '/integration/', directory: 'integration', readme: true },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);
 const isFile = async path => (await stat(path).catch(() => undefined))?.isFile() ?? false;
@@ -38,7 +38,9 @@ async function readmeHtml(path) {
   const source = await readFile(resolve(root, `.${path}`), 'utf8');
   const base = path.slice(0, path.lastIndexOf('/') + 1);
   const content = renderToStaticMarkup(createElement(Markdown, { remarkPlugins: [remarkGfm], rehypePlugins: [headingAnchors] }, source));
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${base}"><title>${path === '/README.md' ? 'BIS' : path.split('/').at(-2)} README</title><style>
+  const route = packageRoutes.find(app => app.readme && path === `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`);
+  const title = path === '/README.md' ? 'BIS' : route?.label ?? `${path.split('/').at(-2)} README`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="icon" type="image/png" href="/favicon.png"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${base}"><title>${title}</title><style>
     body{max-width:960px;margin:40px auto;padding:0 24px;font:16px/1.6 system-ui,sans-serif;color:#202735;background:#fafbfc}
     a{color:#165dc5}pre{padding:16px;background:#eef1f5;overflow:auto}code{font-size:.9em}img{max-width:100%}table{border-collapse:collapse}td,th{padding:8px;border:1px solid #ccd2db}
   </style></head><body><main>${content}</main></body></html>`;

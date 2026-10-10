@@ -1,2 +1,6 @@
 # Repository-wide AI exclusions.
-# Add only paths that every AI-assisted workflow must avoid. This project currently has no active patterns.
+# Add only paths that every AI-assisted workflow must avoid.
+
+# Local faucet credentials. The faucet server may load this file, but AI tools
+# must not read, quote, index, or include its contents in generated output.
+BIS/packages/prototype-faucet/.env.local

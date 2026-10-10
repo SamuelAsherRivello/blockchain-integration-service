@@ -53,7 +53,7 @@ document.getElementById('run')!.onclick=async()=>{
    if(!stored){context.openAccountDialog();await context.createAccount();await tick();recoveryGeometry('Set Recovery Phrase');await context.continueAccount();await tick();}
    await click('Accounts Details');
    check(host().querySelector('h2')?.textContent==='Accounts Details','Account Details title');
-   check(host().querySelectorAll('input').length===4,'Account ID and three balance fields share Account Details');
+   check(host().querySelectorAll('input').length===4,'Arkade address and three balance fields share Account Details');
    check([...host().querySelectorAll('.bis-actions button')].map(b=>b.textContent).join('|')==='Assets|Contracts|Transactions|Get Recovery Phrase|Developer|Back','Details actions include collections, recovery, Developer and Back');
    for(const destination of ['Assets','Contracts','Transactions']) {
     await click(destination);await wait(()=>!host().querySelector('.bis-pending-dialog'));await tick();geometry();

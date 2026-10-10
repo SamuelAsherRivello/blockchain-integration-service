@@ -46,9 +46,7 @@ document.getElementById('run')!.onclick = async () => {
     check(!!button('←'),'Click toggles reverse');
     button('←').click();await tick();
     check(!!button('→'),'Second click toggles forward');
-    const notice=[...host.querySelectorAll('p')].find(p=>p.textContent?.startsWith('No Bitcoin'))!;
-    const noticeText=document.createRange();noticeText.selectNodeContents(notice);
-    check(noticeText.getBoundingClientRect().height<=parseFloat(getComputedStyle(notice).lineHeight)+1,'No Bitcoin notice text fits on one line');
+    check(!host.textContent?.includes('No Bitcoin funds to transfer')&&!host.textContent?.includes('Set amount above'),'Zero source balance has no status prompt');
     check(button('Back').getBoundingClientRect().bottom<=transferCard.getBoundingClientRect().bottom,'Back is fully visible');
     button('Back').click();emptyBitcoin=false;await c.refreshBalance();await tick();
     check(value('Total balance')==='1,500 sats' && value('Bitcoin balance')==='500 sats' && value('Arkade balance')==='1,000 sats', 'Correct full balance split');
@@ -58,7 +56,8 @@ document.getElementById('run')!.onclick = async () => {
     check(labels[1].getBoundingClientRect().top===labels[2].getBoundingClientRect().top, 'Split balances on same row');
     check(!!button('Get Recovery Phrase'),'Recovery action on Account Details');
     c.openAccountTransfer();await tick();
-    check(host.querySelector('h2')?.textContent==='Account Transfer','Transfer title');
+    check(host.querySelector('h2')?.textContent==='Swap','Swap title');
+    check(host.textContent?.includes('Set amount above'),'Non-zero source balance prompts for an amount');
     check(button('Review Transfer').disabled && !button('Max').disabled,'Initial zero and forward Max enabled');
     button('Max').click();await tick();
     button('Review Transfer').click();await tick();
@@ -130,7 +129,7 @@ document.getElementById('run')!.onclick = async () => {
     check(!button('Confirm Transfer').disabled,'Asset-preserving review reaches explicit confirmation');
     check(card.scrollWidth<=card.clientWidth,'Asset review has no horizontal overflow');
     button('Back').click();await tick();policyUnavailable=true;c.openAccountTransfer();await tick();
-    check(button('Review Transfer').disabled && host.textContent?.includes('current operator fee terms are not supported'),'Known operator policy is shown before review and blocks the action');
+    check(button('Review Transfer').disabled && host.textContent?.includes('Transfer unavailable.'),'Known operator policy is shown before review and blocks the action');
     check(!host.textContent?.includes('operator fee schedule changed'),'Decimal-zero regression does not use the legacy fee-schedule modal copy');
     result.textContent='PASS: transfer layout, directions, review, expiry and recovery checks; asset-preserving Max and 330-sat Arkade change rendered. Isolated test doubles; no live submission.';
   } catch(error) {result.textContent=`FAIL: ${error instanceof Error ? error.message : 'transfer checks'}`;}

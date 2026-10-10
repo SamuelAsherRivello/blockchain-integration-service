@@ -17,7 +17,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const [quote, setQuote] = useState<BoardingQuote>();
   const [busy, setBusy] = useState(true);
   const [foreground, setForeground] = useState(true);
-  const [operationLabel,setOperationLabel] = useState('Loading...');
+  const [operationLabel,setOperationLabel] = useState('Loading ...');
   const readController=useRef(new AbortController());
   const [statusChecked, setStatusChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -49,9 +49,9 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     const message = cause instanceof Error ? cause.message : '';
     return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
   }
-  async function check(clearError=true, background=false) {
+  async function check(clearError=true, background=false, initial=false) {
     const current=++request.current;if(!background)setBusy(true);
-    if(!background){setForeground(true);setOperationLabel('Checking...');if(clearError)setError('');}
+    if(!background){setForeground(true);setOperationLabel(initial ? 'Loading ...' : 'Checking...');if(clearError)setError('');}
     try {
       const [next,policy]=await Promise.all([
         readWithRetry(()=>context.checkAccountTransfer(),readController.current.signal),
@@ -69,7 +69,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     try {
       const records=context.getPendingAccountTransfers();
       if(records.length){setStatus(records[records.length-1]);setStatusChecked(true);setBusy(false);setForeground(false);}
-      else void check();
+      else void check(true, false, true);
     }catch(cause){setError(failure(cause));setBusy(false);setForeground(false);}
     return()=>{alive.current=false;request.current++;readController.current.abort();};
   },[context]);
@@ -148,11 +148,11 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
       {amount !== '0' && !valid && <p id={`${amountId}-help`} className="bis-transfer-help">Enter a positive whole number of sats.</p>}
     </div>}
     {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}
-    {availability && !availability.available && status.status !== 'pending' && <p className="bis-transfer-help bis-transfer-status" role="status">{availability.message}</p>}
+    {availability && !availability.available && status.status !== 'pending' && availability.reason !== 'insufficient-funds' && <p className="bis-transfer-help bis-transfer-status" role="status">Transfer unavailable.</p>}
     {!boardingSubmissionEnabled && <p className="bis-warning">Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.</p>}
     {pending && <p className="bis-transfer-help" role="status">Check Transactions for updates on pending transfers.</p>}
     {status.status==='not-submitted' && <p role="status">Transfer was not submitted. Review again to start a new transfer.</p>}
-    {direction==='to-arkade' && balance.status==='ready' && balance.bitcoinSats===0 && <p className="bis-transfer-help bis-transfer-direction-help" role="status">No Bitcoin funds to transfer.</p>}
+    {direction==='to-arkade' && balance.status==='ready' && balance.bitcoinSats>0 && amount==='0' && <p className="bis-transfer-help bis-transfer-status" role="status">Set amount above</p>}
     <div className="bis-actions">
       {review ? <button className="bis-button bis-primary" disabled={!boardingSubmissionEnabled||!quote||expired||busy||blocked} onClick={()=>void confirm()}>Confirm Transfer</button>
         : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||balance.status!=='ready'} onClick={reviewTransfer}>Review Transfer</button>}

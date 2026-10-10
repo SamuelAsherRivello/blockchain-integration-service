@@ -52,12 +52,13 @@ export function MarketplacePanel({ controller, onLog, children }: {controller?: 
   async function listAllItems() {
     if (!controller || busy) return; setBusy(true);
     const operation = 'C.G.4. List All Items For Marketplace';
-    onLog({operation,status:'pending',message:'Listing fresh game-wallet marketplace items…'});
+    const log = (value: Record<string, unknown>) => onLog({operation, arkadeAddress: controller.getState().addresses?.arkadeAddress ?? 'Unavailable', ...value});
+    log({status:'pending',message:'Listing fresh game-wallet marketplace items…'});
     const targetProfile=controller.getState().profileId;
     try {
       if(!targetProfile)throw Error();
-      const result=await listMarketplaceItems(controller,()=>controller.getState().profileId===targetProfile, progress => onLog({operation,status:'pending',message:progress.stage==='listing'?'Reading fresh game-wallet assets…':`Classifying ${progress.total} asset(s)…`,progress}));
-      onLog({operation,status:result.status,message:result.status==='success'?`${result.items.length} marketplace item(s) found.`:result.message,result});
+      const result=await listMarketplaceItems(controller,()=>controller.getState().profileId===targetProfile, progress => log({status:'pending',message:progress.stage==='listing'?'Reading fresh game-wallet assets…':`Classifying ${progress.total} asset(s)…`,progress}));
+      log({status:result.status,message:result.status==='success'?`${result.items.length} marketplace item(s) found.`:result.message,result});
     } catch {onLog({operation,status:'error',message:'Marketplace item listing is unavailable.'});}
     finally {setBusy(false);}
   }

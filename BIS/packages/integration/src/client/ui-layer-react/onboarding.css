@@ -13,9 +13,9 @@
 .bis-onboarding-unstarted summary {background:#edf2f3;color:#657177;}
 .bis-onboarding-step>div {padding:8px;display:grid;gap:6px;min-width:0;}
 .bis-onboarding .bis-button {font-size:10px;min-height:28px;padding:5px;text-align:center;}
-.bis-onboarding-transactions {max-height:100px;overflow-y:scroll;scrollbar-gutter:stable;display:grid;gap:6px;}
-.bis-layer .bis-onboarding-transactions {scrollbar-width:auto;scrollbar-color:#8da6ae #e7eef0;}
-.bis-layer .bis-onboarding-transactions::-webkit-scrollbar {display:block;width:8px;}
+.bis-onboarding-transactions {max-height:100px;overflow-y:scroll;scrollbar-gutter:stable;display:grid;gap:6px;padding-right:var(--bis-scrollbar-content-gap);}
+.bis-layer .bis-onboarding-transactions {scrollbar-width:thin;scrollbar-color:#8da6ae #e7eef0;}
+.bis-layer .bis-onboarding-transactions::-webkit-scrollbar {display:block;width:var(--bis-scrollbar-width);}
 .bis-layer .bis-onboarding-transactions::-webkit-scrollbar-thumb {background:#8da6ae;border-radius:4px;}
 .bis-onboarding-transaction {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:5px;padding:7px;background:#151b23;color:#eef5f9;border-radius:4px;}
 .bis-onboarding-transaction a {width:100%;overflow-wrap:anywhere;color:#82d7ef;font-family:monospace;font-size:10px;}

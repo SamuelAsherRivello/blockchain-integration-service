@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>Bulb</title>
+  <rect width="64" height="64" rx="14" fill="#11151c"/>
+  <path d="M20 27c0-8.3 5.8-14 12-14s12 5.7 12 14c0 5.2-2.3 8.2-5.5 11.8-1.4 1.6-2.3 3-2.6 5.2H28.1c-.3-2.2-1.2-3.6-2.6-5.2C22.3 35.2 20 32.2 20 27Z" fill="#ffd166" stroke="#fff2b2" stroke-width="2.5"/>
+  <path d="M28 49h8M29.5 54h5" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 5v4M9 27h4M51 27h4M15.4 10.4l2.8 2.8M48.6 10.4l-2.8 2.8" stroke="#8fe3cf" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

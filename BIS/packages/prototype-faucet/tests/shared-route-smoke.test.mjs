@@ -9,9 +9,9 @@ test('shared Vite server exposes all five local destinations', async t => {
   await server.listen();
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
   const checks = [
-    ['/admin/', /<title>BIS Admin<\/title>/],
-    ['/marketplace/', /<title>BIS Marketplace<\/title>/],
-    ['/onboarding/', /<title>BIS Onboarding - Spike<\/title>/],
+    ['/admin/', /<title>BIS - Admin<\/title>/],
+    ['/marketplace/', /<title>BIS - Marketplace<\/title>/],
+    ['/onboarding/', /<title>BIS - Onboarding<\/title>/],
     ['/prototype-faucet/', /<title>BIS Prototype Faucet<\/title>/],
     ['/integration/', /<h1[^>]*>Integration package<\/h1>/],
   ];

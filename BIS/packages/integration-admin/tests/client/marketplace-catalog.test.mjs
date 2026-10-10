@@ -79,6 +79,7 @@ test('C.G.2, C.G.3, and C.G.4 report Marketplace progress and results only throu
   assert.match(panel, /Burning \$\{label\}/);
   assert.match(panel, /status:batch\.status, message:batch\.status==='error'\?'Marketplace listing burn is unavailable\.':`\$\{batch\.burned\} item\(s\) burned;/);
   assert.match(panel, /C.G.4\. List All Items For Marketplace/);
+  assert.match(panel, /arkadeAddress: controller\.getState\(\)\.addresses\?\.arkadeAddress \?\? 'Unavailable'/);
   assert.match(panel, /Reading fresh game-wallet assets/);
   assert.match(panel, /Classifying \$\{progress\.total\} asset\(s\)/);
   assert.match(panel, /status:result\.status,message:result\.status==='success'\?`\$\{result\.items\.length\} marketplace item\(s\) found\.`:result\.message/);

@@ -15,7 +15,6 @@ import './overlay.css';
 import { RestoreAccount } from './RestoreAccount';
 import { AccountAddresses } from './AccountAddresses';
 import { AccountCard } from './AccountCard';
-import { AccountIdentity } from './AccountIdentity';
 import { FieldHeading } from './FieldHeading';
 import { FitTextButton } from './FitTextButton';
 import { IconButton } from './IconButton';
@@ -143,12 +142,12 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
   // existing pending surface visible while that bounded read is in flight rather
   // than briefly presenting the default funding stage for a funded account.
   const data = assets ? state.assets : activity ? state.activity : receive ? state.addresses : details || transfer || onboarding ? state.balance : undefined;
-  const phaseLabels: Record<string,string> = {loading:'Loading...',creating:'Creating...',saving:'Saving...',resetting:'Resetting...', 'logging-out':'Logging out...', restoring:'Restoring...', 'restore-saving':'Saving...'};
+  const phaseLabels: Record<string,string> = {loading:'Loading ...',creating:'Creating...',saving:'Saving...',resetting:'Resetting...', 'logging-out':'Logging out...', restoring:'Restoring...', 'restore-saving':'Saving...'};
   const pageLoading = !!data && (data.status === 'idle' || data.status === 'loading');
   const recoveryLoading = savedRecovery && (state.recoveryStatus === 'hidden' || state.recoveryStatus === 'loading');
   const failure = state.error || (!assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
   const accountDetailsLoading = details && pageLoading;
-  usePendingNotice(state.view !== 'empty' && (busy || ((!assets && !accountDetailsLoading) && pageLoading) || recoveryLoading), phaseLabels[state.phase] ?? 'Loading...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
+  usePendingNotice(state.view !== 'empty' && (busy || ((!assets && !accountDetailsLoading) && pageLoading) || recoveryLoading), phaseLabels[state.phase] ?? 'Loading ...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
   const handleBack = () => {
     if (onboarding && developerReturn) {
       // Leave the nested onboarding route explicitly before revealing the
@@ -167,7 +166,7 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
     {contracts && <AccountContracts key={state.profileId} context={context} onDetailChange={setContractOpen} />}
     {activity && <AccountActivity key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
   </div>;
-  const title = gameWalletLogin ? 'Game Wallet' : developer ? 'Developer' : onboarding ? 'Onboarding' : assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Account Transfer' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Accounts Details' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : 'Account';
+  const title = gameWalletLogin ? 'Game Wallet' : developer ? 'Developer' : onboarding ? 'Onboarding' : assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Swap' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Accounts Details' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : 'Account';
   return <div className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
       <AccountCard network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}
@@ -178,7 +177,7 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
             <span className="bis-refresh-image" aria-hidden="true" />
           </IconButton>}
         description={gameWalletLogin ? 'Set the wallet used by this game’s contracts.' : developer ? 'Developer tools for this BIS session.' : (send ? `Send ${networkLabel(state.network)} test funds to another Arkade address.` : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout removes this saved wallet access and its local transaction records. Submitted transactions are not cancelled.' : state.hasProfile ? (onboarding || assets || details || transfer || activity ? null : 'You are logged in.') : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
-        {details && !gameWalletLogin && !developer && <><AccountIdentity profileId={state.profileId} /><AccountBalances balance={state.balance} /></>}
+        {details && !gameWalletLogin && !developer && <><AccountAddresses addresses={state.addresses} arkadeOnly /><AccountBalances balance={state.balance} /></>}
         {onboarding && <AccountOnboarding key={state.profileId} view={state.onboarding} network={state.network} bitcoinAddress={state.addresses.status==='ready'?state.addresses.bitcoinAddress:undefined} balance={state.balance} />}
         {transfer && <AccountTransfer context={context} key={state.profileId} balance={state.balance} onBack={() => context.closeAccount()} />}
         {receive && <AccountAddresses addresses={state.addresses} />}
@@ -269,7 +268,16 @@ export function GameOverlay() {
   const generation = useRef(0);
   if (!context.current) context.current = createBisContext({hasGameWallet:()=>!!gameWallet.current?.getState().profileId,resetGameWallet:async()=>gameWallet.current ? gameWallet.current.reset() : true});
   if (!gameWallet.current) gameWallet.current = createBisGameWallet({playerProfileId: () => context.current?.getState().profileId,playerNetwork:()=>context.current?.getState().network});
-  useEffect(() => context.current!.subscribe(() => { void gameWallet.current?.refresh(); }), []);
+  useEffect(() => {
+    let playerKey = `${context.current!.getState().profileId ?? ''}:${context.current!.getState().network ?? ''}`;
+    return context.current!.subscribe(() => {
+      const next = context.current!.getState();
+      const nextPlayerKey = `${next.profileId ?? ''}:${next.network ?? ''}`;
+      if (nextPlayerKey === playerKey) return;
+      playerKey = nextPlayerKey;
+      void gameWallet.current?.refresh();
+    });
+  }, []);
   useEffect(() => {
     const client = context.current!;
     const current = ++generation.current;

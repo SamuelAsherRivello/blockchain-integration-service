@@ -516,7 +516,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       const request=balanceVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
       const signal=balanceOperation.signal;
       const current=()=>!disposed && !signal.aborted && request===balanceVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && balanceVisible(state);
-      const needsAddresses = state.accountReceive || state.accountOnboarding;
+      const needsAddresses = state.accountReceive || state.accountOnboarding || state.accountDetails;
       const needsBalance = !state.accountReceive;
       if (!background || (needsAddresses && state.addresses.status !== 'ready') || (needsBalance && state.balance.status !== 'ready')) update({balance:needsBalance ? Object.freeze({status:'loading'}) : idleBalance,addresses:needsAddresses ? Object.freeze({status:'loading'}) : idleAddresses});
       let identityReadFailed=false;
@@ -535,7 +535,13 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
             needsBalance ? readBalance(saved.account, attemptSignal) : undefined,
           ]);
           return {addresses,balance};
-        }, signal);
+        // Account Details reads both the derived address and the live balance.
+        // The Arkade SDK may need to initialize its provider and indexer before
+        // either read resolves, so a short foreground deadline turns a healthy
+        // account into an intermittent "could not be loaded" error. Keep the
+        // single retry, but allow each attempt enough time for that startup
+        // work while retaining a bounded foreground wait.
+        }, signal, background ? 30000 : 10000);
         if(current()) {
           if(result.addresses) update({addresses:Object.freeze({status:'ready',...result.addresses})});
           if(result.balance) update({balance:Object.freeze({status:'ready',...result.balance})});

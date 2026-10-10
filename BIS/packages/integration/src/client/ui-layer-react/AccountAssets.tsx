@@ -20,7 +20,7 @@ function AssetIcon({url, background = false, fallback}: {url?:string; background
   const [ready,setReady]=useState<string>();
   const image=useRef<HTMLImageElement>(null);
   const loading=!!source && failed!==source && ready!==source && !preparedIcons.has(source);
-  usePendingNotice(loading && !background,'Loading...',undefined,()=>{});
+  usePendingNotice(loading && !background,'Loading ...',undefined,()=>{});
   useEffect(()=>{
     if(!loading)return;
     const timer=setTimeout(()=>setFailed(source),30000);
@@ -94,7 +94,7 @@ export function AccountAssets({assets, network, onDetailChange, onBack, onBurn, 
   const loading = assets.status === 'idle' || assets.status === 'loading';
   useLayoutEffect(()=>{if(!burning && !burnError && assets.status==='ready')burnOrigin.current=false;},[burning,burnError,assets.status]);
   useEffect(()=>{if(loading && !burning)setBackgroundImages(false);},[loading,burning]);
-  usePendingNotice(loading && !burning,'Loading...', burnError || (assets.status==='unavailable'?'Assets could not be loaded.':undefined),()=>{
+  usePendingNotice(loading && !burning,'Loading ...', burnError || (assets.status==='unavailable'?'Assets could not be loaded.':undefined),()=>{
     setBurnError('');
     if(detailOpen || burnOrigin.current){burnOrigin.current=false;setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;if(assets.status!=='ready')void onRefresh();}
     else onBack();

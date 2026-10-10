@@ -5,7 +5,7 @@ import { createMarketplaceInventoryCoordinator, MARKETPLACE_INVENTORY_CACHE_TTL_
 const item = (assetId='asset-1') => ({catalogId:'stealth-steel-shoes-1',name:'Shoes I',ticker:'SHO1',family:'Shoes',tier:1,priceSats:1000,description:'Increases movement speed by 10%.',attributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:10}],iconUrl:'https://example.com/shoes-1.png',assetId,quantity:'1'});
 const store = () => { const values = new Map(); return { getItem(key){return values.get(key) ?? null;}, setItem(key,value){values.set(key,value);}, removeItem(key){values.delete(key);}, values }; };
 
-test('cache round trips public items and applies the thirty-second freshness boundary', () => {
+test('cache round trips public items and applies the five-minute freshness boundary', () => {
   const local = store();
   writeMarketplaceInventoryCache('player','player-1','mutinynet',[item()],1000,local);
   assert.equal(readMarketplaceInventoryCache('player','player-1','mutinynet',1000 + MARKETPLACE_INVENTORY_CACHE_TTL_MS - 1,local).status,'ready');

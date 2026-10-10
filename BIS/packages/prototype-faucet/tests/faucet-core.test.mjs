@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ArkAddress } from '@arkade-os/sdk';
 import { ALLOWED_AMOUNTS, createFaucetService, createRateLimiter, decodeArkadeAddress, validateArkadeAddress, validateAmount } from '../src/shared/faucet-core.mjs';
+import { parseArgs, parseSats, requestFunding } from '../scripts/fund-address.mjs';
+import { addressScript, parseArgs as parseBalanceArgs, queryBalance } from '../scripts/get-balance.mjs';
 
 const serverKey = new Uint8Array(32).fill(3);
 const destinationKey = new Uint8Array(32).fill(7);
@@ -44,4 +46,38 @@ test('rate limits repeated destination requests', async () => {
   const service = createFaucetService({ infos: { signet: async () => info }, wallets: { signet: { send: async () => ({ operationId: crypto.randomUUID() }) } }, limiter: createRateLimiter({ max: 1 }) });
   await service.request({ network: 'signet', address, amount: 50_000, idempotencyKey: 'one' });
   await assert.rejects(() => service.request({ network: 'signet', address, amount: 50_000, idempotencyKey: 'two' }), /rate limit/);
+});
+
+test('funding CLI requires an explicit amount and accepts sats or k notation', () => {
+  assert.equal(parseSats('50000'), 50_000);
+  assert.equal(parseSats('50k'), 50_000);
+  assert.throws(() => parseArgs(['--address', 'tark1example', '--network', 'signet']), /--amount is required/);
+  assert.throws(() => parseSats('25k'), /one of 50000/);
+});
+
+test('funding CLI serializes the selected network, address, amount, and idempotency key', async () => {
+  let request;
+  const result = await requestFunding(
+    parseArgs(['--address', 'tark1example', '--network', 'signet', '--amount', '100k', '--idempotency-key', 'test-request']),
+    async (url, init) => {
+      request = { url, init };
+      return new Response(JSON.stringify({ operationId: 'op-1', status: 'pending' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    },
+  );
+  assert.deepEqual(result, { operationId: 'op-1', status: 'pending' });
+  assert.equal(request.url, 'http://127.0.0.1:5190/api/faucet/request');
+  assert.deepEqual(JSON.parse(request.init.body), { network: 'signet', address: 'tark1example', amount: 100_000, idempotencyKey: 'test-request' });
+});
+
+test('balance CLI requires network and address and reports indexed sats', async () => {
+  assert.throws(() => parseBalanceArgs(['--network', 'signet']), /--address is required/);
+  assert.throws(() => parseBalanceArgs(['--address', address]), /--network is required/);
+  const result = await queryBalance(parseBalanceArgs(['--address', address, '--network', 'signet']), {
+    arkProvider: { getInfo: async () => info },
+    indexerProvider: { getVtxos: async ({ scripts }) => {
+      assert.deepEqual(scripts, [addressScript(address)]);
+      return { vtxos: [{ amount: 50_000 }, { amount: 25_000 }] };
+    } },
+  });
+  assert.deepEqual(result, { network: 'signet', address, balanceSats: 75_000, vtxoCount: 2 });
 });

@@ -30,7 +30,15 @@ The browser calls `/api/faucet/request` on the same origin. Start the local API 
 npm run server --workspace @spike/prototype-faucet
 ```
 
-Without faucet wallet configuration, the server remains safe but funding requests return unavailable. To enable a controlled live test, provide `FAUCET_SIGNET_MNEMONIC` and/or `FAUCET_MUTINYNET_MNEMONIC` only through the server process environment. Optional `FAUCET_SIGNET_MAX_SATS`, `FAUCET_MUTINYNET_MAX_SATS`, and `FAUCET_PORT` configure non-secret limits and the API port. Never commit these values or place them in `VITE_` variables.
+Without faucet wallet configuration, the server remains safe but funding requests return unavailable. For a one-time local setup, copy `prototype-faucet-env.template` to `.env.local`, then replace the placeholders with `FAUCET_SIGNET_MNEMONIC` and/or `FAUCET_MUTINYNET_MNEMONIC`. The server and AI funding helper load that file automatically; it is ignored by Git. Optional `FAUCET_SIGNET_MAX_SATS`, `FAUCET_MUTINYNET_MAX_SATS`, and `FAUCET_PORT` configure non-secret limits and the API port. Never commit these values or place them in `VITE_` variables.
+
+For an explicit, idempotent request from a terminal, use the funding helper. It automatically starts the local API when it is not already reachable, inheriting credentials from the current server environment. The address, network, and amount are all required; the amount accepts `50000` or `50k` notation and has no default:
+
+```text
+npm run fund --workspace @spike/prototype-faucet -- --address <tark1-address> --network signet --amount 50k
+```
+
+The helper accepts only 50,000, 100,000, or 200,000 sats, starts the local server when needed, sends the request, and prints the public operation result. A `pending` result means the request was accepted for processing; it is not proof that the destination has received the funds. If the faucet mnemonics are not available to the AI or server process, the helper reports an unavailable configuration without exposing or storing them.
 
 ## Verification
 
