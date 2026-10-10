@@ -24,6 +24,8 @@ export { validateMint, normalizeAssetMetadata } from './client/state-layer-core/
 export { createBisAssetCollection } from './client/state-layer-core/asset-collection';
 export type { BisAssetCollectionOptions, BisAssetCollectionState } from './client/state-layer-core/asset-collection';
 export type { BisAsset, BisAssetMetadata, BisAssetMetadataValue, BisMintAssetRequest, BisMintAssetResult, BisListAssetsResult, BisAssetError, BisPendingMintResult } from './client/state-layer-core/assets';
+export { assetDiagnostic, assetDiagnosticCode, diagnoseAssetFailure } from './client/state-layer-core/asset-operation-diagnostics';
+export type { BisAssetDiagnostic, BisAssetDiagnosticCode, BisAssetDiagnosticPhase } from './client/state-layer-core/asset-operation-diagnostics';
 export type { BisAssets } from './client/state-layer-core/asset-presentation';
 export type { BisBurnAssetRequest, BisBurnAssetResult } from './client/state-layer-core/burning';
 export type { BisContext, BisState, BisEvent as BisContextEvent, BisBalance } from './client/state-layer-core/context';
@@ -36,6 +38,7 @@ export { advanceLocalMarketplaceCheckout, beginLocalMarketplaceCheckout, confirm
 export type { BisMarketplaceCheckoutRecord, BisMarketplaceCheckoutRequest } from './client/state-layer-core/marketplace-checkout';
 export { createBisUi, GameOverlay } from './client/ui-layer-react/client';
 export { PendingOperations, usePendingNotice } from './client/ui-layer-react/PendingOperationDialog';
+export type { BisPendingDiagnostic } from './client/ui-layer-react/PendingOperationDialog';
 export { FormValue } from './client/ui-layer-react/FormValue';
 export { FormTooltip, formatBalanceSats } from './client/ui-layer-react/FormTooltip';
 
@@ -51,7 +54,10 @@ export { getBisMarketplaceTradingAvailability } from './client/state-layer-core/
 export type { BisMarketplaceTradingAvailability } from './client/state-layer-core/marketplace-trading';
 export { paymentSupportAvailable } from './client/state-layer-core/capabilities';
 
-export { BIS_STEALTH_AND_STEEL_GAME_ID, bisMarketplaceItems, classifyBisEquipmentAsset, marketplaceItemMetadata } from './client/state-layer-core/equipment';
-export type { BisEquipmentDefinition, BisEquipmentFamily, BisEquipmentItem, BisEquipmentTier } from './client/state-layer-core/equipment';
+export { createSharedArkadeWalletService, normalizeSharedWalletFailure } from './client/wallet-layer-arkade/shared-wallet-service';
+export type { SharedWalletBalance, SharedWalletFailureCode, SharedWalletOperation, SharedWalletScope, SharedWalletState, SharedWalletStore, SharedWalletLock } from './client/wallet-layer-arkade/shared-wallet-service';
+
+export { BIS_STEALTH_AND_STEEL_GAME_ID, bisMarketplaceItems, classifyBisEquipmentAsset, inspectBisEquipmentAsset, marketplaceItemMetadata } from './client/state-layer-core/equipment';
+export type { BisEquipmentClassificationStatus, BisEquipmentDefinition, BisEquipmentFamily, BisEquipmentItem, BisEquipmentTier } from './client/state-layer-core/equipment';
 export { createBisEquipment } from './client/state-layer-core/equipment-loadout';
 export type { BisEquipmentSlots, BisEquipmentState } from './client/state-layer-core/equipment-loadout';

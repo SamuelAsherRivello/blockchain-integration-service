@@ -350,8 +350,11 @@
 .bis-item-list .bis-collection-list::-webkit-scrollbar { display: block; width: var(--bis-scrollbar-width); }
 .bis-item-list .bis-collection-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 4.8px; }
 .bis-item-list .bis-collection-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 4.8px; border: 1.6px solid #e7eef0; }
-.bis-item-list-detail { height: calc(100% - 24px); }
-.bis-item-list-detail .bis-collection-detail { min-height: 0; display: flex; flex: 1 1 auto; max-height: none; overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #8da6ae #e7eef0; padding-right: var(--bis-scrollbar-content-gap); }
+.bis-item-list-detail .bis-collection { flex: 0 1 auto; }
+.bis-item-list-detail .bis-collection-detail { min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+.bis-item-list-detail .bis-address-row { display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; min-height: 0; }
+.bis-item-list-detail .bis-report { flex: none; min-height: 0; }
+.bis-layer .bis-item-list-detail .bis-report textarea { flex: none; height: 192px; max-height: 192px; min-height: 0; font: 8.8px/1.6 ui-monospace, monospace; padding: 6.4px 8px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; color: #294650; background: #fff; }
 .bis-item-list .bis-collection-list > li { flex: none; }
 .bis-item-list .bis-collection-item { height: var(--bis-item-height); overflow: hidden; padding: 8px; font-size: 9.6px; line-height: 1.5; }
 .bis-item-list .bis-collection-item:has(.bis-asset-icon) { display: grid; grid-template-columns: 19.2px minmax(0, 1fr); align-items: center; gap: 8px; }

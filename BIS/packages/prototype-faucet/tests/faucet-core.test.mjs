@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ArkAddress } from '@arkade-os/sdk';
-import { ALLOWED_AMOUNTS, createFaucetService, createRateLimiter, decodeArkadeAddress, validateArkadeAddress, validateAmount } from '../src/shared/faucet-core.mjs';
+import { ALLOWED_AMOUNTS, createFaucetService, createRateLimiter, decodeArkadeAddress, safeError, validateArkadeAddress, validateAmount } from '../src/shared/faucet-core.mjs';
 import { parseArgs, parseSats, requestFunding } from '../scripts/fund-address.mjs';
 import { addressScript, parseArgs as parseBalanceArgs, queryBalance } from '../scripts/get-balance.mjs';
+import { createFaucetApiLifecycle } from '../src/shared/faucet-api-lifecycle.mjs';
+import { readFaucetBalance } from '../src/shared/faucet-wallet-state.mjs';
 
 const serverKey = new Uint8Array(32).fill(3);
 const destinationKey = new Uint8Array(32).fill(7);
@@ -25,6 +27,10 @@ test('accepts only the bounded prototype amounts', () => {
   assert.deepEqual(ALLOWED_AMOUNTS, [50_000, 100_000, 200_000]);
   assert.equal(validateAmount(100_000, 200_000), 100_000);
   for (const value of [0, -1, 1, 300_000, '100000.5']) assert.throws(() => validateAmount(value, 200_000));
+});
+
+test('sanitizes fee-estimation failures into an actionable onboarding message', () => {
+  assert.deepEqual(safeError(new Error('failed to estimate fee rate: fee-estimation-unavailable')), { code: 'UNAVAILABLE', message: 'Arkade operator fee estimation is unavailable. Try again later.' });
 });
 
 test('server service validates, idempotently sends, and returns pending status', async () => {
@@ -80,4 +86,57 @@ test('balance CLI requires network and address and reports indexed sats', async 
     } },
   });
   assert.deepEqual(result, { network: 'signet', address, balanceSats: 75_000, vtxoCount: 2 });
+});
+
+test('faucet balance reads do not prepare or settle the wallet', async () => {
+  let prepared = false;
+  const result = await readFaucetBalance({
+    getBalance: async () => ({ total: 300_000n, available: 0n, settled: 0n, preconfirmed: 0n, recoverable: 0n }),
+    prepare: async () => { prepared = true; throw new Error('fee-estimation-unavailable'); },
+  });
+  assert.deepEqual(result, { total: 300_000, available: 0, settled: 0, preconfirmed: 0, recoverable: 0 });
+  assert.equal(prepared, false);
+});
+
+test('faucet API lifecycle reuses a healthy API and starts one child only when needed', async () => {
+  let fetchCalls = 0;
+  let spawns = 0;
+  let killed = 0;
+  const lifecycle = createFaucetApiLifecycle({
+    apiPort: 5190,
+    packageRoot: 'package-root',
+    processPath: 'node',
+    env: {},
+    fetchImpl: async () => { fetchCalls += 1; return new Response('', { status: fetchCalls === 1 ? 503 : 200 }); },
+    spawnImpl: (...args) => { spawns += 1; return { args, kill: () => { killed += 1; } }; },
+    waitMs: 0,
+    attempts: 3,
+  });
+  assert.deepEqual(await lifecycle.start(), { started: true });
+  assert.equal(spawns, 1);
+  lifecycle.close();
+  assert.equal(killed, 1);
+});
+
+test('faucet API lifecycle does not own or kill an already healthy API', async () => {
+  let spawns = 0;
+  const lifecycle = createFaucetApiLifecycle({
+    fetchImpl: async () => new Response('', { status: 200 }),
+    spawnImpl: () => { spawns += 1; return { kill() {} }; },
+  });
+  assert.deepEqual(await lifecycle.start(), { started: false });
+  lifecycle.close();
+  assert.equal(spawns, 0);
+});
+
+test('faucet API lifecycle fails boundedly when startup never becomes healthy', async () => {
+  let killed = 0;
+  const lifecycle = createFaucetApiLifecycle({
+    fetchImpl: async () => new Response('', { status: 503 }),
+    spawnImpl: () => ({ kill: () => { killed += 1; } }),
+    waitMs: 0,
+    attempts: 2,
+  });
+  await assert.rejects(() => lifecycle.start(), /could not be started or reached/);
+  assert.equal(killed, 1);
 });

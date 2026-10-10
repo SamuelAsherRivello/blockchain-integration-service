@@ -23,6 +23,53 @@ function fixture() {
  const controller=createBisContinue(context,{context:'session/death',onSuccess:r=>success.push(r)});
  return {controller,submitted,toasts,success,listeners,receipt,setResult:v=>result=v,setRecords:v=>records=v,release:()=>release(),replace:value=>{state=value;for(const l of listeners)l();}};
 }
+
+for (const canPay of [true, false]) test(`initial delayed eligibility settles before Admin checks payment (${canPay})`, async () => {
+ let resolveAvailability, submitted=0;
+ const controller=createBisContinue({
+  getState:()=>({hasProfile:true,phase:'active',profileId:'p'}),subscribe:()=>()=>{},showToast(){},
+  getContinueAvailability:()=>new Promise(resolve=>{resolveAvailability=resolve;}),
+  requestContinue:async request=>{submitted++;return {...request,profileId:'p',status:'succeeded'};},
+ },{context:'admin-click',onSuccess(){}});
+ assert.equal(controller.getState().canPay,false);
+ const clicked=(async()=>{
+  await controller.readyAsync();
+  if(controller.getState().canPay)await controller.pay();
+ })();
+ assert.equal(submitted,0);
+ resolveAvailability({canPay});
+ await clicked;
+ assert.equal(submitted,canPay?1:0);
+ assert.equal(controller.getState().status,canPay?'succeeded':'idle');
+ controller.dispose();
+});
+
+test('an unreadable initial balance cannot submit a continuation',async()=>{
+ const controller=createBisContinue({
+  getState:()=>({hasProfile:true,phase:'active',profileId:'p'}),subscribe:()=>()=>{},showToast(){},
+  getContinueAvailability:async()=>{throw Error('offline');},
+  requestContinue:async()=>assert.fail('An unverified balance must not submit'),
+ },{context:'balance-unavailable',onSuccess(){assert.fail('Must not succeed');}});
+ await controller.readyAsync();
+ assert.equal(controller.getState().canPay,false);
+ await controller.pay();
+ assert.equal(controller.getState().status,'idle');
+ controller.dispose();
+});
+
+test('disposing during initial readiness prevents a late payment',async()=>{
+ let resolveAvailability;
+ const controller=createBisContinue({
+  getState:()=>({hasProfile:true,phase:'active',profileId:'p'}),subscribe:()=>()=>{},showToast(){},
+  getContinueAvailability:()=>new Promise(resolve=>{resolveAvailability=resolve;}),
+  requestContinue:async()=>assert.fail('A disposed controller must not submit'),
+ },{context:'abandoned-click',onSuccess(){assert.fail('Must not succeed');}});
+ controller.dispose();
+ resolveAvailability({canPay:true});
+ await controller.readyAsync();
+ assert.equal(controller.getState().canPay,false);
+ await controller.pay();
+});
 test('BIS owns price; logged out can never submit',async()=>{
  const f=fixture();assert.equal(getContinuePriceSats(),1000);assert.equal(f.controller.getState().sats,1000);
  f.replace({hasProfile:false,phase:'idle'});assert.equal(f.controller.getState().canPay,false);await f.controller.pay();assert.equal(f.submitted.length,0);f.controller.dispose();

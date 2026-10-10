@@ -22,6 +22,7 @@ export type BisEquipmentItem = BisEquipmentDefinition & Readonly<{
   assetId: string;
   quantity: string;
 }>;
+export type BisEquipmentClassificationStatus = 'ready' | 'generic' | 'migration-required' | 'invalid-metadata';
 
 const publicAssetRoot = 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1';
 const familyData = [
@@ -103,18 +104,13 @@ export function classifyBisEquipmentAsset(asset: BisAsset): BisEquipmentItem | n
     || metadata.bisTier !== String(definition.tier)
     || metadata.bisPriceSats !== String(definition.priceSats)) return null;
 
-  // Older issued marketplace assets contain the validated catalog identity but
-  // predate the optional description/effect fields. Keep those real holdings
-  // discoverable by deriving only omitted presentation fields from the same
-  // canonical definition; malformed fields that are present remain rejected.
-  const description = metadata.bisDescription === undefined
-    ? definition.description
-    : typeof metadata.bisDescription === 'string' && metadata.bisDescription.trim()
-      ? metadata.bisDescription
-      : undefined;
-  const attributeDeltas = metadata.bisAttributeDeltas === undefined
-    ? definition.attributeDeltas
-    : readAttributeDeltas(metadata.bisAttributeDeltas);
+  // Chain metadata is the only gameplay authority. A legacy holding may still
+  // appear in generic inventory, but it is not classified/equippable until
+  // both its presentation and structured gameplay fields are present.
+  const description = typeof metadata.bisDescription === 'string' && metadata.bisDescription.trim()
+    ? metadata.bisDescription
+    : undefined;
+  const attributeDeltas = readAttributeDeltas(metadata.bisAttributeDeltas);
   if (!description || !attributeDeltas) return null;
 
   try {
@@ -124,4 +120,21 @@ export function classifyBisEquipmentAsset(asset: BisAsset): BisEquipmentItem | n
   }
 
   return Object.freeze({ ...definition, description, attributeDeltas, assetId: asset.assetId, quantity: asset.quantity, iconUrl: asset.iconUrl });
+}
+
+/**
+ * Reports why a positive generic holding is not a Marketplace item. This is
+ * intentionally separate from classification so generic inventory remains
+ * visible and no presentation field is promoted into gameplay authority.
+ */
+export function inspectBisEquipmentAsset(asset: BisAsset): BisEquipmentClassificationStatus {
+  if (!asset.metadata) return 'generic';
+  const metadata = asset.metadata;
+  const hasMarketplaceEnvelope = metadata.bisGameId !== undefined || metadata.bisAssetType !== undefined
+    || metadata.bisCatalogId !== undefined || metadata.bisEquipmentFamily !== undefined;
+  if (!hasMarketplaceEnvelope) return 'generic';
+  if (metadata.bisGameId !== BIS_STEALTH_AND_STEEL_GAME_ID || metadata.bisAssetType !== 'item'
+    || typeof metadata.bisCatalogId !== 'string' || !byCatalogId.has(metadata.bisCatalogId)) return 'invalid-metadata';
+  if (metadata.bisDescription === undefined || metadata.bisAttributeDeltas === undefined) return 'migration-required';
+  return classifyBisEquipmentAsset(asset) ? 'ready' : 'invalid-metadata';
 }

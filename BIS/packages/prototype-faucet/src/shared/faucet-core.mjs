@@ -40,6 +40,7 @@ export function validateAmount(amount, maximum = Number.POSITIVE_INFINITY) {
 
 export function safeError(error, fallback = 'The faucet is unavailable.') {
   const code = error?.code;
+  if (String(error?.message ?? '').includes('fee-estimation-unavailable')) return { code: 'UNAVAILABLE', message: 'Arkade operator fee estimation is unavailable. Try again later.' };
   if (['ADDRESS_INVALID', 'NETWORK_INVALID', 'AMOUNT_INVALID', 'LIMIT_EXCEEDED', 'RATE_LIMITED', 'IDEMPOTENCY_CONFLICT'].includes(code)) return { code, message: error.message };
   return { code: 'UNAVAILABLE', message: fallback };
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bisMarketplaceItems, classifyBisEquipmentAsset, marketplaceItemMetadata } from '../../src/client/state-layer-core/equipment.ts';
+import { bisMarketplaceItems, classifyBisEquipmentAsset, inspectBisEquipmentAsset, marketplaceItemMetadata } from '../../src/client/state-layer-core/equipment.ts';
 
 test('the shared catalog defines exactly nine approved items, prices, structured effects, and immutable URLs', () => {
   assert.deepEqual(bisMarketplaceItems.map(item => item.name), [
@@ -33,12 +33,21 @@ test('the classifier accepts matching item metadata and preserves the chain icon
   assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: undefined }), null);
 });
 
-test('the classifier accepts older issued items that omit optional description and effect metadata', () => {
+test('the classifier rejects legacy items that omit authoritative metadata', () => {
   const definition = bisMarketplaceItems[0];
   const metadata = { bisSchemaVersion: '1', ...marketplaceItemMetadata(definition) };
   const legacyMetadata = { ...metadata };
   delete legacyMetadata.bisDescription;
   delete legacyMetadata.bisAttributeDeltas;
   const asset = { assetId: 'legacy-shoes-1', quantity: '1', iconUrl: definition.iconUrl, metadata: legacyMetadata };
-  assert.deepEqual(classifyBisEquipmentAsset(asset), { ...definition, assetId: asset.assetId, quantity: '1', iconUrl: asset.iconUrl });
+  assert.equal(classifyBisEquipmentAsset(asset), null);
+  assert.equal(inspectBisEquipmentAsset(asset), 'migration-required');
+});
+
+test('generic and malformed holdings retain safe, explicit classification diagnostics', () => {
+  assert.equal(inspectBisEquipmentAsset({ assetId:'generic', quantity:'1', metadata:{communityTag:'external'} }), 'generic');
+  const item = bisMarketplaceItems[0];
+  const metadata = { bisSchemaVersion:'1', ...marketplaceItemMetadata(item) };
+  assert.equal(inspectBisEquipmentAsset({ assetId:'invalid', quantity:'1', iconUrl:item.iconUrl, metadata:{...metadata,bisPriceSats:'999'} }), 'invalid-metadata');
+  assert.equal(inspectBisEquipmentAsset({ assetId:'ready', quantity:'1', iconUrl:item.iconUrl, metadata }), 'ready');
 });

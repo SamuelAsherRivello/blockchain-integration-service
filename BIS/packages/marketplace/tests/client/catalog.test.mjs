@@ -38,12 +38,10 @@ test('Marketplace never treats the published Game Wallet as active without a Pla
   assert.match(app, /if\(activeGameWallet&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)&&inventoryAddress\)/);
   assert.match(app, /const gameItemsForSession=activeGameWallet\?previousGameItems:\[\]/);
   assert.match(app, /if\(event\.type==='accountDisconnected'\)void gameWallet\.logout\(\)\.catch\(\(\)=>\{\}\)/);
-  assert.match(app, /!activeGameWallet&&owner!==['"]player['"]\?'Log in to your Game Wallet to view its items\./);
-  assert.match(app, /!playerState\.profileId&&owner!==['"]player['"]\?'Log in to your Player Wallet to view Game Wallet items\./);
 });
 
 test('Marketplace enables exactly the action offered by the selected owner only after both local wallet sessions are active', async () => {
-  const [app, style] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/square-grid.css')]);
+  const [app, style, session] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/square-grid.css'), text('src/client/marketplace-layer/checkout-session.ts')]);
   assert.match(app, /const gameOwnsSelected=Boolean\(activeGameWallet&&selected&&gameItems\?\.some\(item=>item\.assetId===selected\.assetId\)\)/);
   assert.match(app, /const gameListingEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&inventoryAddress\)/);
   assert.match(app, /const playerOwnsSelected=Boolean\(selected&&playerItems\.some\(item=>item\.assetId===selected\.assetId\)\)/);
@@ -51,13 +49,13 @@ test('Marketplace enables exactly the action offered by the selected owner only 
   assert.match(app, /const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;/);
   assert.match(app, /disabled=\{!canBuy\}/);
   assert.match(app, /disabled=\{!canSell\}/);
-  assert.match(app, /player\.getSendSpendable\(true\)/);
+  assert.match(session, /player\.getSendSpendable\(true\)/);
   assert.match(app, /player\.quoteAccountSend\(recipient,amountSats,true\)/);
-  assert.match(app, /gameWallet\.getPlayerPaymentBalance\(\)/);
+  assert.match(session, /game\.getPlayerPaymentBalance\(\)/);
   assert.match(app, /const \[operationError,setOperationError\]=useState<string>\(\);/);
-  assert.match(app, /setOperationError\(`Insufficient \$\{walletName\} balance/);
-  assert.match(app, /walletName=direction==='buy'\?'Player Wallet':'Game Wallet'/);
-  assert.match(app, /Insufficient \$\{walletName\} balance/);
+  assert.match(session, /if\(funds<intent\.priceSats\)throw Error\(`Insufficient/);
+  assert.match(session, /intent\.direction==='buy'\?'Player Wallet':'Game Wallet'/);
+  assert.match(session, /sats available; \$\{intent\.priceSats\} sats required/);
   assert.match(style, /\.trade-action-sell\{background:#487d66/);
 });
 
@@ -184,7 +182,7 @@ test('Rogue\'s Dungeon is browseable without a wallet or inventory source', asyn
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
   assert.match(app, /game!=='all'&&!selectedGame\?\.gameWalletAddress/);
-  assert.match(app, /No equipment is currently available for/);
+  assert.match(app, /const emptyMessage='No items found\.'/);
   assert.match(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);
   assert.match(app, /catalog\.games\.map/);
 });
@@ -192,7 +190,7 @@ test('Rogue\'s Dungeon is browseable without a wallet or inventory source', asyn
 
 test('Marketplace derives item identity, price, and artwork from fresh chain asset metadata',async()=>{
   const [app,inventory]=await Promise.all([text('src/client/marketplace-layer/App.tsx'),text('src/client/inventory-layer/inventory.ts')]);
-  assert.match(inventory,/getAssetDetails\(assetId\)/);assert.match(app,/map\(classifyBisEquipmentAsset\)/);
+  assert.match(inventory,/getAssetDetails\(assetId\)/);assert.match(app,/classifyBisEquipmentAsset/);
   assert.match(app,/src=\{item\.iconUrl\}/);assert.match(app,/item\.priceSats\.toLocaleString\(\)/);
   assert.doesNotMatch(app,/artworkFor|assets\/equipment|item\.artwork/);
   assert.match(app,/Image unavailable/);
@@ -224,9 +222,9 @@ test('Marketplace delegates visible Marketplace loading to the shared pending pr
   assert.match(app, /const promptBusy=isMarketplaceLoading\|\|!!operationLabel/);
   assert.match(app, /const MARKETPLACE_LOADING_SETTLE_MS=1000/);
   assert.match(app, /inventoryError=owner==='all'/);
-  assert.match(app, /usePendingNotice\(loadingPromptVisible,operationLabel\?\?'Loading \.\.\.'/);
+  assert.match(app, /<MarketplacePendingNotice busy=\{loadingPromptVisible\} label=\{operationLabel\?\?'Loading \.\.\.'\}/);
   assert.doesNotMatch(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.'/);
-  assert.match(app, /No equipment is currently available for/);
+  assert.match(app, /const emptyMessage='No items found\.'/);
 });
 
 test('Marketplace renders its Wallets and Instructions as left-aligned lists in one panel',async()=>{

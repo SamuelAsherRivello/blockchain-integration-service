@@ -3,7 +3,7 @@ export type BisMarketplaceCheckoutRequest=Readonly<{id:string;direction:BisMarke
 export type BisMarketplaceCheckoutRecord=Readonly<{version:1;request:BisMarketplaceCheckoutRequest;status:'pending'|'completed';phase:'payment'|'payment-submitted'|'delivery'|'delivery-submitted'|'completed';paymentTransactionId?:string;deliveryTransactionId?:string;message?:string}>;
 type PaymentResult=Readonly<{status:'succeeded'|'pending';transactionId?:string}>;
 type DeliveryResult=Readonly<{status:'delivered'|'pending';transactionId?:string}>;
-export type BisMarketplaceCheckoutDependencies=Readonly<{pay(input:Readonly<{recipient:string;amountSats:number}>):Promise<PaymentResult>;deliver(input:Readonly<{recipient:string;assetId:string;quantity:string}>):Promise<DeliveryResult>}>;
+export type BisMarketplaceCheckoutDependencies=Readonly<{isCurrent?():boolean;pay(input:Readonly<{recipient:string;amountSats:number}>):Promise<PaymentResult>;deliver(input:Readonly<{recipient:string;assetId:string;quantity:string}>):Promise<DeliveryResult>}>;
 
 const prefix='bis-local-marketplace-checkout-v1:';
 const key=(id:string)=>prefix+id;
@@ -73,10 +73,13 @@ function completed(record:BisMarketplaceCheckoutRecord):BisMarketplaceCheckoutRe
 export async function advanceLocalMarketplaceCheckout(record:BisMarketplaceCheckoutRecord,deps:BisMarketplaceCheckoutDependencies):Promise<BisMarketplaceCheckoutRecord> {
   let current=readLocalMarketplaceCheckout(record.request.id);
   if(!current||JSON.stringify(current.request)!==JSON.stringify(record.request))throw Error('Marketplace checkout changed.');
+  if(deps.isCurrent?.()===false)return current;
   if(current.status==='completed'||current.phase==='payment-submitted'||current.phase==='delivery-submitted')return current;
   if(current.phase==='payment') {
     current=pending(current,'payment-submitted','Payment submitted; awaiting confirmation.');
     const result=await deps.pay({recipient:current.request.direction==='buy'?current.request.game.address:current.request.player.address,amountSats:current.request.priceSats});
+    if(deps.isCurrent?.()===false)return current;
+    if(result.transactionId&&/^[a-f0-9]{64}$/i.test(result.transactionId))current=write({...current,paymentTransactionId:result.transactionId});
     if(result.status!=='succeeded'||!result.transactionId||!/^[a-f0-9]{64}$/i.test(result.transactionId))return current;
     current=current.request.direction==='buy'
       ?write({...current,phase:'delivery',...(result.transactionId?{paymentTransactionId:result.transactionId}:{}),message:'Payment confirmed; preparing item delivery.'})
@@ -86,6 +89,7 @@ export async function advanceLocalMarketplaceCheckout(record:BisMarketplaceCheck
   if(current.phase==='delivery') {
     current=pending(current,'delivery-submitted','Completing checkout.');
     const result=await deps.deliver({recipient:current.request.direction==='buy'?current.request.player.address:current.request.game.address,assetId:current.request.assetId,quantity:current.request.quantity});
+    if(deps.isCurrent?.()===false)return current;
     if(result.status!=='delivered'||!result.transactionId||!/^[a-f0-9]{64}$/i.test(result.transactionId))return current;
     current=current.request.direction==='buy'
       ?completed({...current,...(result.transactionId?{deliveryTransactionId:result.transactionId}:{})})
@@ -97,6 +101,8 @@ export async function advanceLocalMarketplaceCheckout(record:BisMarketplaceCheck
   if(current.phase==='payment') {
     current=pending(current,'payment-submitted','Payment submitted; awaiting confirmation.');
     const result=await deps.pay({recipient:current.request.player.address,amountSats:current.request.priceSats});
+    if(deps.isCurrent?.()===false)return current;
+    if(result.transactionId&&/^[a-f0-9]{64}$/i.test(result.transactionId))current=write({...current,paymentTransactionId:result.transactionId});
     if(result.status!=='succeeded'||!result.transactionId||!/^[a-f0-9]{64}$/i.test(result.transactionId))return current;
     return completed({...current,paymentTransactionId:result.transactionId});
   }

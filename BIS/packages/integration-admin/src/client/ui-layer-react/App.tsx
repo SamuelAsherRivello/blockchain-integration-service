@@ -24,6 +24,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
   const [state, setState] = useState<BisState>();
   const [runtimeContext,setRuntimeContext]=useState<BisContext>();
   const continueController=useRef<ReturnType<typeof createBisContinue> | undefined>(undefined);
+  const continuePreparing=useRef(false);
   const [recipient, setRecipient] = useState<string | undefined>();
   const [continueBusy,setContinueBusy]=useState(false);
   const [continueReadiness,setContinueReadiness]=useState<{canPay:boolean;reason?:string}>({canPay:false,reason:'Checking balance'});
@@ -42,7 +43,9 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
     return()=>{active=false;clearInterval(timer);};
   },[state?.profileId,state?.phase,continueBusy,state?.balance,recipient]);
   async function requestContinue() {
-    const current=session.current;if(!current || continueController.current?.getState().status==='pending')return;
+    const current=session.current;if(!current || continuePreparing.current || continueController.current?.getState().status==='pending')return;
+    continuePreparing.current=true;setContinueBusy(true);
+    try {
     continueController.current?.dispose();
     const controller=createBisContinue(current.context,{context:crypto.randomUUID(),onSuccess:result=>{
       if(session.current===current)logAsset('Request Continue',result);
@@ -51,13 +54,15 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
     let notifiedStatus='';
     controller.subscribe(()=>{
       if(session.current!==current)return;
-      const result=controller.getState();setContinueBusy(result.status==='pending');
+      const result=controller.getState();setContinueBusy(continuePreparing.current || result.status==='pending');
       if(result.status!=='succeeded')logAsset('Request Continue',result);
       if(result.message && result.status!==notifiedStatus && (result.status==='pending' || result.status==='failed')) {
         notifiedStatus=result.status;
         current.context.showToast(result.message, {messageType: result.status === 'failed' ? 'error' : 'info'});
       }
     });
+    await controller.readyAsync();
+    if(session.current!==current || continueController.current!==controller)return;
     if(!controller.getState().canPay){
       const message=current.context.getState().hasProfile
         ? controller.getState().message || 'Payment is unavailable. Try again when your account is ready.'
@@ -67,6 +72,10 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
       return;
     }
     await controller.pay();
+    } finally {
+      continuePreparing.current=false;
+      if(session.current===current)setContinueBusy(continueController.current?.getState().status==='pending');
+    }
   }
   const [completionOpen, setCompletionOpen] = useState(false);
   const [completionBusy, setCompletionBusy] = useState(false);
@@ -145,7 +154,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
     // player context or interrupting reconciliation of an existing payment.
     let gameWallet: ReturnType<typeof createBisGameWallet> | undefined;
     const context = contextFactory({get continueRecipient() { return recipientRef.current; },gameWalletProfileId: () => gameWalletRef.current?.getState().profileId,hasGameWallet:()=>!!gameWallet?.getState().profileId,resetGameWallet:async()=>gameWallet ? gameWallet.reset() : true});
-    gameWallet = gameWalletFactory({playerProfileId: () => context.getState().profileId,playerNetwork:()=>context.getState().network});
+    gameWallet = gameWalletFactory({playerProfileId: () => context.getState().profileId,playerNetwork:()=>context.getState().network,playerSubscribe:context.subscribe,playerSessionKey:()=>JSON.stringify([context.getState().profileId,context.getState().phase,context.getState().network])});
     let playerKey = `${context.getState().profileId ?? ''}:${context.getState().network ?? ''}`;
     context.subscribe(() => {
       const next = context.getState();

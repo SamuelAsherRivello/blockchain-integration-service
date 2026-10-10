@@ -9,18 +9,20 @@ test('Marketplace derives every visible network route from the selected Player W
   const [app, inventory] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/inventory-layer/inventory.ts')]);
 
   assert.match(app, /const network=playerState\.network;/);
-  assert.match(app, /createBisGameWallet\(\{playerProfileId:\(\)=>playerRef\.current\?\.getState\(\)\.profileId,playerNetwork:\(\)=>playerRef\.current\?\.getState\(\)\.network\}\)/);
-  assert.match(app, /createBisContext\(\{hasGameWallet:\(\)=>!!gameWallet\.getState\(\)\.profileId,resetGameWallet:async\(\)=>gameWallet\.reset\(\)\}\)/);
+  assert.match(app, /playerNetwork:\(\)=>player\.getState\(\)\.network,playerSubscribe:player\.subscribe/);
+  assert.match(app, /playerSessionKey:\(\)=>JSON\.stringify\(\[player\.getState\(\)\.profileId,player\.getState\(\)\.phase,player\.getState\(\)\.network\]\)/);
+  assert.match(app, /hasGameWallet:\(\)=>!!gameWalletRef\.current\?\.getState\(\)\.profileId,resetGameWallet:async\(\)=>await gameWalletRef\.current\?\.reset\(\) \?\? false/);
   assert.match(app, /if\(isCatalogLoading\|\|!network\)return \[\];/);
-  assert.match(app, /readPublicInventory\(inventoryAddress,new AbortController\(\)\.signal,network\)/);
+  assert.match(app, /prepareAssetInventory\?await player\.prepareAssetInventory\(\):undefined/);
+  assert.match(app, /gameWallet\.prepareAssetInventory\?\.\(\)/);
   assert.match(app, /Network: \{networkLabel\(network\)\}/);
   assert.match(app, /arkExplorerAssetUrl\(network,selected\.assetId\)/);
   assert.doesNotMatch(app, /Network: Signet/);
   assert.doesNotMatch(app, /explorer\.signet\.arkade\.sh/);
 
-  assert.match(inventory, /readPublicInventory\(address: string, signal: AbortSignal, network: TestNetwork\)/);
-  assert.match(inventory, /new RestIndexerProvider\(testNetwork\(network\)\.operator\)/);
-  assert.doesNotMatch(inventory, /const operator = 'https:\/\/signet\.arkade\.sh'/);
+  assert.match(app, /network,read:/);
+  assert.match(app, /arkExplorerAssetUrl\(network,selected\.assetId\)/);
+  assert.doesNotMatch(app, /const operator = 'https:\/\/signet\.arkade\.sh'/);
 });
 
 test('the Admin demo gets its funding and explorer links from the active network registry', async () => {

@@ -9,6 +9,7 @@ import {onboardingFailure,type OnboardingAdapter,type OnboardingFacts,type Onboa
 import {onboardingStream} from '../state-layer-core/onboarding-stream.ts';
 import {settlementTimeoutMs} from '../state-layer-core/boarding-status.ts';
 import {withBrowserMutation} from '../state-layer-core/logout-cleanup.ts';
+import {createSharedArkadeWalletService} from './shared-wallet-service.ts';
 const hex=(value:Uint8Array)=>Array.from(value,b=>b.toString(16).padStart(2,'0')).join('');
 const plain=({txid,vout,value}:OnboardingCoin)=>({txid,vout,value});
 const point=(c:{txid:string;vout:number})=>`${c.txid}:${c.vout}`;
@@ -145,7 +146,8 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
             if(selected.some(c=>c&&'assets' in c&&Array.isArray(c.assets)&&c.assets.length))throw Error('Onboarding inputs contain assets.');
             const params:SettleParams={inputs:selected as SettleParams['inputs'],outputs:which==='boarding'?[{address:own,amount:BigInt(p.totalSats)}]:[{address,amount:BigInt(p.returnSats)},{address:own,amount:BigInt(p.targetSats)}]};
             // The SDK builds/signs the exact constrained input/output intent.
-            settling=wallet.settle(params);
+            const shared=createSharedArkadeWalletService({scope:{walletId:account.profileId,network:scope.network,operator:scope.operator,role:'player'},wallet,provider});
+            settling=shared.settleExact(params);
             const commitment=await bounded(settling,active,Math.max(1,deadline-Date.now()));
             await checkpoint(v=>v.plan&&v.id===r.id&&v.status==='pending'?{...v,[which]:{...v[which],commitmentTxid:commitment,finalizedAt:v[which].finalizedAt??Date.now()},progress:{stage:'broadcast',at:Date.now()}}:v);
           }catch(error){

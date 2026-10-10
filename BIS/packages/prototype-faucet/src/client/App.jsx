@@ -25,14 +25,20 @@ export function App({ request = defaultRequest } = {}) {
   const validFormat = useMemo(() => isValidArkAddress(address.trim()), [address]);
   const amountValue = useMemo(() => Number(amount.trim()), [amount]);
   const validAmount = useMemo(() => /^\d+$/.test(amount.trim()) && ALLOWED_AMOUNTS.includes(amountValue), [amount, amountValue]);
-  const busy = state.status === 'submitting';
+  const busy = ['submitting', 'onboarding'].includes(state.status);
   const ready = validFormat && validAmount && balance.status === 'ready' && balance.available >= amountValue;
+  const needsOnboarding = balance.status === 'ready' && Number(balance.total ?? 0) > Number(balance.available ?? 0);
   useEffect(() => {
     const controller = new AbortController();
     setBalance({ status: 'loading', message: 'Checking faucet balance…' });
     fetch(apiUrl(`balance?network=${encodeURIComponent(network)}`), { signal: controller.signal })
       .then(async response => { const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.message ?? 'The faucet balance is unavailable.'); return body; })
-      .then(result => setBalance({ status: 'ready', ...result }))
+      .then(result => {
+        setBalance({ status: 'ready', ...result });
+        const onboarding = result.onboarding;
+        if (onboarding?.status === 'pending') setState({ status: 'pending', message: 'Onboarding is still being reconciled.', operationId: onboarding.id });
+        else if (onboarding?.status === 'failed' && onboarding.failureMessage) setState({ status: 'error', message: onboarding.failureMessage, operationId: onboarding.id });
+      })
       .catch(error => { if (error?.name !== 'AbortError') setBalance({ status: 'error', message: error?.message ?? 'The faucet balance is unavailable.' }); });
     return () => controller.abort();
   }, [network, refreshKey]);
@@ -59,9 +65,9 @@ export function App({ request = defaultRequest } = {}) {
     } catch (error) { if (error?.name !== 'AbortError') setState({ status: 'error', message: error?.message ?? 'The faucet is unavailable.' }); }
     finally { if (requestController.current === controller) requestController.current = undefined; }
   }
-  const statusKind = ['submitting', 'success', 'pending', 'error'].includes(state.status) ? state.status : ready ? 'ready' : balance.status === 'loading' ? 'checking' : 'not-ready';
-  const statusLabel = statusKind === 'success' ? 'Success' : statusKind === 'pending' ? 'Pending' : statusKind === 'error' ? 'Unavailable' : statusKind === 'submitting' ? 'Submitting' : statusKind === 'checking' ? 'Checking' : statusKind === 'ready' ? 'Ready' : 'Not ready';
-  const statusMessage = ['submitting', 'success', 'pending', 'error'].includes(state.status) ? state.message : balance.status === 'error' ? balance.message : ready ? 'The faucet is configured and has enough balance for this request.' : !validFormat ? 'Enter a valid Arkade destination address.' : !validAmount ? 'Choose one of the available amounts.' : balance.status === 'loading' ? 'Checking faucet availability…' : 'The faucet does not have enough available balance for this request.';
+  const statusKind = ['submitting', 'onboarding', 'success', 'pending', 'error'].includes(state.status) ? state.status : ready ? 'ready' : balance.status === 'loading' ? 'checking' : 'not-ready';
+  const statusLabel = statusKind === 'success' ? 'Success' : statusKind === 'pending' ? 'Pending' : statusKind === 'error' ? 'Unavailable' : statusKind === 'submitting' ? 'Submitting' : statusKind === 'onboarding' ? 'Onboarding' : statusKind === 'checking' ? 'Checking' : statusKind === 'ready' ? 'Ready' : 'Not ready';
+  const statusMessage = ['submitting', 'onboarding', 'success', 'pending', 'error'].includes(state.status) ? state.message : balance.status === 'error' ? balance.message : ready ? 'The faucet is configured and has enough balance for this request.' : !validFormat ? 'Enter a valid Arkade destination address.' : !validAmount ? 'Choose one of the available amounts.' : balance.status === 'loading' ? 'Checking faucet availability…' : 'The faucet does not have enough available balance for this request.';
   async function copyAddress(kind, value) {
     try { await navigator.clipboard.writeText(value); setCopiedAddress(kind); window.setTimeout(() => setCopiedAddress(current => current === kind ? '' : current), 1400); }
     catch { setCopiedAddress(''); }
@@ -70,6 +76,19 @@ export function App({ request = defaultRequest } = {}) {
     setState({ status: 'checking', message: 'Checking faucet availability…' });
     setRefreshKey(value => value + 1);
   }
+  async function onboardFaucet() {
+    if (busy || !needsOnboarding) return;
+    setState({ status: 'onboarding', message: 'Onboarding Bitcoin funds into Arkade…' });
+    try {
+      const response = await fetch(apiUrl('onboard'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ network }) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message ?? 'Arkade onboarding is unavailable.');
+      setState({ status: 'success', message: 'Bitcoin funds were onboarded into Arkade.' });
+      setRefreshKey(value => value + 1);
+    } catch (error) {
+      setState({ status: 'error', message: error?.message ?? 'Arkade onboarding is unavailable.' });
+    }
+  }
   return <div className="faucet-shell">
     <header className="spike-header"><div className="spike-identity"><span className="spike-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span><div><h1>BIS - Prototype Faucet</h1></div></div></header>
     <main className="faucet-main"><section className="faucet-flow">
@@ -77,7 +96,7 @@ export function App({ request = defaultRequest } = {}) {
         <div className="overview-controls"><label>Network<select value={network} onChange={event => { setNetwork(event.target.value); setState({ status: 'checking', message: 'Checking faucet availability…' }); }} disabled={busy}>{NETWORK_IDS.map(id => <option key={id} value={id}>{NETWORKS[id].label}</option>)}</select></label><button type="button" onClick={refreshFaucet} disabled={busy}>Refresh</button></div>
         <section className={`overview-status status status-${statusKind}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">STATUS</span><strong>Status: {statusLabel}</strong></div><p>{statusMessage}</p>{state.network && <p>Requested {Number(state.amountSats).toLocaleString()} sats on {NETWORKS[state.network]?.label ?? state.network}.</p>}{state.address && <p className="operation-id">Destination: {state.address}</p>}{state.operationId && <p className="operation-id">Operation: {state.operationId}</p>}</section>
         <div className="overview-details"><section className="overview-addresses" aria-label="Faucet addresses"><div className="status-heading"><span className="panel-kicker">FAUCET ADDRESSES</span><span className="address-network">{NETWORKS[network].label}</span></div>{addresses.status === 'ready' ? <><div className="faucet-address-row"><span className="faucet-address-label">BTC</span><code className="faucet-address-value" title={addresses.bitcoinAddress}>{shortAddress(addresses.bitcoinAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('bitcoin', addresses.bitcoinAddress)}>{copiedAddress === 'bitcoin' ? 'Copied' : 'Copy'}</button></div><div className="faucet-address-row"><span className="faucet-address-label">ARKADE</span><code className="faucet-address-value" title={addresses.arkadeAddress}>{shortAddress(addresses.arkadeAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('arkade', addresses.arkadeAddress)}>{copiedAddress === 'arkade' ? 'Copied' : 'Copy'}</button></div></> : <p className="address-message">{addresses.status === 'loading' ? 'Loading…' : addresses.message}</p>}</section>
-        <section className={`overview-balance faucet-balance-${balance.status}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">FAUCET BALANCE</span><strong>{balance.status === 'ready' ? `${Number(balance.available ?? 0).toLocaleString()} sats available` : balance.status === 'loading' ? 'Checking…' : 'Unavailable'}</strong></div>{balance.status === 'ready' ? <p>Total: {Number(balance.total ?? 0).toLocaleString()} sats · Available: {Number(balance.available ?? 0).toLocaleString()} sats</p> : <p>{balance.message}</p>}</section></div>
+        <section className={`overview-balance faucet-balance-${balance.status}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">FAUCET BALANCE</span><strong>{balance.status === 'ready' ? `${Number(balance.available ?? 0).toLocaleString()} sats available` : balance.status === 'loading' ? 'Checking…' : 'Unavailable'}</strong></div>{balance.status === 'ready' ? <><p>Total: {Number(balance.total ?? 0).toLocaleString()} sats · Available: {Number(balance.available ?? 0).toLocaleString()} sats</p>{needsOnboarding && <button type="button" onClick={onboardFaucet} disabled={busy}>{state.status === 'onboarding' ? 'Onboarding…' : 'Onboard BTC to Arkade'}</button>}</> : <p>{balance.message}</p>}</section></div>
       </section>
       <section className="panel faucet-panel"><div className="panel-heading"><div><span className="panel-kicker">FAUCET REQUEST</span><h3>Choose destination and amount</h3></div><span className="prototype-badge">Experimental</span></div>
         <form onSubmit={submit}>

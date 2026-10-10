@@ -25,27 +25,27 @@ test('a repeated batch uses the same v2 IDs and publishes only after a fresh com
       const asset = {assetId:`asset-${issued.size + 1}`,quantity:'1'}; issued.set(request.operationId,asset);
       return {status:'minted',profileId:'game',operationId:request.operationId,asset};
     },
-    async listAssets() { return {status:'success',profileId:'game',assets:chainAssets()}; },
+    async listAssets() { return {status:'success',profileId:'game',assets:issued.size===9 ? chainAssets() : chainAssets().slice(0, issued.size)}; },
   };
   assert.equal((await mintAndVerifyMarketplaceCatalog(wallet,()=>true)).status,'verified');
   assert.equal((await mintAndVerifyMarketplaceCatalog(wallet,()=>true)).status,'verified');
   assert.deepEqual(calls.slice(0,9),marketplaceCatalogItems.map(item=>marketplaceMintRequest(item).operationId));
-  assert.deepEqual(calls.slice(9),calls.slice(0,9));
+  assert.deepEqual(calls.slice(9),[]);
   assert.equal(issued.size,9);
 });
 
 test('an interrupted or incomplete batch never returns verified publication records', async () => {
-  let count=0;
+  let count=0, listCalls=0;
   const paused = await mintAndVerifyMarketplaceCatalog({
     async mint(request) { count++; return count===4?{status:'error',code:'outcome-unknown',message:'unknown'}:{status:'minted',profileId:'game',operationId:request.operationId,asset:{assetId:`a${count}`,quantity:'1'}}; },
-    async listAssets() { throw Error('must not publish'); },
+    async listAssets() { listCalls++; return {status:'success',profileId:'game',assets:chainAssets().slice(0, Math.max(0, listCalls - 1))}; },
   },()=>true);
-  assert.deepEqual(paused,{status:'error',itemName:'Dagger I',code:'outcome-unknown'});
+  assert.deepEqual(paused,{status:'error',itemName:'Dagger I',operationId:'marketplace-stealth-steel-dagger-1-v2',code:'outcome-unknown',submissionBoundary:'unknown'});
   const incomplete = await mintAndVerifyMarketplaceCatalog({
     async mint(request) { return {status:'already-minted',profileId:'game',operationId:request.operationId,asset:{assetId:'a',quantity:'1'}}; },
     async listAssets() { return {status:'success',profileId:'game',assets:chainAssets().slice(0,8)}; },
   },()=>true);
-  assert.deepEqual(incomplete,{status:'error',code:'verification-failed'});
+  assert.deepEqual(incomplete,{status:'error',itemName:'Shield III',operationId:'marketplace-stealth-steel-shield-3-v2',code:'verification-failed',submissionBoundary:'submitted'});
 });
 
 test('a transient unavailable result retries the same catalog operation before pausing the batch', async () => {
@@ -58,7 +58,7 @@ test('a transient unavailable result retries the same catalog operation before p
       }
       return {status:'minted',profileId:'game',operationId:request.operationId,asset:{assetId:`asset-${calls.length}`,quantity:'1'}};
     },
-    async listAssets() { return {status:'success',profileId:'game',assets:chainAssets()}; },
+    async listAssets() { return {status:'success',profileId:'game',assets:calls.length ? chainAssets() : []}; },
   };
   const result = await mintAndVerifyMarketplaceCatalog(wallet, () => true, event => progress.push(event));
   assert.equal(result.status, 'verified');
@@ -66,4 +66,24 @@ test('a transient unavailable result retries the same catalog operation before p
   assert.ok(progress.some(event => event.stage === 'minting' && event.itemName === 'Shoes II' && event.attempt === 1));
   assert.ok(progress.some(event => event.stage === 'retrying' && event.itemName === 'Shoes II'));
   assert.ok(progress.some(event => event.stage === 'verifying'));
+});
+
+test('a Shoes I preflight failure retries its stable operation and account replacement stops the batch', async () => {
+  const calls = [];
+  const wallet = {
+    async mint(request) {
+      calls.push(request.operationId);
+      if (calls.length === 1) return {status:'error',code:'unavailable',message:'preflight'};
+      return {status:'minted',profileId:'game',operationId:request.operationId,asset:{assetId:`asset-${calls.length}`,quantity:'1'}};
+    },
+    async listAssets() { return {status:'success',profileId:'game',assets:[]}; },
+  };
+  let current = true;
+  const result = await mintAndVerifyMarketplaceCatalog(wallet, () => current, undefined, 'v3');
+  assert.equal(result.status,'error');
+  assert.equal(result.code,'verification-failed');
+  assert.equal(calls[0],calls[1]);
+  current = false;
+  const changed = await mintAndVerifyMarketplaceCatalog(wallet, () => false, undefined, 'v3');
+  assert.deepEqual(changed,{status:'error',code:'account-changed'});
 });

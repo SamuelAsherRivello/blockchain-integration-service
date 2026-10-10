@@ -2,10 +2,11 @@ export type BisAttributeDelta = Readonly<{bisAttribute: string; bisAttributeDelt
 export type BisAssetMetadataValue = string | number | boolean | null | readonly BisAttributeDelta[];
 export type BisAssetMetadata = Readonly<Record<string, BisAssetMetadataValue>>;
 import type { TestNetwork } from './test-network.ts';
+import type { BisAssetDiagnostic } from './asset-operation-diagnostics.ts';
 export type BisAsset = Readonly<{ assetId: string; name?: string; ticker?: string; quantity: string; decimals?: number; iconUrl?: string; metadata?: BisAssetMetadata; sourceOperationId?: string; sourceTransactionId?: string }>;
 export type BisMintAssetRequest = Readonly<{ operationId: string; name: string; ticker: string; amount: string; decimals: number; iconUrl?: string; metadata?: BisAssetMetadata }>;
 export type BisAssetErrorCode = 'account-required' | 'invalid-input' | 'insufficient-funds' | 'unavailable' | 'outcome-unknown' | 'account-changed' | 'disposed' | 'unsupported-environment' | 'busy';
-export type BisAssetError = Readonly<{ status: 'error'; code: BisAssetErrorCode; message: string; profileId?: string; operationId?: string }>;
+export type BisAssetError = Readonly<{ status: 'error'; code: BisAssetErrorCode; message: string; profileId?: string; operationId?: string; diagnostic?: BisAssetDiagnostic }>;
 export type BisMintAssetResult = Readonly<{ status: 'minted' | 'already-minted'; profileId: string; operationId: string; asset: BisAsset; transactionId?: string }> | BisAssetError;
 export type BisListAssetsResult = Readonly<{ status: 'success'; profileId: string; assets: readonly BisAsset[] }> | BisAssetError;
 export type BisPendingMintResult = Readonly<{ status: 'success'; profileId: string; request: BisMintAssetRequest | null }> | BisAssetError;
@@ -20,8 +21,8 @@ export class AssetError extends Error {
   code: BisAssetErrorCode;
   constructor(code: BisAssetErrorCode) { super(messages[code]); this.code = code; }
 }
-export function assetError(code: BisAssetErrorCode, profileId?: string, operationId?: string): BisAssetError {
-  return { status: 'error', code, message: messages[code], ...(profileId ? { profileId } : {}), ...(operationId ? { operationId } : {}) };
+export function assetError(code: BisAssetErrorCode, profileId?: string, operationId?: string, diagnostic?: BisAssetDiagnostic): BisAssetError {
+  return { status: 'error', code, message: messages[code], ...(profileId ? { profileId } : {}), ...(operationId ? { operationId } : {}), ...(diagnostic ? { diagnostic } : {}) };
 }
 export function assetBaseUnits(amount: string, decimals: number): bigint {
   if (typeof amount !== 'string' || amount.length > 100 || !/^\d+(\.\d+)?$/.test(amount) || !Number.isInteger(decimals) || decimals < 0 || decimals > 18) throw new AssetError('invalid-input');

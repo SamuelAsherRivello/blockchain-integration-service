@@ -79,7 +79,7 @@ export class BisService implements IBis {
       hasGameWallet: () => !!wallet?.getState().profileId,
       resetGameWallet: async () => wallet ? wallet.reset() : true,
     });
-    wallet = createBisGameWallet({ playerProfileId: () => this.#context.getState().profileId, playerNetwork: () => this.#context.getState().network });
+    wallet = createBisGameWallet({ playerProfileId: () => this.#context.getState().profileId, playerNetwork: () => this.#context.getState().network, playerSubscribe:this.#context.subscribe, playerSessionKey:()=>JSON.stringify([this.#context.getState().profileId,this.#context.getState().phase,this.#context.getState().network]) });
     this.#gameWallet = wallet;
     this.#lto = createBisLto({ context: this.#context, gameWallet: wallet });
     this.#equipment = createBisEquipment(this.#context);

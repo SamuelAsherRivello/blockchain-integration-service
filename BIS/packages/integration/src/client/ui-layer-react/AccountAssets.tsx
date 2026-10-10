@@ -1,5 +1,4 @@
 import { CollectionListView, CollectionDetailView } from './ItemList';
-import { FormValue } from './FormValue';
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { BisAsset } from '../state-layer-core/assets';
@@ -116,7 +115,6 @@ export function AccountAssetsView({assets, network, onDetailChange, onBack, onBu
         {icon:'🔤',label:'Ticker',value:asset.ticker||'Not provided'},{icon:'✅',label:'Status',value:'Owned'},
         {icon:'🎯',label:'Decimals',value:assetDecimals(asset)??'Not provided'},{icon:'🌐',label:'Network',value:'Off-chain'},
       ]}/>}))}
-    detail={detailOpen?<FormValue label="Asset details" aria-label="Asset details" rows={12} value={detailReport} multiline/>:undefined}
     notice={notice&&assets.status==='ready'?<p role="status">{notice}</p>:!loading&&assets.status==='ready'&&!rows.length?<p>No assets.</p>:null}
     actions={<>
       {detailOpen && selected && <><button type="button" className="bis-button" disabled={burning || !explorerUrl} aria-describedby={!explorerUrl?'asset-explorer-unavailable':undefined} title={!explorerUrl ? explorerUnavailableReason : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>{!explorerUrl&&<span id="asset-explorer-unavailable" className="bis-sr-only">{explorerUnavailableReason}</span>}</>}

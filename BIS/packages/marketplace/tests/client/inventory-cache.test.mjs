@@ -17,3 +17,14 @@ test('explicit retry replaces a result and retains prior items while pending', a
   await coordinator.refresh([source]); let release; const pending=new Promise(resolve=>{release=resolve}); const refresh=coordinator.retry({role:'player',walletId:'player-1',network:'signet',read:async()=>{await pending;return[item('player-item-2')]}});
   assert.equal(coordinator.getState().player.status,'loading'); assert.deepEqual(coordinator.getState().player.items.map(value=>value.assetId),['player-item-1']); release(); await refresh; assert.deepEqual(coordinator.getState().player.items.map(value=>value.assetId),['player-item-2']);
 });
+test('metadata states remain distinct from empty and unavailable', async() => {
+  const coordinator = createMarketplaceInventoryCoordinator();
+  await coordinator.refresh([{role:'game',walletId:'game-1',network:'signet',read:async()=>({items:[],migrationRequiredCount:2})}]);
+  assert.equal(coordinator.getState().game.status,'migration-required');
+  assert.equal(coordinator.getState().game.migrationRequiredCount,2);
+  await coordinator.refresh([{role:'game',walletId:'game-1',network:'signet',read:async()=>({items:[],invalidMetadataCount:1})}]);
+  assert.equal(coordinator.getState().game.status,'invalid-metadata');
+  assert.equal(coordinator.getState().game.invalidMetadataCount,1);
+  await coordinator.refresh([{role:'game',walletId:'game-1',network:'signet',read:async()=>({items:[]})}]);
+  assert.equal(coordinator.getState().game.status,'empty');
+});

@@ -98,7 +98,7 @@ function NetworkSelect({ value, onChange }: { value: 'signet' | 'mutinynet' | un
 }
 
 export function BisAccountView({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, hasPaymentSupport, onDeveloperDialogChange, onGameWalletDialogChange, hostLoading, onBisVisibilityChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; hasPaymentSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void;hostLoading?: HostLoading;onBisVisibilityChange?(visible:boolean):void }) {
-  return <PendingOperations overlay={<ToastViewport context={context} />} hostLoading={hostLoading} onBisVisibilityChange={onBisVisibilityChange}><BisAccountScreen context={context} gameWallet={gameWallet} hasItemSupport={hasItemSupport} hasAssetMintingSupport={hasAssetMintingSupport} hasContractSupport={hasContractSupport} hasPaymentSupport={hasPaymentSupport} onDeveloperDialogChange={onDeveloperDialogChange} onGameWalletDialogChange={onGameWalletDialogChange} /></PendingOperations>;
+  return <PendingOperations loadingContext={context} overlay={<ToastViewport context={context} />} hostLoading={hostLoading} onBisVisibilityChange={onBisVisibilityChange}><BisAccountScreen context={context} gameWallet={gameWallet} hasItemSupport={hasItemSupport} hasAssetMintingSupport={hasAssetMintingSupport} hasContractSupport={hasContractSupport} hasPaymentSupport={hasPaymentSupport} onDeveloperDialogChange={onDeveloperDialogChange} onGameWalletDialogChange={onGameWalletDialogChange} /></PendingOperations>;
 }
 function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, hasPaymentSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; hasPaymentSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
@@ -227,7 +227,9 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
     context.closeAccount();
   };
   if (state.view === 'empty') return <ViewTransition viewKey="empty">{null}</ViewTransition>;
-  const collectionKey = assets ? `assets-${assetOpen ? 'detail' : 'list'}` : contracts ? `contracts-${contractOpen ? 'detail' : 'list'}` : activity ? `activity-${transactionOpen ? 'detail' : 'list'}` : undefined;
+  // Collection views own their selection and list/detail navigation. Changing
+  // this transition key for a detail page remounts them and loses that state.
+  const collectionKey = assets ? 'assets' : contracts ? 'contracts' : activity ? 'activity' : undefined;
   if (state.view === 'account' && (assets || contracts || activity)) return <div className="bis-layer bis-layer-open bis-layer-collection">
     <ViewTransition viewKey={collectionKey ?? 'collection'}>
       {assets && state.network && <AccountAssetsView key={state.profileId} assets={state.assets} network={state.network} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
@@ -338,7 +340,7 @@ export function GameOverlay() {
   const gameWallet = useRef<GameWallet | null>(null);
   const generation = useRef(0);
   if (!context.current) context.current = createBisContext({hasGameWallet:()=>!!gameWallet.current?.getState().profileId,resetGameWallet:async()=>gameWallet.current ? gameWallet.current.reset() : true});
-  if (!gameWallet.current) gameWallet.current = createBisGameWallet({playerProfileId: () => context.current?.getState().profileId,playerNetwork:()=>context.current?.getState().network});
+  if (!gameWallet.current) gameWallet.current = createBisGameWallet({playerProfileId: () => context.current?.getState().profileId,playerNetwork:()=>context.current?.getState().network,playerSubscribe:l=>context.current?.subscribe(l) ?? (()=>{}),playerSessionKey:()=>JSON.stringify([context.current?.getState().profileId,context.current?.getState().phase,context.current?.getState().network])});
   useEffect(() => {
     let playerKey = `${context.current!.getState().profileId ?? ''}:${context.current!.getState().network ?? ''}`;
     return context.current!.subscribe(() => {

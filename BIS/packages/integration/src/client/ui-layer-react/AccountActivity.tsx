@@ -1,7 +1,6 @@
-import { FormValue } from './FormValue';
 import { CollectionListView, CollectionDetailView } from './ItemList';
 import { usePendingNotice } from './PendingOperationDialog';
-import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatTransactionDetail, formatTransactions, transactionRowPresentation, transactionExplorerUrl, withContractActivity, type BisActivity } from '../state-layer-core/activity';
 import type { BisContract } from '../state-layer-core/contracts';
 import type { BisContext } from '../state-layer-core/context';
@@ -14,7 +13,6 @@ import { networkLabel } from '../state-layer-core/test-network';
 import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
 export function AccountActivityView({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContractsAsync'>> }) {
-  const id = useId();
   const [recoveryDialog, setRecoveryDialog] = useState<{ report: string; trigger: HTMLButtonElement }>();
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
@@ -76,7 +74,6 @@ export function AccountActivityView({ activity, onDetailChange, context }: { act
         {icon:'📡',label:'Chain',value:presentation.network},{icon:'🪙',label:'Cost',value:presentation.cost},
         {icon:row.direction==='Outgoing'||row.direction==='Arkade → Bitcoin'?'↗️':'↙️',label:'Direction',value:row.direction},{icon:'🕒',label:'Elapsed',value:presentation.time,title:presentation.fullDate},
       ]}/>};})}
-    detail={opened?<FormValue id={id} label="Transaction" value={text} multiline rows={12}/>:undefined}
     notice={<>{reportError&&<p role="status">Pending recovery details unavailable. Use Refresh to retry.</p>}
       {activity.status==='unavailable'&&<p role="status">{rows.length?'Showing available records. Full transaction history could not be refreshed. Use Refresh to retry.':'Transactions unavailable. Use Refresh to retry.'}</p>}
       {activity.status==='ready'&&!rows.length&&<p>No transactions.</p>}</>}

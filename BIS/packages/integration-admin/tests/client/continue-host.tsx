@@ -32,4 +32,25 @@ const gameWalletFactory: typeof createBisGameWallet = options => createBisGameWa
  addresses:async()=>({arkadeAddress:recipient,bitcoinAddress:'tb1fixture'}),
  balance:async()=>({availableSats:1000,totalSats:1000,arkadeSats:1000,bitcoinSats:0}),watch:undefined,
 });
-createRoot(document.getElementById('root')!).render(<App contextFactory={factory} gameWalletFactory={gameWalletFactory}/>);
+const fundedFactory: typeof factory = options => {
+ const context=factory(options);
+ const read=context.getState,subscribe=context.subscribe,listeners=new Set<()=>void>();
+ let base:ReturnType<typeof read>|undefined,projected:ReturnType<typeof read>,patch:Partial<ReturnType<typeof read>>={};
+ context.getState=()=>{const next=read();if(next!==base){base=next;projected={...next,...patch};}return projected;};
+ context.subscribe=listener=>{listeners.add(listener);const off=subscribe(listener);return()=>{listeners.delete(listener);off();};};
+ const emit=()=>{base=undefined;for(const listener of listeners)listener();};
+ let holding=false,unavailable=false;const held:Array<()=>void>=[];
+ const probe={unavailable(value:boolean){unavailable=value;emit();},arm(){holding=true;held.length=0;},release(){holding=false;for(const resolve of held)resolve();},count:()=>held.length,
+  bump(){patch={...patch,balance:{...context.getState().balance,arkadeSats:(context.getState().balance.arkadeSats??0)+1}};emit();},
+  replace(){patch={...patch,phase:'idle',hasProfile:false};emit();patch={...patch,phase:'active',hasProfile:true};emit();},
+ };
+ Object.assign(window,{readinessProbe:probe});
+ context.getContinueAvailability=async()=>{
+  if(holding)await new Promise<void>(resolve=>held.push(resolve));
+  await new Promise(resolve=>setTimeout(resolve,100));
+  const insufficient=new URLSearchParams(location.search).has('insufficient');
+  return {canPay:context.getState().hasProfile&&!insufficient&&!unavailable,availableSats:insufficient?999:2000,...(unavailable?{reason:'Balance unavailable'}:insufficient?{reason:'Insufficient balance'}:{})};
+ };
+ return context;
+};
+createRoot(document.getElementById('root')!).render(<App contextFactory={fundedFactory} gameWalletFactory={gameWalletFactory}/>);

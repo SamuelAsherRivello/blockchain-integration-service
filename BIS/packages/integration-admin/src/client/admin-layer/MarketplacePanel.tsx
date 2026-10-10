@@ -21,10 +21,10 @@ export function AdminMarketplaceView({ controller, onLog, children }: {controlle
           : progress.stage === 'retrying' ? `${progress.itemName} unavailable; retrying after ${progress.delayMs / 1000}s.`
           : progress.stage === 'minted' ? `${progress.itemName} minted; continuing catalog.`
           : 'Verifying fresh marketplace inventory…';
-        onLog({operation:'C.G.2. Marketplace mint',status:'pending',message,progress});
+        onLog({operation:'C.G.2. Marketplace mint',status:'pending',message,progress,operationId:'operationId' in progress ? progress.operationId : undefined,submissionBoundary:'submissionBoundary' in progress ? progress.submissionBoundary : undefined});
       }, 'v3');
       if (batch.status === 'error') {
-      onLog({operation:'C.G.2. Marketplace mint', status:'error', message:`Catalog paused${batch.itemName ? ` at ${batch.itemName}` : ''}: ${batch.code}.`, result:batch});
+      onLog({operation:'C.G.2. Marketplace mint', status:'error', message:`Catalog paused${batch.itemName ? ` at ${batch.itemName}` : ''}: ${batch.code}.`, result:batch,operationId:batch.operationId,submissionBoundary:batch.submissionBoundary});
         return;
       }
       onLog({operation:'C.G.2. Marketplace mint', status:'verified', message:'Nine verified catalog items are now available from this Game Wallet’s live inventory.', result:batch});

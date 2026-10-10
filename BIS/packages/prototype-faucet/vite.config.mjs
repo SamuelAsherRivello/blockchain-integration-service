@@ -1,24 +1,26 @@
 import { defineConfig } from 'vite';
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createFaucetApiLifecycle } from './src/shared/faucet-api-lifecycle.mjs';
 
 function faucetApiPlugin() {
-  let faucetApi;
+  const packageRoot = fileURLToPath(new URL('.', import.meta.url));
+  const lifecycle = createFaucetApiLifecycle({
+    apiPort: Number(process.env.FAUCET_PORT ?? 5190),
+    packageRoot,
+    processPath: process.execPath,
+    env: process.env,
+    spawnImpl: spawn,
+  });
   return {
     name: 'prototype-faucet-api',
     async configureServer(server) {
-      const port = Number(process.env.FAUCET_PORT ?? 5190);
       try {
-        await fetch(`http://127.0.0.1:${port}/api/faucet/health`, { signal: AbortSignal.timeout(500) });
-        return;
-      } catch {
-        faucetApi = spawn(process.execPath, ['--experimental-eventsource', '--env-file-if-exists=.env.local', 'src/server/server.mjs'], {
-          cwd: resolve(process.cwd()),
-          env: { ...process.env, FAUCET_PORT: String(port) },
-          stdio: 'inherit',
-        });
+        await lifecycle.start();
+      } catch (error) {
+        console.error(error?.message ?? 'The local faucet API could not be started or reached.');
       }
-      server.httpServer?.once('close', () => faucetApi?.kill());
+      server.httpServer?.once('close', () => lifecycle.close());
     },
   };
 }
@@ -26,6 +28,6 @@ function faucetApiPlugin() {
 export default defineConfig({
   plugins: [faucetApiPlugin()],
   server: {
-    proxy: { '/api/faucet': { target: 'http://127.0.0.1:5190' } },
+    proxy: { '/api/faucet': { target: `http://127.0.0.1:${Number(process.env.FAUCET_PORT ?? 5190)}` } },
   },
 });

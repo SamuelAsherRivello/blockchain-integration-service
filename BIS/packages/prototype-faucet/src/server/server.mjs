@@ -1,7 +1,11 @@
 import { createServer } from 'node:http';
-import { configureEventSource, InMemoryContractRepository, InMemoryWalletRepository, MnemonicIdentity, Ramps, RestArkProvider, RestIndexerProvider, Wallet } from '@arkade-os/sdk';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { configureEventSource, InMemoryContractRepository, InMemoryWalletRepository, MnemonicIdentity, RestArkProvider, RestIndexerProvider, Wallet } from '@arkade-os/sdk';
+import { createSharedArkadeWalletService } from '../../../integration/src/client/wallet-layer-arkade/shared-wallet-service.ts';
 import { createFaucetService, safeError } from '../shared/faucet-core.mjs';
 import { NETWORKS, NETWORK_IDS } from '../shared/network-config.mjs';
+import { createFaucetOperationStore, createProcessWalletLock } from '../shared/faucet-operation-store.mjs';
 
 const port = Number(process.env.FAUCET_PORT ?? 5190);
 const maxBodyBytes = 16_384;
@@ -12,7 +16,7 @@ function envName(network) { return network.toUpperCase(); }
 
 function createLazyWallet(network) {
   let walletPromise;
-  let preparationPromise;
+  let servicePromise;
   async function getWallet() {
     walletPromise ??= (async () => {
       const phrase = process.env[`FAUCET_${envName(network)}_MNEMONIC`];
@@ -24,20 +28,32 @@ function createLazyWallet(network) {
     })();
     return walletPromise;
   }
-  return {
-    async prepare() {
+  async function getService() {
+    servicePromise ??= (async () => {
       const wallet = await getWallet();
-      if (!wallet) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
-      const balance = await wallet.getBalance();
-      if (Number(balance.available ?? 0) > 0 || Number(balance.boarding?.total ?? 0) <= 0) return balance;
-      preparationPromise ??= (async () => {
-        const info = await wallet.arkProvider.getInfo();
-        const boarding = (await wallet.getBoardingUtxos()).filter(utxo => utxo.status?.confirmed === true);
-        if (boarding.length === 0) { const error = new Error('No confirmed faucet funds are available for onboarding.'); error.code = 'UNAVAILABLE'; throw error; }
-        await new Ramps(wallet).onboard(info.fees, boarding);
-      })();
-      try { await preparationPromise; } catch (error) { preparationPromise = undefined; throw error; }
-      return wallet.getBalance();
+      if (!wallet) return undefined;
+      const walletId = await wallet.getAddress();
+      const stateRoot = process.env.FAUCET_STATE_DIR ?? fileURLToPath(new URL('../../../../../output/runtime/prototype-faucet/', import.meta.url));
+      return createSharedArkadeWalletService({
+        scope: { walletId, network, operator: NETWORKS[network].operator, role: 'faucet' },
+        wallet,
+        provider: wallet.arkProvider,
+        store: createFaucetOperationStore(resolve(stateRoot, `${network}-onboarding.json`)),
+        lock: createProcessWalletLock(),
+      });
+    })();
+    return servicePromise;
+  }
+  return {
+    async onboard() {
+      const service = await getService();
+      if (!service) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
+      return publicWalletState(await service.onboard());
+    },
+    async prepare() {
+      const service = await getService();
+      if (!service) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
+      return publicWalletState(await service.onboard());
     },
     async send({ address, amount }) {
       await this.prepare();
@@ -47,14 +63,12 @@ function createLazyWallet(network) {
       return { operationId: transactionId, transactionId, status: 'pending' };
     },
     async balance() {
-      const wallet = await getWallet();
-      if (!wallet) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
+      const service = await getService();
       // Reading the faucet balance must not trigger onboarding or fee estimation.
       // A provider may be able to report wallet funds while settlement is
       // temporarily unavailable.
-      const value = await wallet.getBalance();
-      const sats = amount => Number(amount ?? 0n);
-      return { total: sats(value.total), available: sats(value.available), settled: sats(value.settled), preconfirmed: sats(value.preconfirmed), recoverable: sats(value.recoverable) };
+      if (!service) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
+      return publicWalletState(await service.read());
     },
     async addresses() {
       const wallet = await getWallet();
@@ -91,6 +105,24 @@ async function readJson(request) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw Object.assign(new Error('Request body is invalid.'), { code: 'ADDRESS_INVALID' }); }
 }
 
+function publicOnboarding(operation) {
+  if (!operation) return undefined;
+  const message = operation.failureCode === 'operator-unavailable'
+    ? 'Arkade operator fee estimation is unavailable. Try again later.'
+    : operation.failureCode === 'policy-unsupported'
+      ? 'The Arkade operator policy does not support onboarding right now.'
+      : operation.failureCode === 'settlement-rejected'
+        ? 'The Arkade operator rejected onboarding. Try again later.'
+        : operation.failureCode === 'outcome-unknown'
+          ? 'Onboarding is pending reconciliation. Do not submit it again.'
+          : operation.failureMessage;
+  return { ...operation, ...(message ? { failureMessage: message } : {}) };
+}
+
+function publicWalletState(state) {
+  return { ...state.balance, onboarding: publicOnboarding(state.operation), history: state.history };
+}
+
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   if (request.method === 'OPTIONS') { response.statusCode = 204; response.end(); return; }
@@ -106,6 +138,17 @@ const server = createServer(async (request, response) => {
     if (!NETWORK_IDS.includes(network)) return json(response, 400, { code: 'NETWORK_INVALID', message: 'Choose Signet or Mutinynet.' });
     try { return json(response, 200, { network, ...(await wallets[network].balance()) }); }
     catch (error) { console.error(`Faucet balance preparation failed for ${network}:`, error?.stack ?? error); const result = safeError(error); if (result.code === 'UNAVAILABLE') result.message = 'Faucet funds are not currently spendable. Try refreshing the balance shortly.'; return json(response, 503, result); }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/faucet/onboard') {
+    try {
+      const body = await readJson(request);
+      const network = body?.network;
+      if (!NETWORK_IDS.includes(network)) return json(response, 400, { code: 'NETWORK_INVALID', message: 'Choose Signet or Mutinynet.' });
+      return json(response, 200, { network, ...(await wallets[network].onboard()) });
+    } catch (error) {
+      console.error('Faucet onboarding failed:', error?.stack ?? error);
+      return json(response, 503, safeError(error));
+    }
   }
   if (request.method === 'GET' && url.pathname.startsWith('/api/faucet/status/')) return json(response, 200, await service.status(decodeURIComponent(url.pathname.slice('/api/faucet/status/'.length))));
   if (request.method !== 'POST' || url.pathname !== '/api/faucet/request') return json(response, 404, { code: 'NOT_FOUND', message: 'Faucet endpoint not found.' });

@@ -42,7 +42,8 @@ export function AdminGameWalletView({controller, onDetails, onRecipientChange, o
   const [quote, setQuote] = useState<Awaited<ReturnType<ReturnType<typeof createBisGameWallet>['quoteBoarding']>>>();
   const setBoardingMessage = (message: string) => { if (message) onDetails({operation:'Board Game Wallet', message}); };
   useEffect(() => { setQuote(undefined); }, [state.profileId]);
-  useEffect(() => { if (state.message) onDetails({operation:'Game Wallet', message:state.message}); }, [state.message]);
+  // A disconnected Player Wallet is normal on arrival, not an operation result.
+  useEffect(() => { if (state.message && state.playerConnected !== false) onDetails({operation:'Game Wallet', message:state.message}); }, [state.message, state.playerConnected]);
   useEffect(() => {
     if (!controller) { setState({status:'loading',selectionVersion:0}); return; }
     const update = () => setState(controller.getState());

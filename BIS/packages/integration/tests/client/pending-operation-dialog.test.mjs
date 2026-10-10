@@ -14,7 +14,7 @@ test('public integration boundary exposes the shared accessible pending dialog',
     text('src/client/ui-layer-react/overlay.css'),
   ]);
   assert.match(index, /export \{ PendingOperations, usePendingNotice \} from '\.\/client\/ui-layer-react\/PendingOperationDialog';/);
-  assert.match(dialog, /export function PendingOperations\(\{children, overlay, className, hostLoading, onBisVisibilityChange\}/);
+  assert.match(dialog, /export function PendingOperations\(\{children, overlay, className, hostLoading, onBisVisibilityChange, loadingContext\}/);
   assert.match(dialog, /const hostEntry: Notice \| undefined = hostPending \? \{label:'Loading \.\.\.',host:true,dismiss:\(\)=>\{\}\} : undefined;/);
   assert.match(dialog, /\[\.\.\.notices\.values\(\), \.\.\.\(hostEntry \? \[hostEntry\] : \[\]\)\]/);
   assert.match(client, /isLoadingUIVisible\(\) \{ return hostLoading; \}/);

@@ -16,6 +16,7 @@ import { assertNoPendingBurn, BurnError, validateBurn, type BisBurnAssetRequest,
 import { AssetDeliveryError, validateAssetDelivery, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from './asset-delivery.ts';
 import type { BisAssets } from './asset-presentation';
 import { AssetError, assetError, validateMint, readAssetRecords, type BisMintAssetRequest, type BisMintAssetResult, type BisListAssetsResult, type BisPendingMintResult } from './assets.ts';
+import { diagnoseAssetFailure } from './asset-operation-diagnostics.ts';
 import type { WalletOperationAvailability } from './wallet-network-policy.ts';
 import { assertNoPendingBoarding, assertPendingTransfersAcknowledged, withWalletMutation, BoardingBlockedError, readBoardingRecord, readBoardingRecords } from './boarding-record.ts';
 import { boardingSubmissionEnabled, type BoardingQuote } from './boarding-quote.ts';
@@ -824,7 +825,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
           if(isCurrent() && (result.status==='minted' || result.status==='already-minted'))walletChanged(account.profileId);
           return isCurrent() ? result : assetError(disposed ? 'disposed' : 'account-changed', profileId, request.operationId);
         }, selectedAccount.network ?? 'signet');
-      } catch (error) { return assetError(error instanceof AssetError ? error.code : error instanceof BoardingBlockedError ? 'busy' : !isCurrent() ? (disposed ? 'disposed' : 'account-changed') : 'unavailable', profileId, request.operationId); }
+      } catch (error) { const code=error instanceof AssetError ? error.code : error instanceof BoardingBlockedError ? 'busy' : !isCurrent() ? (disposed ? 'disposed' : 'account-changed') : 'unavailable'; return assetError(code, profileId, request.operationId, diagnoseAssetFailure({phase:'mint',error,profileId,operationId:request.operationId,network:state.network ?? 'signet'})); }
     },
     async listAssets() {
       const profileId = state.profileId, current = version;

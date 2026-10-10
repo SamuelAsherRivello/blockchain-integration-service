@@ -15,14 +15,14 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.match(integrationIndex, /export \{ PendingOperations, usePendingNotice \} from '\.\/client\/ui-layer-react\/PendingOperationDialog';/);
   assert.match(app, /PendingOperations/);
   assert.match(app, /usePendingNotice/);
-  assert.match(app, /export function App\(\)\{return <PendingOperations className="marketplace-pending-runtime"><MarketplaceContent\/><\/PendingOperations>;\}/);
+  assert.match(app, /return <PendingOperations className="marketplace-pending-runtime" loadingContext=\{player\}>/);
   assert.match(app, /function MarketplaceContent\(\)\{/);
   assert.match(app, /const \[operationLabel,setOperationLabel\]=useState<string>\(\);/);
-  assert.match(app, /usePendingNotice\(loadingPromptVisible,operationLabel\?\?'Loading \.\.\.',inventoryError\?\?operationError/);
+  assert.match(app, /<MarketplacePendingNotice busy=\{loadingPromptVisible\} label=\{operationLabel\?\?'Loading \.\.\.'\} error=\{inventoryError\?\?operationError\}/);
   assert.doesNotMatch(app, /Payment confirmed; completing item delivery/);
   assert.doesNotMatch(app, /checkoutLabel/);
   assert.match(app, /readLocalMarketplaceCheckouts\(\)\.find\(record=>record\.status==='pending'\)/);
-  assert.match(app, /setOperationLabel\(undefined\),3000\)/);
+  assert.match(app, /if\(checkoutSession\.current\(scope\)\)setOperationLabel\(undefined\);\},3000\)/);
   assert.match(app, /if\(!pendingCheckout\|\|!checkoutHasBeenSubmitted\)return;/);
   assert.match(dialog, /\{failed\?'Error':current\.info\?\.title\?\?displayLabel\}/);
   assert.match(dialog, /\{failed \? <><div className="bis-pending-error-field">/);
@@ -33,8 +33,8 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.match(dialog, /data-closing=\{!active && !retained \|\| undefined\}/);
   assert.doesNotMatch(app, /Operation unavailable/);
   assert.match(app, /setOperationLabel\(direction==='buy'\?'Buying\.\.\.':'Selling\.\.\.'\);/);
-  assert.match(app, /finally \{window\.clearTimeout\(loadingTimer\);setOperationLabel\(undefined\);\}/);
-  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources,true\)\]\);/);
+  assert.match(app, /finally \{window\.clearTimeout\(loadingTimer\);if\(checkoutSession\.current\(scope\)\)setOperationLabel\(undefined\);\}/);
+  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources\)\]\);/);
   assert.doesNotMatch(app, /funds-backdrop|funds-dialog|Reconcile checkout/);
   assert.match(style, /\.marketplace-pending-runtime \{ z-index: 100; \}/);
   assert.match(style, /\.marketplace-pending-runtime \.bis-pending-backdrop \{ z-index: 60; \}/);

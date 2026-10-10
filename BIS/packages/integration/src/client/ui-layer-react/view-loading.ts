@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { BisState } from '../state-layer-core/context';
 
 export type ViewLoadingPolicy = Readonly<{
   isLoadingAuto: boolean;
@@ -24,6 +25,17 @@ export const viewLoadingPolicies: Readonly<Record<string, ViewLoadingPolicy>> = 
   onboarding: Object.freeze({ isLoadingAuto: true, isLoadingModal: false, isLoadingCached: false }),
   marketplace: Object.freeze({ isLoadingAuto: true, isLoadingModal: true, isLoadingCached: false }),
 });
+
+/** The visible account page governs every loading overlay, including host overlays. */
+export function accountLoadingModalAllowed(state: BisState): boolean {
+  if (state.view !== 'account' || state.phase !== 'active') return true;
+  const key = state.accountOnboarding ? 'onboarding' : state.accountDetails ? 'details'
+    : state.accountAssets ? 'assets' : state.accountContracts ? 'contracts'
+    : state.accountActivity ? 'activity' : state.accountReceive ? 'receive'
+    : state.accountSend ? 'send' : state.accountTransfer ? 'transfer'
+    : state.accountRecovery ? 'recovery' : undefined;
+  return (key ? viewLoadingPolicies[key] : defaultViewLoadingPolicy).isLoadingModal;
+}
 
 /**
  * Allows a newly mounted view to complete its first browser frame before its

@@ -2,15 +2,17 @@
 
 [Back to the main README](../../../README.md)
 
-`@bis/integration` is the reusable BIS library for browser games. It owns the production Account UI, application state, wallet operations, and contracts consumed by Admin, Marketplace, and external hosts. Gameplay stays in the consuming game. BIS requires no application server and keeps Arkade SDK types and recovery material behind its integration boundary.
+`@bis/integration` is the reusable BIS library for browser games. It owns Account UI, state, wallet operations, and contracts for Admin, Marketplace, and external hosts. Gameplay stays in the host; SDK types and recovery material stay private.
 
 ## Responsibilities and public API
 
-Start with `src/index.ts`. `IBis` defines game commands; `BisService` implements them and coordinates lifecycle, UI, equipment, wallet, and contract services. `IBisGame` supplies five host methods, including `onBisEvent`. Import `@bis/integration/style.css` alongside the JavaScript API. Creating, restoring, and selecting wallets remain explicit flows.
+Start with `src/index.ts`: `IBis` defines commands, `BisService` coordinates services, and `IBisGame` supplies five callbacks including `onBisEvent`. Import `@bis/integration/style.css`. Wallet creation, restoration, and selection remain explicit.
 
 Game commands expose copied, readonly `BisSnapshot` projections and named payloads, not controllers or wallet internals. Game payloads use `BisGame` names; system payloads use `Bis` names. The [typechecked boundary example](tests/fixtures/game-contract-types.ts) rejects missing callbacks, private members, and mutable snapshots. Admin and Marketplace retain supported lower-level exports without creating alternative game channels.
 
-`state-layer-core` owns lifecycle, persistence, operation state, and read coordination. `ui-layer-react` owns components and styling. `wallet-layer-arkade` adapts SDK/provider calls; bridge, operation, and game-wallet layers retain their responsibilities. Demo layout changes belong in their consuming package.
+`state-layer-core` owns lifecycle, persistence, and operations; `ui-layer-react` owns components; `wallet-layer-arkade` adapts providers. Demo composition belongs in consuming packages.
+
+The shared `wallet-layer-arkade/shared-wallet-service.ts` provides settlement. Wallet adapters own browser storage, roles, locks, and presentation; the faucet injects server persistence and mutation ownership. Completion requires verified Arkade balance and transaction evidence. Quotes and registrations cannot establish spendability. Operator failures remain unavailable.
 
 ## Authoritative item metadata
 
@@ -22,11 +24,15 @@ Family, tier, catalog identity, price, and description support display and valid
 
 Remembered accounts use encrypted, origin-scoped browser storage. Refresh and disposal retain committed access. Compromised same-origin code can still access browser secrets; never log recovery phrases or put them in public state, telemetry, or reports. Logout/reset confirmations preserve unresolved-operation guards; clearing local access cannot cancel submitted transactions or erase remote holdings.
 
-After verified account activation and an initial render opportunity, BIS warms balance plus receiving addresses, then missing Transactions, then passive Contracts. Assets preparation requires inventory demand or an Assets visit during the current session; generic capability is insufficient. Marketplace owns its catalog and role-specific inventory caches. Onboarding and Game Wallet retain their workers.
+After activation and initial rendering, BIS warms balance and addresses, then Transactions and passive Contracts. Assets require inventory demand or a current-session visit. BIS owns role/profile/network-scoped inventory snapshots, reuse, and invalidation. Marketplace owns view state and classification counts. Onboarding and Game Wallet retain their workers.
 
-One speculative job runs at a time. Foreground preparation and wallet operations take priority. Opening a page joins compatible pending work without restarting provider calls, deadlines, or retries. Leaving detaches presentation; valid reads may finish into memory. Balance and addresses settle independently, and Details requires both. History readiness reuses the account observer without awaiting its lifetime.
+One speculative job runs at a time; foreground work takes priority. Page entry joins compatible reads without restarting deadlines or retries. Leaving detaches presentation. Balance and addresses settle independently; Details requires both. History reuses the observer without awaiting its lifetime.
 
-Complete successful snapshots, including empty collections, remain fresh for five minutes. Failed, partial, or obsolete results are excluded. Lifecycle changes and new evidence invalidate dependent work; identical observations do not renew timestamps. Explicit Refresh bypasses the page’s completed values but may join current live work. No TTL refill, new polling, snapshot persistence, or cross-context sharing is added.
+Successful complete snapshots, including empty collections, stay fresh for five minutes. Lifecycle changes and new evidence invalidate them; identical observations never renew timestamps. Refresh bypasses completed values but may join live work. Failed, partial, and obsolete results are excluded. No TTL refill, snapshot persistence, or cross-context sharing occurs.
+
+Mint readiness requires fresh provider evidence, eligible unreserved inputs, valid metadata, and durable recovery storage. Pre-submission failures expose retryable reasons such as `reserved-inputs`. Uncertain submissions retain their operation ID as `outcome-unknown` for reconciliation. Diagnostics exclude SDK errors, keys, recovery phrases, and private transaction payloads.
+
+Continue hosts await `controller.readyAsync()` before checking `canPay`; it joins current eligibility work, including superseding balance evidence. Preparing is distinct from verified unavailable and submitted pending. Account, network, recipient, or session replacement abandons an unsubmitted gesture. Game Wallet refreshes publish only current reads, including conflict diagnostics; obsolete completions cannot overwrite a newer selection.
 
 Modal pages retain their first-frame construction gate. Details stays interactive with placeholders and spinning Refresh while dependencies are pending. Background failures are silent. Quotes, spending, equipment selection, contract actions, recovery, and reconciliation retain their authoritative checks and explicit boundaries.
 
