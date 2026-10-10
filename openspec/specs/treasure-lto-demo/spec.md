@@ -7,19 +7,25 @@ Demonstrate generic BIS limited-time contracts through a game-owned treasure che
 ## Requirements
 
 ### Requirement: Start-triggered session attempt
-Clicking the existing Start control SHALL begin gameplay and a 90-second elapsed-time deadline immediately, without a treasure button, offer information or debugging information on the start menu. Eligible sessions SHALL initiate background funding. Missing player/game readiness or unresolved previous treasure cleanup SHALL skip the offer for the session without stopping play or enabling it later. Pauses, tab switches and funding delays SHALL NOT extend the deadline.
+Starting a game level SHALL create the level-scoped treasure session and 90-second elapsed-time deadline immediately, without a treasure button or offer diagnostics on the start menu. Eligible sessions SHALL initiate background funding from that explicit level-start trigger. Missing player/game readiness or unresolved previous treasure cleanup SHALL skip the offer for the session without stopping play or enabling it later. Application load, Admin component mounting, pauses and tab switches SHALL NOT start a treasure offer or extend the deadline.
 
 #### Scenario: Normal Start
-- **WHEN** the player starts with ready wallets and no unresolved prior treasure offer
-- **THEN** gameplay starts immediately and funding/toasts run in the background against the original Start-time deadline
+- **WHEN** the player starts a level with ready wallets and no unresolved prior treasure offer
+- **THEN** gameplay starts immediately and funding runs in the background against the original level-start deadline
+- **AND** unchanged funding-pending state does not produce a startup toast
 
 #### Scenario: Connect after starting
 - **WHEN** the player starts without a connected wallet and connects later
-- **THEN** that session remains skipped and the next Start may attempt a new offer
+- **THEN** that session remains skipped and the next level start may attempt a new offer
 
 #### Scenario: Return to start menu
 - **WHEN** the current run returns to the start menu
-- **THEN** it ends the prior attempt and silently checks/reconciles relevant contracts and requests eligible cleanup, without displaying contract diagnostics
+- **THEN** it ends the prior attempt and records the session outcome without presenting contract diagnostics
+- **AND** any required cleanup is targeted to that session and may continue only under an active recovery trigger
+
+#### Scenario: Admin loads without a developer action
+- **WHEN** Admin loads or the D contract section mounts without clicking Start LTO
+- **THEN** no treasure offer is created, no funding is submitted, and no funding-pending toast is shown
 
 ### Requirement: Game-owned chest and contract matching
 The host SHALL own Tiled-authored chest placement/spawning, collision, treasure dialogue and pause/focus behavior. The chest SHALL exist and be collidable independently of funding/backend/expiry state. On collision the game SHALL open its dialogue and query generic BIS contracts, selecting only its current session's exact contract reference. BIS SHALL NOT implement a TreasureLTO class or chest-specific UI.
@@ -59,7 +65,7 @@ Collision SHALL NOT reserve claim eligibility. At or after the 90-second deadlin
 - **THEN** the game retains its session outcome and shows the expired prompt even though BIS omits the resolved contract from the active list
 
 ### Requirement: Non-blocking Claim and Reject
-Claim and Reject SHALL invoke the corresponding generic BIS operation once. On accepted processing the pending toast SHALL appear, the game SHALL close its dialogue and release only its treasure pause reason, and completion SHALL arrive through a toast without interrupting gameplay. Reject SHALL forfeit this session's prize and request refund without replacing the offer. A failed/uncertain operation SHALL remain inspectable without an automatic resubmission.
+Claim and Reject SHALL invoke the corresponding generic BIS operation once. On accepted processing the pending toast MAY appear because it follows an explicit player action; the game SHALL close its dialogue and release only its treasure pause reason, and completion SHALL arrive through a toast without interrupting gameplay. Reject SHALL forfeit this session's prize and request refund without replacing the offer. A failed/uncertain operation SHALL remain inspectable without an automatic resubmission or startup notification.
 
 #### Scenario: Successful claim
 - **WHEN** a valid claim is accepted for processing
@@ -68,6 +74,11 @@ Claim and Reject SHALL invoke the corresponding generic BIS operation once. On a
 #### Scenario: Reject
 - **WHEN** Reject is accepted
 - **THEN** the prompt closes, refund processing continues in BIS, and the chest's later inspection cannot create another offer in that session
+
+#### Scenario: Unchanged pending funding
+- **WHEN** the game is reloaded before funding is verified
+- **THEN** the game restores the session record silently and does not show `Offer funding pending` merely because the process restarted
+- **AND** the chest or explicit contract inspection remains able to present the truthful pending state
 
 ### Requirement: Demonstration and consumer parity
 The BIS D.P.1/D.P.2 demo SHALL exercise production public APIs and may simulate host gameplay events only. Stealth & Steel SHALL consume the built BIS public package and integrate the same lifecycle through its game-owned session and chest UI. Financial live acceptance and browser-visible consumer delivery SHALL be reported separately and neither SHALL be inferred solely from unit fixtures.
@@ -81,7 +92,7 @@ The BIS D.P.1/D.P.2 demo SHALL exercise production public APIs and may simulate 
 - **THEN** the game automatically uses the configured hosted wallet service, contains no game-wallet import UI or game signing secret, and reports service unavailability without blocking ordinary play
 
 ### Requirement: Developer demo controls
-The BIS D.P.2 demonstration SHALL provide always-clickable Start LTO and Claim LTO buttons with a 90-second countdown on the same compact horizontal story row used by the other demonstrations. Each click SHALL immediately update the console, followed by its outcome and asynchronous status changes. These controls SHALL use the same contract guards as the game and SHALL remain separate from the game's Start menu and collision dialogue. When multiple D.P.2 surfaces or cooperating controller instances share the same underlying player, game wallet and exclusivity key, Start LTO SHALL surface either the single winning session's status or a truthful skipped/no-offer state for the losing session; it SHALL NOT let a losing controller adopt another session's contract or create a duplicate claim path.
+The BIS D.P.2 demonstration SHALL provide always-clickable Start LTO and Claim LTO buttons with a 90-second countdown on the same compact horizontal story row used by the other demonstrations. Each click SHALL immediately update the console, followed by its outcome and asynchronous status changes. These controls SHALL use the same contract guards as the game, SHALL remain separate from the game's Start menu and collision dialogue, and Start LTO SHALL be the explicit Admin trigger for a demo offer; mounting or refreshing the Admin application SHALL not invoke it. When multiple D.P.2 surfaces or cooperating controller instances share the same underlying player, game wallet and exclusivity key, Start LTO SHALL surface either the single winning session's status or a truthful skipped/no-offer state for the losing session; it SHALL NOT let a losing controller adopt another session's contract or create a duplicate claim path.
 
 #### Scenario: Claim before an offer is ready
 - **WHEN** the developer clicks Claim LTO before Start or while funding is pending
@@ -93,11 +104,11 @@ The BIS D.P.2 demonstration SHALL provide always-clickable Start LTO and Claim L
 - **AND** the other surface reports no offer or unavailable status for its own session without claiming the winning surface's contract
 
 ### Requirement: Developer LTO controls recover from stale attempts
-The D.P.2 Start LTO and Claim LTO controls SHALL bind their countdown and actions to the current concrete offer or skipped session. A Start attempt that cannot create an offer SHALL report the current reason and clear transient controller state when complete. It SHALL NOT leave the story row permanently stuck at unavailable when the next explicit Start represents a new session. Claim SHALL only act on the current matching contract and SHALL NOT create a replacement offer.
+The D.P.2 Start LTO and Claim LTO controls SHALL bind their countdown and actions to the current concrete offer or skipped session. Start LTO SHALL be the explicit Admin trigger for a demo offer, and mounting or refreshing the Admin application SHALL not invoke it. A Start attempt that cannot create an offer SHALL report the current reason and clear transient controller state when complete. Claim SHALL only act on the current matching contract and SHALL NOT create a replacement offer.
 
 #### Scenario: Start after a previous unavailable attempt
 - **WHEN** Start LTO previously reported no offer because readiness or funding was unavailable
-- **THEN** a later Start LTO with current ready wallets creates a fresh session attempt rather than replaying the old unavailable result
+- **THEN** a later explicit Start LTO with current ready wallets creates a fresh session attempt rather than replaying the old unavailable result
 - **AND** the countdown starts only after the new concrete offer or preparation state belongs to that fresh session
 
 #### Scenario: Claim before and after a concrete offer
