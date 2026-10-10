@@ -25,7 +25,7 @@ These are interfaces/types, not a hierarchy of new runtime DTO classes. `BisServ
 
 ## Roles and responsibilities
 
-“Current” describes this provider implementation; “Proposed” is the approved complete game boundary, not evidence that separately vendored game code or public deployments already use it. Coordinated migration/release evidence belongs in [OpenSpec](../../openspec/changes/formalize-bis-game-contracts/).
+“Current” describes this provider implementation; “Proposed” is the approved complete game boundary, not evidence that separately vendored game code or public deployments already use it. Coordinated migration/release evidence belongs in the [archived OpenSpec record](../../openspec/changes/archive/2026-10-10-formalize-bis-game-contracts/).
 
 | Issue | BIS offers | Game offers | Current Contracts | Proposed Contracts |
 | --- | --- | --- | --- | --- |

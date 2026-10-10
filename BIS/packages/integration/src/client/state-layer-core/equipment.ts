@@ -95,17 +95,27 @@ export function classifyBisEquipmentAsset(asset: BisAsset): BisEquipmentItem | n
     || metadata.bisGameId !== BIS_STEALTH_AND_STEEL_GAME_ID
     || metadata.bisAssetType !== 'item'
     || typeof metadata.bisCatalogId !== 'string'
-    || typeof metadata.bisDescription !== 'string'
-    || !metadata.bisDescription.trim()
     || !isCredentialFreeHttps(asset.iconUrl)) return null;
 
   const definition = byCatalogId.get(metadata.bisCatalogId);
-  const attributeDeltas = readAttributeDeltas(metadata.bisAttributeDeltas);
   if (!definition
-    || !attributeDeltas
     || metadata.bisEquipmentFamily !== definition.family
     || metadata.bisTier !== String(definition.tier)
     || metadata.bisPriceSats !== String(definition.priceSats)) return null;
+
+  // Older issued marketplace assets contain the validated catalog identity but
+  // predate the optional description/effect fields. Keep those real holdings
+  // discoverable by deriving only omitted presentation fields from the same
+  // canonical definition; malformed fields that are present remain rejected.
+  const description = metadata.bisDescription === undefined
+    ? definition.description
+    : typeof metadata.bisDescription === 'string' && metadata.bisDescription.trim()
+      ? metadata.bisDescription
+      : undefined;
+  const attributeDeltas = metadata.bisAttributeDeltas === undefined
+    ? definition.attributeDeltas
+    : readAttributeDeltas(metadata.bisAttributeDeltas);
+  if (!description || !attributeDeltas) return null;
 
   try {
     if (BigInt(asset.quantity) <= 0n) return null;
@@ -113,5 +123,5 @@ export function classifyBisEquipmentAsset(asset: BisAsset): BisEquipmentItem | n
     return null;
   }
 
-  return Object.freeze({ ...definition, description: metadata.bisDescription, attributeDeltas, assetId: asset.assetId, quantity: asset.quantity, iconUrl: asset.iconUrl });
+  return Object.freeze({ ...definition, description, attributeDeltas, assetId: asset.assetId, quantity: asset.quantity, iconUrl: asset.iconUrl });
 }

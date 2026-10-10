@@ -188,7 +188,7 @@ function MarketplaceContent(){
       :[...gameItemsForSession,...previousPlayerItems,...(activeGameWallet&&pendingItem?[pendingItem]:[])].filter((item,index,all)=>all.findIndex(candidate=>candidate.assetId===item.assetId)===index);
   const visibleItems=source.filter(item=>(game==='all'||game==='stealth-and-steel')&&(type==='all'||gameplayMetadata(item).some(stat=>stat.label.toLowerCase()===type&&stat.value!=='0')));
   const selectedGameIsEmpty=game!== 'all'&&game!== 'stealth-and-steel';
-  const emptyMessage=selectedGameIsEmpty?`No equipment is currently available for ${selectedGame?.displayName??game}.`:!playerState.profileId&&owner!=='player'?'Log in to your Player Wallet to view Game Wallet items.':!activeGameWallet&&owner!=='player'?'Log in to your Game Wallet to view its items.':owner==='player'?'Log in to your Player Wallet to view its items.':!readable?'Catalog data unavailable.':'No freshly verified equipment matches these filters.';
+  const emptyMessage=selectedGameIsEmpty?`No equipment is currently available for ${selectedGame?.displayName??game}.`:!playerState.profileId&&owner!=='player'?'Log in to your Player Wallet to view Game Wallet items.':!activeGameWallet&&owner!=='player'?'Log in to your Game Wallet to view its items.':owner==='player'&&!playerState.profileId?'Log in to your Player Wallet to view its items.':!readable?'Catalog data unavailable.':'No freshly verified equipment matches these filters.';
   const selectedInventory=owner==='player'?inventoryState.player:inventoryState.game;
   const sourceFor=(role:'player'|'game')=>inventorySources.find(source=>source.role===role);
   const recordNeedsInitialRead=(role:'player'|'game')=>{

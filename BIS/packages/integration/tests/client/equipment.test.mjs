@@ -16,7 +16,7 @@ test('the shared catalog defines exactly nine approved items, prices, structured
   }
 });
 
-test('the classifier accepts only complete matching item metadata and preserves the chain icon URL', () => {
+test('the classifier accepts matching item metadata and preserves the chain icon URL', () => {
   const definition = bisMarketplaceItems[0];
   const metadata = { bisSchemaVersion: '1', ...marketplaceItemMetadata(definition) };
   const iconUrl = 'https://cdn.example.com/from-chain.png';
@@ -31,4 +31,14 @@ test('the classifier accepts only complete matching item metadata and preserves 
   assert.equal(classifyBisEquipmentAsset({ ...asset, iconUrl: 'http://example.com/icon.png' }), null);
   assert.equal(classifyBisEquipmentAsset({ ...asset, quantity: '0' }), null);
   assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: undefined }), null);
+});
+
+test('the classifier accepts older issued items that omit optional description and effect metadata', () => {
+  const definition = bisMarketplaceItems[0];
+  const metadata = { bisSchemaVersion: '1', ...marketplaceItemMetadata(definition) };
+  const legacyMetadata = { ...metadata };
+  delete legacyMetadata.bisDescription;
+  delete legacyMetadata.bisAttributeDeltas;
+  const asset = { assetId: 'legacy-shoes-1', quantity: '1', iconUrl: definition.iconUrl, metadata: legacyMetadata };
+  assert.deepEqual(classifyBisEquipmentAsset(asset), { ...definition, assetId: asset.assetId, quantity: '1', iconUrl: asset.iconUrl });
 });
