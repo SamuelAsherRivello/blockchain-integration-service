@@ -1,5 +1,5 @@
-import { ReportTextArea } from './ReportTextArea';
-import { ItemList, ItemListDetail } from './ItemList';
+import { FormValue } from './FormValue';
+import { CollectionListView, CollectionDetailView } from './ItemList';
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useLayoutEffect, useId, useRef, useState } from 'react';
 import { formatTransactionDetail, formatTransactions, transactionRowPresentation, transactionExplorerUrl, withContractActivity, type BisActivity } from '../state-layer-core/activity';
@@ -11,8 +11,9 @@ import type { RecoveryContext } from './TransactionRecovery';
 import { formatTransferRecoveryReport } from '../state-layer-core/boarding-status';
 import { CompactItemRow, StatusTypeIcon, type StatusType } from './StatusTypeIcon';
 import { networkLabel } from '../state-layer-core/test-network';
+import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
-export function AccountActivity({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContractsAsync'>> }) {
+export function AccountActivityView({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContractsAsync'>> }) {
   const id = useId();
   const [recoveryDialog, setRecoveryDialog] = useState<{ report: string; trigger: HTMLButtonElement }>();
   const [selectedId, setSelectedId] = useState<string>();
@@ -49,21 +50,24 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
   const explorerUrl = opened ? transactionExplorerUrl(opened, network) : undefined;
   const recoveryText = [opened?.transfer ? formatTransferRecoveryReport(opened.transfer, network) : '', ...recovery.map(formatOperationRecovery), funds].filter(Boolean).join('\n\n');
   const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const initialLoading = useRef(true);
   useLayoutEffect(() => { onDetailChange(detailOpen); }, [detailOpen, onDetailChange]);
   useLayoutEffect(() => { if (activity.status==='ready' && !selected) { setSelectedId(undefined); setDetailOpen(false); } }, [selected?.id,activity.status]);
   useEffect(() => () => onDetailChange(false), [onDetailChange]);
   const loading = activity.status === 'idle' || activity.status === 'loading';
+  useEffect(()=>{if (activity.status === 'ready' || activity.status === 'unavailable') initialLoading.current = false;},[activity.status]);
   const foreground=useRef(true);
   if(loading)foreground.current=true;
   if(activity.status==='ready')foreground.current=false;
-  usePendingNotice(loading,'Loading ...', foreground.current && !rows.length && activity.status==='unavailable'?'Transactions could not be loaded.':undefined,()=>{
+  const loadingNotice=useEntryLoadingGate(loading,initialLoading.current,viewLoadingPolicies.activity);
+  usePendingNotice(loadingNotice,'Loading ...', foreground.current && !rows.length && activity.status==='unavailable'?'Transactions could not be loaded.':undefined,()=>{
     if(detailOpen){setDetailOpen(false);setSelectedId(undefined);void context?.refreshActivity();}
     else context?.closeAccount();
   });
-  const Page=opened?ItemListDetail:ItemList;
+  const Page=opened?CollectionDetailView:CollectionListView;
   return <Page network={networkLabel(network)} title={opened?'Transaction Detail':'Transactions'} body={opened?'Inspect this transaction and its recovery status.':'Transactions recorded for this account.'}
     fieldLabel={opened?'Transaction':'Transactions'} report={text} listLabel="Transactions" loading={loading}
-    onRefresh={()=>context?.refreshActivity()} refreshDisabled={!context?.refreshActivity}
+  onRefresh={()=>context?.refreshActivity?.(true)} refreshDisabled={!context?.refreshActivity}
     items={rows.map(row=>{const presentation=transactionRowPresentation(row);return {id:row.id,selected:selectedId===row.id,
       buttonRef:element=>{if(element)buttons.current.set(row.id,element);else buttons.current.delete(row.id);},
       onSelect:()=>{setSelectedId(row.id);setRecoveryDialog(undefined);setDetailOpen(true);},
@@ -72,7 +76,7 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
         {icon:'📡',label:'Chain',value:presentation.network},{icon:'🪙',label:'Cost',value:presentation.cost},
         {icon:row.direction==='Outgoing'||row.direction==='Arkade → Bitcoin'?'↗️':'↙️',label:'Direction',value:row.direction},{icon:'🕒',label:'Elapsed',value:presentation.time,title:presentation.fullDate},
       ]}/>};})}
-    detail={opened?<ReportTextArea id={id} aria-label="Transaction" rows={12} value={text}/>:undefined}
+    detail={opened?<FormValue id={id} label="Transaction" value={text} multiline rows={12}/>:undefined}
     notice={<>{reportError&&<p role="status">Pending recovery details unavailable. Use Refresh to retry.</p>}
       {activity.status==='unavailable'&&<p role="status">{rows.length?'Showing available records. Full transaction history could not be refreshed. Use Refresh to retry.':'Transactions unavailable. Use Refresh to retry.'}</p>}
       {activity.status==='ready'&&!rows.length&&<p>No transactions.</p>}</>}

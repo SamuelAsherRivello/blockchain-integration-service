@@ -1,29 +1,31 @@
-import {AccountOnboarding,onboardingLabel} from './AccountOnboarding';
+import {AccountOnboardingView,onboardingLabel} from './AccountOnboarding';
 import { PendingOperations, usePendingNotice, type HostLoading } from './PendingOperationDialog';
 import { ToastViewport } from './ToastViewport';
-import { AccountAssets } from './AccountAssets';
-import { AccountContracts } from './AccountContracts';
-import { AccountBalances } from './AccountBalances';
-import { AccountSend } from './AccountSend';
-import { AccountTransfer } from './AccountTransfer';
-import { AccountActivity } from './AccountActivity.tsx';
+import { AccountAssetsView } from './AccountAssets';
+import { AccountContractsView } from './AccountContracts';
+import { AccountBalancesFormValue } from './AccountBalances';
+import { AccountSendView } from './AccountSend';
+import { AccountTransferView } from './AccountTransfer';
+import { AccountActivityView } from './AccountActivity.tsx';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { getControls, type BisContext } from '../state-layer-core/context';
 import { createBisContext } from '../wallet-layer-arkade/context-composition';
 import './overlay.css';
-import { RestoreAccount } from './RestoreAccount';
-import { AccountAddresses } from './AccountAddresses';
-import { AccountCard } from './AccountCard';
-import { FieldHeading } from './FieldHeading';
+import { AccountRestoreView } from './RestoreAccount';
+import { AccountAddressesFormValue } from './AccountAddresses';
+import { AccountDialogShell } from './AccountCard';
+import { FormHeading } from './FormHeading';
 import { FitTextButton } from './FitTextButton';
 import { IconButton } from './IconButton';
 import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
-import { GameWalletLogin } from './GameWalletLogin';
+import { GameWalletLoginView } from './GameWalletLogin';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
 import { networkLabel } from '../state-layer-core/test-network';
 import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, itemSupportAvailable, itemSupportFeedback } from '../state-layer-core/capabilities';
 import { FormRowBoolean } from './FormRowBoolean';
+import { ViewTransition } from './ViewTransition';
+import { defaultViewLoadingPolicy, useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 const emptySubscribe = () => () => {};
 const emptySnapshot = () => undefined;
@@ -59,10 +61,10 @@ function NetworkSelect({ value, onChange }: { value: 'signet' | 'mutinynet' | un
   </div>;
 }
 
-export function BisView({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange, hostLoading, onBisVisibilityChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void;hostLoading?: HostLoading;onBisVisibilityChange?(visible:boolean):void }) {
-  return <PendingOperations overlay={<ToastViewport context={context} />} hostLoading={hostLoading} onBisVisibilityChange={onBisVisibilityChange}><BisScreen context={context} gameWallet={gameWallet} hasItemSupport={hasItemSupport} hasAssetMintingSupport={hasAssetMintingSupport} hasContractSupport={hasContractSupport} onDeveloperDialogChange={onDeveloperDialogChange} onGameWalletDialogChange={onGameWalletDialogChange} /></PendingOperations>;
+export function BisAccountView({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange, hostLoading, onBisVisibilityChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void;hostLoading?: HostLoading;onBisVisibilityChange?(visible:boolean):void }) {
+  return <PendingOperations overlay={<ToastViewport context={context} />} hostLoading={hostLoading} onBisVisibilityChange={onBisVisibilityChange}><BisAccountScreen context={context} gameWallet={gameWallet} hasItemSupport={hasItemSupport} hasAssetMintingSupport={hasAssetMintingSupport} hasContractSupport={hasContractSupport} onDeveloperDialogChange={onDeveloperDialogChange} onGameWalletDialogChange={onGameWalletDialogChange} /></PendingOperations>;
 }
-function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
+function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
   const walletSnapshot = useSyncExternalStore(gameWallet?.subscribe ?? emptySubscribe, gameWallet?.getState ?? emptySnapshot, gameWallet?.getState ?? emptySnapshot);
   const [developerOpen, setDeveloperOpen] = useState(false);
@@ -145,9 +147,14 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
   const phaseLabels: Record<string,string> = {loading:'Loading ...',creating:'Creating...',saving:'Saving...',resetting:'Resetting...', 'logging-out':'Logging out...', restoring:'Restoring...', 'restore-saving':'Saving...'};
   const pageLoading = !!data && (data.status === 'idle' || data.status === 'loading');
   const recoveryLoading = savedRecovery && (state.recoveryStatus === 'hidden' || state.recoveryStatus === 'loading');
-  const failure = state.error || (!assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
+  const failure = state.error || (!onboarding && !assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
   const accountDetailsLoading = details && pageLoading;
-  usePendingNotice(state.view !== 'empty' && (busy || ((!assets && !accountDetailsLoading) && pageLoading) || recoveryLoading), phaseLabels[state.phase] ?? 'Loading ...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
+  const entryViewKey = receive ? 'receive' : transfer ? 'transfer' : activity ? 'activity' : contracts ? 'contracts' : savedRecovery ? 'recovery' : 'none';
+  const entryLoading = entryViewKey === 'recovery' ? recoveryLoading : !!entryViewKey && entryViewKey !== 'none' && pageLoading;
+  const entryPolicy = viewLoadingPolicies[entryViewKey] ?? defaultViewLoadingPolicy;
+  const gatedEntryLoading = useEntryLoadingGate(entryLoading, entryViewKey !== 'none', entryPolicy, entryViewKey);
+  const foregroundPageLoading = entryViewKey !== 'none' ? gatedEntryLoading : (!assets && !accountDetailsLoading && !onboarding ? pageLoading : false);
+  usePendingNotice(state.view !== 'empty' && (busy || foregroundPageLoading), phaseLabels[state.phase] ?? 'Loading ...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
   const handleBack = () => {
     if (onboarding && developerReturn) {
       // Leave the nested onboarding route explicitly before revealing the
@@ -160,16 +167,20 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
     }
     context.closeAccount();
   };
-  if (state.view === 'empty') return null;
+  if (state.view === 'empty') return <ViewTransition viewKey="empty">{null}</ViewTransition>;
+  const collectionKey = assets ? `assets-${assetOpen ? 'detail' : 'list'}` : contracts ? `contracts-${contractOpen ? 'detail' : 'list'}` : activity ? `activity-${transactionOpen ? 'detail' : 'list'}` : undefined;
   if (state.view === 'account' && (assets || contracts || activity)) return <div className="bis-layer bis-layer-open bis-layer-collection">
-    {assets && state.network && <AccountAssets key={state.profileId} assets={state.assets} network={state.network} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
-    {contracts && <AccountContracts key={state.profileId} context={context} onDetailChange={setContractOpen} />}
-    {activity && <AccountActivity key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
+    <ViewTransition viewKey={collectionKey ?? 'collection'}>
+      {assets && state.network && <AccountAssetsView key={state.profileId} assets={state.assets} network={state.network} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
+      {contracts && <AccountContractsView key={state.profileId} context={context} onDetailChange={setContractOpen} />}
+      {activity && <AccountActivityView key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
+    </ViewTransition>
   </div>;
   const title = gameWalletLogin ? 'Game Wallet' : developer ? 'Developer' : onboarding ? 'Onboarding' : assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Swap' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Accounts Details' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : 'Account';
+  const viewKey = state.view === 'account-button' ? 'account-button' : gameWalletLogin ? 'game-wallet' : developer ? 'developer' : onboarding ? 'onboarding' : restoring ? 'restore-account' : recovery ? 'set-recovery-phrase' : savedRecovery ? 'get-recovery-phrase' : logout ? 'logout-confirmation' : state.phase === 'creating' ? 'create-account' : details ? 'account-details' : transfer ? 'swap' : send ? 'send' : receive ? 'receive' : 'account-menu';
   return <div className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
-      <AccountCard network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}
+      <ViewTransition viewKey={viewKey}><AccountDialogShell network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
         headingActions={gameWalletLogin && gameWallet ? <IconButton className="bis-title-icon" label="Refresh Game Wallet" disabled={walletSnapshot?.status === 'loading'} onClick={()=>void gameWallet.refresh()}>
             <span className="bis-refresh-image" aria-hidden="true" />
@@ -177,11 +188,11 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
             <span className="bis-refresh-image" aria-hidden="true" />
           </IconButton>}
         description={gameWalletLogin ? 'Set the wallet used by this game’s contracts.' : developer ? 'Developer tools for this BIS session.' : (send ? `Send ${networkLabel(state.network)} test funds to another Arkade address.` : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout removes this saved wallet access and its local transaction records. Submitted transactions are not cancelled.' : state.hasProfile ? (onboarding || assets || details || transfer || activity ? null : 'You are logged in.') : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
-        {details && !gameWalletLogin && !developer && <><AccountAddresses addresses={state.addresses} arkadeOnly /><AccountBalances balance={state.balance} /></>}
-        {onboarding && <AccountOnboarding key={state.profileId} view={state.onboarding} network={state.network} bitcoinAddress={state.addresses.status==='ready'?state.addresses.bitcoinAddress:undefined} balance={state.balance} />}
-        {transfer && <AccountTransfer context={context} key={state.profileId} balance={state.balance} onBack={() => context.closeAccount()} />}
-        {receive && <AccountAddresses addresses={state.addresses} />}
-        {send && <AccountSend context={context} key={state.profileId} />}
+        {details && !gameWalletLogin && !developer && <><AccountAddressesFormValue addresses={state.addresses} arkadeOnly /><AccountBalancesFormValue balance={state.balance} /></>}
+        {onboarding && <AccountOnboardingView key={state.profileId} view={state.onboarding} network={state.network} bitcoinAddress={state.addresses.status==='ready'?state.addresses.bitcoinAddress:undefined} balance={state.balance} />}
+        {transfer && <AccountTransferView context={context} key={state.profileId} balance={state.balance} onBack={() => context.closeAccount()} />}
+        {receive && <AccountAddressesFormValue addresses={state.addresses} />}
+        {send && <AccountSendView context={context} key={state.profileId} />}
         {logout && <>
           <label className="bis-backup-check"><input type="checkbox" checked={state.logoutBackupAcknowledged} disabled={busy} onChange={event => context.setLogoutBackupAcknowledged(event.target.checked)} /><span>I have backed up my wallet</span></label>
           {state.logoutPendingCount !== null && state.logoutPendingCount > 0 && <>
@@ -192,7 +203,7 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
         {(savedRecovery || recovery || state.phase === 'creating') && <TestWalletWarning />}
         {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <RecoveryPhrasePanel key={savedRecovery ? 'saved' : 'setup'} phrase={getControls(context).recovery()} session={recoverySession} disabled={busy} />}
         {state.error && !busy && <p role="alert">{state.error}</p>}
-        {gameWalletLogin && gameWallet ? <GameWalletLogin wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <RestoreAccount context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
+        {gameWalletLogin && gameWallet ? <GameWalletLoginView wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <AccountRestoreView context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
           <div className="bis-copy-field-heading"><h3>Support</h3></div>
           <div className="bis-support-list">
             <FormRowBoolean label="Asset Minting" value={assetMintingSupported} enabledText={assetMintingTooltip} disabledText={assetMintingTooltip} />
@@ -217,12 +228,12 @@ function BisScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport
           {details && <button className="bis-button bis-danger" disabled={busy} onClick={() => setDeveloperOpen(true)}>Developer</button>}
           {menu && <div className="bis-transfer-actions"><FitTextButton onClick={()=>context.openAccountSend()}>⚡ Send</FitTextButton><FitTextButton onClick={()=>context.openAccountReceive()}>⚡ Receive</FitTextButton><FitTextButton onClick={()=>context.openAccountTransfer()}>⚡ Swap</FitTextButton></div>}
           {savedRecovery ? (state.recoveryStatus === 'unavailable' ? <button className="bis-button" onClick={()=>void getControls(context).revealRecovery()}>Retry</button> : null) : onboarding || details || activity || receive || send ? null : logout ? <button className="bis-button bis-danger" disabled={busy || !state.logoutBackupAcknowledged || (state.logoutPendingCount !== null && state.logoutPendingCount > 0 && !state.logoutPendingAcknowledged) || (state.hasGameWallet && !state.logoutGameWalletAcknowledged)} onClick={()=>void (state.phase === 'logout-error' ? context.retry() : context.confirmLogout())}>{state.phase === 'logout-error' ? 'Retry' : 'Log Out'}</button> : state.phase === 'error' ? <button className="bis-button bis-primary" onClick={()=>void context.retry()}>Retry</button> : state.hasProfile ? <button className="bis-button" disabled={busy} onClick={()=>context.openLogoutConfirmation()}>Log Out</button> : recovery ? <><button className="bis-button bis-primary" disabled={busy} onClick={()=>void context.continueAccount()}>⚡ Continue</button></> : !busy && <>
-            <div className="bis-entry-group"><FieldHeading label="Network" /><NetworkSelect value={state.network} onChange={context.selectNetwork} /></div>
-            <div className="bis-entry-group"><FieldHeading label="Account" /><div className="bis-account-actions"><button className="bis-button bis-primary" disabled={!state.network} onClick={()=>void context.createAccount()}>⚡ Create Account</button><button className="bis-button" disabled={!state.network} onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button></div></div>
+            <div className="bis-entry-group"><FormHeading label="Network" /><NetworkSelect value={state.network} onChange={context.selectNetwork} /></div>
+            <div className="bis-entry-group"><FormHeading label="Account" /><div className="bis-account-actions"><button className="bis-button bis-primary" disabled={!state.network} onClick={()=>void context.createAccount()}>⚡ Create Account</button><button className="bis-button" disabled={!state.network} onClick={()=>context.openRestoreAccount()}>⚡ Restore Account</button></div></div>
           </>}
           {!(activity && transactionOpen) && <button ref={close} className="bis-button bis-back" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={handleBack}>Back</button>}
         </div>}
-      </AccountCard>}
+      </AccountDialogShell></ViewTransition>}
   </div>;
 }
 
@@ -251,7 +262,7 @@ export function createBisUi(context: BisContext, options: { gameWallet?: GameWal
       }
       host = container;
       root = createRoot(container);
-      root.render(<BisView context={context} gameWallet={options.gameWallet} hasItemSupport={options.hasItemSupport} hasAssetMintingSupport={options.hasAssetMintingSupport} hasContractSupport={options.hasContractSupport} onDeveloperDialogChange={open => { openDeveloperDialog = open; }} onGameWalletDialogChange={open=>{openGameWalletDialog=open;}} hostLoading={hostLoadingControl} onBisVisibilityChange={setBisVisible} />);
+      root.render(<BisAccountView context={context} gameWallet={options.gameWallet} hasItemSupport={options.hasItemSupport} hasAssetMintingSupport={options.hasAssetMintingSupport} hasContractSupport={options.hasContractSupport} onDeveloperDialogChange={open => { openDeveloperDialog = open; }} onGameWalletDialogChange={open=>{openGameWalletDialog=open;}} hostLoading={hostLoadingControl} onBisVisibilityChange={setBisVisible} />);
     },
     showAccountButton() { internal.present(); },
     openDeveloperDialog() { internal.assertAlive(); openDeveloperDialog?.(); },
@@ -285,5 +296,5 @@ export function GameOverlay() {
     // StrictMode replays effects; dispose only after a genuine unmount.
     return () => { queueMicrotask(() => { if (generation.current === current) { gameWallet.current?.dispose(); client.dispose(); } }); };
   }, []);
-  return <BisView context={context.current} gameWallet={gameWallet.current} />;
+  return <BisAccountView context={context.current} gameWallet={gameWallet.current} />;
 }

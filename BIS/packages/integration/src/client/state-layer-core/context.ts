@@ -31,10 +31,14 @@ import { WalletRoleConflictError, withWalletRoleSelection } from './wallet-role.
 import type { BalanceAmounts } from '../wallet-layer-arkade/balance.ts';
 import type { AccountAddresses } from '../wallet-layer-arkade/addresses.ts';
 import type { TestNetwork } from './test-network.ts';
+import { createViewCache, DEFAULT_VIEW_CACHE_TTL_MS, type ViewCacheDataType, type ViewCacheKey } from './view-cache.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
 import type { BisContextDependencies } from './context-dependencies.ts';
 export type BisBalanceReadStatus = 'wallet-read' | 'storage';
 export type BisBalance = Readonly<{ status: 'idle' | 'loading' }> | Readonly<{ status: 'unavailable'; readStatus?: BisBalanceReadStatus }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
+const VIEW_CACHE_TTL_MS = DEFAULT_VIEW_CACHE_TTL_MS;
+const contractCache = new Map<string, Readonly<{ value: BisContractsResult; fetchedAt: number }>>();
+const contractCacheKey = (profileId: string, network: TestNetwork, filter?: BisContractFilter) => `${network}:${profileId}:${JSON.stringify(filter ?? {})}`;
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
   savedProfiles: readonly string[];
@@ -68,7 +72,7 @@ export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnecte
 export interface BisContext {
   openAccountOnboarding?():void;
   refreshOnboarding?():void;
-  checkContractsAsync?(filter?:BisContractFilter):Promise<BisContractsResult>;
+  checkContractsAsync?(filter?:BisContractFilter, force?:boolean):Promise<BisContractsResult>;
   openAccountContracts?():void;
   claimContractAsync?(id:string):Promise<BisContractActionResult>;
   rejectContractAsync?(id:string):Promise<BisContractActionResult>;
@@ -96,6 +100,7 @@ export interface BisContext {
   openAccountReceive(): void;
   openAccountSend(): void;
   getSendSpendable(preserveAssets?:boolean): Promise<number>;
+  getCachedArkBalance?(): number | undefined;
   quoteAccountSend(recipient:string, amountSats?:number, preserveAssets?:boolean): Promise<BisSendQuote>;
   confirmAccountSend(quote:BisSendQuote): Promise<BisSendStatus>;
   checkAccountSend(): Promise<BisSendStatus>;
@@ -110,7 +115,7 @@ export interface BisContext {
   openAccountAssets(): void;
   refreshAssets(): Promise<void>;
   openAccountRecovery(): void;
-  refreshActivity(): Promise<void>;
+  refreshActivity(force?:boolean): Promise<void>;
   closeAccount(): void;
   refreshBalance(): Promise<void>;
   createAccount(): Promise<void>;
@@ -167,6 +172,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   let observeActivity = dependencies.observeActivity;
   let observePayments = dependencies.observePayments;
   const toasts = createToastQueue();
+  const viewCache = createViewCache(VIEW_CACHE_TTL_MS);
   const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
   if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
   let issuedSend:BisSendQuote|undefined,issuedSendPreservesAssets=false,sendRevision=0;
@@ -182,6 +188,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   const idleBalance: BisBalance = Object.freeze({status:'idle'});
   const idleAddresses: BisAddresses = Object.freeze({status:'idle'});
   let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:false,network:options.getNetwork?.() ?? (options.requireNetworkSelection ? undefined : 'signet'),balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
+  const cacheKey = (dataType: ViewCacheDataType, profileId = state.profileId, network = state.network ?? 'signet'): ViewCacheKey | undefined => profileId ? {dataType, profileId, network} : undefined;
   let revealedPhrase: string | undefined;
   let recoveryVersion = 0;
   let recoveryOperation = new AbortController();
@@ -292,7 +299,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   let storageRevision = 0;
   let balanceVersion = 0;
   let balanceOperation = new AbortController();
-  const balanceVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && (s.accountDetails || s.accountReceive || s.accountTransfer || s.accountOnboarding);
+  const balanceVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && (s.accountDetails || s.accountReceive || s.accountTransfer || s.accountOnboarding || s.accountSend);
   const cancelBalance = () => { balanceVersion++; balanceOperation.abort(); balanceOperation=new AbortController(); };
   const listeners = new Set<() => void>();
   const events = new Set<(event: BisEvent)=>void>();
@@ -459,6 +466,12 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   let preserveQueuedBalance = true;
   function walletChanged(profileId: string, refreshSource = true, foregroundBalance = false, sameSnapshot = false) {
     if (disposed || state.profileId !== profileId || state.phase !== 'active') return;
+    const network = state.network ?? 'signet';
+    viewCache.invalidateDataType('balance', profileId, network);
+    viewCache.invalidateDataType('addresses', profileId, network);
+    viewCache.invalidateDataType('details', profileId, network);
+    viewCache.invalidateDataType('activity', profileId, network);
+    for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${profileId}:`))contractCache.delete(key);
     refreshWalletSource ||= refreshSource;
     foregroundWalletBalance ||= foregroundBalance;
     if (foregroundBalance) receiptBalanceLoading = true;
@@ -518,7 +531,25 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       const current=()=>!disposed && !signal.aborted && request===balanceVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && balanceVisible(state);
       const needsAddresses = state.accountReceive || state.accountOnboarding || state.accountDetails;
       const needsBalance = !state.accountReceive;
-      if (!background || (needsAddresses && state.addresses.status !== 'ready') || (needsBalance && state.balance.status !== 'ready')) update({balance:needsBalance ? Object.freeze({status:'loading'}) : idleBalance,addresses:needsAddresses ? Object.freeze({status:'loading'}) : idleAddresses});
+      const balanceKey=cacheKey('balance',profileId), addressKey=cacheKey('addresses',profileId), detailsKey=cacheKey('details',profileId);
+      const detailsRead = state.accountDetails;
+      const cachedDetails=detailsRead && detailsKey ? viewCache.get<{balance: BalanceAmounts; addresses: AccountAddresses}>(detailsKey) : undefined;
+      const cached=balanceKey && !state.accountDetails ? viewCache.get<BalanceAmounts>(balanceKey) : undefined;
+      const cachedAddresses=addressKey && !state.accountDetails ? viewCache.get<AccountAddresses>(addressKey) : undefined;
+      if (cachedDetails) {
+        if(current()) update({balance:Object.freeze({status:'ready',...cachedDetails.value.balance}),addresses:Object.freeze({status:'ready',...cachedDetails.value.addresses})});
+        return;
+      }
+      const readBalanceLive = needsBalance && !cached;
+      const readAddressesLive = needsAddresses && !cachedAddresses;
+      if (!readBalanceLive && !readAddressesLive) {
+        if(current()) update({
+          ...(cached && state.balance.status === 'idle' ? {balance:Object.freeze({status:'ready',...cached.value})} : {}),
+          ...(cachedAddresses && state.addresses.status === 'idle' ? {addresses:Object.freeze({status:'ready',...cachedAddresses.value})} : {}),
+        });
+        return;
+      }
+      if (!background || (readAddressesLive && state.addresses.status !== 'ready') || (readBalanceLive && state.balance.status !== 'ready')) update({balance:needsBalance ? (cached ? Object.freeze({status:'ready',...cached.value}) : Object.freeze({status:'loading'})) : idleBalance,addresses:needsAddresses ? (cachedAddresses ? Object.freeze({status:'ready',...cachedAddresses.value}) : Object.freeze({status:'loading'})) : idleAddresses});
       let identityReadFailed=false;
       try {
         const result = await readWithRetry(async attemptSignal => {
@@ -531,8 +562,8 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
             throw new Error('Account changed.');
           }
           const [addresses,balance]=await Promise.all([
-            needsAddresses ? readAddresses(saved.account, attemptSignal) : undefined,
-            needsBalance ? readBalance(saved.account, attemptSignal) : undefined,
+            readAddressesLive ? readAddresses(saved.account, attemptSignal) : undefined,
+            readBalanceLive ? readBalance(saved.account, attemptSignal) : undefined,
           ]);
           return {addresses,balance};
         // Account Details reads both the derived address and the live balance.
@@ -543,15 +574,27 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         // work while retaining a bounded foreground wait.
         }, signal, background ? 30000 : 10000);
         if(current()) {
+          if (detailsRead && result.balance && result.addresses && detailsKey) viewCache.set(detailsKey,{balance:Object.freeze({...result.balance}),addresses:Object.freeze({...result.addresses})});
           if(result.addresses) update({addresses:Object.freeze({status:'ready',...result.addresses})});
-          if(result.balance) update({balance:Object.freeze({status:'ready',...result.balance})});
+          if(result.balance) {
+            const value=Object.freeze({...result.balance});
+            if (balanceKey) viewCache.set(balanceKey,value);
+            update({balance:Object.freeze({status:'ready',...value})});
+          }
+          if(result.addresses && addressKey) viewCache.set(addressKey,Object.freeze({...result.addresses}));
         }
       } catch {
         if(current() && identityReadFailed) fail('load','Your saved account could not be opened.');
-        else if(current()) update({... (needsAddresses ? {addresses:Object.freeze({status:'unavailable'} as const)} : {}),... (needsBalance ? {balance:Object.freeze({status:'unavailable',readStatus:identityReadFailed ? 'storage' : 'wallet-read'} as const)} : {})});
+        else if(current()) update({... (readAddressesLive ? {addresses:Object.freeze({status:'unavailable'} as const)} : {}),... (readBalanceLive ? {balance:Object.freeze({status:'unavailable',readStatus:identityReadFailed ? 'storage' : 'wallet-read'} as const)} : {})});
       } finally { if(request===balanceVersion) { receiptBalanceLoading = false; cancelBalance(); } }
   }
   const context: BisContext = {
+    getCachedArkBalance() {
+      if (!state.profileId) return;
+      const key=cacheKey('balance');
+      const cached=key ? viewCache.get<BalanceAmounts>(key) : undefined;
+      return cached?.value.availableSats;
+    },
     getContinueRecipient: () => validContinueRecipient(options.continueRecipient) ? options.continueRecipient!.trim() : undefined,
     async getPaymentRecipient() {
       const account = await activeTransferAccount(), current = version;
@@ -845,18 +888,22 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       assertAlive();if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountOnboarding:true,accountDetails:false,accountAssets:false,accountContracts:false,accountActivity:false,accountTransfer:false,accountReceive:false,accountSend:false,accountRecovery:false});
     },
     refreshOnboarding(){assertAlive();onboardingWorker?.refresh();},
-    async checkContractsAsync(filter) {
+    async checkContractsAsync(filter, force = false) {
       const profileId=state.profileId;
+      if(!profileId)return {status:'unavailable',contracts:[]};
+      const key=contractCacheKey(profileId,state.network??'signet',filter),cached=contractCache.get(key);
+      if(!force&&cached&&Date.now()-cached.fetchedAt<VIEW_CACHE_TTL_MS)return cached.value;
       const result=await (contractController(context)?.checkContractsAsync?.(filter)??queryAccountContracts(profileId,filter,state.network??'signet'));
+      if(result.status==='ready')contractCache.set(key,{value:result,fetchedAt:Date.now()});
       return !disposed&&state.profileId===profileId?result:{status:'unavailable',contracts:[]};
     },
     openAccountContracts() {
       assertAlive();
       if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountContracts:true,accountAssets:false,accountActivity:false,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
     },
-    claimContractAsync: id=>contractController(context)?.claim(id)??Promise.resolve({status:'unavailable'}),
-    rejectContractAsync: id=>contractController(context)?.reject(id)??Promise.resolve({status:'unavailable'}),
-    refundContract: id=>contractController(context)?.refund(id)??Promise.resolve({status:'unavailable'}),
+    async claimContractAsync(id){const result=await (contractController(context)?.claim(id)??{status:'unavailable' as const});if(state.profileId)for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${state.profileId}:`))contractCache.delete(key);return result;},
+    async rejectContractAsync(id){const result=await (contractController(context)?.reject(id)??{status:'unavailable' as const});if(state.profileId)for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${state.profileId}:`))contractCache.delete(key);return result;},
+    async refundContract(id){const result=await (contractController(context)?.refund(id)??{status:'unavailable' as const});if(state.profileId)for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${state.profileId}:`))contractCache.delete(key);return result;},
     openAccountActivity() {
       assertAlive();
       if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountActivity) update({accountActivity:true,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
@@ -878,14 +925,21 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       clearRecovery();
       update({accountRecovery:true,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,recoveryStatus:'hidden',error:undefined,logoutBackupAcknowledged:false});
     },
-    async refreshActivity() {
+    async refreshActivity(force = false) {
       assertAlive();
       if(!activityVisible(state) || state.activity.status==='loading') return;
+      if (!state.profileId) return;
       if (state.activity.status !== 'idle') sharedWallet?.refresh();
       cancelActivity();
       const request=activityVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
       const signal=activityOperation.signal;
       const current=()=>!disposed && !signal.aborted && request===activityVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && activityVisible(state);
+      const activityKey=cacheKey('activity',profileId);
+      const cached=activityKey ? viewCache.get<readonly BisTransaction[]>(activityKey) : undefined;
+      if (!force && state.activity.status === 'idle' && cached) {
+        if(current()) update({activity:Object.freeze({status:'ready',transactions:cached.value})});
+        return;
+      }
       const withOperations=(rows:readonly BisTransaction[])=>globalThis.localStorage
         ? withSendActivity(withMintActivity(readBoardingRecords(profileId).reduce((items,record)=>withTransferActivity(items,record,profileId!),rows),readAssetRecords(profileId!)),readSendRecord(profileId),profileId!) : rows;
       let lastTransactions: readonly BisTransaction[] = state.activity.status === 'ready' || state.activity.status === 'unavailable' ? state.activity.transactions ?? [] : [];
@@ -917,6 +971,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
                 if(current() && !stream.signal.aborted) {
                   const rows=withOperations(Object.freeze(transactions.map(t=>Object.freeze({...t}))));
                   lastTransactions=rows;first=true;clearTimeout(timer);
+                  if (activityKey) viewCache.set(activityKey,rows);
                   update({activity:Object.freeze({status:'ready',transactions:rows})});
                   resolve();
                 }
@@ -937,7 +992,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         }
       }
     },
-    refreshBalance: () => refreshBalanceView(),
+    refreshBalance: () => {if(state.profileId){const network=state.network??'signet';viewCache.invalidateDataType('balance',state.profileId,network);viewCache.invalidateDataType('addresses',state.profileId,network);viewCache.invalidateDataType('details',state.profileId,network);}return refreshBalanceView();},
     openProfileChooser(){
       assertAlive();if(state.phase!=='active'&&state.phase!=='idle')return;
       context.openAccountDialog();

@@ -1,6 +1,6 @@
-import { ReviewDetails, formatSats as sats } from './ReviewDetails';
+import { FormValueList, formatSats as sats } from './FormValueList';
 import { useQuoteExpiry } from './useQuoteExpiry';
-import { FieldHeading } from './FieldHeading';
+import { FormHeading } from './FormHeading';
 import { PasteButton } from './IconButton';
 import { readWithRetry } from '../state-layer-core/pending-read';
 import { usePendingNotice } from './PendingOperationDialog';
@@ -12,31 +12,49 @@ import {BoardingBlockedError} from '../state-layer-core/boarding-record';
 import { networkLabel } from '../state-layer-core/test-network';
 
 import {AmountChooserRow} from './AmountChooserRow';
-import {CopyableValueField} from './CopyableValueField';
-import {BalanceTooltip, formatBalanceSats} from './BalanceTooltip';
+import {FormValue} from './FormValue';
+import {FormTooltip, formatBalanceSats} from './FormTooltip';
+import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
-export function AccountSend({context}:{context:BisContext}) {
+export function AccountSendView({context}:{context:BisContext}) {
  const [recipient,setRecipient]=useState(''),[amount,setAmount]=useState(''),[funds,setFunds]=useState<number>();
  const [quote,setQuote]=useState<BisSendQuote>(),[busy,setBusy]=useState(true),[error,setError]=useState('');
  const [clipboardError,setClipboardError]=useState('');
  const [operationLabel,setOperationLabel]=useState('Loading ...');
- const [sendPageReady,setSendPageReady]=useState(false);
  const readController=useRef(new AbortController());
  const alive=useRef(true),revision=useRef(0),working=useRef(false),initialLoad=useRef(true),heading=useRef<HTMLHeadingElement>(null),recipientInput=useRef<HTMLInputElement>(null);
  const recipientId=useId();
  const expired = useQuoteExpiry(quote?.expiresAt);
  const fail=(e:unknown)=>e instanceof SendError||e instanceof BoardingBlockedError?e.message:'Send information could not be verified. Try again.';
+ async function readInitialArkBalance(signal:AbortSignal) {
+  const cached=context.getCachedArkBalance?.();
+  if(cached!==undefined)return cached;
+  await context.refreshBalance();
+  const immediate=context.getCachedArkBalance?.();
+  if(immediate!==undefined)return immediate;
+  await new Promise<void>((resolve,reject)=>{
+   const unsubscribe=context.subscribe(()=>{
+    const value=context.getCachedArkBalance?.();
+    if(value!==undefined){unsubscribe();resolve();}
+    else if(['unavailable','error'].includes(context.getState().balance.status as string)){unsubscribe();reject(new SendError('Arkade balance could not be verified.'));}
+   });
+   const onAbort=()=>{unsubscribe();reject(signal.reason??new DOMException('Aborted','AbortError'));};
+   signal.addEventListener('abort',onAbort,{once:true});
+   if(signal.aborted)onAbort();
+  });
+  const value=context.getCachedArkBalance?.();
+  if(value===undefined)throw new SendError('Arkade balance could not be verified.');
+  return value;
+ }
  async function loadFunds(initial=false) {
   if(working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel(initial?'Loading ...':'Refreshing ...');setError('');setFunds(undefined);
-  try {const n=await readWithRetry(()=>context.getSendSpendable(),readController.current.signal);if(alive.current&&request===revision.current)setFunds(n);}
+  try {const n=await readWithRetry(()=>initial ? readInitialArkBalance(readController.current.signal) : context.getSendSpendable(),readController.current.signal);if(alive.current&&request===revision.current)setFunds(n);}
   catch(e){if(alive.current&&request===revision.current)setError(fail(e));}
   finally{if(alive.current&&request===revision.current){if(initial)initialLoad.current=false;working.current=false;setBusy(false);}}
  }
  useEffect(()=>{
-  alive.current=true;initialLoad.current=true;setSendPageReady(false);readController.current=new AbortController();void loadFunds(true);
-  // The Send page should get one paint before its initial loading surface covers it.
-  const timer=window.setTimeout(()=>setSendPageReady(true),100);
-  return()=>{alive.current=false;revision.current++;working.current=false;readController.current.abort();window.clearTimeout(timer);};
+  alive.current=true;initialLoad.current=true;readController.current=new AbortController();void loadFunds(true);
+  return()=>{alive.current=false;revision.current++;working.current=false;readController.current.abort();};
  },[context]);
  useEffect(()=>{if(quote)heading.current?.focus();},[quote]);
  function edit(value:string,field:'recipient'|'amount'){revision.current++;setQuote(undefined);setError('');if(field==='recipient')setRecipient(value);else setAmount(value);}
@@ -56,19 +74,20 @@ export function AccountSend({context}:{context:BisContext}) {
  }
  const network=networkLabel(context.getState().network);
  const validAddress=recipient.trim().startsWith('tark1'),validAmount=/^\d+$/.test(amount)&&Number.isSafeInteger(Number(amount))&&Number(amount)>0&&funds!==undefined&&Number(amount)<=funds;
- usePendingNotice(busy && (!initialLoad.current || sendPageReady),operationLabel,error||undefined,()=>context.closeAccount());
+ const loadingNotice=useEntryLoadingGate(busy,initialLoad.current,viewLoadingPolicies.send);
+ usePendingNotice(loadingNotice,operationLabel,error||undefined,()=>context.closeAccount());
  return <div className="bis-send">
   {quote?<div className="bis-review">
    <h3 tabIndex={-1} ref={heading} data-bis-autofocus>Review Send</h3>
    <p>You are sending {sats(quote.amountSats)} with a fee of {sats(quote.feeSats)}.</p>
-   <ReviewDetails rows={[
+   <FormValueList rows={[
     ['Amount', sats(quote.amountSats)], ['From', 'Arkade balance'], ['Payment type', 'Arkade'], ['Network', network], ['Fee', sats(quote.feeSats)], ['Total deducted', sats(quote.totalSats)],
    ]} />
    <p>Send to</p><p className="bis-send-address">{quote.recipient}</p>
    {expired&&<p role="status">Quote expired. Go Back for a fresh review.</p>}
   </div>:<div className="bis-send-form">
-   <CopyableValueField label="Arkade balance" value={funds===undefined?'':sats(funds)} disabled={funds===undefined} tooltipName="Arkade balance" tooltip={<BalanceTooltip title="Arkade balance" balance={formatBalanceSats(funds)} available={formatBalanceSats(funds)} />} />
-   <FieldHeading htmlFor={recipientId} label="Recipient address"><PasteButton disabled={busy} onClick={() => void paste()} /></FieldHeading>
+   <FormValue label="Arkade balance" value={funds===undefined?'':sats(funds)} copyable disabled={funds===undefined} tooltipName="Arkade balance" tooltip={<FormTooltip title="Arkade balance" balance={formatBalanceSats(funds)} available={formatBalanceSats(funds)} />} />
+   <FormHeading htmlFor={recipientId} label="Recipient address"><PasteButton disabled={busy} onClick={() => void paste()} /></FormHeading>
    <input id={recipientId} ref={recipientInput} aria-label="Recipient address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>
    <AmountChooserRow value={amount} onChange={value=>edit(value,'amount')} onMax={()=>void review(true)} disabled={busy} maxDisabled={!validAddress||!funds}/>
    {recipient&&!validAddress&&<p role="status">Enter an Arkade test address.</p>}

@@ -249,6 +249,14 @@
 
 /* The operation layer belongs to this runtime host, not the surrounding Admin app. */
 .bis-runtime, .bis-runtime-content { position: absolute; inset: 0; }
+:root { --bis-view-transition-duration: 100ms; --bis-view-transition-from-scale: .8; --bis-view-transition-to-scale: 1; --bis-view-transition-enter-ease: ease-out; --bis-view-transition-exit-ease: ease-in; }
+.bis-view-transition { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; }
+.bis-view-transition-surface { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; }
+.bis-view-transition-enter { animation: bis-view-enter var(--bis-view-transition-duration) var(--bis-view-transition-enter-ease) both; }
+.bis-view-transition-exit { pointer-events: none; animation: bis-view-exit var(--bis-view-transition-duration) var(--bis-view-transition-exit-ease) both; }
+@keyframes bis-view-enter { from { opacity: 0; transform: scale(var(--bis-view-transition-from-scale)); } to { opacity: 1; transform: scale(var(--bis-view-transition-to-scale)); } }
+@keyframes bis-view-exit { from { opacity: 1; transform: scale(var(--bis-view-transition-to-scale)); } to { opacity: 0; transform: scale(var(--bis-view-transition-from-scale)); } }
+@media (prefers-reduced-motion: reduce) { .bis-view-transition-enter, .bis-view-transition-exit { animation: none; } }
 .bis-toast-viewport { position: absolute; inset: 0; z-index: 30; overflow: hidden; pointer-events: none; padding: 12.8px; display: flex; justify-content: center; align-items: flex-start; }
 .bis-toast { box-sizing: border-box; width: min(100%, 288px); padding: 12.8px 16px; border: 1px solid #c8dcd5; border-top: 3px solid #487d66; border-radius: 10px; background: #f8fbfc; color: #182d39; box-shadow: 0 8px 24px #0003; font: 12.8px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; text-align: center; overflow-wrap: anywhere; white-space: pre-wrap; pointer-events: none; }
 .bis-toast[data-phase="entering"] { animation: bis-toast-enter var(--bis-toast-motion) ease-out both; }
@@ -263,17 +271,18 @@
 .bis-runtime { isolation: isolate; }
 .bis-pending-backdrop { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 12.8px; background: #142330b8; pointer-events: auto; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; color: #182d39; color-scheme: light; }
 .bis-pending-dialog { box-sizing: border-box; width: min(224px, 100%); max-height: 100%; overflow: auto; padding: 22.4px 19.2px; border: 0.8px solid #d7e5df; border-radius: 14.4px; background: #f8fbfc; box-shadow: 0 16px 44px #0004; text-align: center; outline: none; }
-.bis-pending-backdrop { opacity: 1; transition: opacity 0.1s linear; }
-.bis-pending-backdrop[data-closing] { opacity: 0; }
-@starting-style { .bis-pending-backdrop { opacity: 0; } }
+.bis-pending-dialog { opacity: 1; transform: scale(var(--bis-view-transition-to-scale)); transition: opacity var(--bis-view-transition-duration) var(--bis-view-transition-enter-ease), transform var(--bis-view-transition-duration) var(--bis-view-transition-enter-ease); }
+.bis-pending-dialog[data-closing] { opacity: 0; transform: scale(var(--bis-view-transition-from-scale)); transition-timing-function: var(--bis-view-transition-exit-ease); }
+@starting-style { .bis-pending-dialog { opacity: 0; transform: scale(var(--bis-view-transition-from-scale)); } }
 .bis-pending-dialog { min-height: 100px; height: auto; scrollbar-width: none; -webkit-user-select: none; user-select: none; }
 .bis-pending-dialog::-webkit-scrollbar { display: none; }
 .bis-pending-dialog h2 { margin: 0 0 14.4px; font-size: 16px; font-weight: 650; }
 .bis-pending-dialog p { font-size: 10.4px; line-height: 1.6; overflow-wrap: anywhere; margin: 0 0 16px; }
 .bis-pending-error-field { margin: 0 0 16px; text-align: left; }
 .bis-pending-error-field .bis-copy-field-heading { margin-bottom: 4.8px; }
-.bis-pending-error-value { box-sizing: border-box; display: flex; align-items: center; width: 100%; height: 56px; overflow: auto; padding: 6.4px 8px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; background: #fff; color: #294650; font: 8.8px/1.6 ui-monospace, monospace; overflow-wrap: anywhere; white-space: pre-wrap; user-select: text; -webkit-user-select: text; }
-.bis-pending-error-value:focus-visible { outline: 1.6px solid #30977f; outline-offset: 1.6px; }
+.bis-pending-error-field .bis-report { width: 100%; min-height: 0; }
+.bis-pending-error-field .bis-report textarea { box-sizing: border-box; width: 100%; height: 56px; overflow: auto; padding: 6.4px 8px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; background: #fff; color: #294650; font: 8.8px/1.6 ui-monospace, monospace; overflow-wrap: anywhere; white-space: pre-wrap; user-select: text; -webkit-user-select: text; }
+.bis-pending-error-field .bis-report textarea:focus-visible { outline: 1.6px solid #30977f; outline-offset: 1.6px; }
 .bis-pending-dialog .bis-lightning { position: relative; top: -13px; left: -3px; font-size: 28.8px; }
 .bis-pending-dialog .bis-button { width: 100%; }
 
@@ -324,8 +333,8 @@
 .bis-contract-fields dd { margin: 0; overflow-wrap: anywhere; }
 .bis-item-list, .bis-item-list-detail { --bis-item-height: 72px; --bis-item-gap: 8px; }
 .bis-item-list { height: 456px; }
-.bis-item-list .bis-collection { flex: 0 0 auto; overflow: visible; }
-.bis-item-list .bis-collection-list { height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); min-height: calc(3.5 * var(--bis-item-height) + 3 * var(--bis-item-gap)); max-height: none; flex: none; gap: var(--bis-item-gap); overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #8da6ae #e7eef0; padding-right: var(--bis-scrollbar-content-gap); }
+.bis-item-list .bis-collection { flex: 1 1 auto; overflow: hidden; }
+.bis-item-list .bis-collection-list { height: auto; min-height: 0; max-height: none; flex: 1 1 auto; gap: var(--bis-item-gap); overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #8da6ae #e7eef0; padding-right: var(--bis-scrollbar-content-gap); }
 .bis-item-list .bis-collection-list::-webkit-scrollbar { display: block; width: var(--bis-scrollbar-width); }
 .bis-item-list .bis-collection-list::-webkit-scrollbar-track { background: #e7eef0; border-radius: 4.8px; }
 .bis-item-list .bis-collection-list::-webkit-scrollbar-thumb { background: #8da6ae; border-radius: 4.8px; border: 1.6px solid #e7eef0; }

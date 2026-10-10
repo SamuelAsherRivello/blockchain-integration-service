@@ -2,24 +2,26 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { BisContext } from '../state-layer-core/context.ts';
 import type { BisContract } from '../state-layer-core/contracts.ts';
 import { contractController } from '../state-layer-core/lto-service.ts';
-import { ItemList, ItemListDetail, type ItemListItem } from './ItemList';
+import { CollectionListView, CollectionDetailView, type CollectionListItem } from './ItemList';
 import { CompactItemRow, StatusTypeIcon, type StatusType } from './StatusTypeIcon';
 import { arkExplorerTransactionUrl, networkLabel, type TestNetwork } from '../state-layer-core/test-network.ts';
 import { usePendingNotice } from './PendingOperationDialog.tsx';
+import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
 const contractNetworkLabel = (network:string) => network==='signet'||network==='mutinynet' ? networkLabel(network as TestNetwork) : 'Unavailable';
 
-export function AccountContracts({context,onDetailChange}: {context:BisContext;onDetailChange:(open:boolean)=>void}) {
+export function AccountContractsView({context,onDetailChange}: {context:BisContext;onDetailChange:(open:boolean)=>void}) {
   const [contracts,setContracts]=useState<readonly BisContract[]>([]),[selected,setSelected]=useState<string>(),[status,setStatus]=useState('loading'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const generation=useRef(0),acting=useRef(false),refreshing=useRef(false);
+  const initialLoading=useRef(true);
   const buttons=useRef(new Map<string,HTMLButtonElement>());
   const detail=contracts.find(contract=>contract.id===selected);
   useLayoutEffect(()=>{onDetailChange(!!detail);return()=>onDetailChange(false);},[!!detail,onDetailChange]);
-  const refresh=useCallback(async()=>{
+  const refresh=useCallback(async(force=false)=>{
       if(refreshing.current)return;refreshing.current=true;
       const current=generation.current;
       try {
-        const result=await context.checkContractsAsync?.({includeResolved:true,includeOtherNetworks:true});
+        const result=await context.checkContractsAsync?.({includeResolved:true,includeOtherNetworks:true}, force);
         if(generation.current!==current)return;
         setStatus(result?.status??'unavailable');
         if(result?.status==='ready')setContracts(result.contracts);
@@ -32,7 +34,13 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
     return()=>{generation.current++;clearInterval(timer);};
   },[refresh]);
   const loading=status==='loading';
-  usePendingNotice(loading,'Loading ...',undefined,()=>context.closeAccount());
+  useEffect(()=>{if (status === 'ready' || status === 'unavailable') initialLoading.current = false;},[status]);
+  const loadingNotice=useEntryLoadingGate(loading,initialLoading.current,viewLoadingPolicies.contracts);
+  usePendingNotice(loadingNotice,'Loading ...',undefined,()=>context.closeAccount());
+  async function refreshSelected() {
+    if (detail) await contractController(context)?.reconcile?.({contractId:detail.id,feedback:'explicit'});
+    await refresh(true);
+  }
   async function act(kind:'claim'|'reject'|'refund') {
     if(!detail||acting.current)return;
     acting.current=true;const current=generation.current;setBusy(true);setMessage('');
@@ -47,8 +55,8 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
   const available=status==='ready'&&!!contractController(context)&&detail?.scope.network===context.getState().network;
   const rowStatus=(contract:BisContract):StatusType => ['funding','claiming','refunding','unknown'].includes(contract.financial) ? 'info' : contract.financial==='failed' ? 'error' : contract.eligibility==='expired' ? 'warning' : 'success';
   const report=(detail?[detail]:contracts).map(contract=>`Contract ID: ${contract.id}\nType: ${contract.type}\nNetwork: ${contractNetworkLabel(contract.scope.network)}\nPurpose: ${contract.purpose}\nRole: ${contract.role??'Unavailable'}\nAmount: ${contract.amountSats} sats\nFunds: ${contract.financial}\nOffer: ${contract.eligibility}\nEvidence: ${contract.evidence??'Local record'}\nExpires: ${new Date(contract.expiresAt).toISOString()}\nReference: ${contract.hostReference}\nOperation: ${contract.operationId??'Unavailable'}\nFunding transaction: ${contract.fundingTransactionId??'Not verified'}\nCurrent transaction: ${contract.transactionId??'Not submitted'}`).join('\n\n');
-  const items:readonly ItemListItem[]=contracts.map(contract=>{const type=rowStatus(contract);return {id:contract.id,selected:selected===contract.id,buttonRef:(element:HTMLButtonElement|null)=>{if(element)buttons.current.set(contract.id,element);else buttons.current.delete(contract.id);},onSelect:()=>{setSelected(contract.id);setMessage('');},content:<CompactItemRow status={type} leading={<StatusTypeIcon type={type}/>} fields={[{icon:'🌐',label:'Network',value:contractNetworkLabel(contract.scope.network)},{icon:'⚙️',label:'Operation',value:contract.operationKind??'Offer'},{icon:'🪙',label:'Cost',value:contract.amountSats.toLocaleString('en-US')+' sats'},{icon:'🎯',label:'Purpose',value:contract.purpose},{icon:'⏳',label:'Status',value:contract.eligibility==='expired'?'Expired':contract.financial},{icon:'👤',label:'Role',value:contract.role??'Unavailable'},{icon:'📅',label:'Expires',value:new Date(contract.expiresAt).toLocaleString()}]}/>};});
-  const Page=detail?ItemListDetail:ItemList;
+  const items:readonly CollectionListItem[]=contracts.map(contract=>{const type=rowStatus(contract);return {id:contract.id,selected:selected===contract.id,buttonRef:(element:HTMLButtonElement|null)=>{if(element)buttons.current.set(contract.id,element);else buttons.current.delete(contract.id);},onSelect:()=>{setSelected(contract.id);setMessage('');},content:<CompactItemRow status={type} leading={<StatusTypeIcon type={type}/>} fields={[{icon:'🌐',label:'Network',value:contractNetworkLabel(contract.scope.network)},{icon:'⚙️',label:'Operation',value:contract.operationKind??'Offer'},{icon:'🪙',label:'Cost',value:contract.amountSats.toLocaleString('en-US')+' sats'},{icon:'🎯',label:'Purpose',value:contract.purpose},{icon:'⏳',label:'Status',value:contract.eligibility==='expired'?'Expired':contract.financial},{icon:'👤',label:'Role',value:contract.role??'Unavailable'},{icon:'📅',label:'Expires',value:new Date(contract.expiresAt).toLocaleString()}]}/>};});
+  const Page=detail?CollectionDetailView:CollectionListView;
   const detailContent=detail?<>
       <dl className="bis-contract-fields"><dt>Type</dt><dd>Limited-time offer</dd><dt>Network</dt><dd>{contractNetworkLabel(detail.scope.network)}</dd><dt>Purpose</dt><dd>{detail.purpose}</dd><dt>Amount</dt><dd>{detail.amountSats.toLocaleString('en-US')} sats</dd><dt>Funds</dt><dd>{detail.financial}</dd><dt>Offer</dt><dd>{detail.eligibility}</dd><dt>Expires</dt><dd>{new Date(detail.expiresAt).toLocaleString()}</dd><dt>Contract ID</dt><dd>{detail.id}</dd><dt>Reference</dt><dd>{detail.hostReference}</dd></dl>
       <p>Role: {detail.role??'Unavailable'} · Evidence: {detail.evidence??'Local record'}. Submission is rechecked before spending.</p>
@@ -56,7 +64,7 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
       {detail.eligibility==='expired'&&detail.financial!=='refunded'&&<p>The offer has expired. Its funds remain locked until the refund is verified.</p>}
     </>:undefined;
   return <Page network={networkLabel(context.getState().network)} title={detail?'Contract Details':'Contracts'} body={detail?'Inspect this offer and its locked funds.':'All BIS-tracked contracts for this account.'} fieldLabel={detail?'Contract':'Contracts'} report={report} listLabel="Contracts" loading={loading} items={items}
-    onRefresh={refresh} refreshDisabled={!context.checkContractsAsync}
+    onRefresh={()=>void refreshSelected()} refreshDisabled={!context.checkContractsAsync}
     detail={detailContent}
     actions={detail&&<>
         {detail.role==='player'&&<><button className="bis-button bis-primary" disabled={!available||busy||!detail.canClaim} onClick={()=>void act('claim')}>Claim</button>

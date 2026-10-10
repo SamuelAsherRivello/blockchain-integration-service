@@ -1,5 +1,5 @@
-import { ItemList, ItemListDetail } from './ItemList';
-import { ReportTextArea } from './ReportTextArea';
+import { CollectionListView, CollectionDetailView } from './ItemList';
+import { FormValue } from './FormValue';
 import { usePendingNotice } from './PendingOperationDialog';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { BisAsset } from '../state-layer-core/assets';
@@ -11,6 +11,7 @@ import type { BisBurnAssetRequest, BisBurnAssetResult } from '../state-layer-cor
 import { CompactItemRow } from './StatusTypeIcon';
 import { StatusTypeIcon } from './StatusTypeIcon';
 import { networkLabel, type TestNetwork } from '../state-layer-core/test-network';
+import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
 const preparedIcons = new Set<string>();
 function AssetIcon({url, background = false, fallback}: {url?:string; background?:boolean; fallback?:ReactNode}) {
@@ -34,7 +35,7 @@ function AssetIcon({url, background = false, fallback}: {url?:string; background
   return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:(fallback??<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>)}</span>;
 }
 
-export function AccountAssets({assets, network, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; network:TestNetwork; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
+export function AccountAssetsView({assets, network, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; network:TestNetwork; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [notice, setNotice] = useState('');
@@ -43,6 +44,7 @@ export function AccountAssets({assets, network, onDetailChange, onBack, onBurn, 
   const [burnError,setBurnError]=useState('');
   const [backgroundImages,setBackgroundImages]=useState(false);
   const burnInFlight=useRef(false), burnOrigin=useRef(false), mounted=useRef(true);
+  const initialLoading=useRef(true);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;onBusyChange(false);};},[onBusyChange]);
   useEffect(()=>{onBusyChange(burning||!!confirmation);},[burning,confirmation,onBusyChange]);
   async function burn(asset:BisAsset) {
@@ -92,14 +94,16 @@ export function AccountAssets({assets, network, onDetailChange, onBack, onBurn, 
     return () => cancelAnimationFrame(frame);
   }, [detailOpen, assets, selectedId]);
   const loading = assets.status === 'idle' || assets.status === 'loading';
+  useEffect(()=>{if (assets.status === 'ready' || assets.status === 'unavailable') initialLoading.current = false;},[assets.status]);
   useLayoutEffect(()=>{if(!burning && !burnError && assets.status==='ready')burnOrigin.current=false;},[burning,burnError,assets.status]);
   useEffect(()=>{if(loading && !burning)setBackgroundImages(false);},[loading,burning]);
-  usePendingNotice(loading && !burning,'Loading ...', burnError || (assets.status==='unavailable'?'Assets could not be loaded.':undefined),()=>{
+  const loadingNotice=useEntryLoadingGate(loading && !burning,initialLoading.current,viewLoadingPolicies.assets);
+  usePendingNotice(loadingNotice,'Loading ...', burnError || (assets.status==='unavailable'?'Assets could not be loaded.':undefined),()=>{
     setBurnError('');
     if(detailOpen || burnOrigin.current){burnOrigin.current=false;setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;if(assets.status!=='ready')void onRefresh();}
     else onBack();
   });
-  const Page=detailOpen?ItemListDetail:ItemList;
+  const Page=detailOpen?CollectionDetailView:CollectionListView;
   return <Page network={networkLabel(network)} title={detailOpen?'Asset Detail':'Assets'} body={detailOpen?'Inspect this asset and its ownership.':'Assets held by this account.'}
     fieldLabel={detailOpen?'Asset details':'Assets'} report={detailOpen&&selected?detailReport:report} loading={loading} listLabel="Owned assets"
     onRefresh={onRefresh} refreshDisabled={burning||!!confirmation}
@@ -112,7 +116,7 @@ export function AccountAssets({assets, network, onDetailChange, onBack, onBurn, 
         {icon:'🔤',label:'Ticker',value:asset.ticker||'Not provided'},{icon:'✅',label:'Status',value:'Owned'},
         {icon:'🎯',label:'Decimals',value:assetDecimals(asset)??'Not provided'},{icon:'🌐',label:'Network',value:'Off-chain'},
       ]}/>}))}
-    detail={detailOpen?<ReportTextArea aria-label="Asset details" rows={12} value={detailReport}/>:undefined}
+    detail={detailOpen?<FormValue label="Asset details" aria-label="Asset details" rows={12} value={detailReport} multiline/>:undefined}
     notice={notice&&assets.status==='ready'?<p role="status">{notice}</p>:!loading&&assets.status==='ready'&&!rows.length?<p>No assets.</p>:null}
     actions={<>
       {detailOpen && selected && <><button type="button" className="bis-button" disabled={burning || !explorerUrl} aria-describedby={!explorerUrl?'asset-explorer-unavailable':undefined} title={!explorerUrl ? explorerUnavailableReason : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>{!explorerUrl&&<span id="asset-explorer-unavailable" className="bis-sr-only">{explorerUnavailableReason}</span>}</>}

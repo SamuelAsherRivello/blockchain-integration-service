@@ -53,6 +53,12 @@ The library supports the configured test networks through its existing wallet co
 
 Logout and reset are explicit operations with their own confirmations and guards. Clearing local account data does not cancel submitted transactions or erase remote assets. Host restart requests and cross-context coordination prevent stale instances from restoring cleared state. Treat reset, spending, and recovery behavior as part of the public contract rather than ordinary component cleanup.
 
+### View data caching and loading
+
+The Account views use a provider-neutral, in-memory cache for complete balance, receiving-address, asset, contract, and activity snapshots. Entries are scoped by account, network, and data type and are fresh for five minutes by default; failed or partial reads are never stored, and the cache is not persisted. Account changes, network changes, logout/reset/disposal, wallet observations, operation initiation or completion, cross-context updates, and explicit Refresh invalidate the affected data. A fresh balance may populate Send entry rendering, but Send and Transfer review, quote, and submission always re-read authoritative provider state. Asset and contract mutations similarly invalidate their collection before the next read.
+
+View entry reads start immediately. A modal loading notice waits for the newly mounted view's first browser frame, so the view can construct before the notice covers it; there is no arbitrary fixed delay. Explicit refreshes and foreground mutations remain immediate. Account Details uses non-modal loading, Onboarding remains nonblocking, and the shared Pending Operation Dialog retains its accessibility and abort behavior.
+
 ## Development and verification
 
 Run `npm run dev` from the repository root. This package has no standalone application entry point: `/integration/` renders this document on the shared Vite server. Use `/admin/` to exercise the real UI inside the development harness, or `/marketplace/` to inspect another consumer. The default server port is `5174`; use the four URLs printed by the launcher when a different local port is selected.

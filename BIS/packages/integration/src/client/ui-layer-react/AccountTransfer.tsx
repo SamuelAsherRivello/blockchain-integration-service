@@ -1,4 +1,4 @@
-import { ReviewDetails, formatSats as sats } from './ReviewDetails';
+import { FormValueList, formatSats as sats } from './FormValueList';
 import { useQuoteExpiry } from './useQuoteExpiry';
 import { readWithRetry } from '../state-layer-core/pending-read';
 import { usePendingNotice } from './PendingOperationDialog';
@@ -6,11 +6,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { BisBalance, BisContext, BisTransferStatus } from '../state-layer-core/context';
 import type { WalletOperationAvailability } from '../state-layer-core/wallet-network-policy';
 import { boardingSubmissionEnabled, type BoardingQuote } from '../state-layer-core/boarding-quote';
-import { AccountBalances } from './AccountBalances';
+import { AccountBalancesFormValue } from './AccountBalances';
 import { AmountChooserRow } from './AmountChooserRow';
 import { PendingTransferConfirmationError } from '../state-layer-core/boarding-record';
+import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
-export function AccountTransfer({ context, balance, onBack }: { context: BisContext; balance: BisBalance; onBack(): void }) {
+export function AccountTransferView({ context, balance, onBack }: { context: BisContext; balance: BisBalance; onBack(): void }) {
   const [direction, setDirection] = useState<'to-arkade' | 'to-bitcoin'>('to-arkade');
   const [amount, setAmount] = useState('0');
   const [review, setReview] = useState(false);
@@ -33,6 +34,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const reviewHeading = useRef<HTMLHeadingElement>(null);
   const amountInput = useRef<HTMLInputElement>(null);
   const firstRender = useRef(true);
+  const initialLoading = useRef(true);
   const amountId = useId();
   const numeric = Number(amount);
   const valid = /^\d+$/.test(amount) && Number.isSafeInteger(numeric) && numeric > 0;
@@ -62,15 +64,23 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
       if(next.status==='succeeded'&&!background)await context.refreshBalance();
     } catch(cause) {
       if(alive.current&&current===request.current){setStatusChecked(false);setStatus(previous=>previous.status==='pending'?{...previous,verification:'unavailable'}:previous);if(!background)setError(failure(cause));}
-    } finally {if(alive.current&&current===request.current){setBusy(false);setForeground(false);}}
+    } finally {if(alive.current&&current===request.current){if(initial)initialLoading.current=false;setBusy(false);setForeground(false);}}
   }
   useEffect(()=>{
     alive.current=true;readController.current=new AbortController();
     try {
       const records=context.getPendingAccountTransfers();
-      if(records.length){setStatus(records[records.length-1]);setStatusChecked(true);setBusy(false);setForeground(false);}
-      else void check(true, false, true);
-    }catch(cause){setError(failure(cause));setBusy(false);setForeground(false);}
+      if(records.length){initialLoading.current=false;setStatus(records[records.length-1]);setStatusChecked(true);setBusy(false);setForeground(false);}
+      else {
+        // Entry is intentionally balance-only. Status and policy are live
+        // operation reads and belong to review/check-status, not first paint.
+        initialLoading.current=false;
+        setStatus({status:'idle'});
+        setStatusChecked(true);
+        setBusy(false);
+        setForeground(false);
+      }
+    }catch(cause){initialLoading.current=false;setError(failure(cause));setBusy(false);setForeground(false);}
     return()=>{alive.current=false;request.current++;readController.current.abort();};
   },[context]);
   useEffect(()=>{
@@ -122,11 +132,12 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     }}
     finally{if(alive.current&&current===request.current){setSubmitting(false);setBusy(false);setForeground(false);setReview(false);}}
   }
-  usePendingNotice(foreground,operationLabel,error||undefined,warning?()=>setWarning(undefined):onBack,
+  const loadingNotice=useEntryLoadingGate(foreground,initialLoading.current,viewLoadingPolicies.transfer);
+  usePendingNotice(loadingNotice,operationLabel,error||undefined,warning?()=>setWarning(undefined):onBack,
     warning?{title:'Pending transfer',message:`You already have a transfer of ${sats(warning.reduce((total,r)=>total+(r.amountSats??0),0))} pending. Are you sure you want to send another?`,confirm:acceptWarning}
     :submitted?{title:'Transfer pending.',message:'You can view progress in Transactions.'}:undefined);
   return <>
-    <div className="bis-transfer-balances"><AccountBalances balance={balance} directionControl={
+    <div className="bis-transfer-balances"><AccountBalancesFormValue balance={balance} directionControl={
       <button type="button" className="bis-button bis-balance-direction" disabled={busy||blocked||review}
         aria-label={`${label}. Toggle transfer direction`} title={`${label}. Toggle transfer direction`}
         onClick={() => {edit(amount);setDirection(current => current === 'to-arkade' ? 'to-bitcoin' : 'to-arkade');}}>
@@ -135,11 +146,11 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
     } /></div>
     {review ? <div className="bis-review">
       <h3 ref={reviewHeading} tabIndex={-1} data-bis-autofocus>Review: {label}</h3>
-      <ReviewDetails rows={[
+      <FormValueList rows={[
         ['Amount', sats(numeric)], ['Fee', quote ? sats(quote.feeSats) : 'Unavailable'],
         [`Added to ${direction === 'to-arkade' ? 'Arkade' : 'Bitcoin'}`, quote ? sats(quote.netSats) : 'Unavailable'],
       ]} />
-      {quote && <><h3>After transfer (estimate)</h3><ReviewDetails rows={[
+      {quote && <><h3>After transfer (estimate)</h3><FormValueList rows={[
         ['Total balance', sats(quote.totalAfterSats)], ['Bitcoin balance', sats(quote.bitcoinAfterSats)], ['Arkade balance', sats(quote.arkadeAfterSats)],
       ]} /></>}
       {expired && <p role="status">Quote expired. Go Back for a fresh review.</p>}

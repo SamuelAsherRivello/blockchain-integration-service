@@ -1,8 +1,9 @@
 import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
 import type { BisAssets } from './asset-presentation.ts';
 import type { BisAsset } from './assets.ts';
+import { createViewCache, type ViewCacheKey } from './view-cache.ts';
 
-type AssetState = Readonly<{ profileId?: string; assets: BisAssets }>;
+type AssetState = Readonly<{ profileId?: string; network?: string; assets: BisAssets }>;
 type AssetIdentity = Readonly<{ version: number; profileId?: string }>;
 
 export type AssetViewLifecycleOptions = Readonly<{
@@ -18,6 +19,7 @@ export type AssetViewLifecycleOptions = Readonly<{
 
 /** Owns only the visible asset snapshot/watch lifecycle; the context retains public state ownership. */
 export function createAssetViewLifecycle(options: AssetViewLifecycleOptions) {
+  const cache = createViewCache();
   const idleAssets: BisAssets = Object.freeze({status:'idle'});
   let watch = new AbortController();
   let refreshPending = false;
@@ -37,10 +39,23 @@ export function createAssetViewLifecycle(options: AssetViewLifecycleOptions) {
         const identity = options.getIdentity();
         const signal = operation.signal;
         const current = () => !options.isDisposed() && !signal.aborted && request === version && identity.version === options.getIdentity().version && identity.profileId === options.getIdentity().profileId && options.isVisible();
+        const profileId=options.getState().profileId;
+        const cacheKey: ViewCacheKey | undefined = profileId ? {dataType:'assets', profileId, network:options.getState().network ?? 'signet'} : undefined;
+        if (!background && options.getState().assets.status === 'idle' && cacheKey) {
+          const cached=cache.get<{assets: readonly BisAsset[]}>(cacheKey);
+          if (cached) {
+            if(current()) options.setAssets(Object.freeze({status:'ready',assets:cached.value.assets}));
+            break;
+          }
+        }
+        if (background && cacheKey) cache.invalidate(cacheKey);
         if (!background || options.getState().assets.status !== 'ready') options.setAssets(Object.freeze({status:'loading'}));
         try {
           const result = await options.readSnapshot(signal);
-          if (current()) options.setAssets(Object.freeze({status:'ready', ...(background ? {background:true} : {}), assets:result.assets}));
+          if (current()) {
+            if (cacheKey) cache.set(cacheKey,{assets:result.assets});
+            options.setAssets(Object.freeze({status:'ready', ...(background ? {background:true} : {}), assets:result.assets}));
+          }
         } catch {
           if (current()) options.setAssets(Object.freeze({status:'unavailable'}));
         }
