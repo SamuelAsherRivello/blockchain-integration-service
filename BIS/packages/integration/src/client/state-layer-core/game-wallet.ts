@@ -17,7 +17,10 @@ import {AssetDeliveryError,readAssetDeliveryRecord,validateAssetDelivery,type Bi
 import type { TestNetwork } from './test-network.ts';
 import { readWithRetry } from './pending-read.ts';
 
-export type BisGameWalletReadStatus = 'storage' | 'wallet-read' | 'observation' | 'role-conflict';
+export type BisGameWalletReadStatus = 'storage' | 'wallet-read' | 'observation' | 'role-conflict' | 'network-mismatch';
+export type BisGameWalletAvailabilityReason = 'player-wallet' | 'game-wallet' | 'role-conflict' | 'network-mismatch' | 'wallet-read' | 'insufficient-funds' | 'unresolved-operation' | 'ready';
+export type BisGameWalletOperationScope = Readonly<{playerProfileId?: string; gameProfileId?: string; network: TestNetwork; selectionVersion: number}>;
+export type BisGameWalletAvailability = Readonly<{available: boolean; reason: BisGameWalletAvailabilityReason; message: string; scope: BisGameWalletOperationScope}>;
 export type BisGameWalletState = Readonly<{
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
   profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string; readStatus?: BisGameWalletReadStatus; selectionVersion?: number; playerConnected?: boolean; network?: TestNetwork;
@@ -142,7 +145,8 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     try {
       const account=await storage.load();
       if(account?.profileId===options.playerProfileId() || (account?.network !== undefined && account.network !== selectedNetwork())) {
-        selectProfile(undefined);publish({status:'unavailable',message:'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.',readStatus:'role-conflict'});return;
+        const roleConflict = account?.profileId===options.playerProfileId();
+        selectProfile(undefined);publish({status:'unavailable',message:roleConflict ? 'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.' : 'This Game Wallet belongs to another network. Select a wallet on the active Player network.',readStatus:roleConflict ? 'role-conflict' : 'network-mismatch'});return;
       }
       await inspect(account, signal);
     }
@@ -163,6 +167,25 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     await inspect(account,signal);
   }
   let paying = false;
+  const getOperationScope = (): BisGameWalletOperationScope => Object.freeze({
+    playerProfileId: options.playerProfileId(),
+    gameProfileId: state.profileId,
+    network: selectedNetwork(),
+    selectionVersion,
+  });
+  function getOperationAvailability(): BisGameWalletAvailability {
+    const scope = getOperationScope();
+    if (!scope.playerProfileId) return {available:false, reason:'player-wallet', message:'Connect a Player Wallet first.', scope};
+    if (state.readStatus === 'role-conflict') return {available:false, reason:'role-conflict', message:'The Player Wallet and Game Wallet must be different.', scope};
+    if (state.readStatus === 'network-mismatch') return {available:false, reason:'network-mismatch', message:'Player Wallet and Game Wallet must use the same network.', scope};
+    if (!scope.gameProfileId) return {available:false, reason:'game-wallet', message:'Select a separate Game Wallet first.', scope};
+    if (scope.playerProfileId === scope.gameProfileId) return {available:false, reason:'role-conflict', message:'The Player Wallet and Game Wallet must be different.', scope};
+    if (state.status === 'loading' || state.status === 'unavailable' || !state.balance) return {available:false, reason:'wallet-read', message:state.message ?? 'Game Wallet public data is unavailable. Refresh and retry.', scope};
+    try { availability(scope.gameProfileId); }
+    catch (error) { return {available:false, reason:'unresolved-operation', message:error instanceof Error ? error.message : 'A previous wallet operation is unresolved.', scope}; }
+    if (state.balance.availableSats < 1000) return {available:false, reason:'insufficient-funds', message:'The Game Wallet has fewer than 1,000 spendable sats.', scope};
+    return {available:true, reason:'ready', message:'Game Wallet is ready for the requested operation.', scope};
+  }
   function getPlayerPaymentBlockReason(): string | undefined {
     if (disposed || !state.profileId) return 'Awaiting Game Wallet';
     if (!options.playerProfileId()) return 'Awaiting Player';
@@ -209,6 +232,12 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       } catch(error) {return assetError(error instanceof AssetError?error.code:'unavailable',state.profileId,input.operationId);}
     },
     getPlayerPaymentBlockReason,
+    getOperationScope,
+    getOperationAvailability,
+    isOperationScopeCurrent(scope: BisGameWalletOperationScope) {
+      const current = getOperationScope();
+      return current.playerProfileId === scope.playerProfileId && current.gameProfileId === scope.gameProfileId && current.network === scope.network && current.selectionVersion === scope.selectionVersion;
+    },
     getPlayerPaymentBalance(): number | undefined {
       if (disposed || state.status !== 'ready' || !state.profileId || !state.balance) return;
       try { availability(state.profileId); }

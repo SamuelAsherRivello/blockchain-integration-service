@@ -7,7 +7,7 @@ import type { BisAsset, BisContext, BisListAssetsResult, BisMintAssetResult } fr
 import '../../src/client/ui-layer-react/style.css';
 
 // Page-local replacement only: never read, clear, or mutate real browser storage.
-// App's actual SplitWorkspace/GamePreview preferences also stay in this map.
+// App's actual SplitWorkspaceView/GamePreviewView preferences also stay in this map.
 const memoryStorage = new Map<string, string>();
 Object.defineProperty(window, 'localStorage', { configurable: true, value: {
   get length() { return memoryStorage.size; }, key: (index: number) => [...memoryStorage.keys()][index] ?? null,

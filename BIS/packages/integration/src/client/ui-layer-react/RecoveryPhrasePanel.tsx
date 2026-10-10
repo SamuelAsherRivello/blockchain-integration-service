@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type ReactNode } from 'react';
-import { FieldHeading } from './FieldHeading';
+import { FormHeading } from './FormHeading';
 import { CopyButton, VisibilityToggle } from './IconButton';
 import { useClipboardCopy } from './useClipboardCopy';
 
@@ -9,9 +9,9 @@ export function TestWalletWarning() {
 export function SeedWordsHeading({ action, shown, onToggle, disabled, spread = false, children }: {
   action: ReactNode; shown: boolean; onToggle(): void; disabled?: boolean; spread?: boolean; children?: ReactNode;
 }) {
-  return <FieldHeading label="Seed words" className={`bis-recovery-heading${spread ? ' bis-seed-heading-spread' : ''}`}>
+  return <FormHeading label="Seed words" className={`bis-recovery-heading${spread ? ' bis-seed-heading-spread' : ''}`}>
     {action}<VisibilityToggle shown={shown} disabled={disabled} onClick={onToggle} />{children}
-  </FieldHeading>;
+  </FormHeading>;
 }
 function ReadOnlyRecoveryWords({ phrase, shown }: { phrase?: string; shown: boolean }) {
   return <ol className="bis-recovery" aria-label="Private recovery phrase">{phrase?.trim().split(/\s+/).map((word, index) =>

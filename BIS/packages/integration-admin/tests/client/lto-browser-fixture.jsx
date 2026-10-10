@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {TreasureLtoPanel} from '../../src/client/admin-layer/TreasureLtoPanel.tsx';
-import {AccountContracts} from '../../../integration/src/client/ui-layer-react/AccountContracts.tsx';
+import {TreasureOfferPanel} from '../../src/client/admin-layer/TreasureLtoPanel.tsx';
+import {AccountContractsView} from '../../../integration/src/client/ui-layer-react/AccountContracts.tsx';
 import {PendingOperations} from '../../../integration/src/client/ui-layer-react/PendingOperationDialog.tsx';
 import {createLtoService} from '../../../integration/src/client/state-layer-core/lto-service.ts';
 import {createContractStorage} from '../../../integration/src/client/state-layer-core/contract-storage.ts';
@@ -12,7 +12,7 @@ const readWaiters=[];
 const clock=Date.now;Date.now=()=>clock()+offset;
 const events=[];const log=value=>{events.push(value);emit();};
 const storage=createContractStorage(),game={profileId:'game',phrase:'unfunded-fixture',network:'signet'};
-const context={getState:()=>({profileId,phase:'active'}),refreshBalance:async()=>{},showToast:message=>log({toast:message}),closeAccount:()=>{}};
+const context={getState:()=>({profileId,phase:'active',network:'signet'}),refreshBalance:async()=>{},showToast:message=>log({toast:message}),closeAccount:()=>{}};
 const gameWallet={getState:()=>({profileId:'game',status:'ready'}),refresh:async()=>{}};
 const dependencies={storage,playerStorage:{load:async()=>({account:{profileId:'player',phrase:'unfunded-fixture',network:'signet'}})},gameStorage:{load:async()=>game,dispose(){}},poll:false,
  prepare:async()=>({secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'}),
@@ -28,14 +28,14 @@ const dependencies={storage,playerStorage:{load:async()=>({account:{profileId:'p
   await commit(record,material);return {record,recovery:material};
  }};
 const service=createLtoService({context,gameWallet},dependencies);
-context.checkContracts=filter=>offline?Promise.resolve({status:'unavailable',contracts:[]}):holdReads?new Promise(resolve=>readWaiters.push(()=>resolve(service.checkContracts(filter)))):service.checkContracts(filter);
-context.claimContract=service.claim;context.rejectContract=service.reject;context.refundContract=service.refund;
-const offers={...service,checkContracts:context.checkContracts};
+context.checkContractsAsync=filter=>offline?Promise.resolve({status:'unavailable',contracts:[]}):holdReads?new Promise(resolve=>readWaiters.push(()=>resolve(service.checkContractsAsync(filter)))):service.checkContractsAsync(filter);
+context.claimContractAsync=service.claim;context.rejectContractAsync=service.reject;context.refundContract=service.refund;
+const offers={...service,checkContractsAsync:context.checkContractsAsync};
 function Fixture(){const [,render]=useState(0);emit=()=>render(value=>value+1);return <>
 <div><button onClick={()=>{holdReads=true;}}>Hold contract reads</button><button onClick={()=>{holdReads=false;for(const release of readWaiters.splice(0))release();}}>Release contract reads</button></div>
 <PendingOperations><main>
 <h1>Automated fixture — simulated transactions only</h1>
 <div><button onClick={()=>{mode='pending';}}>Hold operations</button><button onClick={()=>{mode='success';release?.();}}>Complete operation</button><button onClick={()=>{mode='unknown';release?.();}}>Lose acknowledgement</button><button onClick={()=>{offset+=91000;}}>Advance 91 seconds</button><button onClick={()=>void service.reconcile()}>Reconcile</button><button onClick={()=>{offline=!offline;}}>Toggle unavailable read</button><button onClick={()=>{profileId=profileId==='player'?'game':'player';render(value=>value+1);}}>Switch role</button><button onClick={()=>{profileId='replacement';render(value=>value+1);}}>Replace account</button></div>
-<div style={{display:'flex',gap:20}}><section style={{width:300}}><TreasureLtoPanel context={context} offers={offers} gameWallet={gameWallet} onLog={log}/></section><section style={{width:320}}><AccountContracts key={profileId} context={context} onDetailChange={()=>{}}/></section></div>
+<div style={{display:'flex',gap:20}}><section style={{width:300}}><TreasureOfferPanel context={context} offers={offers} gameWallet={gameWallet} onLog={log}/></section><section style={{width:320}}><AccountContractsView key={profileId} context={context} onDetailChange={()=>{}}/></section></div>
 <textarea aria-label="Fixture events" readOnly value={JSON.stringify(events)} style={{width:'95%',height:180}}/>
 </main></PendingOperations></>};createRoot(document.getElementById('root')).render(<Fixture/>);

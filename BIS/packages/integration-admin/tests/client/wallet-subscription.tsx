@@ -1,6 +1,6 @@
 import {ArkAddress} from '@arkade-os/sdk';
 import {createRoot} from 'react-dom/client';
-import {BisView} from '../../../integration/src/client/ui-layer-react/client';
+import {BisAccountView} from '../../../integration/src/client/ui-layer-react/client';
 import {createContext} from '../../../integration/src/client/state-layer-core/context';
 import type {BisTransaction} from '../../../integration/src/client/state-layer-core/activity';
 import type {BisAsset} from '../../../integration/src/client/state-layer-core/assets';
@@ -13,7 +13,7 @@ const counts=()=>{document.getElementById('sources')!.textContent=` Sources star
 const observer=async(_a:unknown,signal:AbortSignal,p:(r:readonly BisTransaction[])=>void)=>{starts++;active++;counts();publish=p;if(starts===1)p(rows);else setTimeout(()=>{if(!signal.aborted)p(rows);},1200);await new Promise<void>(r=>signal.addEventListener('abort',()=>{active--;counts();r();},{once:true}));};
 const context=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>{await new Promise(r=>setTimeout(r,250));return {availableSats:sats,totalSats:sats,bitcoinSats:0,arkadeSats:sats};},undefined,undefined,observer,undefined,{list:async()=>holdings,mint:async()=>{throw Error('Fixture cannot mint');}},undefined,undefined,{submit:async(_a,r)=>{sats=1000;return {...r.request,profileId:account.profileId,status:'succeeded' as const,mechanism:'game-wallet-payment' as const,feeSats:0 as const};},reconcile:async()=>{throw Error('Fixture has no pending payments');}},{continueRecipient:new ArkAddress(new Uint8Array(32).fill(1),new Uint8Array(32).fill(2),'tark').encode()},observer);
 context.subscribe(()=>{const s=context.getState();document.getElementById('state')!.textContent=JSON.stringify({balance:s.balance,assets:s.assets,activity:s.activity},null,2);});
-createRoot(document.getElementById('runtime')!).render(<BisView context={context}/>);
+createRoot(document.getElementById('runtime')!).render(<BisAccountView context={context}/>);
 await context.readyAsync();context.openAccountDialog();context.openAccountDetails();
 document.getElementById('outgoing')!.onclick=()=>{sats=1000;rows=[{id:'outgoing-fixture',identifier:'ark:fixture',amountSats:1000,direction:'Outgoing',status:'Settled offchain'}];publish(rows);};
 document.getElementById('assets')!.onclick=()=>{holdings=[{assetId:'a'.repeat(68),quantity:'3',name:'Fixture trophy'}];publish(rows);};

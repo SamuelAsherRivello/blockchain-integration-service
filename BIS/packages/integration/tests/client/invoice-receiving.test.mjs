@@ -38,12 +38,12 @@ test('production Receive hides deferred invoice UI and keeps address Copy and Ba
     // The UI and context must share Vite's module instance and private controls registry.
     const { createContext: factory } = await server.ssrLoadModule('/BIS/packages/integration/src/client/state-layer-core/context.ts');
     context = setup(factory);
-    const { BisView } = await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/client.tsx');
+    const { BisAccountView } = await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/client.tsx');
     await context.readyAsync();
     context.openAccountDialog();
     context.openAccountReceive();
     await tick();
-    const html = renderToStaticMarkup(createElement(BisView, { context }));
+    const html = renderToStaticMarkup(createElement(BisAccountView, { context }));
     assert.doesNotMatch(html, /Lightning invoice|No Invoice|With Invoice|Currently unavailable|bis-invoice/);
     for (const label of ['Arkade address', 'Bitcoin address']) {
       const button = html.match(new RegExp(`<button[^>]*aria-label="Copy ${label}"[^>]*>`))[0];

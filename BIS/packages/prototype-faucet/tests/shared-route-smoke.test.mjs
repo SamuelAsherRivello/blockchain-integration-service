@@ -11,8 +11,8 @@ test('shared Vite server exposes all five local destinations', async t => {
   const checks = [
     ['/admin/', /<title>BIS - Admin<\/title>/],
     ['/marketplace/', /<title>BIS - Marketplace<\/title>/],
-    ['/onboarding/', /<title>BIS - Onboarding<\/title>/],
-    ['/prototype-faucet/', /<title>BIS Prototype Faucet<\/title>/],
+    ['/onboarding/', /<title>BIS - Prototype Onboarding<\/title>/],
+    ['/prototype-faucet/', /<title>BIS - Prototype Faucet<\/title>/],
     ['/integration/', /<h1[^>]*>Integration package<\/h1>/],
   ];
   for (const [path, expected] of checks) {

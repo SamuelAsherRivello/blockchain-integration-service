@@ -10,8 +10,8 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 export const packageRoutes = [
   { label: 'BIS - Admin', route: '/admin/', directory: 'integration-admin' },
   { label: 'BIS - Marketplace', route: '/marketplace/', directory: 'marketplace' },
-  { label: 'BIS - Onboarding', route: '/onboarding/', directory: 'prototype-onboarding' },
-  { label: 'Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
+  { label: 'BIS - Prototype Onboarding', route: '/onboarding/', directory: 'prototype-onboarding' },
+  { label: 'BIS - Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
   { label: 'BIS - Integration', route: '/integration/', directory: 'integration', readme: true },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);

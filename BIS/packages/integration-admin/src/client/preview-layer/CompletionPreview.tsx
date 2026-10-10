@@ -3,7 +3,7 @@ import { createBisAssetCollection, type BisContext, type BisAssetCollectionState
 import { achievementPresets } from '../admin-layer/achievement-presets';
 import './completion-preview.css';
 
-export function CompletionPreview({context, onRestart, onBusy}: {context: BisContext; onRestart(): void; onBusy(busy: boolean): void}) {
+export function GameCompletionView({context, onRestart, onBusy}: {context: BisContext; onRestart(): void; onBusy(busy: boolean): void}) {
   const [level, setLevel] = useState(1);
   const [controller, setController] = useState<ReturnType<typeof createBisAssetCollection>>();
   const [state, setState] = useState<BisAssetCollectionState>();

@@ -4,7 +4,7 @@ import {createTreasureSession,treasureMessage} from '../preview-layer/treasure-s
 import {StoryButton} from './StoryButton';
 
 /** Admin simulates Start and collision/Claim; financial decisions remain in BIS. */
-export function TreasureLtoPanel({context,offers,gameWallet,onLog}:{context?:BisContext;offers?:ReturnType<typeof createBisLto>;gameWallet?:ReturnType<typeof createBisGameWallet>;onLog:(result:unknown)=>void}) {
+export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:BisContext;offers?:ReturnType<typeof createBisLto>;gameWallet?:ReturnType<typeof createBisGameWallet>;onLog:(result:unknown)=>void}) {
   const controller=useMemo(()=>context&&offers&&gameWallet?createTreasureSession({context,offers,gameWallet}):undefined,[context,offers,gameWallet]);
   const [deadline,setDeadline]=useState<number>(),[remaining,setRemaining]=useState(0);
   const latest=useRef(controller);latest.current=controller;

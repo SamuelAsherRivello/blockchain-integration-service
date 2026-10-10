@@ -1,5 +1,5 @@
 import {createRoot} from 'react-dom/client';
-import {AccountActivity} from '../../../integration/src/client/ui-layer-react/AccountActivity';
+import {AccountActivityView} from '../../../integration/src/client/ui-layer-react/AccountActivity';
 
 import {withTransferActivity} from '../../../integration/src/client/state-layer-core/activity';
 import type {BoardingRecord} from '../../../integration/src/client/state-layer-core/boarding-record';
@@ -20,7 +20,7 @@ document.getElementById('run')!.onclick=async()=>{
  try {
   const initialChecks=checks;
   const rows=withTransferActivity([{id:'ordinary',amountSats:100,direction:'Incoming',status:'Confirmed',identifier:'other'}],record,'fixture');
-  root.render(<div className="bis-card"><AccountActivity activity={{status:'unavailable',transactions:rows}} context={context} onDetailChange={()=>{}}/></div>);await tick();
+  root.render(<div className="bis-card"><AccountActivityView activity={{status:'unavailable',transactions:rows}} context={context} onDetailChange={()=>{}}/></div>);await tick();
   check(host.querySelectorAll('.bis-transaction-row').length===2,'One pending row alongside history');
   (host.querySelector('.bis-transaction-row') as HTMLButtonElement).click();await tick();
   check(host.querySelector('textarea')?.value.includes(record.id),'One click opens transfer details');

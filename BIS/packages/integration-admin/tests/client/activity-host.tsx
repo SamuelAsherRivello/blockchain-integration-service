@@ -1,6 +1,6 @@
 import { readReportPages } from './report-pages';
 import {createRoot} from 'react-dom/client';
-import {AccountActivity} from '../../../integration/src/client/ui-layer-react/AccountActivity';
+import {AccountActivityView} from '../../../integration/src/client/ui-layer-react/AccountActivity';
 import {PendingOperations} from '../../../integration/src/client/ui-layer-react/PendingOperationDialog';
 import { createContext } from '../../../integration/src/client/state-layer-core/context';
 import { createBisUi } from '@bis/integration';
@@ -98,7 +98,7 @@ document.getElementById('run')!.onclick=async()=>{
     const partialHost=document.createElement('div');host.append(partialHost);
     const partialRoot=createRoot(partialHost);
     try {
-      partialRoot.render(<PendingOperations><AccountActivity activity={{status:'unavailable',transactions:[rows[0]]}} onDetailChange={()=>{}} /></PendingOperations>);
+      partialRoot.render(<PendingOperations><AccountActivityView activity={{status:'unavailable',transactions:[rows[0]]}} onDetailChange={()=>{}} /></PendingOperations>);
       await wait(()=>!!partialHost.querySelector('.bis-transaction-row'));
       check(!partialHost.querySelector('.bis-pending-dialog'),'initial partial history must not open a blocking failure');
       check(!!partialHost.querySelector('[role="status"]'),'partial history is labelled');

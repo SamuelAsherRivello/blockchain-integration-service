@@ -1,14 +1,12 @@
 import { useId } from 'react';
 import type { BisInvoiceReceiving } from '../state-layer-core/invoice-receiving';
-import { CopyFieldLabel } from './CopyFieldLabel';
+import { FormValue } from './FormValue';
 
 export function AccountInvoice({ capability }: { capability: BisInvoiceReceiving }) {
-  const inputId = useId();
   const descriptionId = useId();
   return <section className="bis-invoice" aria-label="Lightning invoice receiving" aria-describedby={descriptionId}>
     <div className="bis-address-row">
-      <CopyFieldLabel htmlFor={inputId} label="Lightning invoice" disabled onCopy={() => {}} />
-      <input id={inputId} aria-label="Lightning invoice" readOnly value="" placeholder="No invoice" disabled />
+      <FormValue label="Lightning invoice" value="" disabled placeholder="No invoice" />
     </div>
     <div className="bis-invoice-options" role="group" aria-label="Invoice selection">
       <button type="button" className="bis-button bis-primary" aria-pressed="true" disabled>No Invoice</button>

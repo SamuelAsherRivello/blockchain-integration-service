@@ -6,7 +6,7 @@ import { burnMarketplaceListing } from './marketplace-burn-batch';
 import { listMarketplaceItems } from './marketplace-list';
 import { StoryButton } from './StoryButton';
 
-export function MarketplacePanel({ controller, onLog, children }: {controller?: ReturnType<typeof createBisGameWallet>; onLog(value: unknown): void; children?: ReactNode}) {
+export function AdminMarketplaceView({ controller, onLog, children }: {controller?: ReturnType<typeof createBisGameWallet>; onLog(value: unknown): void; children?: ReactNode}) {
   const [busy, setBusy] = useState(false);
   const active = !!controller?.getState().profileId;
   async function mintCatalog() {

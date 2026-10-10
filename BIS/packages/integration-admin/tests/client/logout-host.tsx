@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { clearBrowserPreferences } from '../../../integration/src/client/state-layer-core/logout-cleanup';
 import { createContext } from '../../../integration/src/client/state-layer-core/context';
 import { createBisUi } from '@bis/integration';
-import { GamePreview } from '../../src/client/preview-layer/GamePreview';
+import { GamePreviewView } from '../../src/client/preview-layer/GamePreview';
 import '@bis/integration/style.css';
 
 // Dedicated test-only fixture. Never imported by the demo application.
@@ -37,7 +37,7 @@ const plainOnly=new URLSearchParams(location.search).has('plain');
 if(!plainOnly)await import('../../src/client/ui-layer-react/style.css');
 // Mount after the actual preview component has assigned its container ref.
 const previewRef={current:null as HTMLDivElement|null};
-if(!plainOnly)createRoot(document.getElementById('preview')!).render(<GamePreview containerRef={previewRef} />);
+if(!plainOnly)createRoot(document.getElementById('preview')!).render(<GamePreviewView containerRef={previewRef} />);
 const tick=()=>new Promise<void>(resolve=>setTimeout(resolve,30));
 await tick();
 const targets=plainOnly?[document.getElementById('plain')!]:[previewRef.current!,document.getElementById('plain')!];

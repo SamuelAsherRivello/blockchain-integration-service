@@ -26,8 +26,7 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.match(app, /if\(!pendingCheckout\|\|!checkoutHasBeenSubmitted\)return;/);
   assert.match(dialog, /\{failed\?'Error':current\.info\?\.title\?\?displayLabel\}/);
   assert.match(dialog, /\{failed \? <><div className="bis-pending-error-field">/);
-  assert.match(dialog, /<CopyFieldLabel label="Message" copied=\{errorCopy\.status === 'copied'\} disabled=\{errorCopy\.status === 'copying'\} onCopy=\{\(\)=>void errorCopy\.copy\(\)\} \/>/);
-  assert.match(dialog, /<div id=\{description\} className="bis-pending-error-value" role="textbox" aria-readonly="true" tabIndex=\{0\}>\{current\.error\}<\/div>/);
+  assert.match(dialog, /<FormValue id=\{description\} className="bis-pending-error-field" label="Message" value=\{current\.error \?\? ''\} copyable/);
   assert.match(dialog, /current\.errorAction\?\.run\(\) \?\? current\.dismiss\(\)/);
   assert.match(dialog, /useLayoutEffect\(\(\) => \(\) => register\?\.\(id\), \[register, id\]\)/);
   assert.match(dialog, /const PENDING_NOTICE_GAP_GRACE_MS = 250/);

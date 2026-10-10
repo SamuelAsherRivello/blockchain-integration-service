@@ -14,8 +14,9 @@ import { recordGamePlayerPayment } from './game-player-payment.ts';
 export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string; exclusivityKey?: string; gameId?: string; hostReference?: string; includeResolved?: boolean; includeOtherNetworks?: boolean }>;
 export type BisContractsResult = Readonly<{ status: 'ready' | 'unavailable'; contracts: readonly BisContract[] }>;
 export type BisContractActionResult = Readonly<{ status: 'pending' | 'confirmed' | 'unavailable' | 'too-late' | 'not-submitted'; contract?: BisContract }>;
+export type BisContractReconcileOptions = Readonly<{ contractId?: string; sessionId?: string; feedback?: 'silent' | 'explicit' | 'active' }>;
 export type BisLtoRequest = Omit<LtoRequest,'id'|'operationId'|'scope'> & Readonly<{ exclusivityKey: string }>;
-type Controller = { claim(id:string):Promise<BisContractActionResult>; reject(id:string):Promise<BisContractActionResult>; refund(id:string):Promise<BisContractActionResult>;checkContractsAsync?(filter?:BisContractFilter):Promise<BisContractsResult> };
+type Controller = { claim(id:string):Promise<BisContractActionResult>; reject(id:string):Promise<BisContractActionResult>; refund(id:string):Promise<BisContractActionResult>;checkContractsAsync?(filter?:BisContractFilter):Promise<BisContractsResult>;reconcile?(options?:BisContractReconcileOptions):Promise<void> };
 const controllers = new WeakMap<BisContext,Controller>();
 export const contractController = (context: BisContext) => controllers.get(context);
 function createNetworkScopedPlayerStorage(selectedNetwork: () => TestNetwork | undefined): Pick<ReturnType<typeof createAccountStorage>, 'load'> {
@@ -96,6 +97,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     }
   };
   let detached = false, reconciling: Promise<void>|undefined, reconcileQueued = false, detachedGameId:string|undefined, detachedPlayerId:string|undefined;
+  let monitorTimer:ReturnType<typeof setInterval>|undefined, monitorActive=false;
   async function wallets() {
     const [player,game] = await Promise.all([playerStorage.load(),gameStorage.load()]);
     return {player:player.account,game};
@@ -114,22 +116,23 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     assertGeneration(expected);
     publishContractReservations(next); return next;
   }
-  function notify(record: ContractRecord) {
+  function notify(record: ContractRecord, feedback: BisContractReconcileOptions['feedback'] = 'silent') {
     publish();
-    if (detached || ![record.scope.playerId,record.scope.gameId].includes(context.getState().profileId ?? '')) return;
+    if (feedback === 'silent' || detached || ![record.scope.playerId,record.scope.gameId].includes(context.getState().profileId ?? '')) return;
     const phase = record.operation.submission, key = `${record.operation.id}:${phase === 'confirmed' || phase === 'not-submitted' ? phase : 'pending'}`;
     if (notifications.has(key)) return;
     notifications.add(key);
     const label = record.operation.kind === 'fund' ? 'Offer funding' : record.operation.kind === 'claim' ? 'Contract claim' : 'Contract refund';
+    if (feedback === 'active' && !['confirmed','not-submitted'].includes(phase) && record.operation.kind === 'fund') return;
     const message = phase === 'confirmed' ? record.operation.kind === 'fund' && (record.ended || Date.now() >= record.expiresAt) ? 'Offer funded; return pending' : `${label} confirmed: ${record.amountSats.toLocaleString('en-US')} sats`
       : phase === 'not-submitted' ? `${label} was not submitted${record.operation.failure?`: ${contractFailureMessages[record.operation.failure]}`:''}` : `${label} pending`;
     context.showToast(message,{messageType:phase==='confirmed'?'success':phase==='not-submitted'?'warning':'info',icon:'lightning'});
   }
-  async function execute(document: ContractDocument, record: ContractRecord, recovery: ContractRecovery, account: NonNullable<Awaited<ReturnType<typeof wallets>>['game']>, expected: number) {
+  async function execute(document: ContractDocument, record: ContractRecord, recovery: ContractRecovery, account: NonNullable<Awaited<ReturnType<typeof wallets>>['game']>, expected: number, feedback: BisContractReconcileOptions['feedback'] = 'silent') {
     assertGeneration(expected);
     let latest = document;
     const result = await dependencies.submit(record,recovery,account,async(next,material)=>{
-      latest = await save(latest,ended(next),material,expected); notify(ended(next));
+      latest = await save(latest,ended(next),material,expected); notify(ended(next),feedback);
     },()=>generation===expected && (record.operation.kind==='refund' ? gameWallet.getState().profileId===record.scope.gameId
       : current(record.scope.playerId,record.scope.gameId) && !ended(record).ended && Date.now()<record.expiresAt));
     assertGeneration(expected);
@@ -163,13 +166,13 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           record=beginContractOperation(record,kind,crypto.randomUUID(),Date.now());
           const recovery={...document.recovery[id],spend:undefined,finalization:undefined};
           document=await save(document,record,recovery,expected);
-          notify(record); accepted=true; resolve({status:'pending',contract:presentContract(record,Date.now())});
-          await execute(document,record,recovery,{...signer,network:record.scope.network as TestNetwork},expected);
+          notify(record,'explicit'); startMonitor(); accepted=true; resolve({status:'pending',contract:presentContract(record,Date.now())});
+          await execute(document,record,recovery,{...signer,network:record.scope.network as TestNetwork},expected,'explicit');
         },signer.network ?? context.getState().network ?? game.network ?? 'signet');
       })().catch(()=>{ if(!accepted)resolve({status:'unavailable'}); });
     });
   }
-  async function reconcile() {
+  async function reconcile(options: BisContractReconcileOptions = {}) {
     if (reconciling) { reconcileQueued=true; return reconciling; }
     const expected = generation;
     reconciling = (async()=>{
@@ -183,6 +186,8 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
             publishContractReservations(document);
             const network=game.network ?? 'signet';
             for (const original of document.ledger.contracts) {
+              if (options.contractId && original.id !== options.contractId) continue;
+              if (options.sessionId && original.sessionId !== options.sessionId) continue;
               if (original.scope.gameId!==game.profileId || original.scope.network!==network || original.scope.operator!==operatorFor(network) || contractResolved(original)) continue;
               let record=ended(original), recovery=document.recovery[record.id];
               // Holding both mutation locks proves no writer can still submit a prepared operation.
@@ -193,18 +198,41 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
               let result=await dependencies.reconcile(record,recovery);
               if(['submitted','unknown'].includes(result.record.operation.submission)&&result.recovery.finalization)result=await dependencies.resume(result.record,result.recovery);
               record=ended(result.record); recovery=result.recovery;
-              document=await save(document,record,recovery,expected); notify(record);
+              document=await save(document,record,recovery,expected); notify(record,options.feedback);
               if (record.financial==='funded'&&(record.ended||Date.now()>=record.expiresAt)) {
                 record=beginContractOperation(record,'refund',crypto.randomUUID(),Date.now()); recovery={...recovery,spend:undefined,finalization:undefined};
-                document=await save(document,record,recovery,expected); notify(record);
-                const returned=await execute(document,record,recovery,game,expected); document=returned.document;
+                document=await save(document,record,recovery,expected); notify(record,options.feedback);
+                const returned=await execute(document,record,recovery,game,expected,options.feedback); document=returned.document;
               }
             }
           },game.network ?? 'signet');
         } catch { /* Uncertainty retains both the slot and its reservation. The Contracts query stays available. */ }
       } while (reconcileQueued && generation===expected);
-    })().finally(()=>{ reconciling=undefined; });
+    })().finally(()=>{ reconciling=undefined; void stopMonitorIfIdle(); });
     return reconciling;
+  }
+  async function stopMonitorIfIdle() {
+    if (!monitorActive || !started.size) return;
+    try {
+      const document=await storage.load();
+      const unresolved=document.ledger.contracts.some(record=>!contractResolved(record)&&[...started.values()].some(startedRecord=>startedRecord.sessionId===record.sessionId&&startedRecord.scope.gameId===record.scope.gameId));
+      if (!unresolved) stopMonitor();
+    } catch { /* Keep monitoring when durable state cannot be inspected. */ }
+  }
+  function stopMonitor() {
+    if (!monitorActive) return;
+    monitorActive=false;
+    if (monitorTimer !== undefined) { clearInterval(monitorTimer); monitorTimer=undefined; }
+    globalThis.document?.removeEventListener('visibilitychange', onVisibilityChange);
+  }
+  function onVisibilityChange() {
+    if (globalThis.document?.visibilityState === 'visible') void reconcile({feedback:'active'});
+  }
+  function startMonitor() {
+    if (!dependencies.poll || monitorActive || detached) return;
+    monitorActive=true;
+    monitorTimer=setInterval(()=>{void reconcile({feedback:'active'});},5000);
+    globalThis.document?.addEventListener('visibilitychange',onVisibilityChange);
   }
   async function prepareExclusiveReplacement(playerId:string, gameId:string, exclusivityKey:string, currentKey:string, expected:number):Promise<boolean> {
     const document=await storage.load();
@@ -271,12 +299,13 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           reserveContract(record,recovery);
           document=await write({...document,ledger:{...allocated.ledger,contracts:allocated.ledger.contracts.map(old=>old.id===record.id?record:old)},recovery:{...document.recovery,[record.id]:recovery}},expected);
           assertGeneration(expected);
-          publishContractReservations(document);notify(record);
-          const result=await execute(document,record,recovery,activeGame,expected);
+          publishContractReservations(document);notify(record,'active');
+          startMonitor();
+          const result=await execute(document,record,recovery,activeGame,expected,'active');
           return {status:result.record.operation.submission==='confirmed'?'confirmed':result.record.operation.submission==='not-submitted'?'not-submitted':'pending',contract:presentContract(ended(result.record),Date.now())};
         },network);
       })().catch(()=>({status:'unavailable' as const}));
-      attempts.set(key,attempt);void attempt.finally(()=>{if(attempts.get(key)===attempt)attempts.delete(key);if(needsReconcile&&generation===expected)void reconcile();});return attempt;
+      attempts.set(key,attempt);void attempt.finally(()=>{if(attempts.get(key)===attempt)attempts.delete(key);if(needsReconcile&&generation===expected)void reconcile({feedback:'silent',sessionId:request.sessionId});});return attempt;
     },
     claim: (id:string) => action(id,'claim'),
     reject: (id:string) => action(id,'refund',true),
@@ -293,7 +322,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       assertGeneration(expected);
       await reconcile();
     },
-    reconcile,
+    reconcile(options?:BisContractReconcileOptions) { return reconcile(options); },
     async reset() {
       generation++;
       reconcileQueued=false;
@@ -309,38 +338,12 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     dispose({endSessions=true}={}) {
       if(detached)return;
       detachedGameId=gameWallet.getState().profileId;detachedPlayerId=context.getState().profileId;detached=true;
+      stopMonitor();
       listeners.clear();
       if(endSessions)for(const record of started.values())persistEnd(record,'session-ended');
       if(controllers.get(context)===controller)controllers.delete(context);
-      const markStored=async()=>{if(!endSessions||!detachedGameId||!detachedPlayerId)return;for(const record of (await storage.load()).ledger.contracts)if(record.scope.gameId===detachedGameId&&record.scope.playerId===detachedPlayerId&&!contractResolved(record))persistEnd(record,'session-ended');};
-      const finishScopedRecovery=async()=>{
-        await markStored();
-        for(let attempt=0;attempt<3;attempt++){
-          await reconcile();
-          const document=await storage.load();
-          const unresolved=document.ledger.contracts.some(record=>record.scope.gameId===detachedGameId&&record.scope.playerId===detachedPlayerId&&!contractResolved(record));
-          if(!unresolved)return;
-          await new Promise(resolve=>setTimeout(resolve,0));
-        }
-      };
-      void finishScopedRecovery().catch(()=>undefined);
     },
   };
   controllers.set(context,controller);
-  if(!dependencies.poll)return controller;
-  const interval=setInterval(()=>{void reconcile();},5000);
-  const visible=()=>{if(document.visibilityState==='visible')void reconcile();};
-  document.addEventListener('visibilitychange',visible);
-  // The recovery worker outlives host UI disposal while unresolved offers remain.
-  const cleanup=setInterval(()=>{
-    if(!detached)return;
-    void Promise.all([storage.load(),gameStorage.load()]).then(([document,game])=>{
-      const outstanding=document.ledger.contracts.some(record=>record.scope.gameId===detachedGameId&&record.scope.network===((game?.network)??'signet')&&record.scope.operator===operatorFor((game?.network)??'signet')&&!contractResolved(record));
-      // A replacement signer cannot resolve this worker's contracts. Keep their
-      // durable records for a future service using the original game identity.
-      if(!outstanding||game?.profileId!==detachedGameId){clearInterval(interval);clearInterval(cleanup);globalThis.document.removeEventListener('visibilitychange',visible);gameStorage.dispose();}
-    }).catch(()=>{});
-  },5000);
-  void reconcile();
   return controller;
 }

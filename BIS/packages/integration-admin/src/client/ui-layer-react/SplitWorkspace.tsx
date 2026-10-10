@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { readSplitPercent, saveSplitPercent, splitPercent } from './split-layout';
 
-export function SplitWorkspace({ children }: { children: [ReactNode, ReactNode] }) {
+export function SplitWorkspaceView({ children }: { children: [ReactNode, ReactNode] }) {
   const workspace = useRef<HTMLElement>(null);
   const [percent, setPercent] = useState(() => readSplitPercent());
   const [width, setWidth] = useState(0);

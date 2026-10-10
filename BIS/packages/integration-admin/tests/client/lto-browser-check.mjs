@@ -2,7 +2,7 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 const require=createRequire(process.env.BIS_PLAYWRIGHT_PACKAGE || import.meta.url);
 const {chromium}=require('playwright');const browser=await chromium.launch({headless:true,...(process.env.BIS_PLAYWRIGHT_CHANNEL?{channel:process.env.BIS_PLAYWRIGHT_CHANNEL}:{})});
-const url=new URL('/tests/client/lto-browser-fixture.html',process.env.BIS_DEMO_URL || 'http://127.0.0.1:5174/').href;
+const url=new URL('tests/client/lto-browser-fixture.html',process.env.BIS_DEMO_URL || 'http://127.0.0.1:5174/admin/').href;
 const errors=[];
 async function fixture(){const context=await browser.newContext();await context.route('**/*',route=>new URL(route.request().url()).origin===new URL(url).origin?route.continue():route.abort());const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.getByRole('button',{name:'Start LTO',exact:true}).waitFor();return {context,page};}
 const button=(page,name)=>page.getByRole('button',{name,exact:true});
@@ -23,7 +23,8 @@ try{
   const {context,page}=await fixture();
   const other=await context.newPage();other.on('pageerror',e=>errors.push(e.message));
   await other.goto(url);await button(other,'Start LTO').waitFor();
-  await clickButton(page,'Hold operations');await clickButton(page,'Start LTO');await event(page,'Offer funding pending');
+  await clickButton(page,'Hold operations');await clickButton(page,'Start LTO');await event(page,'"submission":"fund"');
+  assert.equal((await entries(page)).some(entry=>entry.toast==='Offer funding pending'),false);
   await clickButton(other,'Start LTO');await other.waitForTimeout(1500);
   assert.equal((await entries(other)).filter(e=>e.submission==='fund').length,0);
   await clickButton(page,'Complete operation');await page.waitForTimeout(2500);

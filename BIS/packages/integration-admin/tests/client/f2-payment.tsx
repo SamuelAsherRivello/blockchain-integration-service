@@ -2,7 +2,7 @@ import {createRoot} from 'react-dom/client';
 import {createBisUi,createBisGameWallet} from '@bis/integration';
 import {createContext} from '../../../integration/src/client/state-layer-core/context';
 import type {BisTransaction} from '../../../integration/src/client/state-layer-core/activity';
-import {GameWalletPanel} from '../../src/client/admin-layer/GameWalletPanel';
+import {AdminGameWalletView} from '../../src/client/admin-layer/GameWalletPanel';
 import '@bis/integration/style.css';
 import '../../src/client/ui-layer-react/style.css';
 // Test-only account and SDK doubles. No mnemonic, signing wallet or network calls.
@@ -26,7 +26,7 @@ return {...wallet,checkLiveBoardingState:async()=> scenario as 'ready'|'waiting'
 };
 const root=createRoot(document.getElementById('admin')!);
 const playerProfileId=()=>context.getState().profileId;
-const render=()=>root.render(<GameWalletPanel walletFactory={walletFactory} playerProfileId={playerProfileId} playerContext={context} playerActive={context.getState().phase==='active'} onDetails={()=>{}}/>);
+const render=()=>root.render(<AdminGameWalletView walletFactory={walletFactory} playerProfileId={playerProfileId} playerContext={context} playerActive={context.getState().phase==='active'} onDetails={()=>{}}/>);
 context.subscribe(render);render();const ui=createBisUi(context);ui.mount(document.getElementById('runtime')!);
 document.getElementById('login')!.onclick=()=>{account={profileId:'fixture-player',phrase:'fixture-only'};changed();};
 document.getElementById('logout')!.onclick=()=>{account=null;changed();};

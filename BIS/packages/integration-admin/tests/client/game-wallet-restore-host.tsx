@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { GameWalletLogin } from '../../../integration/src/client/ui-layer-react/GameWalletLogin';
+import { GameWalletLoginView } from '../../../integration/src/client/ui-layer-react/GameWalletLogin';
 import { PendingOperations } from '../../../integration/src/client/ui-layer-react/PendingOperationDialog';
 import '@bis/integration/style.css';
 
@@ -18,9 +18,9 @@ const wallet = {
   getState: () => state,
   async importWallet(value: string) { imported = value; await new Promise<void>(resolve => { releaseImport = resolve; }); state.profileId = 'game-wallet-fixture'; state.addresses = {arkadeAddress:address, bitcoinAddress:'tb1game-wallet-fixture'}; state.balance = {availableSats:1234,totalSats:1234,bitcoinSats:0,arkadeSats:1234}; listeners.forEach(listener => listener()); return true; },
   async logout() { await new Promise<void>(resolve => { releaseLogout = resolve; }); state.profileId = undefined; listeners.forEach(listener => listener()); },
-} as Parameters<typeof GameWalletLogin>[0]['wallet'];
+} as Parameters<typeof GameWalletLoginView>[0]['wallet'];
 const root = createRoot(host);
-root.render(<PendingOperations><div className="bis-layer bis-layer-open"><section className="bis-card"><h2>Game Wallet Login</h2><p>Set the wallet used by this game’s contracts.</p><GameWalletLogin wallet={wallet} onBack={() => undefined} /></section></div></PendingOperations>);
+root.render(<PendingOperations><div className="bis-layer bis-layer-open"><section className="bis-card"><h2>Game Wallet Login</h2><p>Set the wallet used by this game’s contracts.</p><GameWalletLoginView wallet={wallet} onBack={() => undefined} /></section></div></PendingOperations>);
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));
 const check = (value: unknown, message: string) => { if (!value) throw Error(message); };
 const button = (name: string) => [...host.querySelectorAll('button')].find(item => item.textContent?.trim() === name || item.getAttribute('aria-label') === name)!;

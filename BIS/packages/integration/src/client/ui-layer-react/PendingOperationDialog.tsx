@@ -1,6 +1,6 @@
 import { useVisibleViewport } from './useVisibleViewport';
 import { useFitTextButtons } from './FitTextButton';
-import { CopyFieldLabel } from './CopyFieldLabel';
+import { FormValue } from './FormValue';
 import { useClipboardCopy } from './useClipboardCopy';
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 
@@ -80,7 +80,7 @@ export function PendingOperations({children, overlay, className, hostLoading, on
   return <PendingContext.Provider value={register}>
     <div ref={runtime} className={`bis-runtime${className?` ${className}`:''}`}>
       <div ref={content} className="bis-runtime-content" inert={open} aria-hidden={open || undefined} aria-busy={!!pending}>{children}</div>
-      {current && <div className="bis-pending-backdrop" data-closing={!active && !retained || undefined} onKeyDown={event=>{
+      {current && <div className="bis-pending-backdrop" onKeyDown={event=>{
         if(event.key==='Escape'){event.preventDefault();event.stopPropagation();}
         if(event.key==='Tab'){
           const buttons=[...dialog.current!.querySelectorAll('button')];
@@ -89,11 +89,10 @@ export function PendingOperations({children, overlay, className, hostLoading, on
           (buttons[(index+(event.shiftKey?-1:1)+buttons.length)%buttons.length] ?? dialog.current)?.focus();
         }
       }}>
-        <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info?description:undefined}>
+        <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" data-closing={!active && !retained || undefined} role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info?description:undefined}>
           <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Error':current.info?.title??displayLabel}</h2>
           {failed ? <><div className="bis-pending-error-field">
-              <CopyFieldLabel label="Message" copied={errorCopy.status === 'copied'} disabled={errorCopy.status === 'copying'} onCopy={()=>void errorCopy.copy()} />
-              <div id={description} className="bis-pending-error-value" role="textbox" aria-readonly="true" tabIndex={0}>{current.error}</div>
+              <FormValue id={description} className="bis-pending-error-field" label="Message" value={current.error ?? ''} copyable copy={errorCopy} multiline rows={3} disabled={errorCopy.status === 'copying'} />
             </div><button className="bis-button" onClick={()=>current.errorAction?.run() ?? current.dismiss()}>{current.errorAction?.label ?? 'OK'}</button></>
             : current.info ? <><p id={description}>{current.info.message}</p>{current.info.confirm ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.info.confirm}>Yes</button><button className="bis-button" onClick={current.dismiss}>Cancel</button></div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
             : <span className="bis-bolt bis-bolt-spin bis-lightning" aria-hidden="true">⚡</span>}

@@ -1,7 +1,7 @@
-import { CopyableValueField } from './CopyableValueField';
+import { FormValue } from './FormValue';
 import { useClipboardCopy } from './useClipboardCopy';
 
-export function AccountIdentity({profileId}: {profileId?: string}) {
+export function AccountIdentityFormValue({profileId}: {profileId?: string}) {
   const copy = useClipboardCopy(() => profileId, profileId, !profileId);
-  return <CopyableValueField label="Account ID" value={profileId ?? '—'} copy={copy} disabled={!profileId} className="bis-account-id" />;
+  return <FormValue label="Account ID" value={profileId ?? '—'} copyable copy={copy} disabled={!profileId} className="bis-account-id" />;
 }

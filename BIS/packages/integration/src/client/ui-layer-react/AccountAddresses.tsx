@@ -1,11 +1,11 @@
 import type { BisAddresses } from '../state-layer-core/context';
-import { CopyableValueField } from './CopyableValueField';
+import { FormValue } from './FormValue';
 
-export function AccountAddresses({ addresses, arkadeOnly = false }: { addresses: BisAddresses; arkadeOnly?: boolean }) {
+export function AccountAddressesFormValue({ addresses, arkadeOnly = false }: { addresses: BisAddresses; arkadeOnly?: boolean }) {
   const ready = addresses.status === 'ready';
   const placeholder = '';
   return <div className="bis-addresses">
-    {!arkadeOnly && <CopyableValueField label="Bitcoin address" value={ready ? addresses.bitcoinAddress : placeholder} disabled={!ready} />}
-    <CopyableValueField label="Arkade address" value={ready ? addresses.arkadeAddress : placeholder} disabled={!ready} />
+    {!arkadeOnly && <FormValue label="Bitcoin address" value={ready ? addresses.bitcoinAddress : placeholder} copyable disabled={!ready} />}
+    <FormValue label="Arkade address" value={ready ? addresses.arkadeAddress : placeholder} copyable disabled={!ready} />
   </div>;
 }

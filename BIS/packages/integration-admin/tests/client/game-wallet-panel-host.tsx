@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { GameWalletPanel } from '../../src/client/admin-layer/GameWalletPanel';
+import { AdminGameWalletView } from '../../src/client/admin-layer/GameWalletPanel';
 import '@bis/integration/style.css';
 
 const result = document.getElementById('result')!;
@@ -26,7 +26,7 @@ const controller: any = {
   getPlayerPaymentBalance: () => '321 sats',
 };
 
-createRoot(host).render(<GameWalletPanel controller={controller} mode="board" onOpenDeveloper={() => undefined} onDetails={value => { details.textContent = JSON.stringify(value); }} />);
+createRoot(host).render(<AdminGameWalletView controller={controller} mode="board" onOpenDeveloper={() => undefined} onDetails={value => { details.textContent = JSON.stringify(value); }} />);
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));
 const button = (name: string) => [...host.querySelectorAll('button')].find(item => item.textContent?.trim() === name)!;
 

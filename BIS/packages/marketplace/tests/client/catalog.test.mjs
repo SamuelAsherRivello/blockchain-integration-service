@@ -124,12 +124,12 @@ test('item detail identity shows only the selected item name and formatted sats 
 test('item detail shows copyable generic and gameplay values without decimals or temporary release copy', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /Generic asset/);
-  assert.match(app, /CopyableValueField label="Asset ID" value=\{selected\.assetId\} className="marketplace-detail-field marketplace-asset-id"/);
-  assert.match(app, /CopyableValueField label="Ticker" value=\{selected\.ticker\} className="marketplace-detail-field"/);
-  assert.match(app, /CopyableValueField label="Quantity" value=\{String\(selected\.quantity\)\} className="marketplace-detail-field"/);
+  assert.match(app, /FormValue label="Asset ID" value=\{selected\.assetId\} copyable className="marketplace-detail-field marketplace-asset-id"/);
+  assert.match(app, /FormValue label="Ticker" value=\{selected\.ticker\} copyable className="marketplace-detail-field"/);
+  assert.match(app, /FormValue label="Quantity" value=\{String\(selected\.quantity\)\} copyable className="marketplace-detail-field"/);
   assert.doesNotMatch(app, /Decimals/);
   assert.match(app, /Gameplay metadata/);
-  assert.match(app, /gameplayMetadata\(selected\)\.map\(stat=><CopyableValueField key=\{stat\.label\} label=\{stat\.label\} value=\{stat\.value\}/);
+  assert.match(app, /gameplayMetadata\(selected\)\.map\(stat=><FormValue key=\{stat\.label\} label=\{stat\.label\} value=\{stat\.value\}/);
   assert.match(app, /item\.attributeDeltas/);
   assert.doesNotMatch(app, /Trading is not available/);
   assert.doesNotMatch(app, /later Marketplace account flow/);

@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { createContext } from '../../../integration/src/client/state-layer-core/context';
 import { createBisGameWallet } from '../../../integration/src/client/state-layer-core/game-wallet';
 import { createBisUi } from '@bis/integration';
-import { GameWalletLogin } from '../../../integration/src/client/ui-layer-react/GameWalletLogin';
+import { GameWalletLoginView } from '../../../integration/src/client/ui-layer-react/GameWalletLogin';
 import '@bis/integration/style.css';
 
 const result=document.getElementById('result')!;
@@ -29,7 +29,7 @@ document.getElementById('run')!.onclick=async()=>{
     await player.readyAsync();
     const playerFirstWallet=createBisGameWallet({playerProfileId:()=>player.getState().profileId},walletDependencies());
     const playerRoot=createRoot(playerFirst);
-    playerRoot.render(<div className="bis-layer bis-layer-open"><section className="bis-card"><GameWalletLogin wallet={playerFirstWallet} onBack={()=>undefined}/></section></div>);
+    playerRoot.render(<div className="bis-layer bis-layer-open"><section className="bis-card"><GameWalletLoginView wallet={playerFirstWallet} onBack={()=>undefined}/></section></div>);
     await frame();
     Object.defineProperty(navigator,'clipboard',{configurable:true,value:{readText:async()=>phrase}});
     button(playerFirst,'⚡ Restore Wallet').click();await frame();button(playerFirst,'Paste from Clipboard').click();await frame();

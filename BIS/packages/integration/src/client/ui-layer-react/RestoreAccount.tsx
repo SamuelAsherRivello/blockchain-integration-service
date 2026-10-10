@@ -1,7 +1,7 @@
 import { RecoveryPhraseEntry } from './RecoveryPhraseEntry';
 import { getControls, type BisContext, type BisState } from '../state-layer-core/context';
 
-export function RestoreAccount({ context, phase }: { context: BisContext; phase: BisState['phase'] }) {
+export function AccountRestoreView({ context, phase }: { context: BisContext; phase: BisState['phase'] }) {
   const editable = phase === 'restore-entry';
   const busy = phase === 'restoring' || phase === 'restore-saving';
   return <RecoveryPhraseEntry editable={editable} disabled={busy} hideWhen={!editable}

@@ -19,13 +19,13 @@ async function loadAdmin() {
     const section=await transformWithOxc(sectionSource,'StorySection.tsx',{jsx:{runtime:'automatic'}});
     const sectionModule=section.code.replace('"react/jsx-runtime"',JSON.stringify(import.meta.resolve('react/jsx-runtime')));
     const resolved = moduleText.replace('"@bis/integration"', JSON.stringify(import.meta.resolve('../../../integration/src/client/state-layer-core/game-continue.ts'))).replace('"./StorySection"',JSON.stringify(`data:text/javascript,${encodeURIComponent(sectionModule)}`)).replace('"./StoryButton"',JSON.stringify(`data:text/javascript,${encodeURIComponent(cardModule)}`));
-    const { AdminPanel } = await import(`data:text/javascript,${encodeURIComponent(resolved)}`);
-    return AdminPanel;
+    const { AdminPanelView } = await import(`data:text/javascript,${encodeURIComponent(resolved)}`);
+    return AdminPanelView;
 }
 
 test('requested admin navigation controls use an arrow-only affordance', async () => {
-  const AdminPanel = await loadAdmin();
-  const html = renderToStaticMarkup(createElement(AdminPanel, {
+  const AdminPanelView = await loadAdmin();
+  const html = renderToStaticMarkup(createElement(AdminPanelView, {
     selected: null, accountOpen: false, canReset: false, onSelect() {}, onReset() {},
     canFund: true, funding: false, onFund() {}, onExplorer() {},
     onMint() {}, mintAvailable: true, assetBusy: false, consoleOutput: '',
@@ -44,10 +44,10 @@ test('requested admin navigation controls use an arrow-only affordance', async (
 });
 
 test('B.P.1 stays enabled with the Account dialog open and retains payment guards', async () => {
-  const AdminPanel = await loadAdmin();
+  const AdminPanelView = await loadAdmin();
   for (const accountOpen of [false, true]) {
     for (const [continueAvailable, continueBusy, disabled] of [[true, false, false], [true, true, true], [false, false, true]]) {
-      const html = renderToStaticMarkup(createElement(AdminPanel, {
+      const html = renderToStaticMarkup(createElement(AdminPanelView, {
         accountOpen, continueAvailable, continueBusy, consoleOutput: '',
       }));
       const button = html.match(/<button\b[^>]*aria-label="B.P.1\.[^"]*"[^>]*>/)?.[0];
@@ -58,9 +58,9 @@ test('B.P.1 stays enabled with the Account dialog open and retains payment guard
 });
 
 test('C.G.1 uses game wallet readiness and shows Awaiting Balance when unfunded',async()=>{
- const AdminPanel=await loadAdmin();
+ const AdminPanelView=await loadAdmin();
  for(const mintAvailable of [false,true])for(const playerActive of [false,true]) {
-  const html=renderToStaticMarkup(createElement(AdminPanel,{mintAvailable,mintReason:mintAvailable?undefined:'Awaiting Balance',playerActive,accountOpen:true,assetBusy:false,consoleOutput:''}));
+  const html=renderToStaticMarkup(createElement(AdminPanelView,{mintAvailable,mintReason:mintAvailable?undefined:'Awaiting Balance',playerActive,accountOpen:true,assetBusy:false,consoleOutput:''}));
   const button=html.match(/<button\b[^>]*aria-label="C.G.1\.[^"]*"[^>]*>/)?.[0];assert.ok(button);
   assert.equal(button.includes('disabled=""'),!mintAvailable);
   if(!mintAvailable)assert.match(html,/Mint Asset &amp; Send \(Awaiting Balance\)/);
@@ -68,13 +68,13 @@ test('C.G.1 uses game wallet readiness and shows Awaiting Balance when unfunded'
 });
 
 test('B.P.1 names the actual unavailable payment dependency', async () => {
-  const AdminPanel = await loadAdmin();
-  const playerWallet = renderToStaticMarkup(createElement(AdminPanel, { continueReason: 'Awaiting Player Wallet', continueAvailable: false, continueBusy: false, consoleOutput: '' }));
+  const AdminPanelView = await loadAdmin();
+  const playerWallet = renderToStaticMarkup(createElement(AdminPanelView, { continueReason: 'Awaiting Player Wallet', continueAvailable: false, continueBusy: false, consoleOutput: '' }));
   assert.match(playerWallet, /role="tooltip">Disabled\. Player account must be logged in\.<\/span>/);
-  const gameWallet = renderToStaticMarkup(createElement(AdminPanel, { continueReason: 'Awaiting Game Wallet', continueAvailable: false, continueBusy: false, consoleOutput: '' }));
+  const gameWallet = renderToStaticMarkup(createElement(AdminPanelView, { continueReason: 'Awaiting Game Wallet', continueAvailable: false, continueBusy: false, consoleOutput: '' }));
   assert.match(gameWallet, /role="tooltip">Disabled\. Game Wallet must be logged in and ready to receive the payment\.<\/span>/);
   assert.match(gameWallet, /aria-describedby="admin-disabled-reason-b-p-1"/);
-  const busy = renderToStaticMarkup(createElement(AdminPanel, { continueAvailable: true, continueBusy: true, consoleOutput: '' }));
+  const busy = renderToStaticMarkup(createElement(AdminPanelView, { continueAvailable: true, continueBusy: true, consoleOutput: '' }));
   assert.doesNotMatch(busy, /admin-disabled-reason-b-p-1/);
 });
 
@@ -92,6 +92,25 @@ test('A.G.3 Details exposes separate Bitcoin and Arkade funding details', async 
   assert.match(details, /bitcoin:\s*\{[\s\S]*?balanceSats:\s*current\.balance\?\.bitcoinSats[\s\S]*?address:\s*current\.addresses\?\.bitcoinAddress/);
   assert.match(details, /arkade:\s*\{[\s\S]*?balanceSats:\s*current\.balance\?\.arkadeSats[\s\S]*?address:\s*current\.addresses\?\.arkadeAddress/);
   assert.match(source, /<button disabled=\{busy \|\| !state\.profileId\} onClick=\{\(\) => void details\(\)\}>Details<\/button>/);
+  assert.match(details, /walletScope: controller\.getOperationScope\?\.\(\)/);
+  assert.match(details, /availability/);
+  assert.match(details, /boardingStatus/);
+});
+
+test('A.G.3 distinguishes provider live-read failure from wallet-read failure', async () => {
+  const source = await readFile(new URL('../../src/client/admin-layer/GameWalletPanel.tsx', import.meta.url), 'utf8');
+  assert.match(source, /category:'provider-read'/);
+  assert.match(source, /Provider Status Unavailable/);
+  assert.match(source, /readStatus:current\.message/);
+  assert.match(source, /getOperationAvailability\?\.\(\)/);
+});
+
+test('Admin and Runtime Preview are composed with one Game Wallet controller', async () => {
+  const source = await readFile(new URL('../../src/client/ui-layer-react/App.tsx', import.meta.url), 'utf8');
+  assert.match(source, /gameWallet = gameWalletFactory\(\{playerProfileId: \(\) => context\.getState\(\)\.profileId/);
+  assert.match(source, /createBisUi\(context, \{gameWallet\}\)/);
+  assert.match(source, /gameWallet=\{<AdminGameWalletView controller=\{gameWalletController\} mode="account"/);
+  assert.match(source, /gameWalletBoard=\{<AdminGameWalletView controller=\{gameWalletController\} mode="board"/);
 });
 
 test('Game Wallet browser fixture covers unavailable-read recovery and safe category output', async () => {
@@ -107,9 +126,9 @@ test('Game Wallet browser fixture covers unavailable-read recovery and safe cate
 });
 
 test('Admin renders implemented asset stories and omits empty categories', async () => {
-    const AdminPanel = await loadAdmin();
+    const AdminPanelView = await loadAdmin();
     const unexpected = () => { throw Error('Rendering must not invoke an action'); };
-    const html = renderToStaticMarkup(createElement(AdminPanel, {
+    const html = renderToStaticMarkup(createElement(AdminPanelView, {
       selected: null, accountOpen: false, canReset: false, onSelect: unexpected, onReset: unexpected,
       canFund: false, funding: false, onFund: unexpected, onExplorer: unexpected,
       onMint: unexpected, mintAvailable:true, assetBusy: false, consoleOutput: '',
@@ -125,7 +144,7 @@ test('Admin renders implemented asset stories and omits empty categories', async
 });
 
 test('F.P.1 UI Toast subbuttons and B.P.8 retain availability and exact action routing', async () => {
-  const AdminPanel = await loadAdmin();
+  const AdminPanelView = await loadAdmin();
   const calls = [];
   const props = {
     selected: null, accountOpen: true, canReset: false, onSelect: id => calls.push(id), onReset() {},
@@ -141,7 +160,7 @@ test('F.P.1 UI Toast subbuttons and B.P.8 retain availability and exact action r
     else buttons(element.props?.children, found);
     return found;
   }
-  const enabled = buttons(AdminPanel(props));
+  const enabled = buttons(AdminPanelView(props));
   const show = enabled.find(button => button.props['aria-label'] === 'F.P.1. Show');
   const showWithIcon = enabled.find(button => button.props['aria-label'] === 'F.P.1. Show With Icon');
   const onboarding = enabled.find(button => button.props['aria-label']?.startsWith('B.P.8.'));
@@ -149,7 +168,7 @@ test('F.P.1 UI Toast subbuttons and B.P.8 retain availability and exact action r
   assert.equal(showWithIcon?.props.disabled, false); showWithIcon?.props.onClick();
   assert.equal(onboarding?.props.disabled, false);
   assert.deepEqual(calls, ['toast','toast-icon']);
-  const markup = renderToStaticMarkup(createElement(AdminPanel, props));
+  const markup = renderToStaticMarkup(createElement(AdminPanelView, props));
   assert.match(markup, />F\. Integrations</); assert.match(markup, /F\.P\.1\. UI Toast/);
   assert.match(markup, /aria-label="F\.P\.1\. Show"[^>]*>Show</);
   assert.match(markup, /aria-label="F\.P\.1\. Show With Icon"[^>]*>Show With Icon</);
@@ -159,10 +178,10 @@ test('F.P.1 UI Toast subbuttons and B.P.8 retain availability and exact action r
   assert.match(markup, /E\.P\.1\. View Activity/);
   assert.doesNotMatch(markup, /X\.N\.1\. Open Onboarding/);
   for (const options of [{canFund: false}, {funding: true}]) {
-    const disabled = buttons(AdminPanel({...props,...options}));
+    const disabled = buttons(AdminPanelView({...props,...options}));
     assert.equal(disabled.find(button => button.props['aria-label'] === 'F.P.1. Show')?.props.disabled, false);
     assert.equal(disabled.find(button => button.props['aria-label'] === 'F.P.1. Show With Icon')?.props.disabled, false);
   }
-  assert.equal(buttons(AdminPanel({...props, canShowToast: false})).find(button => button.props['aria-label'] === 'F.P.1. Show')?.props.disabled, true);
-  assert.equal(buttons(AdminPanel({...props, canShowToast: false})).find(button => button.props['aria-label'] === 'F.P.1. Show With Icon')?.props.disabled, true);
+  assert.equal(buttons(AdminPanelView({...props, canShowToast: false})).find(button => button.props['aria-label'] === 'F.P.1. Show')?.props.disabled, true);
+  assert.equal(buttons(AdminPanelView({...props, canShowToast: false})).find(button => button.props['aria-label'] === 'F.P.1. Show With Icon')?.props.disabled, true);
 });

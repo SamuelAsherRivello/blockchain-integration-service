@@ -44,6 +44,8 @@ These are interfaces/types, not a hierarchy of new runtime DTO classes. `BisServ
 - Rewards: `beginReward`, `refreshRewardAsync`, `collectRewardAsync`, `checkRewardAsync`, `acknowledgeRewardAsync`, `endReward`.
 - Equipment: `refreshEquipmentAsync`, `selectEquipmentAsync`, `clearEquipmentAsync`.
 - Contracts: `startContractAsync`, `queryContractsAsync`, `checkContractsAsync`, `claimContractAsync`, `rejectContractAsync`, `endContractSessionAsync`.
+
+Contract reads are intentionally split by intent. `queryContractsAsync` is a provider-neutral projection read. `checkContractsAsync` is an explicit, silent status check (and may be narrowed by `sessionId`); Admin uses it for selected-contract inspection rather than reconciling every record on page load. Recreating BIS or restoring a durable offer does not reconcile or toast. A game starts its offer explicitly at level start and checks the exact offer session at chest interaction, while durable recovery remains available for explicit checks and active operations.
 - Cleanup: `resetForGameAsync` and `dispose`.
 
 Begin commands allocate facade-owned workflow IDs without submitting money or minting. Subsequent commands address those IDs. Snapshots are copied and frozen: `unavailable` contract state is not an empty successful query. Account state allowlists public profile/network references, not recovery phrases, addresses, SDK objects or raw provider errors. Financial workflow messages are presentation copy, not authority to apply a game effect.

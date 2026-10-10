@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
-import { CopyableTextArea } from '../../../integration/src/client/ui-layer-react/CopyableTextArea';
+import { FormValue } from '../../../integration/src/client/ui-layer-react/FormValue';
 import { useClipboardCopy } from '../../../integration/src/client/ui-layer-react/useClipboardCopy';
 import '@bis/integration/style.css';
 const value=Array.from({length:80},(_,i)=>`${i}: A long report line ${'abcdef0123456789'.repeat(5)} 🟢\n`).join('');
 let copied='';
-function Report(){const copy=useClipboardCopy(()=>value,value);return <div className="bis-layer"><div className="bis-card bis-card-activity"><div className="bis-activity"><CopyableTextArea label="Report" value={value} copy={copy}/></div><button>Back</button></div></div>;}
+function Report(){const copy=useClipboardCopy(()=>value,value);return <div className="bis-layer"><div className="bis-card bis-card-activity"><div className="bis-activity"><FormValue label="Report" value={value} copyable multiline scrollable copy={copy}/></div><button>Back</button></div></div>;}
 createRoot(document.getElementById('host')!).render(<Report/>);
 const tick=()=>new Promise(resolve=>setTimeout(resolve,60));
 const check=(ok:unknown,label:string)=>{if(!ok)throw Error(label);};

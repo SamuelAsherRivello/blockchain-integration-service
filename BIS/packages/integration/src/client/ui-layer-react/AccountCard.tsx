@@ -1,7 +1,7 @@
 import { useId, type ReactNode, type Ref } from 'react';
 import { version } from '../../../package.json';
 
-export function AccountCard({ title, description, headingRef, headingActions, className = '', children, network = 'Signet' }: {
+export function AccountDialogShell({ title, description, headingRef, headingActions, className = '', children, network = 'Signet' }: {
   title: string; description: ReactNode; headingRef: Ref<HTMLHeadingElement>; headingActions?: ReactNode; className?: string; children: ReactNode; network?: string;
 }) {
   const titleId = useId(), descriptionId = useId();

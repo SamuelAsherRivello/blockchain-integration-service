@@ -29,7 +29,7 @@ export function App({ request = defaultRequest } = {}) {
     finally { if (requestController.current === controller) requestController.current = undefined; }
   }
   return <div className="faucet-shell">
-    <header className="spike-header"><div className="spike-identity"><span className="spike-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span><div><h1>Prototype Faucet</h1><p>Standalone Signet Spike</p></div></div><span className="spike-network">{NETWORKS[network].label}</span></header>
+    <header className="spike-header"><div className="spike-identity"><span className="spike-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span><div><h1>BIS - Prototype Faucet</h1><p>Standalone Signet Spike</p></div></div><span className="spike-network">{NETWORKS[network].label}</span></header>
     <main className="faucet-main"><section className="faucet-flow" aria-labelledby="faucet-title"><h2 id="faucet-title" className="workspace-title">Request test sats</h2><p className="intro">Fund an Arkade wallet with a bounded amount of test sats without visiting a third-party faucet.</p>
       <section className="panel faucet-panel"><div className="panel-heading"><div><span className="panel-kicker">FAUCET REQUEST</span><h3>Choose destination and amount</h3></div><span className="prototype-badge">Experimental</span></div><div className="notice" role="note">Arkade only. This prototype does not fund ordinary on-chain Bitcoin and never asks for recovery material.</div>
         <form onSubmit={submit}>

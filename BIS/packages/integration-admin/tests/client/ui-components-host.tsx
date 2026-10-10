@@ -1,8 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import { useClipboardCopy, type ClipboardCopy } from '../../../integration/src/client/ui-layer-react/useClipboardCopy';
 import { useQuoteExpiry } from '../../../integration/src/client/ui-layer-react/useQuoteExpiry';
-import { CopyFieldLabel } from '../../../integration/src/client/ui-layer-react/CopyFieldLabel';
-import { AdminPanel } from '../../src/client/admin-layer/AdminPanel';
+import { FormValue } from '../../../integration/src/client/ui-layer-react/FormValue';
+import { AdminPanelView } from '../../src/client/admin-layer/AdminPanel';
 import '@bis/integration/style.css';
 
 const host = document.getElementById('host')!, result = document.getElementById('result')!;
@@ -12,7 +12,7 @@ let control: ClipboardCopy;
 function Fixture({ value, scope, disabled = false, expiresAt }: { value: string; scope: string; disabled?: boolean; expiresAt?: number }) {
   control = useClipboardCopy(() => value, scope, disabled);
   const expired = useQuoteExpiry(expiresAt);
-  return <><CopyFieldLabel label="Fixture" copied={control.hasCopied} disabled={disabled} onCopy={() => void control.copy()} /><output>{control.status}:{expired ? 'expired' : 'valid'}</output></>;
+  return <><FormValue label="Fixture" value={value} copyable copy={control} disabled={disabled} /><output>{control.status}:{expired ? 'expired' : 'valid'}</output></>;
 }
 document.getElementById('run')!.onclick = async () => {
   result.textContent = 'Running';
@@ -43,7 +43,7 @@ document.getElementById('run')!.onclick = async () => {
     await render('B', 'B', false, Date.now() + 60000); check(host.querySelector('output')?.textContent?.endsWith('valid'), 'Fresh quote resets expiry');
     await render('B'); check(host.querySelector('output')?.textContent?.endsWith('valid'), 'No quote clears expiry');
     const actions: string[] = [];
-    const admin = (open: boolean) => <AdminPanel selected="A.P.2" accountOpen={open} canReset={false} onSelect={id => actions.push(id)} onReset={() => {}} canFund={false} funding={false} onFund={() => {}} onExplorer={() => {}} onMint={() => actions.push('C.G.1')} assetBusy={false} consoleOutput="" onContinue={() => actions.push('B.P.1')} />;
+    const admin = (open: boolean) => <AdminPanelView selected="A.P.2" accountOpen={open} canReset={false} onSelect={id => actions.push(id)} onReset={() => {}} canFund={false} funding={false} onFund={() => {}} onExplorer={() => {}} onMint={() => actions.push('C.G.1')} assetBusy={false} consoleOutput="" onContinue={() => actions.push('B.P.1')} />;
     root.render(admin(false)); await tick();
     const story = (id: string) => [...host.querySelectorAll<HTMLButtonElement>('.story-button')].find(button => button.firstElementChild?.textContent === id)!;
     check(story('A.P.2').getAttribute('aria-pressed') === 'true' && !!story('A.P.2').querySelector('.story-arrow'), 'Mapped selection and arrow');

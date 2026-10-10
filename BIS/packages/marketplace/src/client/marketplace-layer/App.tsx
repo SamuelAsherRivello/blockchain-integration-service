@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, CopyableValueField, createBisContext, createBisGameWallet, createBisUi, networkLabel, PendingOperations, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord } from '@bis/integration';
+import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, FormValue, createBisContext, createBisGameWallet, createBisUi, networkLabel, PendingOperations, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord } from '@bis/integration';
 import '@bis/integration/style.css';
 import { fallbackCatalog, type MarketplaceCatalog } from './catalog';
 import { readPublicInventory } from '../inventory-layer/inventory';
@@ -56,6 +56,7 @@ function MarketplaceContent(){
   const walletUi=useMemo(()=>createBisUi(player,{gameWallet}),[player,gameWallet]);
   const playerState=useSyncExternalStore(player.subscribe,player.getState,player.getState);
   const network=playerState.network;
+  const [playerDisplayAddress,setPlayerDisplayAddress]=useState<string>();
   const gameState=useSyncExternalStore(gameWallet.subscribe,gameWallet.getState,gameWallet.getState);
   const inventory=useMemo(()=>createMarketplaceInventoryCoordinator(),[]);
   const inventoryState=useSyncExternalStore(inventory.subscribe,inventory.getState,inventory.getState);
@@ -80,11 +81,17 @@ function MarketplaceContent(){
   },[]);
   useEffect(()=>{if(walletHost.current){walletUi.mount(walletHost.current);walletUi.showAccountButton();}return()=>{walletUi.unmount();gameWallet.dispose();player.dispose();};},[walletUi,gameWallet,player]);
   useEffect(()=>{void fetch(`${import.meta.env.BASE_URL}catalog.json`,{cache:'no-store'}).then(async response=>{if(!response.ok)throw Error();const next=await response.json() as MarketplaceCatalog;const games=Array.isArray(next.games)?next.games:[];if(next.version!==2||!games.some(entry=>entry?.gameId==='stealth-and-steel'&&entry?.displayName==='Stealth & Steel'&&typeof entry.gameWalletAddress==='string')||!games.some(entry=>entry?.gameId==="Rogue's Dungeon"&&entry?.displayName==="Rogue's Dungeon"&&entry?.gameWalletAddress===undefined))throw Error();setCatalog({...next,games:Object.freeze(games)});setReadable(true);}).catch(()=>setReadable(false)).finally(()=>setIsCatalogLoading(false));},[]);
+  useEffect(()=>{
+    let cancelled=false;
+    setPlayerDisplayAddress(undefined);
+    if(playerState.profileId) void player.getPaymentRecipient?.().then(result=>{if(!cancelled)setPlayerDisplayAddress(result.address);}).catch(()=>{});
+    return()=>{cancelled=true;};
+  },[network,player,playerState.profileId]);
   useEffect(()=>{const timeout=window.setTimeout(()=>setInitialInventoryWaitExpired(true),MARKETPLACE_INITIAL_INVENTORY_WAIT_MS);return()=>window.clearTimeout(timeout);},[]);
   useEffect(()=>{if(game==='all'||selectedGame?.gameWalletAddress)void gameWallet.refresh();},[gameWallet,network,playerState.profileId,game,selectedGame?.gameId,selectedGame?.gameWalletAddress]);
   const sessionGameAddress=gameState.addresses?.arkadeAddress;
   const playerArkadeAddress=playerState.addresses.status==='ready'?playerState.addresses.arkadeAddress:undefined;
-  playerArkadeAddressForDisplay=playerArkadeAddress;
+  playerArkadeAddressForDisplay=playerArkadeAddress??playerDisplayAddress;
   const inventoryAddress=isCatalogLoading|| (game!=='all'&&!selectedGame?.gameWalletAddress)
     ?undefined
     :sessionGameAddress??(gameState.status==='loading'?undefined:(selectedGame?.gameWalletAddress??defaultGame?.gameWalletAddress));
@@ -301,8 +308,8 @@ function MarketplaceContent(){
       <section className="catalog-scroll" aria-label="Marketplace equipment">{visibleItems.length?<div className="catalog-grid">{visibleItems.map(item=>{const pending=Boolean(pendingTransferFor(item));const walletLabel=pending?'Pending transfer':owner==='player'?'Player Wallet':owner==='game'?'Game Wallet':gameItems?.some(candidate=>candidate.assetId===item.assetId)?'Game Wallet':'Player Wallet';return <button className={`asset-card${pending?' asset-card-pending':''}`} key={`${owner}-${item.assetId}`} onClick={()=>setSelected(item)}><span className="asset-card-layout"><Artwork item={item} list/><span className="asset-card-title"><strong>{item.name}</strong><b>{item.priceSats.toLocaleString()} sats</b><small className="asset-card-wallet">{walletLabel}</small></span><span className="asset-card-lore"><small className="asset-card-effect">{item.description}</small><span className="poetic-quote">“{poeticQuoteFor(item)}”</span></span></span></button>})}</div>:<p className="empty-state" role="status">{emptyMessage}</p>}</section>
       {selected&&<div className="backdrop" role="presentation" onMouseDown={()=>setSelected(undefined)}><article className="detail" role="dialog" aria-modal="true" aria-labelledby="item-title" onMouseDown={event=>event.stopPropagation()}>
         <button className="close" onClick={()=>setSelected(undefined)} aria-label="Close item detail">×</button><div className="detail-identity"><Artwork item={selected} large/><div><h2 id="item-title">{selected.name}</h2><strong>{selected.priceSats.toLocaleString()} sats</strong></div><div className="detail-actions"><button className="trade-action trade-action-buy" disabled={!canBuy} title={pendingTransferTitle??(checkoutIsPending?'Pending transaction':undefined)} aria-describedby={!salesEnabled?'sales-disabled-reason':undefined} onClick={()=>void beginCheckout('buy')}>Buy</button><button className="trade-action trade-action-sell" disabled={!canSell} title={pendingTransferTitle??(checkoutIsPending?'Pending transaction':undefined)} aria-describedby={!salesEnabled?'sales-disabled-reason':undefined} onClick={()=>void beginCheckout('sell')}>Sell</button>{!salesEnabled&&<p className="sales-disabled-reason" id="sales-disabled-reason">Log in to separate Player and Game Wallets from Account to trade.</p>}</div></div>
-        <section className="asset-data" aria-label="Generic asset data"><p className="data-label">Generic asset</p><div className="marketplace-detail-fields marketplace-generic-fields"><CopyableValueField label="Asset ID" value={selected.assetId} className="marketplace-detail-field marketplace-asset-id" /><CopyableValueField label="Ticker" value={selected.ticker} className="marketplace-detail-field" /><CopyableValueField label="Quantity" value={String(selected.quantity)} className="marketplace-detail-field" /></div></section>
-        <section className="asset-data" aria-label="Gameplay metadata"><p className="data-label">Gameplay metadata</p><div className="marketplace-detail-fields marketplace-gameplay-fields">{gameplayMetadata(selected).map(stat=><CopyableValueField key={stat.label} label={stat.label} value={stat.value} className="marketplace-detail-field" />)}</div></section>
+        <section className="asset-data" aria-label="Generic asset data"><p className="data-label">Generic asset</p><div className="marketplace-detail-fields marketplace-generic-fields"><FormValue label="Asset ID" value={selected.assetId} copyable className="marketplace-detail-field marketplace-asset-id" /><FormValue label="Ticker" value={selected.ticker} copyable className="marketplace-detail-field" /><FormValue label="Quantity" value={String(selected.quantity)} copyable className="marketplace-detail-field" /></div></section>
+        <section className="asset-data" aria-label="Gameplay metadata"><p className="data-label">Gameplay metadata</p><div className="marketplace-detail-fields marketplace-gameplay-fields">{gameplayMetadata(selected).map(stat=><FormValue key={stat.label} label={stat.label} value={stat.value} copyable className="marketplace-detail-field" />)}</div></section>
         <button type="button" className="detail-explorer-action" disabled={!explorerUrl} title={!explorerUrl?'Explorer unavailable: invalid asset ID.':undefined} onClick={()=>{if(explorerUrl)window.open(explorerUrl, '_blank', 'noopener,noreferrer');}}>Open On Explorer</button>
         <button type="button" className="marketplace-dialog-back" onClick={()=>setSelected(undefined)}>Back</button>
       </article></div>}

@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { createBisContext, createBisUi, type BisContext, type BisToastOptions } from '@bis/integration';
 import { createContext } from '../../../integration/src/client/state-layer-core/context';
-import { BisView } from '../../../integration/src/client/ui-layer-react/client';
+import { BisAccountView } from '../../../integration/src/client/ui-layer-react/client';
 import '@bis/integration/style.css';
 
 const host = document.getElementById('runtime')!;
@@ -23,7 +23,7 @@ function fresh(mode: 'public' | 'pending' | 'error' | 'strict' = 'public') {
   if (mode === 'strict') {
     context.showToast('StrictMode queued before mount');
     strictRoot = createRoot(host);
-    strictRoot.render(<StrictMode><BisView context={context} /></StrictMode>);
+    strictRoot.render(<StrictMode><BisAccountView context={context} /></StrictMode>);
   } else ui.mount(host);
   if (mode === 'pending' || mode === 'error') context.openAccountDialog();
 }

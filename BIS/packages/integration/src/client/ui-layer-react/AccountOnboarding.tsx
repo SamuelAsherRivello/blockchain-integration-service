@@ -3,7 +3,7 @@ import type {BisBalance} from '../state-layer-core/context';
 import {onboardingReadiness} from '../state-layer-core/onboarding-stage.ts';
 import type {OnboardingView,OnboardingTransaction} from '../state-layer-core/onboarding-service.ts';
 import {testNetwork,type TestNetwork} from '../state-layer-core/test-network.ts';
-import {CopyableValueField} from './CopyableValueField';
+import {FormValue} from './FormValue';
 import './onboarding.css';
 
 export const onboardingLabel=(view?:OnboardingView,balance?:BisBalance)=>`Onboarding: ${onboardingReadiness(view,balance).label}`;
@@ -23,7 +23,7 @@ function Transactions({items,network}:{items:OnboardingTransaction[];network:Tes
     <a href={testNetwork(network).bitcoinExplorerTransactionUrl(tx.txid)} target="_blank" rel="noreferrer">{tx.txid}</a>
   </div>)}</div>;
 }
-export function AccountOnboarding({view,network='signet',bitcoinAddress,balance}:{view?:OnboardingView;network?:TestNetwork;bitcoinAddress?:string;balance?:BisBalance}){
+export function AccountOnboardingView({view,network='signet',bitcoinAddress,balance}:{view?:OnboardingView;network?:TestNetwork;bitcoinAddress?:string;balance?:BisBalance}){
   const record=view?.record,readiness=onboardingReadiness(view,balance),completed=readiness.stage,done=completed===5,incoming=view?.transactions.filter(t=>t.kind==='incoming')??[];
   const transfer=view?.transactions.filter(t=>t.kind!=='incoming')??[];
   const boardingAddress=bitcoinAddress??view?.address;
@@ -31,10 +31,10 @@ export function AccountOnboarding({view,network='signet',bitcoinAddress,balance}
   const fundingInstruction=network==='mutinynet'?'Add sats on the Mutinynet network. Once funding is confirmed, 50% moves to Arkade automatically.':`${selectedNetwork.label} test sats. Once funding is confirmed, 50% moves to Arkade automatically. The remainder returns to this Bitcoin address.`;
   const stages:StageStatus[]=[1,2,3,4,5].map(number=>number<=completed?'complete':number===completed+1?'pending':'unstarted');
   return <div className="bis-onboarding">
-    <p>You must fund the account per step 2. Otherwise sit back and wait for completion.</p>
+    {done?<p>Your account is already funded and ready to use.</p>:<p>You must fund the account per step 2.<br />Then wait for onboarding to finish.</p>}
     <Stage number={1} owner="CPU" title="Account ready" status={stages[0]}><p>Your current account is saved in this browser.</p></Stage>
     <Stage number={2} owner="USER" title="Fund the account" status={stages[1]}>
-      {boardingAddress?<CopyableValueField label="Bitcoin boarding address" value={boardingAddress}/>:<p role="status">Getting the current Bitcoin boarding address…</p>}
+      {boardingAddress?<FormValue label="Bitcoin boarding address" value={boardingAddress} copyable/>:<p role="status">Getting the current Bitcoin boarding address…</p>}
       <a className="bis-button" href={selectedNetwork.faucetUrl} target="_blank" rel="noreferrer">Open faucet and fund</a>
       <p>{done?'Setup is complete. Later deposits do not restart onboarding.':fundingInstruction}</p>
       <small>Usually a few minutes to fund; faucet queues vary.</small>

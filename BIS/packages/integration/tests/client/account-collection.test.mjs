@@ -7,14 +7,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 test('Assets, Contracts and Transactions render the same titled collection, refresh control, copy field, scroll area and one Back', async () => {
   const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
   try {
-    const {AccountAssets}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountAssets.tsx');
-    const {AccountActivity}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountActivity.tsx');
-    const {AccountContracts}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountContracts.tsx');
+    const {AccountAssetsView}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountAssets.tsx');
+    const {AccountActivityView}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountActivity.tsx');
+    const {AccountContractsView}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountContracts.tsx');
     const noop=()=>{};
     const fixtures=[
-      [AccountAssets,{assets:{status:'ready',assets:[]},onDetailChange:noop,onBack:noop,onBurn:noop,onRefresh:noop,onBusyChange:noop,onToast:noop},'Assets'],
-      [AccountActivity,{activity:{status:'ready',transactions:[]},onDetailChange:noop},'Transactions'],
-      [AccountContracts,{context:{getState:()=>({network:'signet'}),closeAccount:noop},onDetailChange:noop},'Contracts'],
+      [AccountAssetsView,{assets:{status:'ready',assets:[]},onDetailChange:noop,onBack:noop,onBurn:noop,onRefresh:noop,onBusyChange:noop,onToast:noop},'Assets'],
+      [AccountActivityView,{activity:{status:'ready',transactions:[]},onDetailChange:noop},'Transactions'],
+      [AccountContractsView,{context:{getState:()=>({network:'signet'}),closeAccount:noop},onDetailChange:noop},'Contracts'],
     ];
     for(const [component,props,title] of fixtures) {
       const html=renderToStaticMarkup(createElement(component,props));

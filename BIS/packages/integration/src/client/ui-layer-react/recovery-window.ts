@@ -1,7 +1,7 @@
 import { createElement, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AccountCard } from './AccountCard';
-import { CopyableTextArea } from './CopyableTextArea';
+import { AccountDialogShell } from './AccountCard';
+import { FormValue } from './FormValue';
 import { useClipboardCopy } from './useClipboardCopy';
 
 export function RecoveryInfoDialog({ report, trigger, onBack }: { report: string; trigger: HTMLButtonElement; onBack: () => void }) {
@@ -30,9 +30,9 @@ export function RecoveryInfoDialog({ report, trigger, onBack }: { report: string
       if (event.shiftKey && (document.activeElement === first || document.activeElement === heading.current)) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     },
-  }, createElement(AccountCard, { title: 'Recovery Info', description: null, headingRef: heading, className: ' bis-card-activity', children:
+  }, createElement(AccountDialogShell, { title: 'Recovery Info', description: null, headingRef: heading, className: ' bis-card-activity', children:
     createElement('div', { className: 'bis-activity' },
-      createElement(CopyableTextArea, { label: 'Recovery Info', value: report, copy, scrollable: true }),
+      createElement(FormValue, { label: 'Recovery Info', value: report, copyable: true, copy, multiline: true, scrollable: true }),
       copy.status === 'failed' && createElement('p', { role: 'status' }, 'Could not copy. Select the text and copy it manually.'),
       createElement('div', { className: 'bis-actions bis-transaction-back' },
         createElement('button', { type: 'button', className: 'bis-button bis-back', onClick: onBack }, 'Back'))),

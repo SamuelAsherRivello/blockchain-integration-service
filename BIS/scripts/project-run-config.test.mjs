@@ -10,8 +10,8 @@ test('project run configuration is a valid shared-server contract', () => {
   assert.deepEqual(projectRunConfig.routes.map(route => route.label), [
     'BIS - Admin',
     'BIS - Marketplace',
-    'BIS - Onboarding',
-    'Prototype Faucet',
+    'BIS - Prototype Onboarding',
+    'BIS - Prototype Faucet',
     'BIS - Integration',
   ]);
 });

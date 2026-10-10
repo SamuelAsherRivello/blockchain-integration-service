@@ -299,7 +299,11 @@ export class BisService implements IBis {
     await this.#readContracts(); return frozenCopy(result);
   }
   queryContractsAsync(filter: BisContractFilter = {}) { return this.#readContracts(filter); }
-  async checkContractsAsync(filter: BisContractFilter = {}) { this.#assertAlive(); await this.#lto.reconcile(); return this.#readContracts(filter); }
+  async checkContractsAsync(filter: BisContractFilter = {}) {
+    this.#assertAlive();
+    await this.#lto.reconcile(filter.sessionId ? {sessionId:filter.sessionId,feedback:'silent'} : {feedback:'silent'});
+    return this.#readContracts(filter);
+  }
   async claimContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.claim(id); await this.#readContracts(); return frozenCopy(result); }
   async rejectContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.reject(id); await this.#readContracts(); return frozenCopy(result); }
   async endContractSessionAsync(id: string) { this.#assertAlive(); this.#endedOffers.add(id); this.#offerOrigins.delete(id); await this.#lto.endSession(id); await this.#readContracts(); }

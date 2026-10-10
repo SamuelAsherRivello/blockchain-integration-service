@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import type { BisAsset, BisListAssetsResult, BisMintAssetRequest, BisMintAssetResult } from '@bis/integration';
 import { assetBaseUnits } from '../../../integration/src/client/state-layer-core/assets';
-import { AdminPanel } from '../../src/client/admin-layer/AdminPanel';
-import { MintAssetDialog } from '../../src/client/admin-layer/MintAssetDialog';
+import { AdminPanelView } from '../../src/client/admin-layer/AdminPanel';
+import { AssetMintDialog } from '../../src/client/admin-layer/MintAssetDialog';
 import type { MintDestination } from '../../src/client/admin-layer/mint-destination';
 import { achievementPresets } from '../../src/client/admin-layer/achievement-presets';
 import '../../src/client/ui-layer-react/style.css';
@@ -127,7 +127,7 @@ function AssetUiHost() {
     `}</style>
     <header className="fixture-toolbar" aria-label="Fixture controls">
       <p><strong>Isolated component verification — synthetic public results. No live wallet operations.</strong></p>
-      <p>Actual AdminPanel and MintAssetDialog. The fixture owns callbacks and history; this does not verify production App orchestration or a real mint.</p>
+      <p>Actual AdminPanelView and AssetMintDialog. The fixture owns callbacks and history; this does not verify production App orchestration or a real mint.</p>
       <label>Mint scenario<select id="mint-scenario" value={scenario} disabled={busy || open} onChange={event => setScenario(event.target.value as MintScenario)}>
         <option value="success">Success</option><option value="held-pending">Held pending, release to success</option>
         <option value="outcome-unknown">Outcome unknown, same-request retry succeeds</option>
@@ -147,7 +147,7 @@ function AssetUiHost() {
       {!open && releaseButton}
     </header>
     <main className="fixture-workspace">
-      <AdminPanel selected={null} accountOpen={accountOpen} canReset={!busy} onSelect={() => setAccountOpen(true)}
+      <AdminPanelView selected={null} accountOpen={accountOpen} canReset={!busy} onSelect={() => setAccountOpen(true)}
         onReset={resetFixture} canFund={false} funding={false} onFund={() => {}} onExplorer={() => {}}
         onMint={openMint} onListAssets={() => void listAssets()} assetBusy={busy} consoleOutput={lines.join('\n\n')} />
       <section className="fixture-inspection" aria-label="Fixture observations">
@@ -158,7 +158,7 @@ function AssetUiHost() {
         <h3>Public results</h3><pre id="public-results">{JSON.stringify(results, null, 2)}</pre>
       </section>
     </main>
-    {open && <MintAssetDialog prepare={prepare} onClose={() => setOpen(false)} />}
+    {open && <AssetMintDialog prepare={prepare} onClose={() => setOpen(false)} />}
     {open && portalTarget && createPortal(<div className="fixture-dialog-controls" aria-label="Fixture-only pending controls">
       <p>Fixture only: this control resolves the fake callback without changing production dialog behavior.</p>{releaseButton}
     </div>, portalTarget)}

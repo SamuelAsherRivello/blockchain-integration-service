@@ -15,6 +15,32 @@ test('A.G.3 enables at 1000 sats and remains unavailable below 1000',async()=>{
   }
 });
 
+test('Admin operation scope is public, current, and reports truthful wallet availability',async()=>{
+  const f=fixture();
+  const c=createBisGameWallet({playerProfileId:()=> 'player',playerNetwork:()=> 'signet'},f.dependencies,undefined,undefined,()=>{});
+  await tick(); await c.importWallet('game');
+  const scope=c.getOperationScope();
+  assert.deepEqual(scope,{playerProfileId:'player',gameProfileId:'game',network:'signet',selectionVersion:c.getState().selectionVersion});
+  assert.equal(c.isOperationScopeCurrent(scope),true);
+  assert.equal(c.getOperationAvailability().available,true);
+  assert.equal('phrase' in scope,false);
+  await c.logout();
+  assert.equal(c.isOperationScopeCurrent(scope),false);
+  assert.equal(c.getOperationAvailability().reason,'game-wallet');
+  c.dispose();
+});
+
+test('Admin operation availability distinguishes a network-mismatched retained wallet',async()=>{
+  const f=fixture();
+  await f.storage.select({phrase:'game',profileId:'game',network:'mutinynet'});
+  const c=createBisGameWallet({playerProfileId:()=> 'player',playerNetwork:()=> 'signet'},f.dependencies);
+  await tick();
+  assert.equal(c.getState().readStatus,'network-mismatch');
+  assert.equal(c.getOperationAvailability().reason,'network-mismatch');
+  assert.equal(c.getOperationAvailability().available,false);
+  c.dispose();
+});
+
 test('C.G.1 checks and mints with the selected game identity, never the player identity',async()=>{
  const values=new Map();
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)}});
@@ -72,7 +98,7 @@ function fixture() {
   const saved = new Map(), listeners = new Set();
   const storage = {logout:async()=>{selected=null;},load:async()=>selected, select:async a=>{saved.set(a.profileId,a);selected=a;},subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);},dispose(){}};
   const dependencies = {storage, restore:async phrase=>{if(phrase==='invalid')throw Error('sensitive');return {phrase,profileId:phrase};},addresses:async a=>({arkadeAddress:`tark1${a.profileId}`,bitcoinAddress:`tb1${a.profileId}`}),balance:async()=>({availableSats:1000,totalSats:1000,bitcoinSats:0,arkadeSats:1000})};
-  return {dependencies,saved,listeners,setPlayerProfileId:value=>{playerProfileId=value;},create:()=>createBisGameWallet({playerProfileId:()=> playerProfileId},dependencies)};
+  return {dependencies,saved,listeners,storage,setPlayerProfileId:value=>{playerProfileId=value;},create:()=>createBisGameWallet({playerProfileId:()=> playerProfileId},dependencies)};
 }
 test('import retains wallets, reselects without duplicates and restores last selection',async()=>{
   const f=fixture(),c=f.create();await tick();

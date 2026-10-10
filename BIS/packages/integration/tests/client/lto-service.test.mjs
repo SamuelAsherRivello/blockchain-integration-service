@@ -79,22 +79,18 @@ test('reset drains an already-started local write before clearing its result',as
   assert.equal((await s.storage.load()).ledger.contracts.length,0);assert.deepEqual(s.calls,[]);
 });
 
-test('disposed recovery worker refunds its offer and stops even when an unrelated operator record stays unresolved',async t=>{
-  const s=setup(),timers=[],cleared=[];
-  t.mock.method(globalThis,'setInterval',callback=>{timers.push(callback);return timers.length;});
-  t.mock.method(globalThis,'clearInterval',id=>cleared.push(id));
-  const page=new EventTarget();page.visibilityState='visible';
-  Object.defineProperty(globalThis,'document',{configurable:true,value:page});
-  let storageDisposed=false;s.dependencies.gameStorage.dispose=()=>{storageDisposed=true;};
+test('controller recreation is silent and waits for explicit reconciliation',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const before=(await s.storage.load()).ledger.contracts[0];
+  let reconciliations=0;
+  s.dependencies.reconcile=async(record,recovery)=>{reconciliations++;return {record,recovery};};
   const worker=createLtoService({context:s.context,gameWallet:s.gameWallet},{...s.dependencies,poll:true});
-  await delay();await worker.start(s.request);await delay();
-  const saved=await s.storage.load(),own=saved.ledger.contracts[0];
-  const unrelated={...own,id:'other-operator',scope:{...own.scope,operator:'https://unrelated.invalid'}};
-  await s.storage.save({...saved,ledger:{...saved.ledger,contracts:[own,unrelated],attempts:[...saved.ledger.attempts,{...saved.ledger.attempts[0],scope:unrelated.scope,contractId:unrelated.id}]},recovery:{...saved.recovery,[unrelated.id]:saved.recovery[own.id]}});
-  worker.dispose();await until(async()=>(await s.storage.load()).ledger.contracts.find(record=>record.id===own.id)?.financial==='refunded');
-  timers[1]();await delay();
-  assert.equal(storageDisposed,true);assert.equal(cleared.length,2);
-  assert.equal((await s.storage.load()).ledger.contracts.find(record=>record.id===unrelated.id)?.financial,'funded');assert.deepEqual(s.calls,['fund','refund']);
+  await delay();
+  assert.equal(reconciliations,0);
+  assert.equal(s.toasts.some(text=>text==='Offer funding pending'),false);
+  await worker.reconcile({contractId:before.id,feedback:'explicit'});
+  assert.equal(reconciliations,1);
+  worker.dispose();
 });
 
 test('game-role Refund reports its pending and confirmed feedback to the inspecting game account',async()=>{

@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { ItemList } from '../../../integration/src/client/ui-layer-react/ItemList';
+import { CollectionListView } from '../../../integration/src/client/ui-layer-react/ItemList';
 import { CompactItemRow, StatusTypeIcon } from '../../../integration/src/client/ui-layer-react/StatusTypeIcon';
 import '@bis/integration/style.css';
 
@@ -25,7 +25,7 @@ function render() {
   root?.unmount();
   root=createRoot(host);
   root.render(<div className="bis-layer bis-layer-open" style={{display:'flex',alignItems:'flex-start',gap:16,padding:16}}>
-    {kinds.map(kind=><ItemList key={kind} title={kind} body={`${kind} fixture.`} fieldLabel={kind} report={`${kind} report`} items={items(kind)} listLabel={kind} onRefresh={()=>{}} onBack={()=>{}} />)}
+    {kinds.map(kind=><CollectionListView key={kind} title={kind} body={`${kind} fixture.`} fieldLabel={kind} report={`${kind} report`} items={items(kind)} listLabel={kind} onRefresh={()=>{}} onBack={()=>{}} />)}
   </div>);
 }
 

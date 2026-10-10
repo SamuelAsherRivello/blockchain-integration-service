@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {MintAssetDialog} from '../../src/client/admin-layer/MintAssetDialog';
+import {AssetMintDialog} from '../../src/client/admin-layer/MintAssetDialog';
 import {prepareMintDestination, type MintDestination, type MintWallet} from '../../src/client/admin-layer/mint-destination';
 import type {BisMintAssetRequest, BisMintAssetResult} from '@bis/integration';
 import '../../src/client/ui-layer-react/style.css';
@@ -37,5 +37,5 @@ function wallet(destination:MintDestination):MintWallet|undefined {
 const player=wallet('player'),game=wallet('game');
 const prepare=(destination:MintDestination)=>prepareMintDestination(destination,destination==='player'?player:game,()=>true,result=>logs.push(result));
 Object.assign(window,{mintFixture:{calls,logs,release:()=>release?.(),replace:()=>{playerId='replacement-player';gameId='replacement-game';listeners.forEach(l=>l());}}});
-function Host(){const [open,setOpen]=useState(false);return <main><h1>Isolated mint destination verification</h1><button onClick={()=>setOpen(true)}>Open Mint Asset</button>{open&&<MintAssetDialog prepare={prepare} onClose={()=>setOpen(false)}/>}</main>;}
+function Host(){const [open,setOpen]=useState(false);return <main><h1>Isolated mint destination verification</h1><button onClick={()=>setOpen(true)}>Open Mint Asset</button>{open&&<AssetMintDialog prepare={prepare} onClose={()=>setOpen(false)}/>}</main>;}
 createRoot(document.getElementById('root')!).render(<Host/>);

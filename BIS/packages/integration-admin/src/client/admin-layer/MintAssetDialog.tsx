@@ -9,7 +9,7 @@ function createDefaultMintDraft(): BisMintAssetRequest {
   return {operationId: crypto.randomUUID(), name: 'an asset', ticker: 'ASSET', amount: '1', decimals: 0, iconUrl: ''};
 }
 
-export function MintAssetDialog({ prepare, onBusy, onClose }: {prepare(destination: MintDestination): Promise<PreparedMintDestination>; onBusy?(busy: boolean): void; onClose(): void}) {
+export function AssetMintDialog({ prepare, onBusy, onClose }: {prepare(destination: MintDestination): Promise<PreparedMintDestination>; onBusy?(busy: boolean): void; onClose(): void}) {
   const [form, setForm] = useState<BisMintAssetRequest>(createDefaultMintDraft);
   const [destination, setDestination] = useState<MintDestination>('game');
   const [target, setTarget] = useState<PreparedMintDestination>();

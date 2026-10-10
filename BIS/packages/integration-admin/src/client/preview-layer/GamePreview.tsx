@@ -1,7 +1,7 @@
 import { useState, type RefObject, type ReactNode } from 'react';
 import { readPreviewScale, savePreviewScale } from './preview-scale';
 
-export function GamePreview({ containerRef, children }: { containerRef: RefObject<HTMLDivElement | null>; children?: ReactNode }) {
+export function GamePreviewView({ containerRef, children }: { containerRef: RefObject<HTMLDivElement | null>; children?: ReactNode }) {
   const [scale, setScale] = useState(() => readPreviewScale());
   function changeScale(value: number) {
     setScale(value);

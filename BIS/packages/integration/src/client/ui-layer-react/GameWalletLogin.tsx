@@ -4,13 +4,13 @@ import { createBisGameWallet } from '../state-layer-core/game-wallet.ts';
 import { RecoveryPhrasePanel } from './RecoveryPhrasePanel';
 import { RecoveryPhraseEntry } from './RecoveryPhraseEntry';
 import { usePendingNotice } from './PendingOperationDialog';
-import { CopyableValueField } from './CopyableValueField';
-import { BalanceTooltip, formatBalanceSats } from './BalanceTooltip';
+import { FormValue } from './FormValue';
+import { FormTooltip, formatBalanceSats } from './FormTooltip';
 
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 
 /** Private A.G.2 setup surface. It receives no Admin balance, address, or boarding capability. */
-export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack(): void }) {
+export function GameWalletLoginView({ wallet, onBack }: { wallet: GameWallet; onBack(): void }) {
   const state = useSyncExternalStore(wallet.subscribe, wallet.getState, wallet.getState);
   const [page, setPage] = useState<'start' | 'created' | 'restore'>('start');
   const [candidate, setCandidate] = useState<AccountSecret>();
@@ -59,8 +59,8 @@ export function GameWalletLogin({ wallet, onBack }: { wallet: GameWallet; onBack
   if (state.profileId) return <div className="bis-actions">
     <p role="status">Game wallet configured.</p>
     <div className="bis-addresses">
-      <CopyableValueField label="Arkade address" value={state.addresses?.arkadeAddress ?? '—'} disabled={!state.addresses?.arkadeAddress} />
-      <CopyableValueField label="Arkade balance" value={formatBalanceSats(state.balance?.arkadeSats, '—')} disabled={!state.balance} tooltipName="Arkade balance" tooltip={<BalanceTooltip title="Arkade balance" balance={formatBalanceSats(state.balance?.arkadeSats, '—')} available={formatBalanceSats(state.balance?.availableSats, '—')} />} />
+      <FormValue label="Arkade address" value={state.addresses?.arkadeAddress ?? '—'} copyable disabled={!state.addresses?.arkadeAddress} />
+      <FormValue label="Arkade balance" value={formatBalanceSats(state.balance?.arkadeSats, '—')} copyable disabled={!state.balance} tooltipName="Arkade balance" tooltip={<FormTooltip title="Arkade balance" balance={formatBalanceSats(state.balance?.arkadeSats, '—')} available={formatBalanceSats(state.balance?.availableSats, '—')} />} />
     </div>
     <button className="bis-button bis-danger" disabled={busy} onClick={() => void logout()}>Log Out Game Wallet</button>
     {state.message && state.status !== 'unavailable' && <p role="alert">{state.message}</p>}

@@ -13,7 +13,7 @@ function continueDisabledReason(reason: string | undefined) {
   if (reason === 'Awaiting Game Wallet') return 'Disabled. Game Wallet must be logged in and ready to receive the payment.';
   return reason ? `Disabled. ${reason}.` : 'Disabled. Payment availability is still being checked.';
 }
-export function AdminPanel({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, gameWalletBoard, contracts, marketplace, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false, network }: {
+export function AdminPanelView({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, gameWalletBoard, contracts, marketplace, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false, network }: {
   continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; gameWalletBoard?: ReactNode; contracts?:ReactNode; marketplace?: ReactNode; continueAvailable?: boolean;
   onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
   onContinue?():void; continueBusy?:boolean;

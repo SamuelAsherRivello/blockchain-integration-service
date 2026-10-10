@@ -17,7 +17,7 @@ export { createBisGameWallet } from './client/state-layer-core/game-wallet';
 export { arkExplorerAssetUrl, arkExplorerTransactionUrl, testNetwork } from './client/state-layer-core/test-network';
 export type { TestNetwork } from './client/state-layer-core/test-network';
 export { createBisLto } from './client/state-layer-core/lto-service';
-export type { BisLtoRequest, BisContractFilter, BisContractsResult, BisContractActionResult } from './client/state-layer-core/lto-service';
+export type { BisLtoRequest, BisContractFilter, BisContractsResult, BisContractActionResult, BisContractReconcileOptions } from './client/state-layer-core/lto-service';
 export type { BisContract } from './client/state-layer-core/contracts';
 export type { BisGameWalletState } from './client/state-layer-core/game-wallet';
 export { validateMint, normalizeAssetMetadata } from './client/state-layer-core/assets';
@@ -36,8 +36,8 @@ export { advanceLocalMarketplaceCheckout, beginLocalMarketplaceCheckout, confirm
 export type { BisMarketplaceCheckoutRecord, BisMarketplaceCheckoutRequest } from './client/state-layer-core/marketplace-checkout';
 export { createBisUi, GameOverlay } from './client/ui-layer-react/client';
 export { PendingOperations, usePendingNotice } from './client/ui-layer-react/PendingOperationDialog';
-export { CopyableValueField } from './client/ui-layer-react/CopyableValueField';
-export { BalanceTooltip, formatBalanceSats } from './client/ui-layer-react/BalanceTooltip';
+export { FormValue } from './client/ui-layer-react/FormValue';
+export { FormTooltip, formatBalanceSats } from './client/ui-layer-react/FormTooltip';
 
 export type {BisContinueRequest,BisContinueResult} from './client/state-layer-core/continuation';
 export {createBisContinue,getContinuePriceSats,networkLabel} from './client/state-layer-core/game-continue';
