@@ -40,7 +40,7 @@ test('logout passes the reviewed operation snapshot to complete cleanup', async 
   c.dispose();
 });
 
-test('active Game Wallet warning does not block independent Player cleanup', async () => {
+test('failed Game Wallet cleanup blocks Player logout until the compound cleanup succeeds', async () => {
   const f = fixture(); let resets = 0;
   const c = createContext(f.storage, async () => identity, async () => identity.profileId, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, {
     hasGameWallet: () => true,
@@ -49,7 +49,7 @@ test('active Game Wallet warning does not block independent Player cleanup', asy
   await confirm(c);
   assert.equal(c.getState().hasGameWallet, true);
   await c.confirmLogout();
-  assert.equal(resets, 0); assert.equal(f.clears(), 1); assert.equal(c.getState().hasProfile, false);
+  assert.equal(resets, 1); assert.equal(f.clears(), 0); assert.equal(c.getState().hasProfile, true);
   c.dispose();
 });
 

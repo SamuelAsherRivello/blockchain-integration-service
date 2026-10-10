@@ -100,7 +100,10 @@ export class BisService implements IBis {
         if (closed) this.#emit({ type: 'accountClosed' });
         if (!this.#resetPromise) void wallet?.refresh().catch(() => {});
       }),
-      this.#context.onEvent(event => this.#emit(event)),
+      this.#context.onEvent(event => {
+        this.#emit(event);
+        if (event.type === 'accountDisconnected') void wallet?.logout().catch(() => {});
+      }),
       this.#gameWallet.subscribe(() => { this.#publish(); refreshAccountProjection(); }),
       this.#equipment.subscribe(() => this.#publish()),
       this.#lto.subscribe(() => { invalidateContractPresentation(this.#context); void this.#readContracts(); }),

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pendingLogoutOperations, clearBrowserPreferences } from '../../src/client/state-layer-core/logout-cleanup.ts';
+import { pendingLogoutOperations, clearBrowserPreferences, clearBrowserGameWalletPreferences } from '../../src/client/state-layer-core/logout-cleanup.ts';
 
 function memory(entries = []) {
   const data = new Map(entries);
@@ -78,4 +78,26 @@ test('logout clears continuation and reservation records but preserves separate 
   assert.equal(storage.getItem('bis-signet-wallet-operations-v2:game'),'keep');
   assert.equal(storage.getItem('bis-signet-send-operation-v1:game'),'keep');
   assert.equal(storage.getItem('other-app'),'keep');
+});
+
+test('Game Wallet cleanup removes all game-owned records and marketplace recovery data', () => {
+  const storage = memory([
+    ['bis-game-wallet-send-owner:game', '1'],
+    ['bis-signet-send-operation-v1:game', 'pending'],
+    ['bis-signet-wallet-operations-v2:game', 'pending'],
+    ['bis-game-wallet-mint-owner:other-game', '1'],
+    ['bis-signet-mints-v1:other-game', 'pending'],
+    ['bis-local-marketplace-checkout-v1:checkout', 'pending'],
+    ['bis-marketplace-inventory-v1:game:signet:tark1game', 'cached'],
+    ['bis-signet-send-operation-v1:player', 'keep'],
+    ['other-app', 'keep'],
+  ]);
+  clearBrowserGameWalletPreferences(storage);
+  assert.equal(storage.getItem('bis-signet-send-operation-v1:game'), null);
+  assert.equal(storage.getItem('bis-signet-wallet-operations-v2:game'), null);
+  assert.equal(storage.getItem('bis-signet-mints-v1:other-game'), null);
+  assert.equal(storage.getItem('bis-local-marketplace-checkout-v1:checkout'), null);
+  assert.equal(storage.getItem('bis-marketplace-inventory-v1:game:signet:tark1game'), null);
+  assert.equal(storage.getItem('bis-signet-send-operation-v1:player'), 'keep');
+  assert.equal(storage.getItem('other-app'), 'keep');
 });

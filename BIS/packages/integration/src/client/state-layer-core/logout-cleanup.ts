@@ -8,6 +8,7 @@ type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
 const burnPrefixes = testNetworks.map(network => `bis-${network.id}-burn-operation-v1`);
 const journalPrefixes = testNetworks.flatMap(network => [`bis-${network.id}-boarding-operation-v1`,`bis-${network.id}-send-operation-v1`,`bis-${network.id}-mints-v1`,`bis-${network.id}-asset-delivery-v1`,`bis-${network.id}-wallet-operations-v2`]).concat(burnPrefixes,'bis-signet-onboarding-v1');
 const cleanupPrefixes = [...journalPrefixes];
+const gameOwnerPrefixes = ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:', 'bis-game-wallet-delivery-owner:'];
 function owns(key: string, storage: WebStorage) {
   if (key.startsWith(continuationPrefix)) {
     try { readContinuations(decodeURIComponent(key.slice(continuationPrefix.length)), storage); return false; }
@@ -88,6 +89,25 @@ export function clearBrowserProfilePreferences(profileId:string, storage:WebStor
     if(gameBoarding(key,storage))continue;
     storage.removeItem(key);
     if(storage.getItem(key)!==null)throw Error('Profile cleanup could not be verified.');
+  }
+}
+/**
+ * Clears every local record owned by a Game Wallet session. Unlike Player
+ * profile cleanup this intentionally removes all retained Game Wallet
+ * identities at the session boundary, so a later Player login cannot
+ * rehydrate an old Game Wallet or its recovery/cache state.
+ */
+export function clearBrowserGameWalletPreferences(storage: WebStorage | undefined) {
+  if (!storage) return;
+  const owned = keys(storage).filter(key =>
+    gameOwnerPrefixes.some(prefix => key.startsWith(prefix)) ||
+    key.startsWith('bis-game-wallet-') ||
+    gameBoarding(key, storage) ||
+    key.startsWith('bis-local-marketplace-checkout-v1:') ||
+    key.startsWith('bis-marketplace-inventory-v1:game:'));
+  for (const key of owned) {
+    storage.removeItem(key);
+    if (storage.getItem(key) !== null) throw Error('Game Wallet cleanup could not be verified.');
   }
 }
 /** Force-reset cleanup used by a consuming game. It intentionally has no

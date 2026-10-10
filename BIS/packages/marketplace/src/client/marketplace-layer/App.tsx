@@ -51,8 +51,13 @@ function Artwork({item,large=false,list=false}:{item:BisEquipmentItem;large?:boo
 export function App(){return <PendingOperations className="marketplace-pending-runtime"><MarketplaceContent/></PendingOperations>;}
 
 function MarketplaceContent(){
-  const player=useMemo(()=>createBisContext(),[]);
-  const gameWallet=useMemo(()=>createBisGameWallet({playerProfileId:()=>player.getState().profileId,playerNetwork:()=>player.getState().network}),[player]);
+  const playerRef=useRef<ReturnType<typeof createBisContext> | null>(null);
+  const gameWallet=useMemo(()=>createBisGameWallet({playerProfileId:()=>playerRef.current?.getState().profileId,playerNetwork:()=>playerRef.current?.getState().network}),[]);
+  const player=useMemo(()=>{
+    const context=createBisContext({hasGameWallet:()=>!!gameWallet.getState().profileId,resetGameWallet:async()=>gameWallet.reset()});
+    playerRef.current=context;
+    return context;
+  },[gameWallet]);
   const walletUi=useMemo(()=>createBisUi(player,{gameWallet}),[player,gameWallet]);
   const playerState=useSyncExternalStore(player.subscribe,player.getState,player.getState);
   const network=playerState.network;
@@ -79,6 +84,14 @@ function MarketplaceContent(){
       if(pending)setCheckout(pending);
     } catch {}
   },[]);
+  useEffect(()=>{
+    if(playerState.profileId&&gameState.profileId)return;
+    // A wallet logout removes durable recovery/cache data in the integration
+    // layer; clear the remaining React snapshots so a late render cannot
+    // present the old Game Wallet session.
+    setCheckout(undefined);
+    setItemSnapshots({});
+  },[gameState.profileId,playerState.profileId]);
   useEffect(()=>{if(walletHost.current){walletUi.mount(walletHost.current);walletUi.showAccountButton();}return()=>{walletUi.unmount();gameWallet.dispose();player.dispose();};},[walletUi,gameWallet,player]);
   useEffect(()=>{void fetch(`${import.meta.env.BASE_URL}catalog.json`,{cache:'no-store'}).then(async response=>{if(!response.ok)throw Error();const next=await response.json() as MarketplaceCatalog;const games=Array.isArray(next.games)?next.games:[];if(next.version!==2||!games.some(entry=>entry?.gameId==='stealth-and-steel'&&entry?.displayName==='Stealth & Steel'&&typeof entry.gameWalletAddress==='string')||!games.some(entry=>entry?.gameId==="Rogue's Dungeon"&&entry?.displayName==="Rogue's Dungeon"&&entry?.gameWalletAddress===undefined))throw Error();setCatalog({...next,games:Object.freeze(games)});setReadable(true);}).catch(()=>setReadable(false)).finally(()=>setIsCatalogLoading(false));},[]);
   useEffect(()=>{
@@ -88,14 +101,16 @@ function MarketplaceContent(){
     return()=>{cancelled=true;};
   },[network,player,playerState.profileId]);
   useEffect(()=>{const timeout=window.setTimeout(()=>setInitialInventoryWaitExpired(true),MARKETPLACE_INITIAL_INVENTORY_WAIT_MS);return()=>window.clearTimeout(timeout);},[]);
-  useEffect(()=>{if(game==='all'||selectedGame?.gameWalletAddress)void gameWallet.refresh();},[gameWallet,network,playerState.profileId,game,selectedGame?.gameId,selectedGame?.gameWalletAddress]);
+  useEffect(()=>{if(playerState.profileId&&(game==='all'||selectedGame?.gameWalletAddress))void gameWallet.refresh();},[gameWallet,network,playerState.profileId,game,selectedGame?.gameId,selectedGame?.gameWalletAddress]);
   const sessionGameAddress=gameState.addresses?.arkadeAddress;
   const playerArkadeAddress=playerState.addresses.status==='ready'?playerState.addresses.arkadeAddress:undefined;
   playerArkadeAddressForDisplay=playerArkadeAddress??playerDisplayAddress;
-  const inventoryAddress=isCatalogLoading|| (game!=='all'&&!selectedGame?.gameWalletAddress)
+  const activeGameWallet=Boolean(playerState.profileId&&gameState.profileId&&gameState.addresses?.arkadeAddress);
+  const inventoryAddress=!activeGameWallet||isCatalogLoading|| (game!=='all'&&!selectedGame?.gameWalletAddress)
     ?undefined
-    :sessionGameAddress??(gameState.status==='loading'?undefined:(selectedGame?.gameWalletAddress??defaultGame?.gameWalletAddress));
+    :sessionGameAddress;
   const salesEnabled=Boolean(playerState.profileId&&gameState.profileId&&playerState.profileId!==gameState.profileId&&(game==='all'||game==='stealth-and-steel'));
+  const gameListingEnabled=Boolean(playerState.profileId&&gameState.profileId&&inventoryAddress);
   const inventorySources=useMemo<readonly MarketplaceInventorySource[]>(()=>{
     if(isCatalogLoading||!network)return [];
     const sources: MarketplaceInventorySource[]=[];
@@ -107,9 +122,9 @@ function MarketplaceContent(){
       if(result.status!=='success'||result.profileId!==playerState.profileId)throw Error('Player Wallet inventory unavailable');
       return result.assets.map(classifyBisEquipmentAsset).filter((item):item is BisEquipmentItem=>item!==null);
     }});
-    if((game==='all'||selectedGame?.gameWalletAddress)&&inventoryAddress)sources.push({role:'game',walletId:sessionGameAddress??inventoryAddress,network,read:async()=>{const assets=await readPublicInventory(inventoryAddress,new AbortController().signal,network);return assets.map(classifyBisEquipmentAsset).filter((item):item is BisEquipmentItem=>item!==null);}});
+    if(activeGameWallet&&(game==='all'||selectedGame?.gameWalletAddress)&&inventoryAddress)sources.push({role:'game',walletId:gameState.profileId!,network,read:async()=>{const assets=await readPublicInventory(inventoryAddress,new AbortController().signal,network);return assets.map(classifyBisEquipmentAsset).filter((item):item is BisEquipmentItem=>item!==null);}});
     return sources;
-  },[game,inventoryAddress,isCatalogLoading,network,player,playerState.profileId,selectedGame?.gameWalletAddress,sessionGameAddress]);
+  },[activeGameWallet,game,gameState.profileId,inventoryAddress,isCatalogLoading,network,player,playerState.profileId,selectedGame?.gameWalletAddress]);
   const inventorySourcesRef=useRef<readonly MarketplaceInventorySource[]>([]);
   inventorySourcesRef.current=inventorySources;
   const invalidateInventory=()=>{
@@ -119,6 +134,7 @@ function MarketplaceContent(){
   useEffect(()=>{
     const unsubscribePlayerEvents=player.onEvent(event=>{
       if(event.type==='accountConnected'||event.type==='accountDisconnected'||event.type==='restartRequested')invalidateInventory();
+      if(event.type==='accountDisconnected')void gameWallet.logout().catch(()=>{});
     });
     // State changes cover initiated operations and observed incoming wallet
     // activity, including balance/asset changes that do not have a public BIS
@@ -164,14 +180,15 @@ function MarketplaceContent(){
     });
   },[gameItems,playerItems]);
   const pendingItem=pendingCheckout?itemSnapshots[pendingCheckout.request.assetId]??(selected?.assetId===pendingCheckout.request.assetId?selected:undefined):undefined;
+  const gameItemsForSession=activeGameWallet?previousGameItems:[];
   const source=game!=='all'&&game!=='stealth-and-steel'?[]:owner==='player'
     ?[...previousPlayerItems,...(pendingItem&&pendingItemIsInPlayerWallet(pendingItem)&&!previousPlayerItems.some(item=>item.assetId===pendingItem.assetId)?[pendingItem]:[])]
     :owner==='game'
-      ?[...previousGameItems,...(pendingItem&&pendingItemIsInGameWallet(pendingItem)&&!previousGameItems.some(item=>item.assetId===pendingItem.assetId)?[pendingItem]:[])]
-      :[...previousGameItems,...previousPlayerItems,...(pendingItem?[pendingItem]:[])].filter((item,index,all)=>all.findIndex(candidate=>candidate.assetId===item.assetId)===index);
+      ?[...gameItemsForSession,...(activeGameWallet&&pendingItem&&pendingItemIsInGameWallet(pendingItem)&&!gameItemsForSession.some(item=>item.assetId===pendingItem.assetId)?[pendingItem]:[])]
+      :[...gameItemsForSession,...previousPlayerItems,...(activeGameWallet&&pendingItem?[pendingItem]:[])].filter((item,index,all)=>all.findIndex(candidate=>candidate.assetId===item.assetId)===index);
   const visibleItems=source.filter(item=>(game==='all'||game==='stealth-and-steel')&&(type==='all'||gameplayMetadata(item).some(stat=>stat.label.toLowerCase()===type&&stat.value!=='0')));
   const selectedGameIsEmpty=game!== 'all'&&game!== 'stealth-and-steel';
-  const emptyMessage=selectedGameIsEmpty?`No equipment is currently available for ${selectedGame?.displayName??game}.`:owner==='player'&&!playerState.profileId?'Log in to your Player Wallet to view its items.':!readable&&owner!=='player'?'Catalog data unavailable.':'No freshly verified equipment matches these filters.';
+  const emptyMessage=selectedGameIsEmpty?`No equipment is currently available for ${selectedGame?.displayName??game}.`:!playerState.profileId&&owner!=='player'?'Log in to your Player Wallet to view Game Wallet items.':!activeGameWallet&&owner!=='player'?'Log in to your Game Wallet to view its items.':owner==='player'?'Log in to your Player Wallet to view its items.':!readable?'Catalog data unavailable.':'No freshly verified equipment matches these filters.';
   const selectedInventory=owner==='player'?inventoryState.player:inventoryState.game;
   const sourceFor=(role:'player'|'game')=>inventorySources.find(source=>source.role===role);
   const recordNeedsInitialRead=(role:'player'|'game')=>{
@@ -193,7 +210,7 @@ function MarketplaceContent(){
     const timeout=window.setTimeout(()=>setLoadingPromptVisible(false),MARKETPLACE_LOADING_SETTLE_MS);
     return()=>window.clearTimeout(timeout);
   },[promptBusy]);
-  const gameOwnsSelected=Boolean(selected&&gameItems?.some(item=>item.assetId===selected.assetId));
+  const gameOwnsSelected=Boolean(activeGameWallet&&selected&&gameItems?.some(item=>item.assetId===selected.assetId));
   const playerOwnsSelected=Boolean(selected&&playerItems.some(item=>item.assetId===selected.assetId));
   const checkoutIsPending=activeCheckout?.status==='pending';
   const checkoutHasBeenSubmitted=pendingCheckout?.phase==='payment-submitted'||pendingCheckout?.phase==='delivery-submitted';
@@ -311,7 +328,7 @@ function MarketplaceContent(){
           <div className="filter-row"><span>Game</span><div role="group" aria-label="Game"><button aria-pressed={game==='all'} onClick={()=>setGame('all')}>All</button>{catalog.games.map(entry=><button key={entry.gameId} aria-pressed={game===entry.gameId} onClick={()=>setGame(entry.gameId)}>{entry.displayName}</button>)}</div></div>
           <div className="filter-row"><span>Type</span><div role="group" aria-label="Type"><button aria-pressed={type==='all'} onClick={()=>setType('all')}>All</button><button aria-pressed={type==='speed'} onClick={()=>setType('speed')}>Speed</button><button aria-pressed={type==='offense'} onClick={()=>setType('offense')}>Offense</button><button aria-pressed={type==='defense'} onClick={()=>setType('defense')}>Defense</button></div></div>
       </section>
-      <section className="wallet-strip" aria-label="Marketplace wallets and instructions"><div className="marketplace-info">{selectedGameIsEmpty?<p>{emptyMessage}</p>:<><p>This marketplace requires the player wallet for item display and items sales.</p><p>In production the game wallet will be controlled by the server. However, for this simple POC, you must also login the game wallet which has balance and has any items to display.</p><div className="marketplace-info-group"><h2>Wallets</h2><ul><li><span>Player Wallet:</span> <code title={playerState.profileId}>{shortAddress(playerState.profileId)}</code></li><li><span>Game Wallet:</span> <code title={inventoryAddress}>{shortAddress(inventoryAddress)}</code></li></ul></div><hr/><div className="marketplace-info-group"><h2>Instructions</h2><ol><li>Enable Item Listing: <strong title="Requirement complete: the Game Wallet is logged in and has items to display.">Enabled ℹ️</strong></li><li>Enable Item Sales: {salesEnabled?<><strong title="Requirement complete: different Player and Game Wallets are logged in.">Enabled ℹ️</strong></>:<span title="Requirement: log in to different Player and Game Wallets from Account.">Disabled ℹ️</span>}</li></ol></div></>}</div></section>
+      <section className="wallet-strip" aria-label="Marketplace wallets and instructions"><div className="marketplace-info">{selectedGameIsEmpty?<p>{emptyMessage}</p>:<><p>This marketplace requires the player wallet for item display and items sales.</p><p>In production the game wallet will be controlled by the server. However, for this simple POC, you must also login the game wallet which has balance and has any items to display.</p><div className="marketplace-info-group"><h2>Wallets</h2><ul><li><span>Player Wallet:</span> <code title={playerState.profileId}>{shortAddress(playerState.profileId)}</code></li><li><span>Game Wallet:</span> <code title={inventoryAddress}>{shortAddress(inventoryAddress)}</code></li></ul></div><hr/><div className="marketplace-info-group"><h2>Instructions</h2><ol><li>Enable Item Listing: {gameListingEnabled?<strong title="Requirement complete: the Game Wallet is logged in and has items to display.">Enabled ℹ️</strong>:<span title="Requirement: log in to a Player Wallet before using the Game Wallet inventory.">Disabled ℹ️</span>}</li><li>Enable Item Sales: {salesEnabled?<><strong title="Requirement complete: different Player and Game Wallets are logged in.">Enabled ℹ️</strong></>:<span title="Requirement: log in to different Player and Game Wallets from Account.">Disabled ℹ️</span>}</li></ol></div></>}</div></section>
       <section className="catalog-scroll" aria-label="Marketplace equipment">{visibleItems.length?<div className="catalog-grid">{visibleItems.map(item=>{const pending=Boolean(pendingTransferFor(item));const walletLabel=pending?'Pending transfer':owner==='player'?'Player Wallet':owner==='game'?'Game Wallet':gameItems?.some(candidate=>candidate.assetId===item.assetId)?'Game Wallet':'Player Wallet';return <button className={`asset-card${pending?' asset-card-pending':''}`} key={`${owner}-${item.assetId}`} onClick={()=>setSelected(item)}><span className="asset-card-layout"><Artwork item={item} list/><span className="asset-card-title"><strong>{item.name}</strong><b>{item.priceSats.toLocaleString()} sats</b><small className="asset-card-wallet">{walletLabel}</small></span><span className="asset-card-lore"><small className="asset-card-effect">{item.description}</small><span className="poetic-quote">“{poeticQuoteFor(item)}”</span></span></span></button>})}</div>:<p className="empty-state" role="status">{emptyMessage}</p>}</section>
       {selected&&<div className="backdrop" role="presentation" onMouseDown={()=>setSelected(undefined)}><article className="detail" role="dialog" aria-modal="true" aria-labelledby="item-title" onMouseDown={event=>event.stopPropagation()}>
         <button className="close" onClick={()=>setSelected(undefined)} aria-label="Close item detail">×</button><div className="detail-identity"><Artwork item={selected} large/><div><h2 id="item-title">{selected.name}</h2><strong>{selected.priceSats.toLocaleString()} sats</strong></div><div className="detail-actions"><button className="trade-action trade-action-buy" disabled={!canBuy} title={pendingTransferTitle??(checkoutIsPending?'Pending transaction':undefined)} aria-describedby={!salesEnabled?'sales-disabled-reason':undefined} onClick={()=>void beginCheckout('buy')}>Buy</button><button className="trade-action trade-action-sell" disabled={!canSell} title={pendingTransferTitle??(checkoutIsPending?'Pending transaction':undefined)} aria-describedby={!salesEnabled?'sales-disabled-reason':undefined} onClick={()=>void beginCheckout('sell')}>Sell</button>{!salesEnabled&&<p className="sales-disabled-reason" id="sales-disabled-reason">Log in to separate Player and Game Wallets from Account to trade.</p>}</div></div>

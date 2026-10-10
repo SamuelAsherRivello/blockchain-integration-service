@@ -1,5 +1,5 @@
 /* Page-specific tuning belongs here; the banner-relative launcher geometry is
    shared by every page through @bis/integration/style.css. */
-@media (max-width: 767px) {
+@container marketplace (max-width: 767px) {
   .marketplace-bis-host { --bis-launcher-offset: 8px; --bis-launcher-inline: 16px; }
 }

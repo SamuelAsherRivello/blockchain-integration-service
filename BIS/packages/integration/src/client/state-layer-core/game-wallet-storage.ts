@@ -61,8 +61,8 @@ export function createGameWalletStorage(network: TestNetwork = 'signet'): GameWa
       channel?.postMessage('selected');
     },
     async logout() {
-      await transaction<void>('readwrite', (store, set) => { store.put(null, 'selected'); set(undefined); });
-      channel?.postMessage('selected');
+      await transaction<void>('readwrite', (store, set) => { store.clear(); set(undefined); });
+      channel?.postMessage('reset');
     },
     async reset() {
       await transaction<void>('readwrite', (store, set) => { store.clear(); set(undefined); });

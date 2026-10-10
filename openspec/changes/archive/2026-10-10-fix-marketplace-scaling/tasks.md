@@ -6,7 +6,7 @@
 
 ## 2. Update Marketplace presentation coverage
 
-- [ ] 2.1 Replace the breakpoint-specific Marketplace source assertions with tests for fluid layout primitives, retained catalog semantics, no device-pixel-ratio branch, and no viewport width/height layout media query; verify `npm test` passes.
+- [x] 2.1 Replace the breakpoint-specific Marketplace source assertions with tests for fluid layout primitives, retained catalog semantics, no device-pixel-ratio branch, and no viewport width/height layout media query; verify `npm test` passes.
 - [x] 2.2 Add or update the browser verification procedure to capture 1138 by 590 CSS pixels at 100% zoom plus intermediate and narrow stress viewports; verify three square first-row cells, all filters, header controls, and normal scrolling meet the delta spec.
 
 ## 3. Validate the scoped change

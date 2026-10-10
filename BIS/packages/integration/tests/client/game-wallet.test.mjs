@@ -96,7 +96,7 @@ test('boarding uses selected game identity and rejects a quote from another wall
 function fixture() {
   let selected = null,playerProfileId='player';
   const saved = new Map(), listeners = new Set();
-  const storage = {logout:async()=>{selected=null;},load:async()=>selected, select:async a=>{saved.set(a.profileId,a);selected=a;},subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);},dispose(){}};
+  const storage = {logout:async()=>{selected=null;saved.clear();},load:async()=>selected, select:async a=>{saved.set(a.profileId,a);selected=a;},subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);},dispose(){}};
   const dependencies = {storage, restore:async phrase=>{if(phrase==='invalid')throw Error('sensitive');return {phrase,profileId:phrase};},addresses:async a=>({arkadeAddress:`tark1${a.profileId}`,bitcoinAddress:`tb1${a.profileId}`}),balance:async()=>({availableSats:1000,totalSats:1000,bitcoinSats:0,arkadeSats:1000})};
   return {dependencies,saved,listeners,storage,setPlayerProfileId:value=>{playerProfileId=value;},create:()=>createBisGameWallet({playerProfileId:()=> playerProfileId},dependencies)};
 }
@@ -172,9 +172,9 @@ test('refresh keeps the selected game wallet address and balance visible while r
 });
 
 
-test('logout deselects persistently without deleting retained wallets',async()=>{
+test('logout purges every retained wallet and requires a fresh import',async()=>{
   const f=fixture(),c=f.create();await tick();await c.importWallet('a');await c.logout();
-  assert.equal(c.getState().status,'empty');assert.equal(c.getState().profileId,undefined);assert.equal(f.saved.size,1);
+  assert.equal(c.getState().status,'empty');assert.equal(c.getState().profileId,undefined);assert.equal(f.saved.size,0);
   c.dispose();const reopened=f.create();await tick();assert.equal(reopened.getState().status,'empty');
   await reopened.importWallet('a');assert.equal(reopened.getState().profileId,'a');assert.equal(f.saved.size,1);reopened.dispose();
 });

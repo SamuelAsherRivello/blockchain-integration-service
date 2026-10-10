@@ -30,13 +30,26 @@ Admin SHALL explicitly import a game wallet through one recovery-phrase text fie
 - **THEN** both remain retained and A becomes selected without duplication or stale balance results from B
 
 ### Requirement: Player lifecycle preserves the game wallet
-Player logout and Admin's existing player reset SHALL preserve the game wallet and its separately scoped state. Game-wallet state changes in another tab SHALL NOT change the active player. Existing pending-player-operation protections SHALL remain effective.
+
+Player Wallet logout or an Admin Game Wallet reset SHALL deselect the active Game Wallet session and invalidate Game Wallet-owned pending, cached, subscription, and in-memory session state while preserving retained encrypted Game Wallet identities for a later explicit login. Player Wallet logout SHALL not be blocked by Game Wallet cleanup. Game Wallet logout alone SHALL not clear or change the Player Wallet. Game-wallet state changes in another tab SHALL NOT change the active player. Existing pending-player-operation protections SHALL remain effective.
 
 #### Scenario: Player logs out
-- **WHEN** the player logs out with a retained game wallet present
-- **THEN** the game wallet remains inspectable and its identity is unchanged
+
+- **WHEN** the player logs out with a Game Wallet present
+- **THEN** the Player Wallet and Game Wallet are both logged out as one local lifecycle transition
+- **AND** the retained Game Wallet identity remains available for a later explicit login
+- **AND** logging the Player Wallet in again does not reactivate the old Game Wallet
+
+#### Scenario: Game Wallet logs out independently
+
+- **WHEN** the user logs out only the Game Wallet while the Player Wallet is active
+- **THEN** the active Game Wallet session and Game Wallet-owned local state are removed
+- **AND** retained Game Wallet identities remain available for a later explicit login
+- **AND** the Player Wallet remains active and its state is unchanged
+- **AND** a later Game Wallet login requires a fresh explicit import
 
 #### Scenario: Cross-tab import
+
 - **WHEN** another tab imports the game wallet
 - **THEN** Admin can observe that wallet without replacing or logging out the player
 
@@ -109,3 +122,38 @@ C.G.3 and C.G.4 SHALL operate only through the currently active, separately reta
 #### Scenario: No active game wallet
 - **WHEN** C.G.3 or C.G.4 is requested without an active Game Wallet
 - **THEN** Admin reports the game-wallet requirement without submitting a mint or burn
+
+### Requirement: Admin and Runtime share one two-wallet session
+The same-origin Admin and Runtime Preview SHALL observe and mutate one active Player Wallet context and one independently selected Game Wallet controller for the lifetime of the demo session. A wallet selected or changed through either surface SHALL become the current wallet for the other surface without duplicating identities or silently creating a second wallet session.
+
+#### Scenario: Runtime-selected wallets appear in Admin
+- **WHEN** the operator logs in a distinct Player Wallet and Game Wallet through Runtime Preview on the shared demo origin
+- **THEN** Admin A.G.1 and A.G.3 identify and operate on those same public wallet identities
+- **AND** Admin SHALL NOT report an empty or unrelated Game Wallet solely because the login occurred through Runtime Preview
+
+#### Scenario: Admin-selected Game Wallet appears in Runtime
+- **WHEN** the operator imports or selects a distinct Game Wallet through Admin A.G.1
+- **THEN** Runtime Preview A.G.2 and game-facing operations observe the same selected public Game Wallet
+- **AND** the Player Wallet remains unchanged
+
+#### Scenario: Wallet or network changes during an operation
+- **WHEN** the Player Wallet, Game Wallet, or active network changes while an Admin operation is preparing or reading
+- **THEN** the operation is cancelled or rejected before signing or submission if its captured wallet scope is no longer current
+- **AND** already-submitted work remains bound to its original public identities and network
+
+### Requirement: A.G.3 reports actionable availability diagnostics
+A.G.3 SHALL distinguish a ready wallet, known zero, loading state, insufficient eligible funds, unresolved operation, role or network mismatch, wallet-read failure, provider or live-evidence failure, pending boarding, and confirmed boarding. It SHALL not use a generic unavailable label when a safe specific category is available, and it SHALL not present stale or unavailable data as current spendable balance.
+
+#### Scenario: Live boarding evidence is unavailable
+- **WHEN** the selected Game Wallet is ready but the provider cannot supply the fresh transaction evidence needed for the boarding probe
+- **THEN** A.G.3 reports live-evidence or provider-read unavailability with a retry-oriented explanation
+- **AND** it does not label the wallet boarded, awaiting confirmation, or available for a submission that the failed read cannot justify
+
+#### Scenario: Wallet public read is unavailable
+- **WHEN** fresh address or balance reads fail after the bounded retry policy
+- **THEN** A.G.3 reports wallet-read unavailability and retains the selected identity without showing the failed balance as zero
+- **AND** a later explicit Details action re-evaluates current state
+
+#### Scenario: Ready distinct wallets with eligible funds
+- **WHEN** the Player Wallet and distinct Game Wallet are ready on the active network, fresh evidence is available, and no durable operation blocks the requested action
+- **THEN** the relevant A.G.3 action is enabled and its Details output identifies the current public wallet scope and payment-usable balance

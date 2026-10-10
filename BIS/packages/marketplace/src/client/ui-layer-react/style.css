@@ -59,7 +59,7 @@ body { margin: 0; overflow: hidden; }
    interactive without stacking a second translucent veil over the page. */
 .marketplace-pending-runtime:has(> .bis-pending-backdrop) .marketplace-bis-host .bis-pending-backdrop { display: none; }
 
-@media (max-width: 767px) {
+@container marketplace (max-width: 767px) {
   /* The document is the only mobile scroll surface. Keeping body visible avoids
      scroll chaining between the browser viewport and the desktop panel rules. */
   html { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }

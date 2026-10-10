@@ -1100,6 +1100,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         if (!loaded.account || loaded.generation!==target.generation || loaded.account.profileId!==target.profileId) {
           acceptLoaded(loaded,current,true); return;
         }
+        if (state.hasGameWallet && options.resetGameWallet && !await options.resetGameWallet()) throw new Error('Game Wallet cleanup did not finish.');
         await storage.reset(target.generation, {purpose:'logout',profileId:target.profileId,operations:logoutOperations ?? {count:0,fingerprint:''}});
         if (disposed || version!==current) return;
         const after=await readStable(current);

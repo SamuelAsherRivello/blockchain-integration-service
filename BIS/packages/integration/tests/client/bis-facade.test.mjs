@@ -35,7 +35,7 @@ function fixture() {
     },
     controls: { forceReset: async () => context.set({ hasProfile: false, profileId: undefined, phase: 'idle', view: 'empty' }) },
   });
-  Object.assign(wallet, { refresh: async () => {}, reset: async () => !resetFailure });
+  Object.assign(wallet, { refresh: async () => {}, logout: async () => { wallet.set({ status: 'empty', profileId: undefined, addresses: undefined }); }, reset: async () => !resetFailure });
   const lto = observable({});
   Object.assign(lto, {
     checkContractsAsync: async () => ({ status: 'ready', contracts }), reconcile: async () => {},
@@ -124,6 +124,17 @@ test('BisService owns private resources and routes game workflows through the tw
     let calls = 0;
     f.host.onBisEvent = () => { calls++; f.service.openAccountDialog(); throw Error('unit host failure'); };
     assert.doesNotThrow(() => f.context.set({ view: 'empty' })); assert.ok(calls <= 2);
+  });
+  await t.test('Player disconnect logs out the active Game Wallet', async () => {
+    const f = create(); await f.service.readyAsync();
+    let logoutCalls = 0;
+    const logout = f.wallet.logout;
+    f.wallet.logout = async () => { logoutCalls++; await logout(); };
+    for (const listener of f.contextEvents) listener({ type: 'accountDisconnected', profileId: 'player' });
+    await settle();
+    assert.equal(logoutCalls, 1);
+    assert.equal(f.wallet.getState().profileId, undefined);
+    f.service.dispose();
   });
   await t.test('snapshots allowlist state and distinguish unavailable from empty without old-wallet leakage', async () => {
     const f = create(); await f.service.readyAsync();

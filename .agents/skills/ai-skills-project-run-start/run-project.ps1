@@ -117,7 +117,11 @@ $checks = foreach ($route in $routes) {
     $title = if ($response.Content -match '<title[^>]*>\s*([^<]+?)\s*</title>') { $matches[1].Trim() } else { '' }
     [pscustomobject]@{ Label=$route.label; Route=$route.route; Status=$response.StatusCode; Title=$title; Url="http://127.0.0.1:$candidate$($route.route)" }
   } catch {
-    [pscustomobject]@{ Label=$route.label; Route=$route.route; Status='host-verification-pending'; Title=''; Url="http://127.0.0.1:$candidate$($route.route)" }
+    $status = 'host-verification-pending'
+    try {
+      if ($_.Exception.Response.StatusCode) { $status = [int]$_.Exception.Response.StatusCode }
+    } catch { }
+    [pscustomobject]@{ Label=$route.label; Route=$route.route; Status=$status; Title=''; Url="http://127.0.0.1:$candidate$($route.route)" }
   }
 }
 $checks | ConvertTo-Json -Compress

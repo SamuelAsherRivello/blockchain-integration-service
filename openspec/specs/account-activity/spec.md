@@ -91,7 +91,9 @@ Transactions SHALL be ordered newest first using available SDK transaction times
 - **THEN** undated pending entries appear first, timestamped entries follow newest first, and other undated entries follow in SDK order
 
 ### Requirement: Public state and freshness
-The public integration API SHALL expose normalized incoming and outgoing transaction history and loading, ready, and unavailable states without SDK-specific types or secrets. Opening Activity SHALL load existing history and enable automatic updates while open. A successful empty result SHALL retain the Transactions heading, disabled copy icon, list space and scrollbar without an empty-state message; it SHALL remain distinguishable from an unavailable read. Subscription failure alone SHALL permit polling fallback. Initial load and manual refresh SHALL be covered immediately by the Pending Operation Dialog with no inline loading text. Only prepared content SHALL be revealed; final loading errors and OK SHALL close the source page. Transactions SHALL provide an explicitly labeled Refresh control, disabled while loading, matching Balance. Unavailable foreground loads SHALL use the Pending Operation Dialog failure contract and SHALL NOT present prior data as current.
+The public integration API SHALL expose normalized incoming and outgoing transaction history and loading, ready, and unavailable states without SDK-specific types or secrets. Opening Activity SHALL immediately use a complete fresh account-scoped snapshot, join compatible pending history preparation, or start a foreground read, and enable automatic updates while open without duplicating the account history source. A successful empty result SHALL retain the Transactions heading, disabled copy icon, list space and scrollbar without an empty-state message; it SHALL remain distinguishable from an unavailable read. Subscription failure alone SHALL permit polling fallback.
+
+Initial loading SHALL use the construction-gated Pending Operation Dialog; explicit Refresh SHALL begin its loading presentation immediately. No inline loading text SHALL be added. Only prepared content SHALL be revealed; final loading errors and OK SHALL close the source page. Transactions SHALL provide an explicitly labeled Refresh control, disabled while loading, matching Balance. Unavailable foreground loads SHALL use the Pending Operation Dialog failure contract and SHALL NOT present prior data as current.
 
 #### Scenario: Arrival while open
 - **WHEN** a new incoming or outgoing transaction is reported while Activity is open
@@ -101,8 +103,12 @@ The public integration API SHALL expose normalized incoming and outgoing transac
 - **WHEN** an activity read or detected monitoring failure occurs after a successful display
 - **THEN** Activity reports unavailable rather than an empty successful list or apparently current prior result
 
+#### Scenario: Open while background history is pending
+- **WHEN** Transactions opens while its compatible account history source is still preparing the first snapshot
+- **THEN** the page shows its normal entry loading presentation and joins that source without restarting it or resetting its bounded attempt budget
+
 ### Requirement: Account-scoped activity lifecycle
-Activity SHALL be transient and scoped to the active account and open view. List Back SHALL return to the Accounts Details submenu; its Back SHALL return to Account. Leaving Activity, logout, account replacement, reset, and disposal SHALL stop its monitoring and clear its state. Late results SHALL NOT repopulate a closed view or another account's state.
+Activity presentation SHALL be transient and scoped to the active account, network, and open view. List Back SHALL return to the Accounts Details submenu; its Back SHALL return to Account. Leaving Activity SHALL detach its foreground observation, clear its visible state and selection, and leave any valid account-owned observer or bounded shared preparation running. Logout, account/network replacement, reset, and disposal SHALL invalidate affected cached and pending history and stop obsolete account observation. Late results SHALL NOT repopulate a closed view or another account's state.
 
 #### Scenario: Account changes during a request
 - **WHEN** the account changes before an activity request or callback finishes
@@ -110,7 +116,11 @@ Activity SHALL be transient and scoped to the active account and open view. List
 
 #### Scenario: Reopen Activity
 - **WHEN** a player returns to Activity after leaving it
-- **THEN** a fresh SDK read runs and exactly one active monitoring lifecycle serves that view
+- **THEN** a complete fresh snapshot is reused or compatible pending work is joined, otherwise a fresh SDK read runs, and exactly one shared source serves compatible account and page consumers
+
+#### Scenario: Leave during initial history preparation
+- **WHEN** Transactions is closed before its shared history preparation completes
+- **THEN** the closed page and its selection remain cleared while valid account-owned work may finish and cache a complete result
 
 ### Requirement: Three transaction detail actions
 Transaction Detail SHALL retain its Transaction label, inline copy icon, and selectable report. Its action area SHALL contain exactly View Recovery Info, Open On Explorer, and Back, in that order. View Recovery Info SHALL be disabled when no recovery report exists for the selected record. Open On Explorer SHALL remain disabled without a supported explorer URL, with its reason accessible on the control. The view SHALL NOT show a bottom explorer-unavailable text block or additional bottom textfield. Detail Back SHALL return to Transactions and retain selection.
@@ -141,4 +151,3 @@ View Recovery Info SHALL open a dialog inside the BIS overlay with visible title
 #### Scenario: Copy selected recovery report
 - **WHEN** the player activates the copy icon beside Recovery Info
 - **THEN** only the selected recovery report is copied and success is indicated only after the clipboard write succeeds
-

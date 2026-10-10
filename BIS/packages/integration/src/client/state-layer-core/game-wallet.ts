@@ -14,8 +14,9 @@ import {withWalletMutation} from './boarding-record.ts';
 import {validateMint,assetError,AssetError,readAssetRecords,type BisListAssetsResult,type BisMintAssetRequest,type BisMintAssetResult} from './assets.ts';
 import {BurnError,validateBurn,type BisBurnAssetRequest,type BisBurnAssetResult} from './burning.ts';
 import {AssetDeliveryError,readAssetDeliveryRecord,validateAssetDelivery,type BisAssetDeliveryRequest,type BisAssetDeliveryResult,type BisPendingAssetDeliveryResult} from './asset-delivery.ts';
-import type { TestNetwork } from './test-network.ts';
+import { testNetworks, type TestNetwork } from './test-network.ts';
 import { readWithRetry } from './pending-read.ts';
+import { clearBrowserGameWalletPreferences } from './logout-cleanup.ts';
 
 export type BisGameWalletReadStatus = 'storage' | 'wallet-read' | 'observation' | 'role-conflict' | 'network-mismatch';
 export type BisGameWalletAvailabilityReason = 'player-wallet' | 'game-wallet' | 'role-conflict' | 'network-mismatch' | 'wallet-read' | 'insufficient-funds' | 'unresolved-operation' | 'ready';
@@ -51,11 +52,16 @@ export function createNetworkScopedGameWalletStorage(selectedNetwork: () => Test
     }
     return store;
   };
+  const all = () => testNetworks.map(({id}) => {
+    let store = stores.get(id);
+    if (!store) { store = createStorage(id); stores.set(id, store); }
+    return store;
+  });
   return Object.freeze({
     load: () => current().load(),
     select: (account: AccountSecret) => current().select(account),
-    logout: () => current().logout(),
-    reset: () => current().reset(),
+    logout: () => Promise.all(all().map(store => store.logout())).then(() => undefined),
+    reset: () => Promise.all(all().map(store => store.reset())).then(() => undefined),
     subscribe(listener: () => void) {
       const attached = new Map<GameWalletStorage, () => void>();
       subscriptions.set(listener, attached);
@@ -86,6 +92,10 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
   const listeners = new Set<() => void>();
   const selectedNetwork = () => options.playerNetwork?.() ?? 'signet';
   const playerConnected = () => !!options.playerProfileId();
+  const clearBrowserState = () => {
+    clearBrowserGameWalletPreferences(globalThis.localStorage);
+    clearBrowserGameWalletPreferences(globalThis.sessionStorage);
+  };
   const publish = (next: Omit<BisGameWalletState,'selectionVersion'> | BisGameWalletState) => { if (!disposed) { state = Object.freeze({...next,selectionVersion,playerConnected:playerConnected(),network:selectedNetwork()}); listeners.forEach(l => l()); } };
   const selectProfile = (profileId: string | undefined) => {
     if (profileId === selectedProfileId) return;
@@ -294,13 +304,13 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     async logout() {
       if (disposed || importing) return;
       const signal = begin();
-      try { await storage.logout(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } }
+      try { await storage.logout(); clearBrowserState(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } }
       catch { if (!signal.aborted) publish({...state, message:'Logout failed. Please retry.',readStatus:'storage'}); }
     },
     async reset() {
       if (disposed || importing) return false;
       const signal = begin();
-      try { await storage.reset(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } return true; }
+      try { await storage.reset(); clearBrowserState(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } return true; }
       catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.',readStatus:'storage'}); return false; }
     },
     async importWallet(phrase: string) {

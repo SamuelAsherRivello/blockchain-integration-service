@@ -9,7 +9,8 @@ test('Marketplace derives every visible network route from the selected Player W
   const [app, inventory] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/inventory-layer/inventory.ts')]);
 
   assert.match(app, /const network=playerState\.network;/);
-  assert.match(app, /createBisGameWallet\(\{playerProfileId:\(\)=>player\.getState\(\)\.profileId,playerNetwork:\(\)=>player\.getState\(\)\.network\}\)/);
+  assert.match(app, /createBisGameWallet\(\{playerProfileId:\(\)=>playerRef\.current\?\.getState\(\)\.profileId,playerNetwork:\(\)=>playerRef\.current\?\.getState\(\)\.network\}\)/);
+  assert.match(app, /createBisContext\(\{hasGameWallet:\(\)=>!!gameWallet\.getState\(\)\.profileId,resetGameWallet:async\(\)=>gameWallet\.reset\(\)\}\)/);
   assert.match(app, /if\(isCatalogLoading\|\|!network\)return \[\];/);
   assert.match(app, /readPublicInventory\(inventoryAddress,new AbortController\(\)\.signal,network\)/);
   assert.match(app, /Network: \{networkLabel\(network\)\}/);

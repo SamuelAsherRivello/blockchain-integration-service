@@ -31,9 +31,21 @@ test('public Marketplace uses a read-only address query and live local-sales act
   assert.doesNotMatch(inventory, /MnemonicIdentity|Wallet\.create|mint|send/i);
 });
 
+test('Marketplace never treats the published Game Wallet as active without a Player Wallet', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /const activeGameWallet=Boolean\(playerState\.profileId&&gameState\.profileId&&gameState\.addresses\?\.arkadeAddress\)/);
+  assert.match(app, /const inventoryAddress=!activeGameWallet\|\|isCatalogLoading/);
+  assert.match(app, /if\(activeGameWallet&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)&&inventoryAddress\)/);
+  assert.match(app, /const gameItemsForSession=activeGameWallet\?previousGameItems:\[\]/);
+  assert.match(app, /if\(event\.type==='accountDisconnected'\)void gameWallet\.logout\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(app, /!activeGameWallet&&owner!==['"]player['"]\?'Log in to your Game Wallet to view its items\./);
+  assert.match(app, /!playerState\.profileId&&owner!==['"]player['"]\?'Log in to your Player Wallet to view Game Wallet items\./);
+});
+
 test('Marketplace enables exactly the action offered by the selected owner only after both local wallet sessions are active', async () => {
   const [app, style] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/square-grid.css')]);
-  assert.match(app, /const gameOwnsSelected=Boolean\(selected&&gameItems\?\.some\(item=>item\.assetId===selected\.assetId\)\)/);
+  assert.match(app, /const gameOwnsSelected=Boolean\(activeGameWallet&&selected&&gameItems\?\.some\(item=>item\.assetId===selected\.assetId\)\)/);
+  assert.match(app, /const gameListingEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&inventoryAddress\)/);
   assert.match(app, /const playerOwnsSelected=Boolean\(selected&&playerItems\.some\(item=>item\.assetId===selected\.assetId\)\)/);
   assert.match(app, /const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;/);
   assert.match(app, /const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;/);
@@ -173,7 +185,7 @@ test('Rogue\'s Dungeon is browseable without a wallet or inventory source', asyn
   assert.match(app, /game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
   assert.match(app, /game!=='all'&&!selectedGame\?\.gameWalletAddress/);
   assert.match(app, /No equipment is currently available for/);
-  assert.match(app, /if\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)void gameWallet\.refresh\(\)/);
+  assert.match(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);
   assert.match(app, /catalog\.games\.map/);
 });
 
@@ -219,10 +231,10 @@ test('Marketplace delegates visible Marketplace loading to the shared pending pr
 
 test('Marketplace renders its Wallets and Instructions as left-aligned lists in one panel',async()=>{
   const app=await text('src/client/marketplace-layer/App.tsx');
-  assert.match(app,/createBisContext\(\)/);assert.match(app,/createBisGameWallet/);assert.match(app,/createBisUi/);
+  assert.match(app,/createBisContext\(\{hasGameWallet:/);assert.match(app,/createBisGameWallet/);assert.match(app,/createBisUi/);
   assert.match(app,/className="marketplace-info"/);assert.match(app,/This marketplace requires the player wallet for item display and items sales\./);assert.match(app,/In production the game wallet will be controlled by the server\. However, for this simple POC, you must also login the game wallet which has balance and has any items to display\./);
   assert.match(app,/<div className="marketplace-info-group"><h2>Wallets<\/h2><ul>/);assert.match(app,/Player Wallet:/);assert.match(app,/Game Wallet:/);
-  assert.match(app,/<hr\/>/);assert.match(app,/<div className="marketplace-info-group"><h2>Instructions<\/h2><ol>/);assert.match(app,/Enable Item Listing: <strong title="Requirement complete: the Game Wallet is logged in and has items to display\.">Enabled ℹ️<\/strong>/);
+  assert.match(app,/<hr\/>/);assert.match(app,/<div className="marketplace-info-group"><h2>Instructions<\/h2><ol>/);assert.match(app,/Enable Item Listing: \{gameListingEnabled\?/);
   assert.match(app,/const salesEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&playerState\.profileId!==gameState\.profileId&&\(game==='all'\|\|game==='stealth-and-steel'\)\)/);
   assert.match(app,/Enable Item Sales: \{salesEnabled\?<><strong title="Requirement complete: different Player and Game Wallets are logged in\.">Enabled ℹ️<\/strong><\/>:<span title="Requirement: log in to different Player and Game Wallets from Account\.">Disabled ℹ️<\/span>\}/);
   assert.doesNotMatch(app,/>Enable Item Sales<\/button>/);assert.doesNotMatch(app,/upper-right Account button/);
@@ -248,29 +260,28 @@ test('Marketplace places version and project resources in the selected-network b
   assert.doesNotMatch(app, /devicePixelRatio/);
 });
 
-test('Marketplace lays out its desktop panels independently so mobile can preserve the requested reading order', async () => {
-  const [app, style, redesign] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/style.css'), text('src/client/ui-layer-react/marketplace-redesign.css')]);
+test('Marketplace uses fluid layout primitives without viewport or device-specific branching', async () => {
+  const [app, style, redesign, launcher] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/style.css'), text('src/client/ui-layer-react/marketplace-redesign.css'), text('src/client/ui-layer-react/account-launcher.css')]);
   assert.match(app, /<header className="marketplace-heading">[\s\S]*?<section className="catalog-toolbar"[\s\S]*?<section className="wallet-strip"[\s\S]*?<section className="catalog-scroll"/);
   assert.match(app, /className="catalog-scroll"/);
   assert.match(style, /html, body, #root \{ height: 100%; \}/);
-  assert.match(style, /body \{ margin: 0; overflow: hidden; \}/);
-  assert.match(redesign, /\.marketplace-page\s*\{[\s\S]*?height: 100dvh;[\s\S]*?overflow: hidden;/);
-  assert.match(redesign, /\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?display: grid;[\s\S]*?grid-template-areas:[\s\S]*?"heading toolbar"[\s\S]*?"wallet catalog"[\s\S]*?min-height: 0;[\s\S]*?overflow: hidden;/);
+  assert.match(redesign, /\.marketplace-page\s*\{[\s\S]*?container: marketplace \/ inline-size;/);
+  assert.match(redesign, /\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?display: grid;[\s\S]*?grid-template-areas:[\s\S]*?"heading toolbar"[\s\S]*?"wallet catalog"[\s\S]*?min-height: 0;/);
   assert.match(redesign, /\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?padding: clamp\(16px, 1\.8vw, 28px\) clamp\(12px, 1\.5vw, 18px\)/);
   assert.match(redesign, /\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?padding: 2px clamp\(14px, 1\.2vw, 20px\) 18px 2px;[\s\S]*?overflow-y: scroll;[\s\S]*?overscroll-behavior: contain;[\s\S]*?scrollbar-gutter: stable;/);
   assert.match(redesign, /\.marketplace-page \.catalog-grid\s*\{[\s\S]*?grid-template-columns: repeat\(auto-fill, minmax/);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)/);
+  assert.match(launcher, /@container marketplace \(max-width: 767px\)/);
+  assert.doesNotMatch(app, /devicePixelRatio/);
+  for (const source of [style, redesign, launcher]) assert.doesNotMatch(source, /@media\s*\(max-(?:width|height)|@media\s*\(min-(?:width|height)/);
 });
 
-test('Marketplace changes to a touch-sized 1-to-6 vertical flow on narrow screens', async () => {
-  const [redesign, style, launcher] = await Promise.all([text('src/client/ui-layer-react/marketplace-redesign.css'), text('src/client/ui-layer-react/style.css'), text('src/client/ui-layer-react/account-launcher.css')]);
-  assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?grid-template-areas:[\s\S]*?"heading"[\s\S]*?"toolbar"[\s\S]*?"wallet"[\s\S]*?"catalog"/);
-  assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?overflow: visible;/);
-  assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.filter-row button\s*\{[\s\S]*?min-height: 44px;/);
-  assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page\s*\{[\s\S]*?min-height: 100svh;[\s\S]*?overflow: visible;/);
-  assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?overflow: visible;[\s\S]*?overscroll-behavior: auto;[\s\S]*?scrollbar-gutter: auto;/);
-  assert.match(style, /@media \(max-width: 767px\)\s*\{[\s\S]*?html\s*\{[\s\S]*?overflow-y: auto;[\s\S]*?body\s*\{[\s\S]*?overflow: visible;[\s\S]*?#root\s*\{[\s\S]*?min-height: 100%;/);
-  assert.match(style, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-pending-runtime,\s*\.marketplace-pending-runtime > \.bis-runtime-content\s*\{[\s\S]*?position: static;[\s\S]*?inset: auto;[\s\S]*?\.marketplace-pending-runtime > \.bis-pending-backdrop\s*\{[\s\S]*?position: fixed;/);
-  assert.match(launcher, /\.marketplace-bis-host\s*\{[\s\S]*?--bis-launcher-offset: 8px;/);
+test('Marketplace container reflows to a touch-sized vertical flow when its space narrows', async () => {
+  const [redesign, style] = await Promise.all([text('src/client/ui-layer-react/marketplace-redesign.css'), text('src/client/ui-layer-react/style.css')]);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?grid-template-areas:[\s\S]*?"heading"[\s\S]*?"toolbar"[\s\S]*?"wallet"[\s\S]*?"catalog"/);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?overflow: visible;/);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.filter-row button\s*\{[\s\S]*?min-height: 44px;/);
+  assert.match(style, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?html\s*\{[\s\S]*?overflow-y: auto;[\s\S]*?body\s*\{[\s\S]*?overflow: visible;/);
 });
 
 test('closed BIS account launcher is anchored below the Marketplace banner without intercepting the catalog', async () => {
