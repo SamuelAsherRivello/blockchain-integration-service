@@ -1,4 +1,4 @@
-<!-- AI: Customize this template from the target repository's actual files, configuration, and user instructions. Preserve the section order, heading styles, and concise format unless asked to change them. Replace placeholders only with verified information; leave unknown values as placeholders. Do not invent features, commands, URLs, contributors, or deployment behavior. Keep these instructions hidden as HTML comments. -->
+<!-- AI: Customize this template from the target repository's actual files, configuration, and user instructions. Preserve the section order, heading styles, and concise format unless asked to change them. Replace placeholders only with verified information; leave unknown values as placeholders. Do not invent features, commands, URLs, contributors, or deployment behavior. Use verified TypeScript terminology for BIS's public integration boundary. Keep these instructions hidden as HTML comments. -->
 <!-- AI: Preserve the creator banner unless a replacement is requested. Update its relative path if assets move and verify the file exists with matching filename capitalization. -->
 <p>
 <img src="BIS/documentation/samuel-asher-rivello-banner.png" alt="Samuel Asher Rivello" width="600" /><br /><br />
@@ -82,7 +82,7 @@ Run the following commands to get started.
 
 <!-- AI: Replace {command} with the actual local launch command or editor action. State where to run it and how to open the app if needed. Refer to the printed URL when the port can vary. Avoid repeating completed build/setup steps. -->
 1. Run `npm run dev` to start one Vite server for all four packages.
-2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), or the [Integration README](http://127.0.0.1:5174/integration/).
+2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), [Prototype Faucet](http://127.0.0.1:5174/prototype-faucet/), or the [Integration README](http://127.0.0.1:5174/integration/).
 3. In Admin, select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
 
 ### 🛠 Release Version
@@ -100,17 +100,10 @@ BIS separates reusable game integration from its development demos for Signet an
 ### 📝 Documentation
 
 <!-- AI: Link to the main documentation files that actually exist using relative Markdown links and a short purpose for each. Update links when files move; do not reference documentation inherited from another project unless present here. -->
-- [Design discussion](BIS/documentation/design-discussion.md): Confirmed decisions and implementation notes.
-- [User Story Diagrams](BIS/documentation/User%20Story%20Diagrams.md): Flows, scope, and verification status.
-- [Faucets - README.md](BIS/documentation/Faucets%20-%20README.md): Faucets for funding an account.
-- [Game smoke test](BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md): Integration setup and acceptance checks.
-- [Integration Admin application](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
-- [Integration package](BIS/packages/integration/integration-package-readme.md): Public API and runtime behavior.
-- [Package boundaries](docs/readme/package-boundaries-readme.md): Ownership and allowed dependency direction for the four workspace packages.
-- [Project brief](BIS/documentation/BGS_PROJECT_BRIEF.md): Original BGS design baseline.
-- [README](README.md): Setup, commands, and repository overview.
-- [Verification scope](docs/readme/verification-scope-readme.md): Default release checks and the opt-in four-package verification commands.
-- [Windows Sandbox Setup](https://github.com/SamuelAsherRivello/ai-skills-library/blob/main/documentation/sandbox-readme.md): Docker Sandboxes setup and Codex usage on Windows.
+- [Diagram](BIS/documentation/bis-concept-diagram-1.png): BIS architecture and integration overview.
+- [Faucets](BIS/documentation/Faucets%20-%20README.md): Faucets for funding an account.
+- [Integration Admin](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
+- [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
 
 ### 📝 Structure
 
@@ -119,6 +112,7 @@ BIS separates reusable game integration from its development demos for Signet an
 - `BIS/packages/integration/`: Reusable runtime UI, core state, and Arkade adapters.
 - `BIS/packages/integration-admin/`: Admin UI, 9:16 preview, and documentation viewer.
 - `BIS/packages/marketplace/`: Equipment catalog and account UI using the public integration API.
+- `BIS/packages/prototype-faucet/`: Experimental Arkade faucet page and server; not part of the BIS product API.
 - `BIS/packages/prototype-onboarding/`: Independent Arkade onboarding experiment with separate browser persistence.
 
 ## Project Details
@@ -138,8 +132,8 @@ React and TypeScript power the reusable integration, Admin, Marketplace, and onb
 #### External Packages
 
 <!-- AI: Keep the package list limited to React, Arkade SDK, TypeScript, and Vite. Do not restore Mermaid, react-markdown, or @scure/bip39 entries or descriptions in this README unless explicitly requested by the user. Verify listed versions against the repository. -->
-- [React](https://react.dev/): Runtime components and demo UI (`19.3.0`).
 - [Arkade SDK](https://github.com/arkade-os/sdk): Signet and Mutinynet wallet and asset integration (`0.4.72`).
+- [React](https://react.dev/): Runtime components and demo UI (`19.3.0`).
 - [TypeScript](https://www.typescriptlang.org/): Static type checking (`7.0.2`).
 - [Vite](https://vite.dev/): Local development server and production builds (`8.3.0`).
 
@@ -148,11 +142,12 @@ React and TypeScript power the reusable integration, Admin, Marketplace, and onb
 - [Integration](BIS/packages/integration/integration-package-readme.md): Reusable BIS UI, state, and wallet integration library.
 - [Integration Admin (BIS Admin)](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin controls and the runtime preview.
 - [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
+- [Prototype Faucet](BIS/packages/prototype-faucet/prototype-faucet-package-readme.md): Experimental Arkade funding tool for local development on Signet and Mutinynet.
 - [Prototype Onboarding](BIS/packages/prototype-onboarding/prototype-onboarding-package-readme.md): Independent Signet onboarding experiment.
 
 ## Deep Dive
 
-- Start with the [BIS Deep Dive](BIS/documentation/deep-dive.md).
+- To learn more about the technical details see the [Deep Dive Overview](BIS/documentation/deep-dive-overview.md).
 
 
 
