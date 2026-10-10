@@ -7,7 +7,7 @@ Keep runtime pages covered during asynchronous preparation and operations so use
 ## Requirements
 
 ### Requirement: Shared pending operation presentation
-Except for burn progress and its follow-up holdings refresh, runtime page loads and user-triggered operations SHALL immediately render a shared Pending Operation Dialog above a dark translucent host-scoped backdrop. Each data-backed runtime view SHALL declare whether automatic reads, modal coverage, and cached entry reuse are enabled. Marketplace initial preparation and foreground Buy or Sell operations SHALL use that same dialog and backdrop; they SHALL not provide a Marketplace-specific loading lookalike. A non-modal policy SHALL retain usable placeholders and controls beneath the read, while a modal policy SHALL use the shared dialog and backdrop only after the construction gate for initial entry reads. The label SHALL end in ing... and appear above the spinning bolt. Pending presentation SHALL have no interactive actions or dismissal. Background reconciliation and Admin-only operations SHALL NOT open this dialog. Reduced motion SHALL disable rotation, and keyboard users SHALL NOT reach covered runtime or Marketplace controls.
+Except for burn progress and its follow-up holdings refresh, runtime page loads and user-triggered operations SHALL immediately render a shared Pending Operation Dialog above the shared BIS backdrop treatment: one consistent translucent opacity level and blur effect used by BIS modal surfaces. Each data-backed runtime view SHALL declare whether automatic reads, modal coverage, and cached entry reuse are enabled. Marketplace initial preparation and foreground Buy or Sell operations SHALL use that same dialog and backdrop; they SHALL not provide a Marketplace-specific loading lookalike. A non-modal policy SHALL retain usable placeholders and controls beneath the read, while a modal policy SHALL use the shared dialog and backdrop only after the construction gate for initial entry reads. The label SHALL end in ing... and appear above the spinning bolt. Pending presentation SHALL have no interactive actions or dismissal. Background reconciliation and Admin-only operations SHALL NOT open this dialog. Reduced motion SHALL disable rotation, and keyboard users SHALL NOT reach covered runtime or Marketplace controls.
 
 #### Scenario: Initial page preparation
 - **WHEN** a runtime page begins loading
@@ -26,6 +26,15 @@ Except for burn progress and its follow-up holdings refresh, runtime page loads 
 - **WHEN** Marketplace begins its initial preparation
 - **THEN** Marketplace uses the shared dialog and backdrop according to its existing bootstrap contract
 - **AND** it does not apply the account-view entry gate
+
+#### Scenario: Loading backdrop matches the BIS backdrop
+- **WHEN** the Pending Operation Dialog covers an existing BIS surface
+- **THEN** its fullscreen covering layer uses the same opacity and blur treatment as the normal BIS backdrop
+- **AND** the loading dialog remains a distinct foreground surface
+
+#### Scenario: Shared backdrop treatment is tuned
+- **WHEN** a maintainer changes the shared BIS backdrop opacity or blur configuration
+- **THEN** normal BIS surfaces, pending operation presentation, and native BIS confirmation dialogs use the updated treatment
 
 ### Requirement: Complete readiness before reveal
 The dialog SHALL remain through operation completion, required data refresh, final rendering and required image readiness or fallback. Account opening, creation, persistence, restoration, logout, Details, Transactions/detail, Receive, Recovery Phrase, Assets/detail, Send, Transfer, visible Reset, and Game Wallet Login create/restore/select operations SHALL follow this contract. Background updates SHALL not block an already prepared page. Record statuses such as Pending remain valid content. Burn submission and its follow-up holdings refresh SHALL use the asset-burning toast flow without opening a progress overlay; unrelated initial Assets loads retain this contract.

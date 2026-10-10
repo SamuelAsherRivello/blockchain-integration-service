@@ -38,4 +38,5 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.doesNotMatch(app, /funds-backdrop|funds-dialog|Reconcile checkout/);
   assert.match(style, /\.marketplace-pending-runtime \{ z-index: 100; \}/);
   assert.match(style, /\.marketplace-pending-runtime \.bis-pending-backdrop \{ z-index: 60; \}/);
+  assert.match(style, /\.marketplace-pending-runtime:has\(> \.bis-pending-backdrop\) \.marketplace-bis-host \.bis-pending-backdrop \{ background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; \}/);
 });
