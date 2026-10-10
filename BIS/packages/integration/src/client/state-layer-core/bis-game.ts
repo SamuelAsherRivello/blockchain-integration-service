@@ -41,6 +41,6 @@ export interface IBisGame {
   captureContinuationTarget(input: Readonly<{
     gameSession: BisGameSession;
   }>): BisGameContinuationTarget | undefined;
-  applyConfirmedContinuation(input: BisGameConfirmedContinuation): Promise<BisGameEffectReceipt>;
-  presentConfirmedPlayerReward(input: BisGameConfirmedPlayerReward): Promise<BisGameEffectReceipt>;
+  applyConfirmedContinuationAsync(input: BisGameConfirmedContinuation): Promise<BisGameEffectReceipt>;
+  presentConfirmedPlayerRewardAsync(input: BisGameConfirmedPlayerReward): Promise<BisGameEffectReceipt>;
 }

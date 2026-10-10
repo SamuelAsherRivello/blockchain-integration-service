@@ -10,7 +10,7 @@ const context = createContext({
 const host = document.getElementById('host')!;
 const ui = createBisUi(context);
 ui.mount(host);
-await context.ready();
+await context.readyAsync();
 context.openAccountDialog();
 await context.createAccount();
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));

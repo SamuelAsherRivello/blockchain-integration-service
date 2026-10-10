@@ -30,7 +30,7 @@ function setup(t,{latestPending=true,persist=true,failBalance=false,delay,failAf
  return {context,reads,replace(){account={profileId:'other-player',phrase:'not-a-wallet'};generation++;notify();}};
 }
 for(const view of ['balance','assets','activity'])for(const latestPending of [true,false])test(`${view} refreshes once when ${latestPending?'an older':'the latest'} withdrawal resolves`,async t=>{
- const f=setup(t,{latestPending});await f.context.ready();f.context.openAccountDialog();
+ const f=setup(t,{latestPending});await f.context.readyAsync();f.context.openAccountDialog();
  if(view==='balance')f.context.openAccountDetails();
  if(view==='assets')f.context.openAccountAssets();
  if(view==='activity')f.context.openAccountActivity();
@@ -43,13 +43,13 @@ for(const view of ['balance','assets','activity'])for(const latestPending of [tr
  if(view==='balance')assert.equal(f.context.getState().balance.arkadeSats,1000);
 });
 test('failure to persist resolution retains reservations without publishing availability',async t=>{
- const f=setup(t,{persist:false});await f.context.ready();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
+ const f=setup(t,{persist:false});await f.context.readyAsync();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
  const before=f.reads.balance;
  assert.equal((await f.context.checkAccountTransfer()).verification,'unavailable');await tick();
  assert.equal(f.reads.balance,before);assert.equal(walletReservations('player').length,2);
 });
 test('balance service failure does not erase durable completion or invent a zero balance',async t=>{
- const f=setup(t,{failBalance:true});await f.context.ready();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
+ const f=setup(t,{failBalance:true});await f.context.readyAsync();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
  await f.context.checkAccountTransfer();await tick();await tick();
  assert.equal(readBoardingRecord('player','older').status,'succeeded');
  assert.equal(f.context.getState().balance.status,'unavailable');
@@ -57,20 +57,20 @@ test('balance service failure does not erase durable completion or invent a zero
 });
 test('late completion for a replaced account cannot refresh the replacement wallet',async t=>{
  let release;const delay=new Promise(r=>release=r);
- const f=setup(t,{delay});await f.context.ready();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
- const work=f.context.checkAccountTransfer();await tick();f.replace();await f.context.ready();await tick();
+ const f=setup(t,{delay});await f.context.readyAsync();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
+ const work=f.context.checkAccountTransfer();await tick();f.replace();await f.context.readyAsync();await tick();
  const before={...f.reads};release();await assert.rejects(work,/account changed/i);await tick();
  assert.deepEqual(f.reads,before);assert.equal(f.context.getState().profileId,'other-player');
  assert.equal(readBoardingRecord('player','older').status,'succeeded');
 });
 test('partial reconciliation failure still publishes an earlier durable resolution',async t=>{
- const f=setup(t,{failAfter:true});await f.context.ready();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
+ const f=setup(t,{failAfter:true});await f.context.readyAsync();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
  const before=f.reads.balance;
  assert.equal((await f.context.checkAccountTransfer()).verification,'unavailable');await tick();
  assert.equal(f.reads.balance,before+1);assert.equal(walletReservations('player').length,1);
 });
 test('shared wallet source is invalidated once for verified resolution',async t=>{
- const f=setup(t,{shared:true});await f.context.ready();await tick();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
+ const f=setup(t,{shared:true});await f.context.readyAsync();await tick();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
  const before=f.reads.activity;
  await f.context.checkAccountTransfer();await tick();await tick();
  assert.equal(f.reads.activity,before+1);assert.equal(f.context.getState().balance.arkadeSats,1000);

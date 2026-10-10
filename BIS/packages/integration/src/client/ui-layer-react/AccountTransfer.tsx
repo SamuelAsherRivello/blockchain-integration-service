@@ -39,7 +39,12 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
   const label = direction === 'to-arkade' ? 'Bitcoin → Arkade' : 'Arkade → Bitcoin';
   const pending = status.status === 'pending';
   const policyBlocked = availability !== undefined && !availability.available && status.status !== 'pending';
-  const blocked = !statusChecked || policyBlocked;
+  // A balance can be visible while the transfer-specific eligibility probe is
+  // negative (for example, while a Bitcoin output is awaiting confirmation).
+  // Let the user edit and review the amount; quoteAccountTransfer is the
+  // authoritative check for the exact selected amount.
+  const insufficientEligibility = availability?.available === false && availability.reason === 'insufficient-funds';
+  const blocked = !statusChecked || (policyBlocked && !insufficientEligibility);
   function failure(cause: unknown) {
     const message = cause instanceof Error ? cause.message : '';
     return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
@@ -139,7 +144,7 @@ export function AccountTransfer({ context, balance, onBack }: { context: BisCont
       ]} /></>}
       {expired && <p role="status">Quote expired. Go Back for a fresh review.</p>}
     </div> : <div className="bis-transfer-form">
-      <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy||blocked} maxDisabled={balance.status!=='ready'} inputRef={amountInput} describedBy={amount !== '0' && !valid ? `${amountId}-help` : undefined} />
+      <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy} maxDisabled={balance.status!=='ready'} inputRef={amountInput} describedBy={amount !== '0' && !valid ? `${amountId}-help` : undefined} />
       {amount !== '0' && !valid && <p id={`${amountId}-help`} className="bis-transfer-help">Enter a positive whole number of sats.</p>}
     </div>}
     {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}

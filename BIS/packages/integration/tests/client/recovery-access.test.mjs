@@ -14,7 +14,7 @@ async function fixture() {
     subscribe: listener => { notify=listener; return () => {}; },
   };
   const c = createContext(storage, undefined, async phrase => phrase === account.phrase ? account.profileId : 'profile-b');
-  await c.ready(); c.openAccountDialog();
+  await c.readyAsync(); c.openAccountDialog();
   return {c, storage, replace() { saved={account:{phrase:'placeholder-other',profileId:'profile-b'},generation:1};notify(); }};
 }
 
@@ -44,7 +44,7 @@ test('late reveal is discarded after Back/reopen, reset, replacement or disposal
     c.openAccountRecovery();const work=getControls(c).revealRecovery();storage.load=original;
     if(action==='back'){c.closeAccount();c.openAccountRecovery();}
     if(action==='reset')await createBisAdminContext(c).resetClient();
-    if(action==='replace'){f.replace();await c.ready();}
+    if(action==='replace'){f.replace();await c.readyAsync();}
     if(action==='dispose')c.dispose();
     release();await work;assert.equal(getControls(c).recovery(),undefined);assert.notEqual(c.getState().recoveryStatus,'ready');c.dispose();
   }
@@ -61,6 +61,6 @@ test('storage error is sanitized and retry can reveal', async () => {
 test('unannounced account replacement cannot reveal a different identity', async () => {
   const {c,storage}=await fixture();c.openAccountRecovery();
   storage.load=async()=>({account:{phrase:'placeholder-other',profileId:'profile-b'},generation:1});
-  await getControls(c).revealRecovery();await c.ready();
+  await getControls(c).revealRecovery();await c.readyAsync();
   assert.equal(getControls(c).recovery(),undefined);assert.equal(c.getState().profileId,'profile-b');c.dispose();
 });

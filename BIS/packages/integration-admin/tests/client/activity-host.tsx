@@ -26,7 +26,7 @@ document.getElementById('run')!.onclick=async()=>{
   cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
 
   try{
-    await c.ready();c.openAccountDialog();await tick();
+    await c.readyAsync();c.openAccountDialog();await tick();
     [...host.querySelectorAll('button')].find(b=>b.textContent==='Accounts Details')!.click();await tick();
     const transactions=[...host.querySelectorAll('button')].find(button=>button.textContent==='Transactions');
     check(!!transactions,'Transactions is available from Account Details');transactions!.click();
@@ -76,7 +76,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(document.activeElement!==host.querySelector('textarea'),'detail field is not automatically focused');
     check(!host.textContent?.includes('Account ID') && !host.querySelector('[aria-label="Copy Account ID"]'),'Account ID absent from transaction detail');
     const copy=host.querySelector<HTMLButtonElement>('[aria-label="Copy Transaction"]')!;
-    copy.click();await wait(()=>copied===formatTransactionDetail(rows[0]));await tick();check(!host.textContent?.includes('Transaction copied.'),'no separate copy success message');
+    copy.click();await wait(()=>copied===formatTransactionDetail(rows[0])&&copy.title==='Copied');await tick();check(!host.textContent?.includes('Transaction copied.'),'no separate copy success message');
     copyFail=true;copy.click();await wait(()=>host.textContent?.includes('Could not copy.')===true);
     check(host.querySelector('.bis-card')!.getBoundingClientRect().height===activityHeight,'copy feedback does not resize dialog');
     const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'no horizontal card overflow');
@@ -89,7 +89,7 @@ document.getElementById('run')!.onclick=async()=>{
     data=[];void c.refreshActivity();await wait(()=>c.getState().activity.status==='ready' && host.querySelectorAll('.bis-transaction-row').length===0);
     check(!host.textContent?.includes('No transactions found.'),'no empty message');
     check(host.querySelector<HTMLElement>('.bis-transaction-list')!.clientHeight>0,'empty transaction list retains space');
-    check(host.querySelector<HTMLButtonElement>('[aria-label="Copy Transactions"]')?.disabled,'Copy-all disabled for empty history');
+    check(!host.querySelector<HTMLButtonElement>('[aria-label="Copy Transactions"]')?.disabled,'Copy-all remains enabled for empty history');
     check(host.querySelector('.bis-card')!.getBoundingClientRect().height===activityHeight,'empty list keeps dialog height');
     check(getComputedStyle(host.querySelector('.bis-transaction-list')!).overflowY==='scroll','empty list retains scrollbar');
     c.closeAccount();await tick();check(!host.querySelector('textarea'),'Back to menu');

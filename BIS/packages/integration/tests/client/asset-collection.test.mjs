@@ -7,7 +7,7 @@ const holding = {...asset,assetId:'asset-1',quantity:'1',iconUrl:'https://exampl
 function fixture(options = {}) {
   let state={hasProfile:true,phase:'active',profileId:'p'}, holdings=[],pending=null,result,readFailure=false,release;
   const listeners=new Set(),calls=[],toasts=[];
-  const context={ready:async()=>{},getState:()=>state,subscribe:f=>{listeners.add(f);return()=>listeners.delete(f);},showToast:(...args)=>toasts.push(args),
+  const context={readyAsync:async()=>{},getState:()=>state,subscribe:f=>{listeners.add(f);return()=>listeners.delete(f);},showToast:(...args)=>toasts.push(args),
     listAssets:async()=>{if(readFailure)throw Error();return {status:'success',profileId:state.profileId,assets:holdings};},
     getPendingAssetMint:async()=>({status:'success',profileId:state.profileId,request:pending}),
     mintAsset:async r=>{calls.push(r);if(result==='wait')await new Promise(resolve=>release=resolve);if(result==='throw')throw Error();return result && result!=='wait'?result:{status:'minted',profileId:'p',operationId:r.operationId,asset:holding};}};

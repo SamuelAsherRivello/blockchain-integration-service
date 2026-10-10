@@ -45,7 +45,7 @@ test('Transactions loads signed SDK asset deltas after a burn without retrying v
  const c=createContext({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,
    (_account,signal,publish)=>observeActivityWallet(Promise.resolve({...wallet(),getTransactionHistory:async()=>{reads++;return history;}}),signal,publish));
  try {
-   await c.ready();c.openAccountDialog();c.openAccountActivity();
+   await c.readyAsync();c.openAccountDialog();c.openAccountActivity();
    await new Promise(resolve=>setImmediate(resolve));
    const activity=c.getState().activity;
    assert.equal(activity.status,'ready','a valid signed asset delta must not fail the whole history page');
@@ -63,7 +63,7 @@ test('Activity leaves Loading and ignores late results when its observer never s
  const account={profileId:'test',phrase:'test-placeholder'};
  let publish,signal;
  const c=createContext({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,async(_a,s,p)=>{signal=s;publish=p;await never();});
- await c.ready();c.openAccountDialog();c.openAccountActivity();await new Promise(r=>setImmediate(r));
+ await c.readyAsync();c.openAccountDialog();c.openAccountActivity();await new Promise(r=>setImmediate(r));
  assert.equal(c.getState().activity.status,'loading');t.mock.timers.tick(15000);
  assert.equal(c.getState().activity.status,'loading');t.mock.timers.tick(60000);
  await new Promise(r=>setImmediate(r));assert.equal(c.getState().activity.status,'loading');t.mock.timers.tick(75000);await new Promise(r=>setImmediate(r));assert.equal(c.getState().activity.status,'unavailable');assert.equal(signal.aborted,true);
@@ -89,7 +89,7 @@ test('a failed activity refresh preserves the last successful transaction snapsh
  const c=createContext({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,
   async(_account,signal,publish)=>{publish(rows);await new Promise((resolve,reject)=>{rejectRead=reject;signal.addEventListener('abort',resolve,{once:true});});});
  try {
-  await c.ready();c.openAccountDialog();c.openAccountActivity();await new Promise(r=>setImmediate(r));
+  await c.readyAsync();c.openAccountDialog();c.openAccountActivity();await new Promise(r=>setImmediate(r));
   assert.equal(c.getState().activity.status,'ready');
   rejectRead(Error('network'));await new Promise(r=>setImmediate(r));
   assert.equal(c.getState().activity.status,'unavailable');

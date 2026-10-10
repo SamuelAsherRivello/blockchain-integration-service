@@ -50,7 +50,7 @@ The implementation publishes the following method groups, with defaults/overload
 
 | Methods on `IBis` | Exchange |
 | --- | --- |
-| `ready`, `mount`, `openAccountDialog`, `isBisVisible`, `showLoading`, `hideLoading`, `getSnapshot`, `dispose` | Lifecycle/read state; host supplies a DOM mount target, not an internal UI object. |
+| `ready`, `mount`, `openAccountDialog`, `isLoadingUIVisible`, `showLoadingUI`, `hideLoadingUI`, `getSnapshot`, `dispose` | Lifecycle/read state; host supplies a DOM mount target, not an internal UI object. |
 | `hasItemSupport`, `hasAssetMintingSupport`, `hasContractSupport` | Existing compatibility capability reads, backed by the same policy as the safe snapshot. |
 | `beginContinuation`, `payContinuation`, `checkContinuation`, `endContinuation` | Request → `BisGameContinuationState`; later commands identify the public workflow ID and return updated state where asynchronous. |
 | `beginReward`, `refreshReward`, `collectReward`, `checkReward`, `acknowledgeReward`, `endReward` | `BisGameRewardRequest` → `BisGameRewardState`; no `onCollected`/receipt callback parameter. |

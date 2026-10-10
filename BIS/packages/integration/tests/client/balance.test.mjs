@@ -17,7 +17,7 @@ function setup(read=async()=>amounts) {
 
 test('Account menu does not read balances; Details Back returns to menu before host',async()=>{
   let calls=0;const {context}=setup(async()=>{calls++;return amounts;});
-  await context.ready();context.openAccountDialog();await tick();
+  await context.readyAsync();context.openAccountDialog();await tick();
   assert.equal(context.getState().accountDetails,false);assert.equal(calls,0);
   await context.refreshBalance();assert.equal(calls,0);
   context.openAccountDetails();await tick();assert.equal(calls,1);assert.equal(context.getState().accountDetails,true);
@@ -54,12 +54,12 @@ test('bounded balance acquisition disposes on failure, timeout and late acquisit
 
 test('on-open/manual refresh clears old values, failure remains retryable, no storage writes or duplicate reads',async()=>{
   let calls=0,next=deferred();const {context,writes}=setup(()=>{calls++;return next.promise;});
-  await context.ready();assert.equal(calls,0);context.openAccountDialog();context.openAccountDetails();await tick();
+  await context.readyAsync();assert.equal(calls,0);context.openAccountDialog();context.openAccountDetails();await tick();
   assert.deepEqual(context.getState().balance,{status:'loading'});
   context.openAccountDialog();context.openAccountDetails();await context.refreshBalance();assert.equal(calls,1);
   next.resolve(amounts);await tick();assert.deepEqual(context.getState().balance,{status:'ready',...amounts});
   next=deferred();const work=context.refreshBalance();assert.deepEqual(context.getState().balance,{status:'loading'});await tick();
-  next.reject(Error('private source failure'));await work;assert.deepEqual(context.getState().balance,{status:'unavailable'});assert.equal(context.getState().phase,'active');
+  next.reject(Error('private source failure'));await work;assert.deepEqual(context.getState().balance,{status:'unavailable',readStatus:'wallet-read'});assert.equal(context.getState().phase,'active');
   next=deferred();const retry=context.refreshBalance();await tick();next.resolve({availableSats:0,totalSats:0});await retry;
   assert.equal(context.getState().balance.availableSats,0);assert.equal(writes(),0);assert.equal(calls,4);
   context.closeAccount();assert.deepEqual(context.getState().balance,{status:'idle'});context.openAccountDialog();context.openAccountDetails();await tick();assert.equal(calls,5);context.dispose();
@@ -67,7 +67,7 @@ test('on-open/manual refresh clears old values, failure remains retryable, no st
 
 test('Back and logout cancellation discard pending work and request fresh balances',async()=>{
   const reads=[];const {context}=setup((_,signal)=>{const d=deferred();reads.push({...d,signal});return d.promise;});
-  await context.ready();context.openAccountDialog();context.openAccountDetails();await tick();context.closeAccount();assert.ok(reads[0].signal.aborted);
+  await context.readyAsync();context.openAccountDialog();context.openAccountDetails();await tick();context.closeAccount();assert.ok(reads[0].signal.aborted);
   reads[0].resolve(amounts);await tick();assert.equal(context.getState().balance.status,'idle');
   context.openAccountDialog();context.openAccountDetails();await tick();context.openLogoutConfirmation();assert.ok(reads[1].signal.aborted);assert.equal(context.getState().phase,'logout-confirmation');
   context.cancelLogout();await tick();assert.equal(reads.length,2);assert.equal(context.getState().accountDetails,false);context.openAccountDetails();await tick();assert.equal(reads.length,3);reads[1].resolve(amounts);await tick();assert.equal(context.getState().balance.status,'loading');
@@ -77,8 +77,8 @@ test('Back and logout cancellation discard pending work and request fresh balanc
 test('replacement, reset and disposal invalidate old reads without publishing',async()=>{
   for(const action of ['replace','reset','dispose']) {
     const reads=[];const s=setup((_,signal)=>{const d=deferred();reads.push({...d,signal});return d.promise;});const c=s.context;
-    await c.ready();c.openAccountDialog();c.openAccountDetails();await tick();
-    if(action==='replace'){s.replace();await c.ready();await tick();}
+    await c.readyAsync();c.openAccountDialog();c.openAccountDetails();await tick();
+    if(action==='replace'){s.replace();await c.readyAsync();await tick();}
     if(action==='reset')await createBisAdminContext(c).resetClient();
     if(action==='dispose')c.dispose();
     assert.ok(reads[0].signal.aborted);let notifications=0;c.getState();if(action!=='dispose')c.subscribe(()=>notifications++);
@@ -87,7 +87,7 @@ test('replacement, reset and disposal invalidate old reads without publishing',a
 });
 
 test('identity read failure is an account error, never a balance success',async()=>{
-  const s=setup();await s.context.ready();s.storage.load=async()=>{throw Error('unreadable');};
+  const s=setup();await s.context.readyAsync();s.storage.load=async()=>{throw Error('unreadable');};
   s.context.openAccountDialog();s.context.openAccountDetails();await tick();assert.equal(s.context.getState().phase,'error');assert.equal(s.context.getState().balance.status,'idle');s.context.dispose();
 });
 

@@ -7,7 +7,7 @@ import '@bis/integration/style.css';
 
 export async function mountBis(game: IBisGame, container: HTMLElement): Promise<IBis> {
   const bis: IBis = new BisService({ getBisGame: () => game });
-  await bis.ready();
+  await bis.readyAsync();
   bis.mount(container);
   return bis;
 }
@@ -24,8 +24,8 @@ const receipt: BisGameEffectReceipt = { status: 'applied' };
 export const game = {
   getActiveGameSession: () => ({ gameId: 'fixture-game', gameSessionId: 'run-1' }),
   captureContinuationTarget: () => ({ continuationTargetId: 'defeat-1' }),
-  applyConfirmedContinuation: async () => receipt,
-  presentConfirmedPlayerReward: async (_reward: BisGameConfirmedPlayerReward) => receipt,
+  applyConfirmedContinuationAsync: async () => receipt,
+  presentConfirmedPlayerRewardAsync: async (_reward: BisGameConfirmedPlayerReward) => receipt,
   onBisEvent: (_event: BisEvent) => {},
 } satisfies IBisGame;
 
@@ -33,38 +33,38 @@ export const game = {
 export const incompleteGame: IBisGame = {
   getActiveGameSession: game.getActiveGameSession,
   captureContinuationTarget: game.captureContinuationTarget,
-  applyConfirmedContinuation: game.applyConfirmedContinuation,
-  presentConfirmedPlayerReward: game.presentConfirmedPlayerReward,
+  applyConfirmedContinuationAsync: game.applyConfirmedContinuationAsync,
+  presentConfirmedPlayerRewardAsync: game.presentConfirmedPlayerRewardAsync,
 };
 
 export function consume(bis: IBis, mount: HTMLElement, request: BisContractRequest) {
   bis.mount(mount);
-  void bis.ready();
+  void bis.readyAsync();
   bis.openAccountDialog();
   const snapshot: BisSnapshot = bis.getSnapshot();
   const continuation = bis.beginContinuation();
-  void bis.payContinuation(continuation.workflowId);
-  void bis.checkContinuation(continuation.workflowId);
+  void bis.payContinuationAsync(continuation.workflowId);
+  void bis.checkContinuationAsync(continuation.workflowId);
   bis.endContinuation(continuation.workflowId);
   const reward = bis.beginReward({
     asset: { name: 'Fixture Trophy', ticker: 'FXT', amount: '1', decimals: 0 },
     successMessage: 'Collected',
   });
-  void bis.refreshReward(reward.workflowId);
-  void bis.collectReward(reward.workflowId);
-  void bis.checkReward(reward.workflowId);
-  void bis.acknowledgeReward(reward.workflowId);
+  void bis.refreshRewardAsync(reward.workflowId);
+  void bis.collectRewardAsync(reward.workflowId);
+  void bis.checkRewardAsync(reward.workflowId);
+  void bis.acknowledgeRewardAsync(reward.workflowId);
   bis.endReward(reward.workflowId);
-  void bis.refreshEquipment();
-  void bis.selectEquipment('owned-asset');
-  void bis.clearEquipment('Shoes');
-  void bis.startContract(request);
-  void bis.queryContracts();
-  void bis.checkContracts();
-  void bis.claimContract('offer');
-  void bis.rejectContract('offer');
-  void bis.endContractSession(request.offerSessionId);
-  void bis.resetForGame().then(result => {
+  void bis.refreshEquipmentAsync();
+  void bis.selectEquipmentAsync('owned-asset');
+  void bis.clearEquipmentAsync('Shoes');
+  void bis.startContractAsync(request);
+  void bis.queryContractsAsync();
+  void bis.checkContractsAsync();
+  void bis.claimContractAsync('offer');
+  void bis.rejectContractAsync('offer');
+  void bis.endContractSessionAsync(request.offerSessionId);
+  void bis.resetForGameAsync().then(result => {
     if (result.status === 'failed') return result.error.code;
     return result.resetId;
   });

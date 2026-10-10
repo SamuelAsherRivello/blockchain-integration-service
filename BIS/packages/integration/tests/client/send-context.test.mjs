@@ -14,19 +14,19 @@ function setup(overrides={}){
  return {context,calls:()=>calls,replace(){account={profileId:'other',phrase:'fixture-only'};generation++;for(const l of listeners)l();}};
 }
 test('only latest issued quote authorizes a single send',async()=>{
- const s=setup();await s.context.ready();const first=await s.context.quoteAccountSend('tark1test',500),second=await s.context.quoteAccountSend('tark1test',500);
+ const s=setup();await s.context.readyAsync();const first=await s.context.quoteAccountSend('tark1test',500),second=await s.context.quoteAccountSend('tark1test',500);
  await assert.rejects(s.context.confirmAccountSend(first));await assert.rejects(s.context.confirmAccountSend({...second}));
  assert.equal((await s.context.confirmAccountSend(second)).status,'succeeded');await assert.rejects(s.context.confirmAccountSend(second));assert.equal(s.calls(),1);s.context.dispose();
 });
 test('account replacement and disposal invalidate review',async()=>{
- for(const action of ['replace','dispose']){const s=setup();await s.context.ready();const quote=await s.context.quoteAccountSend('tark1test',500);if(action==='replace')s.replace();else s.context.dispose();await assert.rejects(s.context.confirmAccountSend(quote));assert.equal(s.calls(),0);s.context.dispose();}
+ for(const action of ['replace','dispose']){const s=setup();await s.context.readyAsync();const quote=await s.context.quoteAccountSend('tark1test',500);if(action==='replace')s.replace();else s.context.dispose();await assert.rejects(s.context.confirmAccountSend(quote));assert.equal(s.calls(),0);s.context.dispose();}
 });
 test('pending send blocks reset, transfer and mint without clearing data',async()=>{
- const s=setup();await s.context.ready();writeSendRecord({version:1,id:'op',profileId:'p',status:'pending',transactionId:'a'.repeat(64),quote:q(),inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)});
+ const s=setup();await s.context.readyAsync();writeSendRecord({version:1,id:'op',profileId:'p',status:'pending',transactionId:'a'.repeat(64),quote:q(),inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)});
  await assert.rejects(s.context.quoteAccountTransfer(500));assert.equal((await s.context.mintAsset({operationId:'x',name:'x',ticker:'x',amount:'1',decimals:0})).status,'error');await assert.rejects(getControls(s.context).reset());assert.equal(values.size,1);s.context.dispose();
 });
 test('status preserves pending evidence on network failure and never submits',async()=>{
- const s=setup({reconcile:async()=>{throw Error('private');}});await s.context.ready();writeSendRecord({version:1,id:'op',profileId:'p',status:'pending',transactionId:'a'.repeat(64),quote:q(),inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)});
+ const s=setup({reconcile:async()=>{throw Error('private');}});await s.context.readyAsync();writeSendRecord({version:1,id:'op',profileId:'p',status:'pending',transactionId:'a'.repeat(64),quote:q(),inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)});
  const status=await s.context.checkAccountSend();assert.equal(status.status,'pending');assert.equal(status.verification,'unavailable');assert.equal(s.calls(),0);s.context.dispose();
 });
 test('marketplace checkout includes asset-bearing balance and preserves those assets through payment',async()=>{
@@ -36,7 +36,7 @@ test('marketplace checkout includes asset-bearing balance and preserves those as
   quote:async(_account,_recipient,_amount,_signal,preserveAssets=false)=>{options.push(['quote',preserveAssets]);return q();},
   submit:async(_account,quote,_current,_journal,preserveAssets=false)=>{options.push(['submit',preserveAssets]);return {version:1,id:'op',profileId:'p',status:'succeeded',transactionId:'a'.repeat(64),quote,inputs:[{txid:'c'.repeat(64),vout:0}],recipientScript:'5120'+'d'.repeat(64)};},
  });
- await s.context.ready();
+ await s.context.readyAsync();
  assert.equal(await s.context.getSendSpendable(true),265975);
  const quote=await s.context.quoteAccountSend('tark1test',1200,true);
  assert.equal((await s.context.confirmAccountSend(quote)).status,'succeeded');

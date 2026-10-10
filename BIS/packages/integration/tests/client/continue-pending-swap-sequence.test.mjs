@@ -82,12 +82,12 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
  const pay=operationId=>context.requestContinue({operationId,sats:1000,context:'sequence'});
  let started=false;
  try {
-  await context.ready();assert.equal(context.getState().profileId,'first-account');
+  await context.readyAsync();assert.equal(context.getState().profileId,'first-account');
   context.openAccountDialog();context.openLogoutConfirmation();context.setLogoutBackupAcknowledged(true);await context.confirmLogout();
   assert.equal(context.getState().hasProfile,false);
   account={profileId:'funded-player',phrase:'abandon '.repeat(11)+'about'};generation++;
   coins=[{txid:'a'.repeat(64),vout:0,value:267715}];
-  for(const listener of listeners)listener();await context.ready();assert.equal(context.getState().profileId,'funded-player');
+  for(const listener of listeners)listener();await context.readyAsync();assert.equal(context.getState().profileId,'funded-player');
   assert.equal((await pay('first-payment')).status,'succeeded');assert.equal(total(),266715);
   const minted=await context.mintAsset({operationId:'sequence-mint',name:'Sequence trophy',ticker:'SEQ',amount:'1',decimals:0});
   assert.equal(minted.status,'minted',JSON.stringify(minted));assert.equal(coins[0].assets[0].amount,1n);

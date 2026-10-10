@@ -160,17 +160,21 @@ function selectedAssetTotals(coins:readonly {assets?:readonly {assetId:string;am
 
 type DeliveryEvidenceCoin=Readonly<{txid:string;script:string;assets?:readonly {assetId:string;amount:bigint}[]}>;
 function assetMap(assets:readonly {assetId:string;amount:bigint}[]|undefined){const totals=new Map<string,bigint>();for(const asset of assets??[])totals.set(asset.assetId,(totals.get(asset.assetId)??0n)+asset.amount);return totals;}
-/** Requires current sender and recipient transaction outputs to match the original exact delivery shape. */
+/**
+ * Requires the exact recipient allocation and sender-side asset reduction.
+ *
+ * Some Arkade indexer responses do not expose the sender change output with
+ * the same script shape used during submission (for example when change is
+ * normalized or split). Requiring that optional representation kept valid
+ * deliveries pending forever even though the recipient output and source
+ * balance already proved the transfer. The transaction id, recipient script,
+ * exact quantity, and sender reduction remain mandatory.
+ */
 export function hasExactDeliveryEvidence(record:AssetDeliveryRecord,currentSourceQuantity:bigint,vtxos:readonly DeliveryEvidenceCoin[]):boolean {
   if(!record.transactionId||currentSourceQuantity>BigInt(record.sourceQuantity)-BigInt(record.request.quantity))return false;
   const outputs=vtxos.filter(coin=>coin.txid===record.transactionId);
   const recipient=outputs.filter(coin=>coin.script===record.recipientScript).some(coin=>assetMap(coin.assets).get(record.request.assetId)===BigInt(record.request.quantity));
-  if(!recipient)return false;
-  const senderAssets=assetMap(outputs.filter(coin=>coin.script===record.senderScript).flatMap(coin=>coin.assets??[]));
-  const expected=new Map(record.inputAssets.map(asset=>[asset.assetId,BigInt(asset.quantity)]));
-  expected.set(record.request.assetId,(expected.get(record.request.assetId)??0n)-BigInt(record.request.quantity));
-  for(const [assetId,amount] of expected)if((senderAssets.get(assetId)??0n)!==amount)return false;
-  return true;
+  return recipient;
 }
 
 function deliveryResult(record:NonNullable<ReturnType<typeof readAssetDeliveryRecord>>):Extract<BisAssetDeliveryResult,{status:'delivered'|'already-delivered'}> {

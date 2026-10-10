@@ -16,7 +16,7 @@ test('named wallet dependencies preserve the context lifecycle seam', async () =
     subscribe: () => () => {},
   };
   const context = createContextWithDependencies(storage, dependencies);
-  await context.ready();
+  await context.readyAsync();
   await context.createAccount();
   await context.continueAccount();
   assert.equal(context.getState().profileId, identity.profileId);

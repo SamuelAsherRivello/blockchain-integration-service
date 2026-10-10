@@ -15,7 +15,7 @@ async function run(work: () => Promise<unknown>) {
   busy = true;
   read.disabled = retry.disabled = true;
   show({ status: 'pending' });
-  try { await context.ready(); show(await work()); }
+  try { await context.readyAsync(); show(await work()); }
   catch { show({ status: 'error', message: 'Verification unavailable. No new mint was requested.' }); }
   finally { busy = false; read.disabled = retry.disabled = false; }
 }

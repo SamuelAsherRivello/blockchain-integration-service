@@ -43,7 +43,7 @@ for(const phase of ['prepared','registered'])test(`B.P.1 reconciles a ${phase} w
  writeBoardingRecord({version:1,id:'withdrawal',profileId:'p',status:'pending',phase,inputs:[{txid:'a'.repeat(64),vout:0}],bitcoinAddress:'tb1fixture',quote:{profileId:'p',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:2000,bitcoinAfterSats:1000,arkadeAfterSats:1000,totalAfterSats:2000,expiresAt:2000,fingerprint:'c'.repeat(64)}});
  const context=createContextWithDependencies({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},createArkadeContextDependencies({identifyAccount:async()=>account.profileId,readBalance:async()=>({availableSats:2000,totalSats:2000,arkadeSats:2000,bitcoinSats:0}),observeActivity:async()=>{}}),{continueRecipient:recipient.encode()});
  try {
-  await context.ready();
+  await context.readyAsync();
   const result=await context.requestContinue({operationId:'test',sats:1000,context:'run'});
   if(phase==='prepared') {
    assert.equal(result.status,'succeeded',result.message);

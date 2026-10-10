@@ -24,6 +24,15 @@
 
 ## Remote demo preview
 
+### ChatGPT terminal workflow
+
+This local ChatGPT-terminal workflow takes precedence for ordinary user requests to run Vite or run the project. Use the remote SSH preview workflow below only when the user explicitly requests a remote preview.
+
+- When the user says "run Vite," "run the project," or equivalent, open a terminal tab beside the current ChatGPT tab using the Codex terminal panel.
+- Run the command from the repository root: `npm run dev -- --port <available-port>`.
+- Keep the terminal session running, verify the Admin and Marketplace routes, and return their URLs only after the server is running.
+- Prefer port `5174`; if it is occupied, use the next available local port and report that port in the links. Do not hand the command back to the user unless execution is blocked by an explicit environment or permission failure.
+
 - Treat requests such as "run a Vite server" as requests for a remote demo preview usable from the user's Windows 11 browser. Follow this workflow by default.
 - "Run vite" means start or reuse the single shared Vite server with `npm run dev` from the repository root. It binds loopback port 5174 with strict port behavior and serves all four packages. Keep the server running for the preview session. When a remote preview is requested, run that command on the SSH server.
 - Before sharing links, verify HTTP 200 and the expected content for all four server destinations: `/admin/` (BIS Admin), `/marketplace/` (BIS Marketplace), `/onboarding/` (Onboarding Spike), and `/integration/` (rendered Integration README). Use `http://127.0.0.1:5174` on the server. The integration library has no standalone UX; serve its README instead. A sandbox networking failure does not establish that the host server is down; use the supported escalation when needed.

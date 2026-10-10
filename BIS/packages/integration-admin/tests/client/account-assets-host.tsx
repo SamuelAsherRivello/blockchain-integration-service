@@ -30,13 +30,13 @@ const context=createContext({load:async()=>({account,generation:0}),save:async()
   return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:'c'.repeat(64)};
 },undefined,{getNetwork:()=>account.network});
 const ui=createBisUi(context);ui.mount(host);
-const showList=async()=>{await context.ready();mode='ready';data=rows;copyMode='success';context.openAccountDialog();if(context.getState().accountAssets)context.closeAccount();context.openAccountAssets();await wait(()=>host.querySelectorAll('.bis-asset-row').length===24&&!host.querySelector('.bis-pending-dialog'));};
+const showList=async()=>{await context.readyAsync();mode='ready';data=rows;copyMode='success';context.openAccountDialog();if(context.getState().accountAssets)context.closeAccount();context.openAccountAssets();await wait(()=>host.querySelectorAll('.bis-asset-row').length===24&&!host.querySelector('.bis-pending-dialog'));};
 document.getElementById('list')!.onclick=()=>void showList();
 document.getElementById('short')!.onclick=()=>{const short=host.style.height==='360px';host.style.width=short?'360px':'280px';host.style.height=short?'640px':'360px';};
 document.getElementById('run')!.onclick=async()=>{
   result.textContent='Running';
   try {
-    await context.ready();context.openAccountDialog();await tick();
+    await context.readyAsync();context.openAccountDialog();await tick();
     button('Accounts Details').click();await tick();
     const menu=[...host.querySelectorAll('button')].map(b=>b.textContent);check(menu.includes('Assets'),'Assets is available from account details');
     const before=reads;await showList();check(reads===before+1,'one entry read');
@@ -83,7 +83,8 @@ document.getElementById('run')!.onclick=async()=>{
     data=rows.filter((_,i)=>i!==1);await context.refreshAssets();await wait(()=>host.querySelector('h2')?.textContent==='Assets');check(host.textContent?.includes('Asset is no longer'),'removed notice');await new Promise(requestAnimationFrame);check(document.activeElement===host.querySelector('h2'),'removed asset heading focus');
     data=[];await context.refreshAssets();await tick();check(!host.textContent?.includes('No assets found.'),'no empty message');
     const emptyList=host.querySelector<HTMLElement>('.bis-asset-list')!;check(emptyList && !emptyList.children.length && emptyList.clientHeight>0 && getComputedStyle(emptyList).overflowY==='scroll','empty asset list retains space and scrollbar');
-    check(button('Copy Assets').disabled,'empty asset copy disabled');
+    check(!button('Copy Assets').disabled,'empty asset copy remains enabled');
+    button('Copy Assets').click();await tick();check(copied==='','empty asset copy writes the current empty field');
     data=[rows[22],{...rows[23],name:'<img src=x onerror=alert(1)>'}];await context.refreshAssets();await tick();check(host.textContent?.includes('1 base units'),'missing decimals base units');host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Copy Asset details').click();await tick();check(copied.includes('Decimals: Not provided')&&copied.includes('Source operation ID: Not available'),'missing fields and unavailable provenance copied');check(!host.querySelector('img'),'asset detail never shows an icon');
     button('Back').click();await tick();button('Back').click();await tick();button('Transactions').click();await wait(()=>!!host.querySelector('.bis-transaction-row'));check(host.querySelector('h2')?.textContent==='Transactions','Transactions heading');host.querySelector<HTMLButtonElement>('.bis-transaction-row')!.click();await wait(()=>host.querySelector('h2')?.textContent==='Transaction Detail');button('Back').click();await tick();button('Back').click();await tick();
     await showList();const state=context.getState();await context.listAssets();check(context.getState()===state,'headless listing leaves runtime unchanged');

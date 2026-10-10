@@ -24,9 +24,7 @@ export function RecoveryPhrasePanel({ phrase, session, disabled }: { phrase?: st
   useLayoutEffect(() => { setVisibleSession(undefined); }, [session]);
   const copy = useClipboardCopy(() => phrase?.trim().split(/\s+/).join(' '), session, disabled);
   return <>
-    <SeedWordsHeading spread shown={shown} onToggle={() => setVisibleSession(shown ? undefined : session)} action={<CopyButton label="Seed words" copied={copy.hasCopied} disabled={disabled} onClick={() => void copy.copy()} />}>
-      <span className="bis-sr-only" role="status">{copy.status === 'copied' ? 'Copied to clipboard.' : ''}</span>
-    </SeedWordsHeading>
+    <SeedWordsHeading spread shown={shown} onToggle={() => setVisibleSession(shown ? undefined : session)} action={<CopyButton label="Seed words" copied={copy.hasCopied} disabled={disabled} onClick={() => void copy.copy()} />} />
     {copy.status === 'failed' && <span className="bis-copy-status" role="status">Could not copy. Try again or copy the words manually.</span>}
     <ReadOnlyRecoveryWords phrase={phrase} shown={shown} />
   </>;

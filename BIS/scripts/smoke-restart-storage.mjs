@@ -9,19 +9,19 @@ const result=await page.evaluate(async(sourceRoot)=>{
  const aStore=createAccountStorage(),bStore=createAccountStorage();
  const account={phrase:'synthetic-storage-test-only',profileId:'fixture-public-a'};
  const make=store=>createContext(store,async()=>account,async()=>account.profileId);
- const a=make(aStore),b=make(bStore);await Promise.all([a.ready(),b.ready()]);
+ const a=make(aStore),b=make(bStore);await Promise.all([a.readyAsync(),b.readyAsync()]);
  await aStore.save(account,(await aStore.load()).generation,new AbortController().signal);
  // New contexts hydrate the saved synthetic record; no SDK or real recovery material is used.
- a.dispose();b.dispose();const c=make(aStore),d=make(bStore);await Promise.all([c.ready(),d.ready()]);
+ a.dispose();b.dispose();const c=make(aStore),d=make(bStore);await Promise.all([c.readyAsync(),d.readyAsync()]);
  const events=[],other=[];c.onEvent(e=>events.push({type:e.type,id:e.type==='restartRequested'?e.logoutId:null,hasProfile:c.getState().hasProfile}));d.onEvent(e=>other.push({type:e.type,id:e.type==='restartRequested'?e.logoutId:null,hasProfile:d.getState().hasProfile}));
  localStorage.setItem('other-app','keep');sessionStorage.setItem('other-app','keep');
  c.openAccountDialog();c.openLogoutConfirmation();c.setLogoutBackupAcknowledged(true);await c.confirmLogout();
  for(let i=0;i<100&&!other.some(e=>e.type==='restartRequested');i++)await new Promise(r=>setTimeout(r,20));
- const record=await aStore.load();const fresh=make(createAccountStorage());await fresh.ready();const absent=!fresh.getState().hasProfile;fresh.dispose();
+ const record=await aStore.load();const fresh=make(createAccountStorage());await fresh.readyAsync();const absent=!fresh.getState().hasProfile;fresh.dispose();
  const channel=new BroadcastChannel('bis-account-signet-v1');channel.postMessage({type:'logout',...record.logout});await new Promise(r=>setTimeout(r,100));
  const counts=[events.length,other.length];
  // Restore a synthetic profile and deliver the old notification again.
- await aStore.save(account,record.generation,new AbortController().signal);await d.ready();
+ await aStore.save(account,record.generation,new AbortController().signal);await d.readyAsync();
  sessionStorage.setItem('bis.integration-demo.preview-scale','keep-new');channel.postMessage({type:'logout',...record.logout});await new Promise(r=>setTimeout(r,100));
  const preserved=(await aStore.load()).account?.profileId===account.profileId && sessionStorage.getItem('bis.integration-demo.preview-scale')==='keep-new';
  const unrelated=localStorage.getItem('other-app')==='keep'&&sessionStorage.getItem('other-app')==='keep';

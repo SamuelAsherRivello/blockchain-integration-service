@@ -18,7 +18,7 @@ test('one Vite server serves package applications, resources, and linked READMEs
     return response.text();
   }
 
-  for (const [path, title] of [['/admin/', 'BIS Admin'], ['/marketplace/', 'BIS Marketplace'], ['/onboarding/', 'BIS Onboarding - Spike']]) {
+  for (const [path, title] of [['/admin/', 'BIS Admin'], ['/marketplace/', 'BIS Marketplace'], ['/onboarding/', 'BIS Onboarding - Spike'], ['/prototype-faucet/', 'BIS Prototype Faucet']]) {
     const html = await get(path);
     assert.ok(html.includes(`<title>${title}</title>`));
     const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1]);

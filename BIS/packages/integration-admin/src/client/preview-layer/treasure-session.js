@@ -33,7 +33,7 @@ export function createTreasureSession({ context, offers, gameWallet, now = Date.
     const current = generation;
     reading = true;
     try {
-      const result = await offers.checkContracts({purpose:'treasureLTO',sessionId:session.id,hostReference:session.reference,gameId:session.gameId,includeResolved:true});
+      const result = await offers.checkContractsAsync({purpose:'treasureLTO',sessionId:session.id,hostReference:session.reference,gameId:session.gameId,includeResolved:true});
       if (current !== generation || !session) return;
       if (result.status !== 'ready') { session.status = 'unavailable'; publish(); return; }
       const contract = result.contracts.find(matches);

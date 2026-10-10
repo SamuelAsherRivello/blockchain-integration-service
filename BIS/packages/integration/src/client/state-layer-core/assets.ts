@@ -1,4 +1,5 @@
-export type BisAssetMetadataValue = string | number | boolean | null;
+export type BisAttributeDelta = Readonly<{bisAttribute: string; bisAttributeDelta: number}>;
+export type BisAssetMetadataValue = string | number | boolean | null | readonly BisAttributeDelta[];
 export type BisAssetMetadata = Readonly<Record<string, BisAssetMetadataValue>>;
 import type { TestNetwork } from './test-network.ts';
 export type BisAsset = Readonly<{ assetId: string; name?: string; ticker?: string; quantity: string; decimals?: number; iconUrl?: string; metadata?: BisAssetMetadata; sourceOperationId?: string; sourceTransactionId?: string }>;
@@ -40,9 +41,22 @@ export function decodeListedMetadataValue(value: unknown): unknown {
     return value;
   }
 }
-function metadataValue(value: unknown): value is BisAssetMetadataValue {
-  return value === null || typeof value === 'string' || typeof value === 'boolean'
-    || (typeof value === 'number' && Number.isFinite(value) && Number.isSafeInteger(value));
+function metadataValue(value: unknown, key?: string): value is BisAssetMetadataValue {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean'
+    || (typeof value === 'number' && Number.isFinite(value) && Number.isSafeInteger(value))) return true;
+  if (key !== 'bisAttributeDeltas' || !Array.isArray(value) || value.length > 16) return false;
+  const attributes = new Set<string>();
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+    const keys = Object.keys(entry);
+    if (keys.some(entryKey => !['bisAttribute', 'bisAttributeDelta'].includes(entryKey))) return false;
+    if (typeof entry.bisAttribute !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(entry.bisAttribute)
+      || attributes.has(entry.bisAttribute)) return false;
+    if (entry.bisAttributeDelta !== undefined
+      && (typeof entry.bisAttributeDelta !== 'number' || !Number.isFinite(entry.bisAttributeDelta) || !Number.isSafeInteger(entry.bisAttributeDelta) || entry.bisAttributeDelta < -100 || entry.bisAttributeDelta > 100)) return false;
+    attributes.add(entry.bisAttribute);
+  }
+  return true;
 }
 export function normalizeAssetMetadata(input: unknown, mode: 'mint' | 'list' = 'mint'): BisAssetMetadata | undefined {
   if (input === undefined) return;
@@ -57,11 +71,17 @@ export function normalizeAssetMetadata(input: unknown, mode: 'mint' | 'list' = '
       if (mode === 'mint') throw new AssetError('invalid-input');
       continue;
     }
-    if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(key) || ['__proto__','prototype','constructor'].includes(key) || !metadataValue(value) || (typeof value === 'string' && value.length > 2048)) {
+    if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(key) || ['__proto__','prototype','constructor'].includes(key) || !metadataValue(value, key) || (typeof value === 'string' && value.length > 2048)) {
       if (mode === 'mint') throw new AssetError('invalid-input');
       continue;
     }
-    entries.push([key,value]);
+    if (key === 'bisAttributeDeltas') {
+      const deltas = (value as readonly BisAttributeDelta[]).map(delta => Object.freeze({
+        bisAttribute: delta.bisAttribute,
+        bisAttributeDelta: delta.bisAttributeDelta ?? 0,
+      }));
+      entries.push([key, Object.freeze(deltas)]);
+    } else entries.push([key,value]);
   }
   entries.sort(([a],[b])=>a.localeCompare(b));
   if (!entries.length) return;

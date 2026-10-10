@@ -12,7 +12,7 @@ const observer=async(_account:unknown,signal:AbortSignal,callback:typeof publish
 const account={profileId:'fixture',phrase:'not-a-wallet'};
 const context=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>hold?new Promise(resolve=>reads.push(()=>resolve(amounts()))):amounts(),undefined,undefined,observer,undefined,undefined,undefined,undefined,undefined,{},observer);
 const ui=createBisUi(context);ui.mount(document.getElementById('preview')!);
-await context.ready();context.openAccountDialog();context.openAccountDetails();
+await context.readyAsync();context.openAccountDialog();context.openAccountDetails();
 document.getElementById('pending')!.onclick=()=>{hold=true;rows=[{id:'test-receipt',identifier:'ark:test-receipt',amountSats:1000,direction:'Incoming',status:'Pending offchain'}];publish(rows);};
 document.getElementById('verify')!.onclick=()=>{rows=rows.map(row=>({...row,receiptVerified:true}));publish(rows);};
 document.getElementById('release')!.onclick=()=>{hold=false;reads.splice(0).forEach(release=>release());};

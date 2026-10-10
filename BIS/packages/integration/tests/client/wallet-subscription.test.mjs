@@ -10,7 +10,7 @@ test('new Arkade receipt shows one Balance loading cycle and settlement refreshe
  const s=setup(async()=>hold?new Promise(r=>release=()=>r(amounts)):amounts);
  const states=[];
  try {
- await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
  s.c.subscribe(()=>states.push(s.c.getState().balance.status));
  hold=true;s.emit([receipt()]);await tick();
  assert.deepEqual(s.c.getState().balance,{status:'loading'});
@@ -24,12 +24,12 @@ test('new Arkade receipt shows one Balance loading cycle and settlement refreshe
 });
 test('receipt read failure is bounded and clears prior amounts',async()=>{
  let fail=false,attempts=0;const s=setup(async()=>{if(fail){attempts++;throw Error('offline');}return {availableSats:2,totalSats:2,bitcoinSats:0,arkadeSats:2};});
- try{await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ try{await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
  fail=true;s.emit([receipt()]);await tick();assert.equal(attempts,2);assert.deepEqual(s.c.getState().balance,{status:'unavailable'});
  }finally{s.c.dispose();}
 });
 test('receipt with Balance closed queues both toasts without opening Balance',async()=>{
- const s=setup();try{await s.c.ready();await tick();const view=s.c.getState().view;
+ const s=setup();try{await s.c.readyAsync();await tick();const view=s.c.getState().view;
  s.emit([{...receipt(),receiptVerified:true}]);await tick();
  const queue=getControls(s.c).toasts;assert.match(queue.getSnapshot().message,/\(Pending\)$/);queue.complete(queue.getSnapshot().id);
  assert.match(queue.getSnapshot().message,/\(Confirmed\)$/);assert.equal(s.c.getState().view,view);assert.equal(s.c.getState().accountDetails,false);
@@ -38,7 +38,7 @@ test('receipt with Balance closed queues both toasts without opening Balance',as
 test('independent receipt invalidates a held read without interrupting the loading cycle',async()=>{
  let hold=false;const pending=[];const values=n=>({availableSats:n,totalSats:n,bitcoinSats:0,arkadeSats:n});
  const s=setup(async()=>hold?new Promise(r=>pending.push(r)):values(2000));
- try{await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ try{await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
  hold=true;s.emit([receipt()]);await tick();
  s.emit([receipt(),{...receipt(),id:'other',identifier:'ark:other'}]);await tick();
  assert.equal(s.c.getState().balance.status,'loading');assert.equal(pending.length,2);
@@ -56,7 +56,7 @@ function setup(readBalance) {
 }
 test('shared wallet observation updates outgoing balance without a receipt toast',async()=>{
  const s=setup();try{
- await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
  assert.equal(s.c.getState().balance.arkadeSats,2000);
  s.emit([{id:'out',identifier:'ark:out',amountSats:1000,direction:'Outgoing',status:'Settled offchain'}],1000);await tick();
  assert.equal(s.c.getState().balance.arkadeSats,1000);assert.equal(getControls(s.c).toasts.getSnapshot(),null);
@@ -67,7 +67,7 @@ test('failed background reconciliation clears the displayed balance',async()=>{
  let offline=false;
  const s=setup(async()=>{if(offline)throw Error('offline');return {availableSats:2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000};});
  try {
- await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
  offline=true;s.emit([]);await tick();
  assert.deepEqual(s.c.getState().balance,{status:'unavailable'});
  }finally{s.c.dispose();}
@@ -78,7 +78,7 @@ test('a pre-change balance read cannot overwrite the replacement read',async()=>
  const amounts=sats=>({availableSats:sats,totalSats:sats,bitcoinSats:0,arkadeSats:sats});
  const s=setup(async(a,signal)=>{reads++;if(reads===1){oldSignal=signal;return new Promise(r=>release=()=>r(amounts(2000)));}return amounts(1000);});
  try {
- await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
+ await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
  s.emit([]);await tick();assert.equal(oldSignal.aborted,true);assert.equal(s.c.getState().balance.arkadeSats,1000);
  release();await tick();assert.equal(s.c.getState().balance.arkadeSats,1000);
  }finally{s.c.dispose();}
@@ -86,7 +86,7 @@ test('a pre-change balance read cannot overwrite the replacement read',async()=>
 
 test('manual Activity refresh requests a new source and later confirmations use that source',async()=>{
  const s=setup();try {
- await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountActivity();await tick();
+ await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountActivity();await tick();
  const old=s.sources[0];void s.c.refreshActivity();await tick();assert.equal(old.signal.aborted,true);assert.equal(s.sources.length,2);
  const row={id:'deposit',identifier:'tx:0',amountSats:100,direction:'Incoming',status:'Pending',bitcoin:{txid:'tx',confirmations:0}};
  s.emit([row]);await tick();assert.equal(s.c.getState().activity.transactions[0].status,'Pending');
@@ -96,7 +96,7 @@ test('manual Activity refresh requests a new source and later confirmations use 
 });
 test('one retained source serves Activity navigation and rejects old-account callbacks',async()=>{
  const s=setup();try{
- await s.c.ready();await tick();assert.equal(s.sources.length,1);
+ await s.c.readyAsync();await tick();assert.equal(s.sources.length,1);
  s.c.openAccountDialog();s.c.openAccountActivity();await tick();assert.equal(s.sources.length,1);
  s.c.closeAccount();s.c.openAccountActivity();await tick();assert.equal(s.sources.length,1);
  const old=s.sources[0];s.replace();await tick();await tick();assert.equal(old.signal.aborted,true);
@@ -106,7 +106,7 @@ test('one retained source serves Activity navigation and rejects old-account cal
 });
 test('periodic activity observations do not poll assets; explicit refresh remains available',async()=>{
  const s=setup();try{
- await s.c.ready();await tick();s.c.openAccountDialog();s.c.openAccountAssets();await tick();
+ await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountAssets();await tick();
  assert.deepEqual(s.c.getState().assets.assets,[]);
  s.emit([],2000,[{assetId:'asset',quantity:'3'}]);await tick();
  assert.deepEqual(s.c.getState().assets.assets,[]);
@@ -123,7 +123,7 @@ test('background reconnect restores visible Activity and does not replay receipt
  const account={profileId:'retry',phrase:'fixture-only'};
  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,observer,undefined,undefined,undefined,undefined,undefined,{},observer);
  try {
- await c.ready();await tick();c.openAccountDialog();c.openAccountActivity();await tick();assert.equal(starts,1);
+ await c.readyAsync();await tick();c.openAccountDialog();c.openAccountActivity();await tick();assert.equal(starts,1);
  fail(Error('offline'));await tick();assert.equal(c.getState().activity.status,'unavailable');
  t.mock.timers.tick(10000);await tick();await tick();assert.equal(starts,2);assert.equal(c.getState().activity.status,'ready');
  assert.equal(getControls(c).toasts.getSnapshot(),null);

@@ -5,24 +5,27 @@ import { useClipboardCopy } from './useClipboardCopy';
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 type NoticeInfo = {title:string;message:string;confirm?:()=>void};
-type Notice = { label: string; host?: true; error?: string; info?:NoticeInfo; dismiss(): void };
+type Notice = { label: string; host?: true; error?: string; info?:NoticeInfo; errorAction?: {label:string;run:()=>void}; dismiss(): void };
 type Register = (id: string, notice?: Notice) => void;
 export type HostLoading = Readonly<{subscribe(listener: () => void): () => void; getSnapshot(): boolean}>;
 const PendingContext = createContext<Register | undefined>(undefined);
 // Temporary bolt pivot preview: set false to restore normal loading behavior.
 const PREVIEW_LOADING_FOREVER = false;
+const PENDING_NOTICE_GAP_GRACE_MS = 250;
 
 /** Child layout effects publish before paint, including the initial page render. */
-export function usePendingNotice(busy: boolean, label: string, error: string | undefined, dismiss: () => void, info?:NoticeInfo) {
+export function usePendingNotice(busy: boolean, label: string, error: string | undefined, dismiss: () => void, info?:NoticeInfo, errorAction?: {label:string;run:()=>void}) {
   const register = useContext(PendingContext);
   const id = useId();
   const action = useRef(dismiss); action.current = dismiss;
   const confirmation=useRef(info?.confirm);confirmation.current=info?.confirm;
   const infoTitle=info?.title,infoMessage=info?.message,hasConfirmation=!!info?.confirm;
+  const errorActionRun=useRef(errorAction?.run);errorActionRun.current=errorAction?.run;
+  const errorActionLabel=errorAction?.label;
   useLayoutEffect(() => {
-    register?.(id, busy || error || infoTitle ? {label, error: busy ? undefined : error, info:!busy&&infoTitle?{title:infoTitle,message:infoMessage!,...(hasConfirmation?{confirm:()=>confirmation.current?.()}:{})}:undefined, dismiss:()=>action.current()} : undefined);
-    return () => register?.(id);
-  }, [register, id, busy, label, error,infoTitle,infoMessage,hasConfirmation]);
+    register?.(id, busy || error || infoTitle ? {label, error: busy ? undefined : error, errorAction:!busy&&error&&errorActionLabel?{label:errorActionLabel,run:()=>errorActionRun.current?.()}:undefined, info:!busy&&infoTitle?{title:infoTitle,message:infoMessage!,...(hasConfirmation?{confirm:()=>confirmation.current?.()}:{})}:undefined, dismiss:()=>action.current()} : undefined);
+  }, [register, id, busy, label, error,infoTitle,infoMessage,hasConfirmation,errorActionLabel]);
+  useLayoutEffect(() => () => register?.(id), [register, id]);
 }
 
 /** A host-local modal: document-level showModal would also disable the Admin panel. */
@@ -49,7 +52,7 @@ export function PendingOperations({children, overlay, className, hostLoading, on
   const [retained,setRetained]=useState<{notice:Notice;label:string}|undefined>();
   useLayoutEffect(()=>{
     if(active){setRetained({notice:active,label:label.current});return;}
-    const timeout=window.setTimeout(()=>setRetained(undefined),100);
+    const timeout=window.setTimeout(()=>setRetained(undefined),PENDING_NOTICE_GAP_GRACE_MS);
     return ()=>window.clearTimeout(timeout);
   },[active]);
   const current=active ?? retained?.notice;
@@ -77,7 +80,7 @@ export function PendingOperations({children, overlay, className, hostLoading, on
   return <PendingContext.Provider value={register}>
     <div ref={runtime} className={`bis-runtime${className?` ${className}`:''}`}>
       <div ref={content} className="bis-runtime-content" inert={open} aria-hidden={open || undefined} aria-busy={!!pending}>{children}</div>
-      {current && <div className="bis-pending-backdrop" data-closing={!active || undefined} onKeyDown={event=>{
+      {current && <div className="bis-pending-backdrop" data-closing={!active && !retained || undefined} onKeyDown={event=>{
         if(event.key==='Escape'){event.preventDefault();event.stopPropagation();}
         if(event.key==='Tab'){
           const buttons=[...dialog.current!.querySelectorAll('button')];
@@ -91,7 +94,7 @@ export function PendingOperations({children, overlay, className, hostLoading, on
           {failed ? <><div className="bis-pending-error-field">
               <CopyFieldLabel label="Message" copied={errorCopy.status === 'copied'} disabled={errorCopy.status === 'copying'} onCopy={()=>void errorCopy.copy()} />
               <div id={description} className="bis-pending-error-value" role="textbox" aria-readonly="true" tabIndex={0}>{current.error}</div>
-            </div><button className="bis-button" onClick={()=>current.dismiss()}>OK</button></>
+            </div><button className="bis-button" onClick={()=>current.errorAction?.run() ?? current.dismiss()}>{current.errorAction?.label ?? 'OK'}</button></>
             : current.info ? <><p id={description}>{current.info.message}</p>{current.info.confirm ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.info.confirm}>Yes</button><button className="bis-button" onClick={current.dismiss}>Cancel</button></div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
             : <span className="bis-bolt bis-bolt-spin bis-lightning" aria-hidden="true">⚡</span>}
         </div>

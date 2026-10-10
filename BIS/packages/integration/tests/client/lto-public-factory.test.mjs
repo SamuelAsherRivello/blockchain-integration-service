@@ -57,7 +57,7 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
     const rollback=createBisLto({context,gameWallet,creationEnabled:false});
     await idle();
     assert.equal((await rollback.start(request('disabled'))).status,'unavailable');await idle();
-    assert.equal((await rollback.checkContracts()).contracts.length,1);
+    assert.equal((await rollback.checkContractsAsync()).contracts.length,1);
     await rollback.endSession('refund');await settled(second.contract.id,'refunded');
     assert.deepEqual(calls,['fund','claim','fund','refund']);
     assert.ok(toasts.some(message=>message.includes('claim confirmed')));

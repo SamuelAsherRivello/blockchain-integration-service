@@ -133,7 +133,7 @@ Stories are sized to be completed independently. A.P.1 covers entry; A.P.2 owns 
 
 Based on [the original brief](BGS_PROJECT_BRIEF.md), especially sections 4, 5, 7, 8, and 14, and [confirmed design decisions](design-discussion.md).
 
-These diagrams include implemented and planned user journeys. Use the current implementation table and each story’s status for delivery evidence; unmarked stories may be partly implemented. A.P.2 real stored-data reset verification and the separately listed financial acceptance gates remain pending. A.P.4, E.P.1, and A.P.5 are complete. The precise current game API is the [two-contract deep dive](deep-dive.md), not the historical/proposed pseudo-API labels in journey diagrams below.
+These diagrams include implemented and planned user journeys. Use the current implementation table and each story’s status for delivery evidence; unmarked stories may be partly implemented. A.P.2 real stored-data reset verification and the separately listed financial acceptance gates remain pending. A.P.4, E.P.1, and A.P.5 are complete. The precise current game API is the [Deep Dive Overview](deep-dive-overview.md), with the detailed contract reference in [Deep Dive Details](deep-dive-details.md), not the historical/proposed pseudo-API labels in journey diagrams below.
 
 Game hosts consume `IBis`, implemented by `BisService`, and provide all five `IBisGame` callbacks. Account entry uses `openAccountDialog`; state, dismissal and restart arrive through `onBisEvent`. Continue uses begin/pay/check/end commands with a captured run/target; trophy collection uses begin/refresh/collect/check/acknowledge/end reward commands. Equipment uses refresh/select/clear commands, and contract recovery publishes copied snapshots without game UI polling. Financial confirmation is separate from the game effect receipt. Context/UI/controller references below describe internal BIS or supported non-game Admin composition, not promoted game backdoors.
 
@@ -605,7 +605,7 @@ Status: complete for the delivered feature; user confirmed it works on 2026-09-0
 - Claimed/refunded offers leave the active list only after verified resolution. Related financial activity remains in Transactions. Reload or returning to the menu must retain enough state to reconcile unresolved operations without duplicate submission.
 - Actions: role-eligible Claim/Reject in player Contract Details and Refund for the game wallet, using the same generic production operations as the game. The BIS demo may simulate host gameplay events; the game start menu contains no debugging controls or offer information.
 - No generic Burn action. "Burn" in the interview means end/refund the agreement, not destroy sats or delete an unresolved record. The cooperative early-cancellation path uses the shared refund controller. UI actions cannot bypass the actual contract paths.
-- The public query is `checkContracts()`: it reads saved contract state without signing; the service separately reconciles provider evidence. Cleanup is a separate idempotent operation. BIS understands generic LTOs; the game matches its exact saved contract/session reference and ignores unrelated LTOs and other contract types.
+- The public query is `checkContractsAsync()`: it reads saved contract state without signing; the service separately reconciles provider evidence. Cleanup is a separate idempotent operation. BIS understands generic LTOs; the game matches its exact saved contract/session reference and ignores unrelated LTOs and other contract types.
 
 ### D.P.2. LTO Treasure Chest ✓
 
@@ -618,7 +618,7 @@ Status: complete for the delivered feature; user confirmed it works on 2026-09-0
 [D.P.2.04] Prerequisite missing / old offer unresolved --> skip this session
 [D.P.2.05] BIS funding pending / confirmed --> non-blocking toasts
 [D.P.2.06] Chest exists at authored spawner position regardless of backend
-[D.P.2.07] Collision --> pause; game opens Treasure Chest; checkContracts
+[D.P.2.07] Collision --> pause; game opens Treasure Chest; checkContractsAsync
 [D.P.2.08] Matching active offer --> Claim / Reject
 [D.P.2.09] Action accepted --> pending toast; close prompt; resume game
 [D.P.2.10] Verified result --> confirmed toast without interrupting gameplay

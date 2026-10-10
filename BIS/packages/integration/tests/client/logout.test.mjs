@@ -25,7 +25,7 @@ function fixture() {
   return { storage, make, notify, clears: () => clears, replace(next) { generation++; account = next; notify(); } };
 }
 async function confirm(context) {
-  await context.ready(); context.openAccountDialog(); context.openLogoutConfirmation();
+  await context.readyAsync(); context.openAccountDialog(); context.openLogoutConfirmation();
   context.setLogoutBackupAcknowledged(true);
 }
 
@@ -56,7 +56,7 @@ test('active Game Wallet needs an explicit third acknowledgement and is reset be
 });
 
 test('logout requires acknowledgement, cancels, resets checkbox and preserves host destination', async () => {
-  const f = fixture(), c = f.make(); await c.ready(); getControls(c).present(); c.openAccountDialog();
+  const f = fixture(), c = f.make(); await c.readyAsync(); getControls(c).present(); c.openAccountDialog();
   c.openLogoutConfirmation(); await c.confirmLogout(); assert.equal(f.clears(), 0);
   c.setLogoutBackupAcknowledged(true); c.cancelLogout(); assert.equal(c.getState().phase, 'active');
   c.openLogoutConfirmation(); assert.equal(c.getState().logoutBackupAcknowledged, false);
@@ -64,7 +64,7 @@ test('logout requires acknowledgement, cancels, resets checkbox and preserves ho
   c.setLogoutBackupAcknowledged(true); await c.confirmLogout();
   assert.equal(c.getState().hasProfile, false); assert.equal(c.getState().view, 'account-button');
   c.closeAccount(); assert.equal(c.getState().view, 'account-button');
-  const reload = f.make(); await reload.ready(); assert.equal(reload.getState().hasProfile, false);
+  const reload = f.make(); await reload.readyAsync(); assert.equal(reload.getState().hasProfile, false);
   c.dispose(); reload.dispose();
 });
 
@@ -97,7 +97,7 @@ test('duplicate submission and cancellation cannot interrupt pending logout', as
 
 test('replacement account invalidates old confirmation and its acknowledgement', async () => {
   const f = fixture(), c = f.make(); await confirm(c);
-  f.replace({ phrase: 'test-double-b', profileId: 'profile-b' }); await c.ready();
+  f.replace({ phrase: 'test-double-b', profileId: 'profile-b' }); await c.readyAsync();
   await c.confirmLogout(); assert.equal(f.clears(), 0); assert.equal(c.getState().profileId, 'profile-b');
   c.openLogoutConfirmation(); assert.equal(c.getState().logoutBackupAcknowledged, false); c.dispose();
 });
@@ -111,9 +111,9 @@ test('replacement during failed logout is not cleared by Retry', async () => {
 
 test('two contexts emit one disconnection each; empty hydration emits none', async () => {
   const f = fixture(), a = f.make(), b = f.make(), ae = [], be = [];
-  a.onEvent(e => ae.push(e)); b.onEvent(e => be.push(e)); await b.ready(); await confirm(a); await a.confirmLogout(); await b.ready();
-  f.notify(); await b.ready(); assert.equal(ae.length, 1); assert.equal(be.length, 1);
-  const empty = f.make(), ee = []; empty.onEvent(e => ee.push(e)); await empty.ready(); assert.equal(ee.length, 0);
+  a.onEvent(e => ae.push(e)); b.onEvent(e => be.push(e)); await b.readyAsync(); await confirm(a); await a.confirmLogout(); await b.readyAsync();
+  f.notify(); await b.readyAsync(); assert.equal(ae.length, 1); assert.equal(be.length, 1);
+  const empty = f.make(), ee = []; empty.onEvent(e => ee.push(e)); await empty.readyAsync(); assert.equal(ee.length, 0);
   a.dispose(); b.dispose(); empty.dispose();
 });
 
@@ -153,7 +153,7 @@ test('successful logout never publishes a create/restore dialog, including recon
   for (const presented of [false, true]) for (const ambiguous of [false, true]) {
     const f = fixture(), c = f.make(), reset = f.storage.reset;
     if (ambiguous) f.storage.reset = async (...args) => { await reset(...args); throw Error('after commit'); };
-    await c.ready();
+    await c.readyAsync();
     if (presented) getControls(c).present();
     await confirm(c);
     const states = [];
@@ -179,7 +179,7 @@ test('pending operations require the second checkbox before logout', async () =>
     c.setLogoutPendingAcknowledged(true);
     c.setLogoutPendingAcknowledged(false);
     await c.confirmLogout();assert.equal(f.clears(),0);
-    c.cancelLogout();await c.ready();
+    c.cancelLogout();await c.readyAsync();
     c.openLogoutConfirmation();assert.equal(c.getState().logoutPendingAcknowledged,false);
     c.setLogoutBackupAcknowledged(true);c.setLogoutPendingAcknowledged(true);
     await c.confirmLogout();assert.equal(f.clears(),1);

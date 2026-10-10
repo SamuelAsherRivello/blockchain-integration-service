@@ -94,6 +94,18 @@ test('A.G.3 Details exposes separate Bitcoin and Arkade funding details', async 
   assert.match(source, /<button disabled=\{busy \|\| !state\.profileId\} onClick=\{\(\) => void details\(\)\}>Details<\/button>/);
 });
 
+test('Game Wallet browser fixture covers unavailable-read recovery and safe category output', async () => {
+  const fixture = await readFile(new URL('./game-wallet-panel-host.tsx', import.meta.url), 'utf8');
+  const playerFixture = await readFile(new URL('./balance-host.tsx', import.meta.url), 'utf8');
+  assert.match(playerFixture, /fail=true/);
+  assert.match(playerFixture, /no stale values/);
+  assert.match(fixture, /status: 'unavailable'/);
+  assert.match(fixture, /Game wallet reads unavailable\. Use Details to retry\./);
+  assert.match(fixture, /readStatus: 'wallet-read'/);
+  assert.match(fixture, /button\('Details'\)\.click\(\)/);
+  assert.match(fixture, /report\.readCategory !== undefined/);
+});
+
 test('Admin renders implemented asset stories and omits empty categories', async () => {
     const AdminPanel = await loadAdmin();
     const unexpected = () => { throw Error('Rendering must not invoke an action'); };

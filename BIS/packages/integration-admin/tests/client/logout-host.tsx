@@ -43,7 +43,7 @@ await tick();
 const targets=plainOnly?[document.getElementById('plain')!]:[previewRef.current!,document.getElementById('plain')!];
 const fixtures=targets.map(target=>{
   const f=fixture(); const ui=createBisUi(f.context);ui.mount(target);
-  void f.context.ready().then(()=>{ui.showAccountButton();f.context.openAccountDialog();});
+  void f.context.readyAsync().then(()=>{ui.showAccountButton();f.context.openAccountDialog();});
   return f;
 });
 const button=(target:HTMLElement,name:string)=>[...target.querySelectorAll('button')].find(b=>b.textContent?.trim()===name)!;

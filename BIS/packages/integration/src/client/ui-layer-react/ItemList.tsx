@@ -25,12 +25,11 @@ export function ItemList(props:ItemListProps) { return <ItemListFrame {...props}
 export function ItemListDetail(props:ItemListProps) { return <ItemListFrame {...props} mode="detail"/>; }
 function ItemListFrame({title,body,fieldLabel,report,items,detail,notice,actions,overlay,onBack,backDisabled=false,loading=false,network,listLabel,onRefresh,refreshDisabled=false,listRef,onScroll,mode}: ItemListProps & {mode:'list'|'detail'}) {
   const heading=useRef<HTMLHeadingElement>(null);
-  const copy=useClipboardCopy(()=>report,report,loading);
+  const copy=useClipboardCopy(()=>report,report);
   useLayoutEffect(()=>{heading.current?.focus();},[title]);
   return <AccountCard network={network} title={title} description={body} headingRef={heading} headingActions={<IconButton className="bis-title-icon" label={`Refresh ${title}`} disabled={loading||refreshDisabled} onClick={()=>void onRefresh()}><span className="bis-refresh-image" aria-hidden="true" /></IconButton>} className={` bis-card-collection ${mode==='list'?'bis-item-list':'bis-item-list-detail'}`}>
     <div className="bis-collection" aria-busy={loading}>
-      <CopyFieldLabel label={fieldLabel} copied={copy.status==='copied'} disabled={!report||loading||copy.status==='copying'} onCopy={()=>void copy.copy()} />
-      <span className="bis-sr-only" role="status">{copy.status==='copied'?`${fieldLabel} copied.`:''}</span>
+      <CopyFieldLabel label={fieldLabel} copied={copy.status==='copied'} onCopy={()=>void copy.copy()} />
       {copy.status==='failed'&&<><p role="status">Could not copy. Select the text below and copy it manually.</p><ReportTextArea aria-label={`${fieldLabel} for manual copy`} rows={3} value={report}/></>}
       {mode==='detail' ? <div className="bis-collection-scroll bis-collection-detail">{detail}{notice}</div> : <ul ref={listRef} onScroll={onScroll} className="bis-collection-scroll bis-collection-list" aria-label={listLabel}>
         {items.map(item=><li key={item.id}><button ref={item.buttonRef} type="button" className="bis-collection-item" aria-pressed={item.selected} onClick={item.onSelect}>{item.content}</button></li>)}

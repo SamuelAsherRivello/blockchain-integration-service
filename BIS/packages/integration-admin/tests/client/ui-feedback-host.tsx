@@ -7,7 +7,7 @@ async function open(screen: 'setup'|'saved'|'restore'|'account') {
   stop(); const account=screen==='saved'||screen==='account'?identity:null;
   const context=createContext({load:async()=>({generation:0,account}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},async()=>identity,async()=>identity.profileId,undefined,async()=>({availableSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}));
   const ui=createBisUi(context);ui.mount(document.getElementById('host')!);stop=()=>{ui.unmount();context.dispose();};
-  await context.ready();context.openAccountDialog();
+  await context.readyAsync();context.openAccountDialog();
   if(screen==='setup')await context.createAccount();
   if(screen==='saved')context.openAccountRecovery();
   if(screen==='restore')context.openRestoreAccount();

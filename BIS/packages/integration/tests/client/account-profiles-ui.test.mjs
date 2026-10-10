@@ -25,14 +25,14 @@ test('Account UI does not expose saved profiles while preserving ordinary accoun
     const {createContext}=await server.ssrLoadModule('/BIS/packages/integration/src/client/state-layer-core/context.ts');
     const identify=async phrase=>phrase.endsWith('a') ? 'profile-a' : 'profile-b';
     const loggedOut=createContext(storage(),undefined,identify);
-    await loggedOut.ready();loggedOut.openAccountDialog();
+    await loggedOut.readyAsync();loggedOut.openAccountDialog();
     const loggedOutHtml=renderToStaticMarkup(createElement(BisView,{context:loggedOut}));
     assert.match(loggedOutHtml,/>⚡ Create Account</);assert.match(loggedOutHtml,/>⚡ Restore Account</);assert.match(loggedOutHtml,/>Back</);
     assert.doesNotMatch(loggedOutHtml,/Profiles|profile-a|profile-b|Add Profile|Active/);
     loggedOut.dispose();
 
     const active=createContext(storage('profile-a'),undefined,identify);
-    await active.ready();active.openAccountDialog();
+    await active.readyAsync();active.openAccountDialog();
     const activeHtml=renderToStaticMarkup(createElement(BisView,{context:active}));
     assert.match(activeHtml,/>Accounts Details</);assert.match(activeHtml,/>Log Out</);
     assert.doesNotMatch(activeHtml,/Profiles|profile-a|profile-b|Add Profile|Active/);

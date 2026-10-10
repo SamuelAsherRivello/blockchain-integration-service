@@ -9,11 +9,12 @@ Provide a separately retained Admin game wallet whose public addresses and live 
 ## Requirements
 
 ### Requirement: Import and retain an independent game wallet
-Admin SHALL explicitly import a game wallet through one recovery-phrase text field and retain it in encrypted browser storage independently of the player. Import SHALL NOT activate or replace the player wallet or expose secrets in public state, logs or build artifacts. Invalid input SHALL leave storage unchanged. Importing a different game wallet SHALL retain previous identities and select the imported wallet. Re-entering a saved identity SHALL select it without duplication. There SHALL be no wallet dropdown. Importing or selecting the active Player Wallet identity as the Game Wallet SHALL fail with a clear explanation before it changes game-wallet storage or active state. The same revalidation SHALL occur when a pending Game Wallet selection completes or a Player Wallet changes while Game Wallet work is in flight. Reload SHALL restore the last-selected non-conflicting Game Wallet and fetch its current balance; a detected role conflict SHALL not activate that Game Wallet or alter the Player Wallet.
+Admin SHALL explicitly import a game wallet through one recovery-phrase text field and retain it in encrypted browser storage independently of the player. Import SHALL NOT activate or replace the player wallet or expose secrets in public state, logs or build artifacts. Invalid input SHALL leave storage unchanged. Importing a different game wallet SHALL retain previous identities and select the imported wallet. Re-entering a saved identity SHALL select it without duplication. There SHALL be no wallet dropdown. Importing or selecting the active Player Wallet identity as the Game Wallet SHALL fail with a clear explanation before it changes game-wallet storage or active state. The same revalidation SHALL occur when a pending Game Wallet selection completes or a Player Wallet changes while Game Wallet work is in flight. Reload SHALL restore the last-selected non-conflicting Game Wallet and fetch its current balance using the shared bounded retry policy; a detected role conflict SHALL not activate that Game Wallet or alter the Player Wallet.
 
 #### Scenario: Import and reload
 - **WHEN** Admin imports a valid identity different from the logged-in player and reloads
 - **THEN** the game wallet remains available and the player retains its own identity
+- **AND** a transient first balance-read failure is retried before the wallet is reported unavailable
 
 #### Scenario: Player Wallet conflicts with Game Wallet import
 - **WHEN** Admin imports or selects a Game Wallet identity whose public profile ID matches the active Player Wallet
@@ -40,7 +41,7 @@ Player logout and Admin's existing player reset SHALL preserve the game wallet a
 - **THEN** Admin can observe that wallet without replacing or logging out the player
 
 ### Requirement: Inspect public addresses and fresh funds
-Admin SHALL show A.G.1. Game Wallet with buttons to its right under F. Game Wallet. A.G.1 SHALL contain Login or Logout only. Login SHALL use the existing encrypted import flow. Public wallet Details and payment-usable balance SHALL appear beside A.G.3. Details SHALL refresh and write only public wallet details, receiving addresses, balances, configured recipient and mismatch/read status into the Admin console. Logout SHALL persistently deselect without deleting retained identities or changing the player or payment recipient. A.G.3 SHALL show Balance: <payment-usable sats> sats immediately left of Details, including 0 when an unresolved wallet operation blocks spending even if the raw balance is positive. Loading and unavailable data SHALL remain distinguishable from a known zero. Details SHALL report A.G.3 Wallet Status, the payment eligibility and usable balance as well as the raw public balance. Arkade script-event notifications SHALL trigger fresh balance reads without recurring polling. Logout and wallet switching SHALL stop the previous subscription; disconnected live data SHALL be shown as unavailable. No separate Copy/Refresh buttons SHALL appear; A.G.2 provides the explicitly requested boarding action.
+Admin SHALL show A.G.1. Game Wallet with buttons to its right under F. Game Wallet. A.G.1 SHALL contain Login or Logout only. Login SHALL use the existing encrypted import flow. Public wallet Details and payment-usable balance SHALL appear beside A.G.3. Details SHALL refresh and write only public wallet details, receiving addresses, balances, configured recipient and mismatch/read status into the Admin console. Logout SHALL persistently deselect without deleting retained identities or changing the player or payment recipient. A.G.3 SHALL show Balance: <payment-usable sats> sats immediately left of Details, including 0 when an unresolved wallet operation blocks spending even if the raw balance is positive. Loading and unavailable data SHALL remain distinguishable from a known zero. Details SHALL report A.G.3 Wallet Status, the payment eligibility and usable balance as well as the raw public balance. Arkade script-event notifications SHALL trigger bounded fresh balance reads with retry and recovery; a subscription failure SHALL not erase a still-valid fresh balance without a failed replacement read. Logout and wallet switching SHALL stop the previous subscription; disconnected live data SHALL be shown as unavailable after recovery attempts are exhausted. No separate Copy/Refresh buttons SHALL appear; A.G.2 provides the explicitly requested boarding action.
 
 #### Scenario: Payment receipt is visible
 - **WHEN** an independent player pays the configured game wallet and Admin clicks Details after provider evidence is available
@@ -54,6 +55,21 @@ Admin SHALL show A.G.1. Game Wallet with buttons to its right under F. Game Wall
 #### Scenario: Manual funding preparation
 - **WHEN** the operator inspects F. Game Wallet
 - **THEN** Details makes both receiving addresses available in the Admin console for manual copying, without submitting a wallet operation
+
+#### Scenario: Transient Game Wallet read failure
+- **WHEN** a fresh address or balance read fails transiently for the selected Game Wallet
+- **THEN** BIS retries within the shared bounded policy
+- **AND** a successful retry publishes the selected wallet as ready with validated current public data
+
+#### Scenario: Retry exhaustion
+- **WHEN** all bounded Game Wallet read attempts fail or provider/indexer data is invalid or inconsistent
+- **THEN** the selected identity remains retained but its read state becomes unavailable
+- **AND** the Admin console reports unavailable rather than zero or stale balances
+
+#### Scenario: Live subscription failure with valid balance
+- **WHEN** the Game Wallet live event subscription closes after a valid balance has been read
+- **THEN** BIS attempts bounded recovery reads before replacing that balance with unavailable
+- **AND** logout or wallet switching cancels the old subscription and all recovery work
 
 ### Requirement: A.G.3 explicit boarding and live waiting state
 Admin SHALL provide A.G.2. Board Wallet with Details and Board Wallet. Details SHALL refresh and report A.G.2 Boarding Status in the Admin console without preparing or submitting a boarding payment. Board Wallet SHALL show a quote before a separate explicit confirmation submits it. Existing wallet mutation and recovery safeguards SHALL remain effective.

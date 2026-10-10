@@ -15,10 +15,12 @@ import {validateMint,assetError,AssetError,readAssetRecords,type BisListAssetsRe
 import {BurnError,validateBurn,type BisBurnAssetRequest,type BisBurnAssetResult} from './burning.ts';
 import {AssetDeliveryError,readAssetDeliveryRecord,validateAssetDelivery,type BisAssetDeliveryRequest,type BisAssetDeliveryResult,type BisPendingAssetDeliveryResult} from './asset-delivery.ts';
 import type { TestNetwork } from './test-network.ts';
+import { readWithRetry } from './pending-read.ts';
 
+export type BisGameWalletReadStatus = 'storage' | 'wallet-read' | 'observation' | 'role-conflict';
 export type BisGameWalletState = Readonly<{
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
-  profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string; selectionVersion?: number; playerConnected?: boolean; network?: TestNetwork;
+  profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string; readStatus?: BisGameWalletReadStatus; selectionVersion?: number; playerConnected?: boolean; network?: TestNetwork;
 }>;
 export function createBisGameWallet(...args:Parameters<typeof createLocalGameWallet>):ReturnType<typeof createLocalGameWallet> {
   if (args.length === 1) {
@@ -94,23 +96,41 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     if (!account) { publish({status:'empty'}); return; }
     const previous = state.profileId === account.profileId ? state : undefined;
     publish({status:'loading', profileId:account.profileId, ...(previous?.addresses ? {addresses:previous.addresses} : {}), ...(previous?.balance ? {balance:previous.balance} : {})});
-    const [addresses, balance] = await Promise.allSettled([dependencies.addresses(account, signal), dependencies.balance(account, signal)]);
+    // Address discovery is enough for read-only Marketplace inventory. Keep
+    // the balance read concurrent, but publish the address as soon as it is
+    // available instead of making inventory wait for the slower balance read.
+    const addressesTask=readWithRetry(attemptSignal => dependencies.addresses(account, attemptSignal), signal).then(value=>{
+      if (signal.aborted || disposed) return value;
+      publish({status:'loading',profileId:account.profileId,addresses:value,...(previous?.balance ? {balance:previous.balance} : {})});
+      return value;
+    });
+    const balanceTask=readWithRetry(attemptSignal => dependencies.balance(account, attemptSignal), signal);
+    const [addresses, balance] = await Promise.allSettled([addressesTask, balanceTask]);
     if (signal.aborted || disposed) return;
     publish({status: addresses.status === 'fulfilled' && balance.status === 'fulfilled' ? 'ready' : 'unavailable', profileId:account.profileId,
       ...(addresses.status === 'fulfilled' ? {addresses:addresses.value} : {}),
       ...(balance.status === 'fulfilled' ? {balance:balance.value} : {}),
-      ...(addresses.status === 'rejected' || balance.status === 'rejected' ? {message:'Game wallet reads unavailable. Use Details to retry.'} : {})});
+      ...(addresses.status === 'rejected' || balance.status === 'rejected' ? {message:'Game wallet reads unavailable. Use Details to retry.',readStatus:'wallet-read' as const} : {})});
     if (addresses.status === 'fulfilled' && dependencies.watch) {
-      void dependencies.watch(addresses.value.arkadeAddress, signal, async () => {
+      const watch = () => dependencies.watch!(addresses.value.arkadeAddress, signal, async () => {
         if (signal.aborted || disposed) return;
         try {
-          const next = await dependencies.balance(account, signal);
+          const next = await readWithRetry(attemptSignal => dependencies.balance(account, attemptSignal), signal);
           if (!signal.aborted && !disposed) publish({...state, status:'ready', balance:next, message:undefined});
         } catch {
-          if (!signal.aborted && !disposed) publish({...state, status:'unavailable', balance:undefined, message:'Live balance unavailable. Use Details to retry.'});
+          if (!signal.aborted && !disposed) publish({...state, status:'unavailable', balance:undefined, message:'Live balance unavailable. Use Details to retry.',readStatus:'observation'});
         }
-      }, undefined, account.network ?? 'signet').catch(() => {
-        if (!signal.aborted && !disposed) publish({...state, status:'unavailable', balance:undefined, message:'Live balance disconnected. Use Details to reconnect.'});
+      }, undefined, account.network ?? 'signet');
+      void watch().catch(async () => {
+        if (signal.aborted || disposed) return;
+        try {
+          const next = await readWithRetry(attemptSignal => dependencies.balance(account, attemptSignal), signal);
+          if (signal.aborted || disposed) return;
+          publish({...state, status:'ready', balance:next, message:undefined});
+          void watch();
+        } catch {
+          if (!signal.aborted && !disposed) publish({...state, status:'unavailable', balance:undefined, message:'Live balance disconnected. Use Details to reconnect.',readStatus:'observation'});
+        }
       });
     }
   }
@@ -122,11 +142,11 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     try {
       const account=await storage.load();
       if(account?.profileId===options.playerProfileId() || (account?.network !== undefined && account.network !== selectedNetwork())) {
-        selectProfile(undefined);publish({status:'unavailable',message:'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.'});return;
+        selectProfile(undefined);publish({status:'unavailable',message:'This wallet is already configured as the Player Wallet. Select a separate Game Wallet.',readStatus:'role-conflict'});return;
       }
       await inspect(account, signal);
     }
-      catch { if (!signal.aborted) publish({status:'unavailable', message:'Game wallet storage unavailable. Use Details to retry.'}); }
+      catch { if (!signal.aborted) publish({status:'unavailable', message:'Game wallet storage unavailable. Use Details to retry.',readStatus:'storage'}); }
   }
   const unsubscribe = storage.subscribe(() => { void refresh(); });
   void refresh();
@@ -246,13 +266,13 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
       if (disposed || importing) return;
       const signal = begin();
       try { await storage.logout(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } }
-      catch { if (!signal.aborted) publish({...state, message:'Logout failed. Please retry.'}); }
+      catch { if (!signal.aborted) publish({...state, message:'Logout failed. Please retry.',readStatus:'storage'}); }
     },
     async reset() {
       if (disposed || importing) return false;
       const signal = begin();
       try { await storage.reset(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } return true; }
-      catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.'}); return false; }
+      catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.',readStatus:'storage'}); return false; }
     },
     async importWallet(phrase: string) {
       if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return false; }

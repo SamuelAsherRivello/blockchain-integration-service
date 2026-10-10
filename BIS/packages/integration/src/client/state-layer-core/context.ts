@@ -33,7 +33,8 @@ import type { AccountAddresses } from '../wallet-layer-arkade/addresses.ts';
 import type { TestNetwork } from './test-network.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
 import type { BisContextDependencies } from './context-dependencies.ts';
-export type BisBalance = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
+export type BisBalanceReadStatus = 'wallet-read' | 'storage';
+export type BisBalance = Readonly<{ status: 'idle' | 'loading' }> | Readonly<{ status: 'unavailable'; readStatus?: BisBalanceReadStatus }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
   savedProfiles: readonly string[];
@@ -67,10 +68,10 @@ export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnecte
 export interface BisContext {
   openAccountOnboarding?():void;
   refreshOnboarding?():void;
-  checkContracts?(filter?:BisContractFilter):Promise<BisContractsResult>;
+  checkContractsAsync?(filter?:BisContractFilter):Promise<BisContractsResult>;
   openAccountContracts?():void;
-  claimContract?(id:string):Promise<BisContractActionResult>;
-  rejectContract?(id:string):Promise<BisContractActionResult>;
+  claimContractAsync?(id:string):Promise<BisContractActionResult>;
+  rejectContractAsync?(id:string):Promise<BisContractActionResult>;
   refundContract?(id:string):Promise<BisContractActionResult>;
   getWalletOperations?():Promise<import('./activity-operations').WalletOperationsReport>;
   discardPreparedTransfer?(id:string):Promise<void>;
@@ -90,7 +91,7 @@ export interface BisContext {
   getState(): BisState;
   subscribe(listener: () => void): () => void;
   onEvent(listener: (event: BisEvent) => void): () => void;
-  ready(): Promise<void>;
+  readyAsync(): Promise<void>;
   openAccountDialog(): void;
   openAccountReceive(): void;
   openAccountSend(): void;
@@ -541,7 +542,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         }
       } catch {
         if(current() && identityReadFailed) fail('load','Your saved account could not be opened.');
-        else if(current()) update({... (needsAddresses ? {addresses:Object.freeze({status:'unavailable'} as const)} : {}),... (needsBalance ? {balance:Object.freeze({status:'unavailable'} as const)} : {})});
+        else if(current()) update({... (needsAddresses ? {addresses:Object.freeze({status:'unavailable'} as const)} : {}),... (needsBalance ? {balance:Object.freeze({status:'unavailable',readStatus:identityReadFailed ? 'storage' : 'wallet-read'} as const)} : {})});
       } finally { if(request===balanceVersion) { receiptBalanceLoading = false; cancelBalance(); } }
   }
   const context: BisContext = {
@@ -765,7 +766,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     getState:()=>state,
     subscribe(listener) {assertAlive();listeners.add(listener);return ()=>{listeners.delete(listener);};},
     onEvent(listener) {assertAlive();events.add(listener);return ()=>{events.delete(listener);};},
-    ready:()=>initialization,
+    readyAsync:()=>initialization,
     openAccountDialog() {assertAlive();if(state.view==='account') return;previous=state.view;update({view:'account'});if(state.phase==='error'&&!state.error)initialization=hydrate();},
     openAccountReceive() {
       assertAlive();
@@ -838,17 +839,17 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       assertAlive();if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountOnboarding:true,accountDetails:false,accountAssets:false,accountContracts:false,accountActivity:false,accountTransfer:false,accountReceive:false,accountSend:false,accountRecovery:false});
     },
     refreshOnboarding(){assertAlive();onboardingWorker?.refresh();},
-    async checkContracts(filter) {
+    async checkContractsAsync(filter) {
       const profileId=state.profileId;
-      const result=await (contractController(context)?.checkContracts?.(filter)??queryAccountContracts(profileId,filter,state.network??'signet'));
+      const result=await (contractController(context)?.checkContractsAsync?.(filter)??queryAccountContracts(profileId,filter,state.network??'signet'));
       return !disposed&&state.profileId===profileId?result:{status:'unavailable',contracts:[]};
     },
     openAccountContracts() {
       assertAlive();
       if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountContracts:true,accountAssets:false,accountActivity:false,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
     },
-    claimContract: id=>contractController(context)?.claim(id)??Promise.resolve({status:'unavailable'}),
-    rejectContract: id=>contractController(context)?.reject(id)??Promise.resolve({status:'unavailable'}),
+    claimContractAsync: id=>contractController(context)?.claim(id)??Promise.resolve({status:'unavailable'}),
+    rejectContractAsync: id=>contractController(context)?.reject(id)??Promise.resolve({status:'unavailable'}),
     refundContract: id=>contractController(context)?.refund(id)??Promise.resolve({status:'unavailable'}),
     openAccountActivity() {
       assertAlive();

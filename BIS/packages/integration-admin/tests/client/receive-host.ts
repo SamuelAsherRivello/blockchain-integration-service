@@ -21,11 +21,11 @@ document.getElementById('run')!.onclick = async () => {
   const button = (label: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
   const value = (label: string) => host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!.value;
   try {
-    await context.ready(); context.openAccountDialog(); context.openAccountReceive();
+    await context.readyAsync(); context.openAccountDialog(); context.openAccountReceive();
     await wait(() => context.getState().addresses.status === 'ready'); await tick();
     for (const [label, address] of [['Arkade address', addresses.arkadeAddress], ['Bitcoin address', addresses.bitcoinAddress]]) {
       check(value(label) === address, 'Full address'); button(`Copy ${label}`).click();
-      await wait(() => !!host.textContent?.includes(`${label} copied.`)); check(copied === address, 'Exact independent copy');
+      await wait(() => button(`Copy ${label}`).title === 'Copied'); check(copied === address && !host.textContent?.includes(`${label} copied.`), 'Exact independent copy and checked success');
     }
     denyCopy = true; button('Copy Bitcoin address').click();
     await wait(() => !!host.textContent?.includes('Could not copy.'));

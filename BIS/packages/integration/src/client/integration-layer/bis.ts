@@ -103,35 +103,35 @@ export type BisEvent = BisContextEvent
 
 /** The complete game-to-BIS runtime contract: no mutable services or controllers. */
 export interface IBis {
-  ready(): Promise<void>;
+  readyAsync(): Promise<void>;
   mount(container: HTMLElement): void;
   openAccountDialog(): void;
-  isBisVisible(): boolean;
-  showLoading(): void;
-  hideLoading(): void;
+  isLoadingUIVisible(): boolean;
+  showLoadingUI(): void;
+  hideLoadingUI(): void;
   getSnapshot(): BisSnapshot;
   hasItemSupport(): boolean;
   hasAssetMintingSupport(): boolean;
   hasContractSupport(): boolean;
   beginContinuation(request?: BisGameContinuationRequest): BisGameContinuationState;
-  payContinuation(workflowId: string): Promise<BisGameContinuationState>;
-  checkContinuation(workflowId: string): Promise<BisGameContinuationState>;
+  payContinuationAsync(workflowId: string): Promise<BisGameContinuationState>;
+  checkContinuationAsync(workflowId: string): Promise<BisGameContinuationState>;
   endContinuation(workflowId: string): void;
   beginReward(request: BisGameRewardRequest): BisGameRewardState;
-  refreshReward(workflowId: string): Promise<BisGameRewardState>;
-  collectReward(workflowId: string): Promise<BisGameRewardState>;
-  checkReward(workflowId: string): Promise<BisGameRewardState>;
-  acknowledgeReward(workflowId: string): Promise<BisGameRewardState>;
+  refreshRewardAsync(workflowId: string): Promise<BisGameRewardState>;
+  collectRewardAsync(workflowId: string): Promise<BisGameRewardState>;
+  checkRewardAsync(workflowId: string): Promise<BisGameRewardState>;
+  acknowledgeRewardAsync(workflowId: string): Promise<BisGameRewardState>;
   endReward(workflowId: string): void;
-  refreshEquipment(): Promise<BisGameEquipmentState>;
-  selectEquipment(assetId: string): Promise<BisGameEquipmentState>;
-  clearEquipment(family: BisGameEquipmentFamily): Promise<BisGameEquipmentState>;
-  startContract(request: BisContractRequest): Promise<BisContractActionResult>;
-  queryContracts(filter?: BisContractFilter): Promise<BisContractQueryResult>;
-  checkContracts(filter?: BisContractFilter): Promise<BisContractQueryResult>;
-  claimContract(contractId: string): Promise<BisContractActionResult>;
-  rejectContract(contractId: string): Promise<BisContractActionResult>;
-  endContractSession(offerSessionId: string): Promise<void>;
-  resetForGame(): Promise<BisResetResult>;
+  refreshEquipmentAsync(): Promise<BisGameEquipmentState>;
+  selectEquipmentAsync(assetId: string): Promise<BisGameEquipmentState>;
+  clearEquipmentAsync(family: BisGameEquipmentFamily): Promise<BisGameEquipmentState>;
+  startContractAsync(request: BisContractRequest): Promise<BisContractActionResult>;
+  queryContractsAsync(filter?: BisContractFilter): Promise<BisContractQueryResult>;
+  checkContractsAsync(filter?: BisContractFilter): Promise<BisContractQueryResult>;
+  claimContractAsync(contractId: string): Promise<BisContractActionResult>;
+  rejectContractAsync(contractId: string): Promise<BisContractActionResult>;
+  endContractSessionAsync(offerSessionId: string): Promise<void>;
+  resetForGameAsync(): Promise<BisResetResult>;
   dispose(options?: BisDisposeOptions): void;
 }

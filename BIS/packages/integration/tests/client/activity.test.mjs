@@ -88,7 +88,7 @@ test('degraded connection or latched provider failure never publishes history',a
 });
 test('Account Activity lifecycle: no menu read, Back, switch, account change, logout, disposal',async()=>{
   for(const action of ['back','details','replace','logout','dispose','reset']){
-    const s=setup();const c=s.context;await c.ready();c.openAccountDialog();await tick();assert.equal(s.publish(),undefined);
+    const s=setup();const c=s.context;await c.readyAsync();c.openAccountDialog();await tick();assert.equal(s.publish(),undefined);
     c.openAccountActivity();await tick();const publish=s.publish();publish(normalizeHistory([tx('a')],[]));assert.equal(c.getState().activity.status,'ready');
     if(action==='back')c.closeAccount();if(action==='details')c.openAccountDetails();if(action==='replace')s.replace();if(action==='logout')c.openLogoutConfirmation();if(action==='dispose')c.dispose();if(action==='reset')await s.storage.reset();
     await tick();assert.equal(s.signal().aborted,true);publish(normalizeHistory([tx('late')],[]));assert.equal(c.getState().activity.status,'idle');c.dispose();

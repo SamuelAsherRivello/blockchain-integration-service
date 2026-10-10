@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BisContext } from '../state-layer-core/context';
 import { formatOperationRecovery, type WalletOperation, type WalletOperationsReport } from '../state-layer-core/activity-operations';
+import { CopyButton } from './IconButton';
+import { useClipboardCopy } from './useClipboardCopy';
 
 export type RecoveryContext = Pick<BisContext, 'getWalletOperations' | 'checkAccountTransfer' | 'checkAccountSend' | 'getContinueStatus' | 'discardPreparedTransfer' | 'refreshActivity'>;
 
@@ -9,6 +11,7 @@ export function TransactionRecovery({operations, context, onReport}: {
 }) {
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   const active = useRef(true);
+  const copy = useClipboardCopy(() => operations.map(formatOperationRecovery).join('\n\n'), operations.map(op => op.id).join('|'), busy);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   async function run(discard?: WalletOperation) {
     setBusy(true); setMessage('');
@@ -28,17 +31,12 @@ export function TransactionRecovery({operations, context, onReport}: {
     } catch { if (active.current) setMessage('Status could not be verified. Recovery records are preserved.'); }
     finally { if (active.current) setBusy(false); }
   }
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(operations.map(formatOperationRecovery).join('\n\n'));
-      if (active.current) setMessage('Recovery details copied.');
-    } catch { if (active.current) setMessage('Select the transaction report to copy recovery details.'); }
-  }
   return <>
     <button className="bis-button" disabled={busy || !context.getWalletOperations} onClick={() => void run()}>Check Status</button>
-    <button className="bis-button" onClick={() => void copy()}>Copy Recovery Details</button>
+    <CopyButton label="Recovery Details" copied={copy.status === 'copied'} disabled={busy || copy.status === 'copying' || !operations.length} onClick={() => void copy.copy()} />
     {operations.filter(op => op.canDiscard && op.id.startsWith('transfer:')).map(op =>
       <button key={op.id} className="bis-button" disabled={busy || !context.discardPreparedTransfer} onClick={() => void run(op)}>Discard unsent draft</button>)}
     {message && <p role="status">{message}</p>}
+    {copy.status === 'failed' && <p role="status">Select the transaction report to copy recovery details.</p>}
   </>;
 }

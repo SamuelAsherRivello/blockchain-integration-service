@@ -19,7 +19,7 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
       if(refreshing.current)return;refreshing.current=true;
       const current=generation.current;
       try {
-        const result=await context.checkContracts?.({includeResolved:true,includeOtherNetworks:true});
+        const result=await context.checkContractsAsync?.({includeResolved:true,includeOtherNetworks:true});
         if(generation.current!==current)return;
         setStatus(result?.status??'unavailable');
         if(result?.status==='ready')setContracts(result.contracts);
@@ -37,7 +37,7 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
     if(!detail||acting.current)return;
     acting.current=true;const current=generation.current;setBusy(true);setMessage('');
     try {
-      const result=await (kind==='claim'?context.claimContract?.(detail.id):kind==='reject'?context.rejectContract?.(detail.id):context.refundContract?.(detail.id));
+      const result=await (kind==='claim'?context.claimContractAsync?.(detail.id):kind==='reject'?context.rejectContractAsync?.(detail.id):context.refundContract?.(detail.id));
       if(current!==generation.current)return;
       if(result?.status==='pending')setMessage('Pending. You can return while this completes.');
       else setMessage(result?.status==='too-late'?'This offer has expired.':'This action is currently unavailable.');
@@ -56,7 +56,7 @@ export function AccountContracts({context,onDetailChange}: {context:BisContext;o
       {detail.eligibility==='expired'&&detail.financial!=='refunded'&&<p>The offer has expired. Its funds remain locked until the refund is verified.</p>}
     </>:undefined;
   return <Page network={networkLabel(context.getState().network)} title={detail?'Contract Details':'Contracts'} body={detail?'Inspect this offer and its locked funds.':'All BIS-tracked contracts for this account.'} fieldLabel={detail?'Contract':'Contracts'} report={report} listLabel="Contracts" loading={loading} items={items}
-    onRefresh={refresh} refreshDisabled={!context.checkContracts}
+    onRefresh={refresh} refreshDisabled={!context.checkContractsAsync}
     detail={detailContent}
     actions={detail&&<>
         {detail.role==='player'&&<><button className="bis-button bis-primary" disabled={!available||busy||!detail.canClaim} onClick={()=>void act('claim')}>Claim</button>

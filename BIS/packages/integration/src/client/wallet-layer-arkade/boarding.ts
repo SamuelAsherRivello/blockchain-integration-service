@@ -130,7 +130,7 @@ export async function getBoardingAvailability(account:AccountSecret,signal:Abort
   } catch(error) {
     const message=error instanceof Error?error.message:'';
     if(message.includes('Pending transfers reserve'))return Object.freeze({available:false as const,reason:'reserved-inputs' as const,message:'Pending wallet operations reserve the inputs needed for this Account Transfer.'});
-    if(message.startsWith('No confirmed eligible Bitcoin funds.')||message.startsWith('No spendable Arkade funds are available.')||message.startsWith('No eligible'))return Object.freeze({available:false as const,reason:'insufficient-funds' as const,message:'Insufficient unreserved funds are available for this Account Transfer.'});
+    if(message.startsWith('No confirmed eligible Bitcoin funds.')||message.startsWith('No spendable Arkade funds are available.')||message.startsWith('No eligible'))return Object.freeze({available:false as const,reason:'insufficient-funds' as const,message:'No eligible unreserved funds are available for this Account Transfer. The displayed balance may include funds awaiting confirmation or reserved by another operation.'});
     return Object.freeze({available:false as const,reason:'policy-unavailable' as const,message:'Operator policy verification is unavailable. Account Transfer is unavailable.'});
   }
 }

@@ -6,7 +6,7 @@ function setup() {
   let now=1000,sequence=0;
   const player={profileId:'player',phase:'active'},game={profileId:'game',status:'ready'},calls=[],records=[];
   const offers={start:async request=>{calls.push(['start',request]);return {status:'pending'};},endSession:async id=>calls.push(['end',id]),
-    checkContracts:async()=>({status:'ready',contracts:records}),claim:async id=>{calls.push(['claim',id]);return {status:'pending'};},reject:async id=>{calls.push(['reject',id]);return {status:'pending'};}};
+    checkContractsAsync:async()=>({status:'ready',contracts:records}),claim:async id=>{calls.push(['claim',id]);return {status:'pending'};},reject:async id=>{calls.push(['reject',id]);return {status:'pending'};}};
   const controller=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
   const record=(patch={})=>({id:'contract',type:'lto',purpose:'treasureLTO',sessionId:controller.getState().sessionId,hostReference:`treasure:${controller.getState().sessionId}`,scope:{playerId:'player',gameId:'game'},canClaim:true,financial:'funded',eligibility:'within-window',...patch});
   return {controller,player,game,calls,records,record,offers,advance:ms=>{now+=ms;}};
@@ -38,7 +38,7 @@ test('losing cooperating session cannot adopt or claim another session contract'
   let now=1000,sequence=0;
   const player={profileId:'player',phase:'active'},game={profileId:'game',status:'ready'},calls=[],records=[];
   const offers={start:async request=>{calls.push(['start',request]);return {status:request.sessionId==='session-1'?'pending':'unavailable'};},endSession:async id=>calls.push(['end',id]),
-    checkContracts:async()=>({status:'ready',contracts:records}),claim:async id=>{calls.push(['claim',id]);return {status:'pending'};},reject:async id=>{calls.push(['reject',id]);return {status:'pending'};}};
+    checkContractsAsync:async()=>({status:'ready',contracts:records}),claim:async id=>{calls.push(['claim',id]);return {status:'pending'};},reject:async id=>{calls.push(['reject',id]);return {status:'pending'};}};
   const first=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
   const second=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
   first.start();second.start();await tick();
@@ -74,7 +74,7 @@ test('replacement Start waits for prior cleanup before beginning a fresh offer',
 });
 test('unavailable reads stay distinct from empty and account replacement disables actions',async()=>{
   const s=setup();s.controller.start();await tick();s.records.push(s.record());await s.controller.inspect();
-  s.offers.checkContracts=async()=>({status:'unavailable',contracts:[]});await s.controller.inspect();assert.equal(s.controller.getState().status,'unavailable');
+  s.offers.checkContractsAsync=async()=>({status:'unavailable',contracts:[]});await s.controller.inspect();assert.equal(s.controller.getState().status,'unavailable');
   s.player.profileId='other';assert.equal((await s.controller.act('claim')).status,'unavailable');
 });
 

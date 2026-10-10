@@ -20,7 +20,7 @@ test('visible assets refresh on events without loading, coalesce bursts, and sto
   const c=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,undefined,
     {list:async()=>{reads++;if(finish===null)return new Promise(resolve=>{finish=resolve;});return holdings;},mint:async()=>{throw Error('No mutation');}},undefined,undefined,undefined,{},undefined,
     async(_account,s,onChange)=>{signal=s;changed=onChange;await new Promise(resolve=>s.addEventListener('abort',resolve,{once:true}));});
-  await c.ready();c.openAccountDialog();c.openAccountAssets();await tick();assert.equal(reads,1);
+  await c.readyAsync();c.openAccountDialog();c.openAccountAssets();await tick();assert.equal(reads,1);
   await tick();assert.equal(reads,1,'idle window does not request holdings');
   finish=null;changed();await tick();assert.equal(c.getState().assets.status,'ready');assert.equal(reads,2);
   changed();changed();holdings=[{assetId:'a',quantity:'2'}];finish(holdings);await tick();

@@ -15,7 +15,7 @@ function setup(factory = createContext) {
 test('invoice capability is unavailable and navigation leaves address receiving usable', async () => {
   const context = setup();
   try {
-    await context.ready();
+    await context.readyAsync();
     assert.deepEqual(context.getState().invoiceReceiving, { status: 'unavailable', reason: 'No supported Signet receiving service is configured.' });
     assert.ok(Object.isFrozen(context.getState().invoiceReceiving));
     context.openAccountDialog();
@@ -39,7 +39,7 @@ test('production Receive hides deferred invoice UI and keeps address Copy and Ba
     const { createContext: factory } = await server.ssrLoadModule('/BIS/packages/integration/src/client/state-layer-core/context.ts');
     context = setup(factory);
     const { BisView } = await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/client.tsx');
-    await context.ready();
+    await context.readyAsync();
     context.openAccountDialog();
     context.openAccountReceive();
     await tick();

@@ -176,15 +176,15 @@ export class BisService implements IBis {
     if (origin && operation && !this.#disposed && origin.generation === this.#generation) this.#emit({ type: 'operationChanged', operation, effectReceipt: receipt });
     return frozenCopy(receipt);
   }
-  async ready() {
-    this.#assertAlive(); await this.#context.ready();
+  async readyAsync() {
+    this.#assertAlive(); await this.#context.readyAsync();
     if (!this.#disposed && !this.#resetPromise) { await this.#readContracts(); this.#publish(); }
   }
   mount(container: HTMLElement) { this.#assertAlive(); this.#ui.mount(container); }
   openAccountDialog() { this.#assertAlive(); this.#context.openAccountDialog(); }
-  isBisVisible() { return !this.#disposed && this.#ui.isBisVisible(); }
-  showLoading() { this.#assertAlive(); this.#ui.showLoading(); }
-  hideLoading() { if (!this.#disposed) this.#ui.hideLoading(); }
+  isLoadingUIVisible() { return !this.#disposed && this.#ui.isLoadingUIVisible(); }
+  showLoadingUI() { this.#assertAlive(); if (!this.isLoadingUIVisible()) this.#ui.showLoadingUI(); }
+  hideLoadingUI() { if (!this.#disposed && this.isLoadingUIVisible()) this.#ui.hideLoadingUI(); }
   hasItemSupport() { return !this.#disposed && !this.#resetPromise && itemSupportAvailable(this.#context.getState()); }
   hasAssetMintingSupport() { return !this.#disposed && !this.#resetPromise && assetMintingSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
   hasContractSupport() { return !this.#disposed && !this.#resetPromise && contractSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
@@ -214,20 +214,20 @@ export class BisService implements IBis {
       onSuccess: result => {
         const workflow = this.#continuations.get(id); if (!workflow) return;
         workflow.operation = frozenCopy({ operationId: result.operationId, gameSession: origin.session, workflowId: id });
-        void this.#deliver(origin, workflow.operation, () => origin.host.applyConfirmedContinuation({ operationId: result.operationId, gameSession: origin.session, continuationTarget }))
+        void this.#deliver(origin, workflow.operation, () => origin.host.applyConfirmedContinuationAsync({ operationId: result.operationId, gameSession: origin.session, continuationTarget }))
           .then(receipt => { if (this.#continuations.get(id) === workflow && origin.generation === this.#generation) { workflow.receipt = receipt; this.#publish(); } });
       },
     });
     this.#continuations.set(id, { controller, origin, unsubscribe: controller.subscribe(() => this.#workflowChanged(id, this.#continuations.get(id))) });
     this.#publish(); return this.#continuationState(id);
   }
-  async payContinuation(id: string) {
+  async payContinuationAsync(id: string) {
     this.#assertAlive(); const workflow = this.#continuations.get(id);
     if (!workflow) throw Error('Unknown or ended BIS continuation.');
     if (!this.#current(workflow.origin)) throw Error('The continuation session has ended.');
     await workflow.controller.pay(); return this.#continuationState(id);
   }
-  async checkContinuation(id: string) {
+  async checkContinuationAsync(id: string) {
     this.#assertAlive(); const workflow = this.#continuations.get(id);
     if (!workflow) throw Error('Unknown or ended BIS continuation.');
     await workflow.controller.check(); return this.#continuationState(id);
@@ -245,7 +245,7 @@ export class BisService implements IBis {
         operationId: result.operationId, gameSession: origin.session, rewardId: result.asset.ticker ?? result.asset.assetId,
         rewardDisplayName: result.asset.name ?? result.asset.ticker ?? result.asset.assetId });
       workflow.asset = reward;
-      void this.#deliver(origin, workflow.operation, () => origin.host.presentConfirmedPlayerReward(reward))
+      void this.#deliver(origin, workflow.operation, () => origin.host.presentConfirmedPlayerRewardAsync(reward))
         .then(receipt => { if (this.#rewards.get(id) === workflow && origin.generation === this.#generation) { workflow.receipt = receipt; this.#publish(); } });
     } });
     this.#rewards.set(id, { controller, origin, unsubscribe: controller.subscribe(() => this.#workflowChanged(id, this.#rewards.get(id))) });
@@ -257,23 +257,23 @@ export class BisService implements IBis {
     if (action === 'collect' && (!workflow.origin || !this.#current(workflow.origin))) throw Error('The reward session has ended.');
     await workflow.controller[action](); return this.#rewardState(id);
   }
-  refreshReward(id: string) { return this.#rewardAction(id, 'refresh'); }
-  collectReward(id: string) { return this.#rewardAction(id, 'collect'); }
-  checkReward(id: string) { return this.#rewardAction(id, 'check'); }
-  acknowledgeReward(id: string) { return this.#rewardAction(id, 'acknowledge'); }
+  refreshRewardAsync(id: string) { return this.#rewardAction(id, 'refresh'); }
+  collectRewardAsync(id: string) { return this.#rewardAction(id, 'collect'); }
+  checkRewardAsync(id: string) { return this.#rewardAction(id, 'check'); }
+  acknowledgeRewardAsync(id: string) { return this.#rewardAction(id, 'acknowledge'); }
   endReward(id: string) {
     const workflow = this.#rewards.get(id); if (!workflow) return;
     this.#rewards.delete(id); workflow.unsubscribe(); workflow.controller.dispose(); this.#publish();
   }
-  async refreshEquipment() { this.#assertAlive(); return frozenCopy(await this.#equipment.refresh()); }
-  async selectEquipment(assetId: string) { this.#assertAlive(); return frozenCopy(await this.#equipment.select(assetId)); }
-  async clearEquipment(family: BisGameEquipmentFamily) { this.#assertAlive(); return frozenCopy(await this.#equipment.clear(family)); }
+  async refreshEquipmentAsync() { this.#assertAlive(); return frozenCopy(await this.#equipment.refresh()); }
+  async selectEquipmentAsync(assetId: string) { this.#assertAlive(); return frozenCopy(await this.#equipment.select(assetId)); }
+  async clearEquipmentAsync(family: BisGameEquipmentFamily) { this.#assertAlive(); return frozenCopy(await this.#equipment.clear(family)); }
   async #readContracts(filter: BisContractFilter = {}): Promise<BisContractQueryResult> {
     if (this.#disposed || this.#resetPromise) return frozenCopy({ status: 'unavailable', contracts: [] });
     const unfiltered = Object.keys(filter).length === 0;
     const generation = this.#generation, revision = unfiltered ? ++this.#queryRevision : this.#queryRevision, accountKey = this.#accountKey();
     let result: BisContractsResult;
-    try { result = await this.#lto.checkContracts(filter); }
+    try { result = await this.#lto.checkContractsAsync(filter); }
     catch { result = { status: 'unavailable', contracts: [] }; }
     if (this.#disposed || this.#resetPromise || generation !== this.#generation || accountKey !== this.#accountKey()) return frozenCopy({ status: 'unavailable', contracts: [] });
     const projected: BisContractQueryResult = frozenCopy({ status: result.status, contracts: result.contracts.map(contract => ({ ...contract, offerSessionId: contract.sessionId })) });
@@ -284,12 +284,12 @@ export class BisService implements IBis {
       if (!origin || this.#deliveredContracts.has(key)) continue;
       this.#deliveredContracts.add(key);
       const operation = { operationId: contract.operationId, gameSession: origin.session, contractId: contract.id };
-      void this.#deliver(origin, operation, () => origin.host.presentConfirmedPlayerReward({ kind: 'sats', amountSats: contract.amountSats,
+      void this.#deliver(origin, operation, () => origin.host.presentConfirmedPlayerRewardAsync({ kind: 'sats', amountSats: contract.amountSats,
         operationId: contract.operationId!, gameSession: origin.session, rewardId: contract.id, rewardDisplayName: contract.purpose }));
     }
     return projected;
   }
-  async startContract(request: BisContractRequest): Promise<BisContractActionResult> {
+  async startContractAsync(request: BisContractRequest): Promise<BisContractActionResult> {
     this.#assertAlive(); const existing = this.#offerOrigins.get(request.offerSessionId);
     if (this.#endedOffers.has(request.offerSessionId) || (existing && !this.#current(existing))) return { status: 'unavailable' };
     const origin = existing ?? this.#capture(); if (!origin) return { status: 'unavailable' };
@@ -298,17 +298,17 @@ export class BisService implements IBis {
     const result = await this.#lto.start({ ...rest, sessionId: offerSessionId });
     await this.#readContracts(); return frozenCopy(result);
   }
-  queryContracts(filter: BisContractFilter = {}) { return this.#readContracts(filter); }
-  async checkContracts(filter: BisContractFilter = {}) { this.#assertAlive(); await this.#lto.reconcile(); return this.#readContracts(filter); }
-  async claimContract(id: string) { this.#assertAlive(); const result = await this.#lto.claim(id); await this.#readContracts(); return frozenCopy(result); }
-  async rejectContract(id: string) { this.#assertAlive(); const result = await this.#lto.reject(id); await this.#readContracts(); return frozenCopy(result); }
-  async endContractSession(id: string) { this.#assertAlive(); this.#endedOffers.add(id); this.#offerOrigins.delete(id); await this.#lto.endSession(id); await this.#readContracts(); }
+  queryContractsAsync(filter: BisContractFilter = {}) { return this.#readContracts(filter); }
+  async checkContractsAsync(filter: BisContractFilter = {}) { this.#assertAlive(); await this.#lto.reconcile(); return this.#readContracts(filter); }
+  async claimContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.claim(id); await this.#readContracts(); return frozenCopy(result); }
+  async rejectContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.reject(id); await this.#readContracts(); return frozenCopy(result); }
+  async endContractSessionAsync(id: string) { this.#assertAlive(); this.#endedOffers.add(id); this.#offerOrigins.delete(id); await this.#lto.endSession(id); await this.#readContracts(); }
   #endWorkflows() {
     for (const id of this.#continuations.keys()) this.endContinuation(id);
     for (const id of this.#rewards.keys()) this.endReward(id);
     this.#offerOrigins.clear(); this.#endedOffers.clear(); this.#deliveredContracts.clear();
   }
-  resetForGame(): Promise<BisResetResult> {
+  resetForGameAsync(): Promise<BisResetResult> {
     if (this.#resetPromise) return this.#resetPromise;
     const resetId = crypto.randomUUID();
     if (this.#disposed) return Promise.resolve({ status: 'failed', resetId, error: { code: 'disposed', message: 'BIS is disposed.' } });

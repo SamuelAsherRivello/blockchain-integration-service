@@ -7,8 +7,8 @@ export type MarketplaceCatalogItem = {
   family: 'Shoes' | 'Dagger' | 'Shield';
   tier: number;
   priceSats: number;
-  effectPercent: number;
-  effect: string;
+  description: string;
+  attributeDeltas: readonly {bisAttribute:string;bisAttributeDelta:number}[];
   artwork: string;
   iconUrl: string;
 };
@@ -25,15 +25,16 @@ export const marketplaceCatalogItems: MarketplaceCatalogItem[] = bisMarketplaceI
   family: item.family,
   tier: item.tier,
   priceSats: item.priceSats,
-  effectPercent: item.effectPercent,
-  effect: item.effect,
+  description: item.description,
+  attributeDeltas: item.attributeDeltas,
   artwork: `${item.family.toLowerCase()}-${item.tier}`,
   iconUrl: item.iconUrl,
 }));
 
-export function marketplaceMintRequest(item: MarketplaceCatalogItem) {
+export function marketplaceMintRequest(item: MarketplaceCatalogItem, operationVersion: string | number = 'v2') {
+  const version = typeof operationVersion === 'string' ? operationVersion : 'v2';
   return {
-    operationId: `marketplace-${item.id}-v2`,
+    operationId: `marketplace-${item.id}-${version}`,
     name: item.name,
     ticker: item.ticker,
     amount: '1',

@@ -23,7 +23,7 @@ function fixture(connect) {
     calls++; if(connect)await connect(signal); return {phrase:input,profileId:'public-test-id'};
   });
   const events=[];context.onEvent(e=>events.push(e));
-  const open=async()=>{await context.ready();context.openRestoreAccount();};
+  const open=async()=>{await context.readyAsync();context.openRestoreAccount();};
   return {context,storage,phrase,events,open,saves:()=>saves,calls:()=>calls,replace(){generation++;account={phrase:fresh(),profileId:'public-test-id'};for(const l of listeners)l();}};
 }
 test('word membership, twelve words, normalization and full checksum',()=>{
@@ -56,7 +56,7 @@ test('restore saves once, publishes only public identity and survives hydration'
   assert.equal(f.saves(),1);assert.equal(f.calls(),1);assert.equal(f.context.getState().phase,'active');assert.equal(f.context.getState().view,'account');
   assert.deepEqual(f.events,[{type:'accountConnected',profileId:'public-test-id'}]);assert.equal(JSON.stringify(f.context.getState()).includes(f.phrase),false);assert.equal(getControls(f.context).recovery(),undefined);
   f.context.openRestoreAccount();assert.equal(f.context.getState().phase,'active');f.context.dispose();
-  const next=createContext(f.storage,undefined,async()=> 'public-test-id');await next.ready();assert.equal(next.getState().profileId,'public-test-id');next.dispose();
+  const next=createContext(f.storage,undefined,async()=> 'public-test-id');await next.readyAsync();assert.equal(next.getState().profileId,'public-test-id');next.dispose();
 });
 test('network failure remains unsaved; Retry reuses phrase; invalid submission is ignored',async()=>{
   let fails=true;const f=fixture(async()=>{if(fails)throw Error('private error');});await f.open();
@@ -76,7 +76,7 @@ test('Back, disposal and concurrent account replacement invalidate delayed resto
   for(const action of ['back','dispose','replace','reset']){
     const gate=deferred(),f=fixture(()=>gate.promise);await f.open();const work=getControls(f.context).restore(f.phrase);await tick();
     if(action==='back')f.context.closeAccount();else if(action==='dispose')f.context.dispose();else if(action==='replace')f.replace();else await f.storage.reset();
-    gate.resolve();await work;await f.context.ready();assert.equal(f.saves(),0);assert.equal(f.events.length,0);f.context.dispose();
+    gate.resolve();await work;await f.context.readyAsync();assert.equal(f.saves(),0);assert.equal(f.events.length,0);f.context.dispose();
   }
 });
 test('Back is guarded while saving and cancellation cannot clobber a newer attempt',async()=>{
@@ -92,7 +92,7 @@ test('deadline disposes a wallet even if address acquisition never completes',as
 test('late cancelled connection cannot clear the pending identity of a newer restore',async()=>{
   const first=deferred(),second=deferred();let calls=0;
   const f=fixture(()=>++calls===1?first.promise:second.promise);await f.open();
-  const old=getControls(f.context).restore(f.phrase);await tick();f.context.closeAccount();await f.context.ready();f.context.openRestoreAccount();
+  const old=getControls(f.context).restore(f.phrase);await tick();f.context.closeAccount();await f.context.readyAsync();f.context.openRestoreAccount();
   const current=getControls(f.context).restore(f.phrase);await tick();first.resolve();await old;second.resolve();await current;
   assert.equal(f.saves(),1);assert.equal(f.events.length,1);f.context.dispose();
 });

@@ -19,7 +19,7 @@ document.getElementById('run')!.onclick = async () => {
       const ui = createBisUi(context);
       ui.mount(host);
       cleanup = () => { ui.unmount(); context.dispose(); };
-      await context.ready(); context.openAccountDialog(); await tick();
+      await context.readyAsync(); context.openAccountDialog(); await tick();
       const card = host.querySelector<HTMLElement>('.bis-card')!;
       const network = host.querySelector<HTMLElement>('.bis-network-text')!;
       const label = host.querySelector<HTMLElement>('.bis-version-label')!;

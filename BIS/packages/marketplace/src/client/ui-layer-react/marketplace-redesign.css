@@ -152,6 +152,8 @@
 .marketplace-page .asset-card-title { min-width: 0; display: grid; align-content: start; gap: 5px; }
 .marketplace-page .asset-card strong { min-width: 0; color: var(--market-ink); font-size: clamp(17px, 1.6vw, 23px); letter-spacing: -.035em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .marketplace-page .asset-card-title b { color: var(--market-accent-strong); font-size: clamp(14px, 1.2vw, 17px); font-variant-numeric: tabular-nums; }
+.marketplace-page .asset-card-wallet { color: var(--market-muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.marketplace-page .asset-card-pending { border-color: #c8d7dc; background: #f7fafb; }
 .marketplace-page .asset-card-lore {
   grid-column: 1 / -1;
   min-width: 0;

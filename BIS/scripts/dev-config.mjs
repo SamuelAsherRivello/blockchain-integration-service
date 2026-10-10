@@ -11,6 +11,7 @@ export const packageRoutes = [
   { label: 'BIS Admin', route: '/admin/', directory: 'integration-admin' },
   { label: 'BIS Marketplace', route: '/marketplace/', directory: 'marketplace' },
   { label: 'Onboarding Spike', route: '/onboarding/', directory: 'prototype-onboarding' },
+  { label: 'Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
   { label: 'Integration README', route: '/integration/', directory: 'integration', readme: true },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);
@@ -111,7 +112,11 @@ export function developmentConfig({ port = 5174 } = {}) {
     appType: 'mpa',
     publicDir: false,
     plugins: [packageEntries()],
-    server: { host: '127.0.0.1', port, strictPort: true, fs: { allow: [root] }, watch: { ignored: ['**/output/**'] } },
+    server: {
+      host: '127.0.0.1', port, strictPort: true,
+      proxy: { '/prototype-faucet/api/faucet': { target: 'http://127.0.0.1:5190', rewrite: path => path.replace(/^\/prototype-faucet/, '') } },
+      fs: { allow: [root] }, watch: { ignored: ['**/output/**'] },
+    },
     optimizeDeps: { entries: packageRoutes.filter(app => !app.readme).map(app => `BIS/packages/${app.directory}/index.html`) },
   };
 }

@@ -13,7 +13,7 @@ export function AccountBalances({ balance, directionControl }: { balance: BisBal
   return <div className="bis-addresses bis-account-balances">
     <CopyableValueField label="Total balance" value={value('totalSats')} disabled={loading} tooltipName="Total balance" tooltip={<BalanceTooltip title="Total balance" balance={tooltipValue('totalSats')} available={loading ? 'Loading ...' : available(balance.availableSats)} />} />
     <div className={`bis-balance-columns${directionControl ? ' bis-balance-columns-with-direction' : ''}`}>
-      <CopyableValueField label="Bitcoin balance" value={value('bitcoinSats')} disabled={loading} tooltipName="Bitcoin balance" tooltip={<BalanceTooltip title="Bitcoin balance" balance={tooltipValue('bitcoinSats')} available={tooltipValue('bitcoinSats')} />} />
+      <CopyableValueField label="Bitcoin balance" value={value('bitcoinSats')} disabled={loading} tooltipName="Bitcoin balance" tooltip={<BalanceTooltip title="Bitcoin balance" balance={tooltipValue('bitcoinSats')} available={loading ? 'Loading ...' : 'Checked when you review a transfer'} />} />
       {directionControl}
       <CopyableValueField label="Arkade balance" value={value('arkadeSats')} disabled={loading} tooltipName="Game balance" tooltip={<BalanceTooltip title="Game balance" balance={tooltipValue('arkadeSats')} available={loading ? 'Loading ...' : available(balance.availableSats)} />} />
     </div>

@@ -17,7 +17,7 @@ document.getElementById('run')!.onclick=async()=>{
  const balanceValues=()=>values().slice(1);
  const finish=async(n=1000)=>{resolve({availableSats:n,totalSats:n+500,bitcoinSats:500,arkadeSats:n});await wait(()=>c.getState().balance.status==='ready');await tick();};
  try {
-  await c.ready();c.openAccountDialog();await tick();check(calls===0&&!!button('Accounts Details')&&!!button('Log Out'),'Menu does not read');
+  await c.readyAsync();c.openAccountDialog();await tick();check(calls===0&&!!button('Accounts Details')&&!!button('Log Out'),'Menu does not read');
   button('Accounts Details').click();await wait(()=>calls===1);await tick();check(host.querySelector('h2')?.textContent==='Accounts Details'&&!button('Log Out'),'Account details title/actions');
   check(values()[0]===account.profileId&&host.querySelectorAll('input').length===4,'Account ID and all three balance fields share Account Details');
   check(['Assets','Contracts','Transactions','Get Recovery Phrase','Developer','Back'].every(label=>!!button(label)),'Account detail actions remain available');

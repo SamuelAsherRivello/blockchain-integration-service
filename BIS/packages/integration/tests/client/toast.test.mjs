@@ -51,7 +51,7 @@ test('public toasts work before account initialization, normalize durations, and
   first.context.showToast('Longer', {durationMs: 5000});
   assert.equal(first.queue.getSnapshot().durationMs, 5000);
   assert.equal(second.queue.getSnapshot(), null);
-  await first.context.ready();
+  await first.context.readyAsync();
   assert.equal(first.context.getState().view, 'empty');
   assert.equal(first.context.getState().hasProfile, false);
   assert.equal(first.walletCalls(), 0);
@@ -97,7 +97,7 @@ test('optional image carries the trophy asset icon independently for each messag
 
 test('pre-mount messages wait; effect replay and navigation preserve messages; unmount and disposal clear them', async () => {
   const {context, queue} = setup();
-  context.showToast('Before mount'); await context.ready();
+  context.showToast('Before mount'); await context.readyAsync();
   const first = queue.getSnapshot();
   const release = queue.attachPresentation(); release();
   const releaseReplay = queue.attachPresentation();

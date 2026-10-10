@@ -20,7 +20,7 @@ document.getElementById('run')!.onclick = async () => {
   ui.mount(host);
   cleanup = () => { ui.unmount(); context.dispose(); };
   try {
-    await context.ready(); context.openAccountDialog(); context.openAccountDetails(); await tick();
+    await context.readyAsync(); context.openAccountDialog(); context.openAccountDetails(); await tick();
     const fields = Array.from(host.querySelectorAll('input'));
     check(fields.length === 4, 'Account ID and the three balance fields must exist before values load');
     check(host.querySelector('.bis-network-text')?.textContent === 'Network: Signet', 'Network label appears at the top of Account Details');

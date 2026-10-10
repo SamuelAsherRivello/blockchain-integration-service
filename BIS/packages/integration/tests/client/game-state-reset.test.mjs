@@ -38,7 +38,7 @@ test('force-reset is serialized and clears an active context without logout ackn
     subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); },
   };
   const context = createContext(storage, async () => secret, async () => secret.profileId);
-  await context.ready();
+  await context.readyAsync();
   await context.createAccount();
   await context.continueAccount();
   await Promise.all([getControls(context).forceReset('reset-1'), getControls(context).forceReset('reset-1')]);
@@ -62,10 +62,10 @@ test('force-reset invalidates another live context before it can restore the old
   };
   const first = createContext(storage, async () => secret, async () => secret.profileId);
   const second = createContext(storage, async () => secret, async () => secret.profileId);
-  await Promise.all([first.ready(), second.ready()]);
+  await Promise.all([first.readyAsync(), second.readyAsync()]);
   assert.equal(second.getState().hasProfile, true);
   await getControls(first).forceReset('reset-2');
-  await second.ready();
+  await second.readyAsync();
   assert.equal(second.getState().hasProfile, false);
   first.dispose();
   second.dispose();

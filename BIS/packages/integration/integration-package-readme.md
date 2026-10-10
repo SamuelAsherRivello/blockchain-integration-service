@@ -12,6 +12,39 @@ The consolidated game API uses named commands, readonly `BisSnapshot` projection
 
 The `state-layer-core` directory owns account lifecycle, persistence, operation state, and coordination. `ui-layer-react` owns production components and styling. `wallet-layer-arkade` adapts the SDK, while the bridge, game-wallet, and operation layers organize the remaining host and workflow responsibilities. Keep changes in the layer that owns the behavior: a demo layout adjustment should not require changing production wallet components.
 
+## Authoritative item metadata
+
+Minted gameplay items use one common raw metadata envelope. Arkade-native fields identify the asset, while BIS fields identify the game record and carry the authoritative gameplay contract. `bisDescription` is intentionally friendly presentation text; consuming games must never parse it. `bisAttributeDeltas` is the only metadata field that may change gameplay. Each delta is a signed integer percentage, and a missing `bisAttributeDelta` is normalized to `0`.
+
+The complete Shoes III shape is:
+
+```json
+{
+  "name": "Shoes III",
+  "ticker": "SHO3",
+  "decimals": "0",
+  "icon": "https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/shoes-3.png",
+  "bisKind": "asset",
+  "bisSchemaVersion": "1",
+  "bisOperationId": "marketplace-stealth-steel-shoes-3-v3",
+  "bisGameId": "stealth-and-steel",
+  "bisAssetType": "item",
+  "bisCatalogId": "stealth-steel-shoes-3",
+  "bisEquipmentFamily": "Shoes",
+  "bisTier": "3",
+  "bisPriceSats": "3000",
+  "bisDescription": "Increases movement speed by 30%.",
+  "bisAttributeDeltas": [
+    {
+      "bisAttribute": "movementSpeed",
+      "bisAttributeDelta": 30
+    }
+  ]
+}
+```
+
+Trophies use the same envelope and set `bisAssetType` to `trophy`, provide their friendly `bisDescription`, and always provide `"bisAttributeDeltas": []`. Family, tier, catalog identity, price, and description support catalog display and validation only; they cannot grant an effect. Games should reject malformed, duplicate, unknown, or out-of-range deltas rather than infer a replacement from those fields.
+
 ## Accounts and operations
 
 Account creation and restoration are explicit user flows. Recovery input and display stay inside the private production boundary; public state must not contain recovery phrases. Remembered accounts use encrypted, origin-scoped browser persistence, and ordinary refresh or component disposal retains committed account access. Browser-local encryption does not protect against compromised code running on the same origin, so recovery material must never enter logs, shared reports, or application telemetry.

@@ -119,6 +119,15 @@ test('provider failures do not fabricate a balance and refresh retries',async()=
   f.dependencies.balance=async()=>({availableSats:3,totalSats:3,bitcoinSats:0,arkadeSats:3});await c.refresh();assert.equal(c.getState().balance.availableSats,3);c.dispose();
 });
 
+test('transient address and balance failures retry before Game Wallet becomes ready',async()=>{
+  const f=fixture();let addressReads=0,balanceReads=0;
+  f.dependencies.addresses=async account=>{if(++addressReads===1)throw Error('temporary address failure');return {arkadeAddress:`tark1${account.profileId}`,bitcoinAddress:`tb1${account.profileId}`};};
+  f.dependencies.balance=async()=>{if(++balanceReads===1)throw Error('temporary balance failure');return {availableSats:4,totalSats:4,bitcoinSats:0,arkadeSats:4};};
+  const c=f.create();await tick();await c.importWallet('a');
+  assert.equal(c.getState().status,'ready');assert.equal(c.getState().balance.availableSats,4);
+  assert.equal(addressReads,2);assert.equal(balanceReads,2);c.dispose();
+});
+
 test('refresh keeps the selected game wallet address and balance visible while reads are pending',async()=>{
   const f=fixture();let releaseBalance;
   f.dependencies.balance=async a=>a.profileId==='a'?await new Promise(resolve=>{releaseBalance=resolve;}):{availableSats:2,totalSats:2,bitcoinSats:0,arkadeSats:2};
@@ -183,8 +192,10 @@ test('push events refresh balance without scheduled reads and logout aborts the 
   await c.logout();assert.equal(signal.aborted,true);value=3000;await changed();assert.equal(c.getState().status,'empty');assert.equal(c.getState().balance,undefined);c.dispose();
 });
 
-test('stream failure removes stale live balance',async()=>{
-  const f=fixture();let fail;f.dependencies.watch=async()=>await new Promise((_,reject)=>fail=reject);
-  const c=f.create();await tick();await c.importWallet('a');fail(Error('offline'));await tick();
-  assert.equal(c.getState().balance,undefined);assert.match(c.getState().message,/disconnected/);c.dispose();
+test('stream failure recovers through a fresh balance read',async()=>{
+  const f=fixture();let fail;let reads=0;
+  f.dependencies.balance=async()=>({availableSats:++reads,totalSats:reads,bitcoinSats:0,arkadeSats:reads});
+  f.dependencies.watch=async()=>await new Promise((_,reject)=>fail=reject);
+  const c=f.create();await tick();await c.importWallet('a');const initialReads=reads;fail(Error('offline'));await tick();await tick();
+  assert.equal(c.getState().status,'ready');assert.equal(c.getState().balance.availableSats,initialReads+1);c.dispose();
 });

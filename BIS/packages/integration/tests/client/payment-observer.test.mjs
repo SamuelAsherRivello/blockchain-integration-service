@@ -7,7 +7,7 @@ test('payment observer runs with Account closed, reconnects silently and stops o
  const storage={load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:l=>{changed=l;return()=>{};}};
  const observer=async(_a,s,p)=>{signal=s;publish=p;p([]);await new Promise(r=>s.addEventListener('abort',r,{once:true}));};
  const c=createContext(storage,undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,async()=>{},undefined,undefined,undefined,undefined,undefined,{},observer);
- await c.ready();await tick();assert.ok(publish);assert.equal(c.getState().accountActivity,false);
+ await c.readyAsync();await tick();assert.ok(publish);assert.equal(c.getState().accountActivity,false);
  publish([{id:'new',identifier:'ark:new',direction:'Incoming',amountSats:1234,status:'Settled offchain'}]);
  assert.equal(getControls(c).toasts.getSnapshot().message,'Unknown user sent you 1234 sats (Confirmed)');
  const oldSignal=signal,oldPublish=publish;account={profileId:'other',phrase:'fixture-only'};changed();await tick();await tick();

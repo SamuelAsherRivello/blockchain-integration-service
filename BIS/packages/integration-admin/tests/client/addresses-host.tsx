@@ -17,13 +17,13 @@ document.getElementById('run')!.onclick=async()=>{
   const ui=createBisUi(c);ui.mount(host);
   cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
   try {
-    await c.ready();c.openAccountDialog();c.openAccountReceive();await tick();await tick();
+    await c.readyAsync();c.openAccountDialog();c.openAccountReceive();await tick();await tick();
     const addressInputs=()=>host.querySelectorAll<HTMLInputElement>('input[aria-label="Arkade address"], input[aria-label="Bitcoin address"]');
     const inputs=addressInputs();
     check(inputs.length===2 && inputs[0].value===addresses.bitcoinAddress && inputs[1].value===addresses.arkadeAddress,'Full address values');
     (host.querySelector('[aria-label="Copy Arkade address"]') as HTMLButtonElement).click();await tick();
-    await waitFor(()=>!!host.textContent?.includes('Arkade address copied.'));
-    check(copied===addresses.arkadeAddress,'Exact copy and success');
+    await waitFor(()=>host.querySelector<HTMLButtonElement>('[aria-label="Copy Arkade address"]')?.title==='Copied');
+    check(copied===addresses.arkadeAddress&&!host.textContent?.includes('Arkade address copied.'),'Exact copy and checked success');
     copyFail=true;(host.querySelector('[aria-label="Copy Bitcoin address"]') as HTMLButtonElement).click();await tick();
     await waitFor(()=>!!host.textContent?.includes('Could not copy.'));
     const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No horizontal overflow');

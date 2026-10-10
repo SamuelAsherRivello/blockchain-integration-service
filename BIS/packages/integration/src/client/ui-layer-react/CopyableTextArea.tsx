@@ -8,7 +8,7 @@ export function CopyableTextArea({ label, value, copy, disabled = false, scrolla
 }) {
   const id = useId();
   return <>
-    <CopyFieldLabel htmlFor={textarea.id ?? id} label={label} copied={copy.status === 'copied'} disabled={disabled || copy.status === 'copying'} onCopy={() => void copy.copy()} />
+    <CopyFieldLabel htmlFor={textarea.id ?? id} label={label} copied={copy.status === 'copied'} onCopy={() => void copy.copy()} />
     {scrollable ? <div className="bis-report bis-report-scrollable">
       <textarea {...textarea} id={textarea.id ?? id} readOnly value={value} />
     </div> : <ReportTextArea {...textarea} id={textarea.id ?? id} value={value} />}

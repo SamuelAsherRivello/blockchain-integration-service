@@ -12,7 +12,7 @@ export function CompletionPreview({context, onRestart, onBusy}: {context: BisCon
     setController(current); setState(current.getState());
     const update = () => { setState(current.getState()); onBusy(current.getState().busy); };
     const unsubscribe = current.subscribe(update);
-    void context.ready().then(() => current.refresh());
+    void context.readyAsync().then(() => current.refresh());
     return () => { unsubscribe(); current.dispose(); onBusy(false); };
   }, [context, level, onBusy]);
   const final = level === 2, busy = !state || state.busy;

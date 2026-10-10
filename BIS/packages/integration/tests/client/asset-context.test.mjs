@@ -90,7 +90,7 @@ test('concurrent same-wallet callers reach the mint adapter once and release the
     entered.resolve(); await release.promise; return minted(account, input);
   } } });
   const peer = setup();
-  await Promise.all([first.context.ready(), peer.context.ready()]);
+  await Promise.all([first.context.readyAsync(), peer.context.readyAsync()]);
   const work = first.context.mintAsset(request);
   await entered.promise;
   try {
@@ -113,7 +113,7 @@ test('list proceeds during a held mint lock without creating or changing transac
     entered.resolve(); await release.promise; return minted(account, input);
   } } });
   const reader = setup();
-  await Promise.all([owner.context.ready(), reader.context.ready()]);
+  await Promise.all([owner.context.readyAsync(), reader.context.readyAsync()]);
   const work = owner.context.mintAsset(request);
   await entered.promise;
   const journals = [...values.entries()], locksBefore = lockCalls.length;
@@ -130,7 +130,7 @@ for (const [name, write] of [
 ]) {
   test(`pending ${name} with known inputs permits the reservation-aware mint adapter while listing remains read-only`, async () => {
     const fixture = setup();
-    await fixture.context.ready();
+    await fixture.context.readyAsync();
     write();
     const journals = [...values.entries()];
     assert.equal((await fixture.context.mintAsset(request)).status, 'minted');
@@ -148,7 +148,7 @@ test('another wallet can mint while the first wallet holds its mutation lock', a
     entered.resolve(); await release.promise; return minted(account, input);
   } } });
   const other = setup({ profileId: 'profile-b' });
-  await Promise.all([first.context.ready(), other.context.ready()]);
+  await Promise.all([first.context.readyAsync(), other.context.readyAsync()]);
   const work = first.context.mintAsset(request);
   await entered.promise;
   try {
@@ -161,7 +161,7 @@ test('another wallet can mint while the first wallet holds its mutation lock', a
 
 test('foreign pending send, transfer and mint journals stay isolated from this account', async () => {
   const fixture = setup({ profileId: 'profile-b' });
-  await fixture.context.ready();
+  await fixture.context.readyAsync();
   writeSendRecord(sendRecord('profile-a'));
   writeBoardingRecord(transferRecord('profile-a'));
   writeAssetRecord('profile-a', { request, status: 'pending' });
@@ -176,12 +176,12 @@ for (const method of ['mintAsset', 'listAssets']) {
   for (const change of ['dispose', 'replace-profile', 'replace-generation']) {
     test(`${method} cannot reach its adapter when ${change} occurs during account storage loading`, async () => {
       const fixture = setup();
-      await fixture.context.ready();
+      await fixture.context.readyAsync();
       const held = fixture.holdNextLoad();
       const work = fixture.context[method](request);
       await held.entered.promise;
       if (change === 'dispose') fixture.context.dispose();
-      else { fixture.replace(change === 'replace-profile' ? 'profile-b' : 'profile-a'); await fixture.context.ready(); }
+      else { fixture.replace(change === 'replace-profile' ? 'profile-b' : 'profile-a'); await fixture.context.readyAsync(); }
       held.release.resolve();
       const result = await work;
       assert.equal(result.code, change === 'dispose' ? 'disposed' : 'account-changed');
@@ -193,7 +193,7 @@ for (const method of ['mintAsset', 'listAssets']) {
 
 test('an unannounced storage generation change also prevents mint from using the stale active account', async () => {
   const fixture = setup();
-  await fixture.context.ready();
+  await fixture.context.readyAsync();
   fixture.replace('profile-a', false);
   assert.equal((await fixture.context.mintAsset(request)).status, 'error');
   assert.equal(fixture.calls.mint, 0);
@@ -212,12 +212,12 @@ for (const change of ['dispose', 'replace-profile', 'replace-generation']) {
       writeAssetRecord(account.profileId, { request: input, status: 'succeeded', asset: holding });
       return minted(account, input);
     } } });
-    await fixture.context.ready();
+    await fixture.context.readyAsync();
     const work = fixture.context.mintAsset(request);
     await entered.promise;
     assert.equal(adapterIsCurrent(), true);
     if (change === 'dispose') fixture.context.dispose();
-    else { fixture.replace(change === 'replace-profile' ? 'profile-b' : 'profile-a'); await fixture.context.ready(); }
+    else { fixture.replace(change === 'replace-profile' ? 'profile-b' : 'profile-a'); await fixture.context.readyAsync(); }
     assert.equal(adapterSignal.aborted, true);
     assert.equal(adapterIsCurrent(), false);
     release.resolve();
@@ -232,7 +232,7 @@ for (const change of ['dispose', 'replace-profile', 'replace-generation']) {
 
 test('missing browser locks prevents mint but leaves read-only listing available', async () => {
   const fixture = setup();
-  await fixture.context.ready();
+  await fixture.context.readyAsync();
   Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined });
   assert.equal((await fixture.context.mintAsset(request)).code, 'unsupported-environment');
   assert.equal(fixture.calls.mint, 0);
@@ -243,7 +243,7 @@ test('missing browser locks prevents mint but leaves read-only listing available
 for (const mode of ['missing', 'throws']) {
   test(`${mode} public journal storage prevents mint without reaching its adapter or leaking the failure`, async () => {
     const fixture = setup();
-    await fixture.context.ready();
+    await fixture.context.readyAsync();
     Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: mode === 'missing' ? undefined : {
       getItem() { throw new Error('private-storage-diagnostic'); },
     } });

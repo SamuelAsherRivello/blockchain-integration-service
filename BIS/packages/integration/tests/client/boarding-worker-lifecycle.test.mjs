@@ -16,7 +16,7 @@ test('runtime navigation does not end session-owned signing work',async t=>{
  t.mock.method(globalThis,'fetch',async()=>{throw Error('No network in lifecycle fixture');});
  const c=createContext({load:async()=>({account,generation:0}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000}),undefined,async()=>({}),async(_a,signal)=>new Promise(r=>signal.addEventListener('abort',r,{once:true})));
  try {
-  await c.ready();
+  await c.readyAsync();
   c.openAccountDialog();c.openAccountDetails();c.openAccountTransfer();await tick();c.closeAccount();await tick();
   assert.equal(boardingWorkerActive(record.profileId,record.id),true);assert.equal(transferStatus(record).execution,'running');
  } finally {c.dispose();release();await pending;}

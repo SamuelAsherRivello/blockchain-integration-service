@@ -6,11 +6,11 @@ export function CopyableValueField({ label, value, disabled = false, className =
   label: string; value: string; disabled?: boolean; className?: string; copy?: ClipboardCopy; feedback?: boolean; selectOnFocus?: boolean; tooltip?: ReactNode; tooltipName?: string;
 }) {
   const id = useId();
-  const ownCopy = useClipboardCopy(() => value, value, disabled);
+  const ownCopy = useClipboardCopy(() => value, value);
   const copy = suppliedCopy ?? ownCopy;
   return <div className={className}>
-    <CopyFieldLabel htmlFor={id} label={label} copied={copy.status === 'copied'} disabled={disabled || copy.status === 'copying'} onCopy={() => void copy.copy()} tooltip={tooltip} tooltipName={tooltipName} />
+    <CopyFieldLabel htmlFor={id} label={label} copied={copy.status === 'copied'} onCopy={() => void copy.copy()} tooltip={tooltip} tooltipName={tooltipName} />
     <input id={id} aria-label={label} readOnly value={value} onFocus={selectOnFocus ? event => event.target.select() : undefined} />
-    {feedback && <span className="bis-copy-status" role="status">{copy.status === 'failed' ? 'Could not copy. Select the value and copy it manually.' : copy.status === 'copied' ? `${label} copied.` : ''}</span>}
+    {feedback && copy.status === 'failed' && <span className="bis-copy-status" role="status">Could not copy. Select the value and copy it manually.</span>}
   </div>;
 }

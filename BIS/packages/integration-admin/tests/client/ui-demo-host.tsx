@@ -45,9 +45,9 @@ function recoveryGeometry(title:string) {
 document.getElementById('run')!.onclick=async()=>{
  const result=document.getElementById('result')!;result.textContent='Running';
  try{
-  await wait(()=>!!context);await context.ready();
+  await wait(()=>!!context);await context.readyAsync();
   for(const scale of ['1','0.5','0.25']) {
-   const previous=context;stored=null;root.render(<App key={scale} contextFactory={factory}/>);await wait(()=>context!==previous);await context.ready();
+   const previous=context;stored=null;root.render(<App key={scale} contextFactory={factory}/>);await wait(()=>context!==previous);await context.readyAsync();
    const select=document.querySelector<HTMLSelectElement>('.preview-scale')!;select.value=scale;select.dispatchEvent(new Event('change',{bubbles:true}));await tick();
    context.openAccountDialog();context.openRestoreAccount();await tick();recoveryGeometry('Restore Account');check(host().querySelectorAll('.bis-word-input input').length===12,'Restore input grid');context.closeAccount();await tick();
    if(!stored){context.openAccountDialog();await context.createAccount();await tick();recoveryGeometry('Set Recovery Phrase');await context.continueAccount();await tick();}
@@ -85,4 +85,4 @@ document.getElementById('run')!.onclick=async()=>{
   result.textContent='PASS: demo scales, recovery alignment/masking, titles, Restore, Receive, Send/Transfer reviews, asset list/detail and empty list scrollbars; isolated storage only.';
  }catch(e){result.textContent=`FAIL: ${e instanceof Error?e.message:'demo checks'}`;}
 };
-document.getElementById('restore')!.onclick=async()=>{const previous=context;stored=null;root.render(<App key="restore" contextFactory={factory}/>);await wait(()=>context!==previous);await context.ready();context.openAccountDialog();context.openRestoreAccount();};
+document.getElementById('restore')!.onclick=async()=>{const previous=context;stored=null;root.render(<App key="restore" contextFactory={factory}/>);await wait(()=>context!==previous);await context.readyAsync();context.openAccountDialog();context.openRestoreAccount();};

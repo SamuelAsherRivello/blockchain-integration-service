@@ -17,6 +17,7 @@ function RecoveryReport({ text, busy }: { text: string; busy: boolean }) {
   return <div className="bis-activity" aria-busy={busy}>
     <p>These public IDs reveal transaction-related information. Share only with trusted support. Nothing is sent automatically.</p>
     <CopyableTextArea label="recovery details" rows={12} wrap="soft" value={text} copy={copy} disabled={busy} />
-    {(busy || copy.status !== 'idle') && <p role="status">{busy ? 'Checking status; report update pending.' : copy.status === 'copying' ? 'Copying recovery details…' : copy.status === 'copied' ? 'Recovery details copied.' : 'Could not copy. Select the report text and copy manually.'}</p>}
+    {busy && <p role="status">Checking status; report update pending.</p>}
+    {!busy && copy.status === 'failed' && <p role="status">Could not copy. Select the report text and copy manually.</p>}
   </div>;
 }

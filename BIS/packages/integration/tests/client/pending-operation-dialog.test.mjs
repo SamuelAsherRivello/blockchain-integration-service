@@ -17,12 +17,12 @@ test('public integration boundary exposes the shared accessible pending dialog',
   assert.match(dialog, /export function PendingOperations\(\{children, overlay, className, hostLoading, onBisVisibilityChange\}/);
   assert.match(dialog, /const hostEntry: Notice \| undefined = hostPending \? \{label:'Loading \.\.\.',host:true,dismiss:\(\)=>\{\}\} : undefined;/);
   assert.match(dialog, /\[\.\.\.notices\.values\(\), \.\.\.\(hostEntry \? \[hostEntry\] : \[\]\)\]/);
-  assert.match(client, /isBisVisible\(\) \{ return bisVisible; \}/);
-  assert.match(client, /showLoading\(\) \{ internal\.assertAlive\(\); setHostLoading\(true\); \}/);
-  assert.match(client, /hideLoading\(\) \{ setHostLoading\(false\); \}/);
-  assert.match(services, /isBisVisible\(\) \{ return !this\.#disposed && this\.#ui\.isBisVisible\(\); \}/);
-  assert.match(services, /showLoading\(\) \{ this\.#assertAlive\(\); this\.#ui\.showLoading\(\); \}/);
-  assert.match(services, /hideLoading\(\) \{ if \(!this\.#disposed\) this\.#ui\.hideLoading\(\); \}/);
+  assert.match(client, /isLoadingUIVisible\(\) \{ return hostLoading; \}/);
+  assert.match(client, /showLoadingUI\(\) \{ internal\.assertAlive\(\); setHostLoading\(true\); \}/);
+  assert.match(client, /hideLoadingUI\(\) \{ setHostLoading\(false\); \}/);
+  assert.match(services, /isLoadingUIVisible\(\) \{ return !this\.#disposed && this\.#ui\.isLoadingUIVisible\(\); \}/);
+  assert.match(services, /showLoadingUI\(\) \{ this\.#assertAlive\(\); if \(!this\.isLoadingUIVisible\(\)\) this\.#ui\.showLoadingUI\(\); \}/);
+  assert.match(services, /hideLoadingUI\(\) \{ if \(!this\.#disposed && this\.isLoadingUIVisible\(\)\) this\.#ui\.hideLoadingUI\(\); \}/);
   assert.match(dialog, /inert=\{open\}/);
   assert.match(dialog, /aria-hidden=\{open \|\| undefined\}/);
   assert.match(dialog, /aria-label="Pending Operation Dialog"/);

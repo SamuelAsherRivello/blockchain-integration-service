@@ -168,7 +168,7 @@ test('public confirmation serializes duplicate callers and reload resumes status
    submits++;assert.equal(isCurrent(),true);writeBoardingRecord({...record(),phase:'submitting'});await barrier;assert.equal(isCurrent(),true,'navigation preserves the owning account session');return readBoardingRecord('profile');
  },reconcile:async()=>{reconciles++;return readBoardingRecord('profile');}};
  const make=()=>createContext(storage,undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,transfers);
- const c=make();await c.ready();
+ const c=make();await c.readyAsync();
  const first=c.confirmAccountTransfer(record().quote);
  await new Promise(r=>setImmediate(r));
  c.openAccountDialog();c.closeAccount();c.openAccountDialog();c.openAccountActivity();c.closeAccount();
@@ -176,7 +176,7 @@ test('public confirmation serializes duplicate callers and reload resumes status
  await assert.rejects(c.confirmAccountTransfer(record().quote),/Another wallet operation/);
  release();await first;assert.equal(submits,1);
  await assert.rejects(c.confirmAccountTransfer(record().quote),/Pending transfers changed/);
- c.dispose();const reloaded=make();await reloaded.ready();await reloaded.checkAccountTransfer();
+ c.dispose();const reloaded=make();await reloaded.readyAsync();await reloaded.checkAccountTransfer();
  assert.ok(reconciles>=1);assert.equal(submits,1);reloaded.dispose();
 });
 
@@ -194,7 +194,7 @@ test('status failure retains the recorded attempt and its phase without resubmit
  let submits=0;
  const c=createContext({load:async()=>({generation:0,account}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,
  {quote:async()=>record().quote,submit:async()=>{submits++;throw Error('unexpected');},reconcile:async()=>{throw Error('private provider response');}});
- await c.ready();await new Promise(r=>setImmediate(r));
+ await c.readyAsync();await new Promise(r=>setImmediate(r));
  try {
   const status=await c.checkAccountTransfer();
   assert.equal(status.status,'pending');assert.equal(status.phase,'registered');assert.equal(status.verification,'unavailable');assert.equal(status.intentId,'operator-intent');
@@ -209,7 +209,7 @@ test('quote review neither submits nor creates a pending journal',async()=>{
  let submits=0;
  const c=createContext({load:async()=>({generation:0,account}),subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,
  {quote:async()=>record().quote,submit:async()=>{submits++;throw Error('unexpected');},reconcile:async()=>undefined});
- await c.ready();
+ await c.readyAsync();
  try {await c.quoteAccountTransfer(1000,'to-bitcoin');assert.equal(submits,0);assert.equal(readBoardingRecord('profile'),undefined);assert.doesNotThrow(()=>assertNoPendingBoarding('profile'));}
  finally {c.dispose();}
 });

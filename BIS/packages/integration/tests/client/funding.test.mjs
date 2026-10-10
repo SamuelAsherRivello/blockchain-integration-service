@@ -8,10 +8,10 @@ test('switching wallets isolates in-flight funding and its late completion', asy
   const listeners=new Set(),finish=new Map();
   const storage={load:async()=>({account,generation}),subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);}};
   const context=createContext(storage,undefined,async()=>account.profileId,undefined,undefined,async a=>new Promise(resolve=>finish.set(a.profileId,resolve)));
-  const admin=createBisAdminContext(context);await context.ready();
+  const admin=createBisAdminContext(context);await context.readyAsync();
   const first=admin.fund1000Sats();const rejected=assert.rejects(first,/not confirmed/);
   await new Promise(r=>setImmediate(r));
-  account={profileId:'b',phrase:'fixture-only'};generation++;for(const fn of listeners)fn();await context.ready();
+  account={profileId:'b',phrase:'fixture-only'};generation++;for(const fn of listeners)fn();await context.readyAsync();
   const second=admin.fund1000Sats();await new Promise(r=>setImmediate(r));
   finish.get('a')();await rejected;
   await assert.rejects(admin.fund1000Sats(),/in progress/);
@@ -40,10 +40,10 @@ test('admin funding requires account, prevents duplicate calls, preserves UI and
   const storage = {load:async()=>({account,generation}), subscribe:f=>{listeners.add(f);return()=>listeners.delete(f);}};
   const context = createContext(storage, undefined, async()=>account?.profileId, undefined, undefined, async()=>{calls++; await new Promise(r=>finish=r);});
   const admin = createBisAdminContext(context);
-  await context.ready(); await assert.rejects(admin.fund1000Sats(), /active account/);
+  await context.readyAsync(); await assert.rejects(admin.fund1000Sats(), /active account/);
   account = {profileId:'test',phrase:'isolated-placeholder'}; generation++;
   for (const listener of listeners) listener();
-  await context.ready();
+  await context.readyAsync();
   const before = context.getState();
   const pending = admin.fund1000Sats();
   await new Promise(r=>setImmediate(r));

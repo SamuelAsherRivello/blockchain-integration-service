@@ -10,6 +10,7 @@ function chainAssets() {
       bisSchemaVersion:'1', bisGameId:'stealth-and-steel', bisAssetType:'item',
       bisCatalogId:item.id, bisEquipmentFamily:item.family,
       bisTier:String(item.tier), bisPriceSats:String(item.priceSats),
+      bisDescription:item.description, bisAttributeDeltas:item.attributeDeltas,
     },
   }));
 }

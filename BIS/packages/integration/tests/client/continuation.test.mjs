@@ -30,7 +30,7 @@ test('pay 1000 and a delayed observer snapshot show only one Balance loading cyc
  const s=setup({observer,readBalance:async()=>({availableSats:sats,totalSats:sats,bitcoinSats:0,arkadeSats:sats}),submit:async(a,r)=>{sats=1000;const saved={...r,status:'succeeded',send:receipt('succeeded')};writeContinuation(saved);return continueResult(saved);}});
  const tick=()=>new Promise(r=>setImmediate(r));
  try {
- await s.context.ready();await tick();s.context.openAccountDialog();s.context.openAccountDetails();await tick();
+ await s.context.readyAsync();await tick();s.context.openAccountDialog();s.context.openAccountDetails();await tick();
  s.context.subscribe(()=>{const loading=['idle','loading'].includes(s.context.getState().balance.status);if(loading&&!wasLoading)cycles++;wasLoading=loading;});
  await s.context.requestContinue(request);await tick();assert.equal(s.context.getState().balance.arkadeSats,1000);assert.equal(cycles,1);
  publish([]);await tick();assert.equal(cycles,1,'Delayed payment observation must not reopen loading');
@@ -45,7 +45,7 @@ for (const path of ['submit','retry','status']) test(`B.P.1 ${path} success refr
   submit:async(a,r)=>{const saved={...r,status:path==='submit'?'succeeded':'pending',send:receipt(path==='submit'?'succeeded':'pending')};writeContinuation(saved);if(path==='submit')sats=1000;return continueResult(saved);},
   reconcile:async(a,r)=>{sats=1000;const saved={...r,status:'succeeded',send:receipt('succeeded')};writeContinuation(saved);return continueResult(saved);}});
  try {
-  await s.context.ready();s.context.openAccountDialog();s.context.openAccountDetails();await new Promise(r=>setImmediate(r));
+  await s.context.readyAsync();s.context.openAccountDialog();s.context.openAccountDetails();await new Promise(r=>setImmediate(r));
   assert.equal(s.context.getState().balance.arkadeSats,2000);
   await s.context.requestContinue(request);
   if(path==='retry')await s.context.requestContinue(request);
@@ -58,7 +58,7 @@ for (const path of ['submit','retry','status']) test(`B.P.1 ${path} success refr
 test('an admin wallet imported after player startup supplies the live B.P.1 recipient',async()=>{
  let recipient;
  const s=setup({options:{get continueRecipient(){return recipient;}}});
- await s.context.ready();assert.equal(s.context.getContinueRecipient(),undefined);
+ await s.context.readyAsync();assert.equal(s.context.getContinueRecipient(),undefined);
  recipient=destination;
  assert.equal(s.context.getContinueRecipient(),destination);
  const result=await s.context.requestContinue(request);
@@ -67,7 +67,7 @@ test('an admin wallet imported after player startup supplies the live B.P.1 reci
 });
 
 test('B.P.1 reaches independent input selection while a known unrelated transfer remains pending',async()=>{
- const s=setup();await s.context.ready();
+ const s=setup();await s.context.readyAsync();
  const pending={version:1,id:'unrelated',profileId:'p',status:'pending',phase:'registered',intentId:'intent',inputs:[{txid:'f'.repeat(64),vout:0}],bitcoinAddress:'tb1-test',quote:{profileId:'p',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:2000,bitcoinAfterSats:1000,arkadeAfterSats:1000,totalAfterSats:2000,expiresAt:2000,fingerprint:'c'.repeat(64)}};
  writeBoardingRecord(pending);
  assert.equal((await s.context.getContinueAvailability()).canPay,true,'A withdrawal must not disable B.P.1 before a payment attempt');
@@ -75,7 +75,7 @@ test('B.P.1 reaches independent input selection while a known unrelated transfer
  assert.deepEqual(readBoardingRecord('p','unrelated'),pending);s.context.dispose();
 });
 test('whole-sat boundaries pass and every invalid amount rejects before adapter work',async()=>{
- const s=setup();await s.context.ready();
+ const s=setup();await s.context.readyAsync();
  for(const sats of [999,10001,1000.5,NaN,Infinity,-Infinity,'1000',null,undefined])await assert.rejects(s.context.requestContinue({...request,sats}));
  assert.equal(s.calls(),0);
  validateContinue({...request,sats:1000});validateContinue({...request,sats:10000});s.context.dispose();
@@ -83,30 +83,30 @@ test('whole-sat boundaries pass and every invalid amount rejects before adapter 
 
 test('missing and invalid configuration cannot create a new payment',async()=>{
  for(const configured of ['', 'invalid', new ArkAddress(new Uint8Array(32).fill(1),new Uint8Array(32).fill(2),'ark').encode()]) {
-  const s=setup({configured});await s.context.ready();assert.equal(s.context.getContinueRecipient(),undefined);
+  const s=setup({configured});await s.context.readyAsync();assert.equal(s.context.getContinueRecipient(),undefined);
   await assert.rejects(s.context.requestContinue({...request,operationId:'unconfigured'}));assert.equal(s.calls(),0);s.context.dispose();
  }
 });
 
 test('recipient is bound and a changed build recovers the original payment',async()=>{
- const first=setup();await first.context.ready();const result=await first.context.requestContinue({...request,recipient:destination});
+ const first=setup();await first.context.readyAsync();const result=await first.context.requestContinue({...request,recipient:destination});
  assert.equal(result.mechanism,'game-wallet-payment');first.context.dispose();
  const other=new ArkAddress(new Uint8Array(32).fill(1),new Uint8Array(32).fill(3),'tark').encode();
- const second=setup({configured:other});await second.context.ready();
+ const second=setup({configured:other});await second.context.readyAsync();
  assert.equal((await second.context.getContinueStatus(request.operationId))[0].recipient,destination);
  await assert.rejects(second.context.requestContinue({...request,recipient:other}));assert.equal(second.calls(),0);second.context.dispose();
 });
 test('same identity is durable and idempotent; changed amount/context fails; generic sends cannot overwrite it',async()=>{
- const s=setup();await s.context.ready();assert.equal((await s.context.requestContinue(request)).status,'succeeded');
+ const s=setup();await s.context.readyAsync();assert.equal((await s.context.requestContinue(request)).status,'succeeded');
  assert.equal((await s.context.requestContinue(request)).context,'run-1');assert.equal(s.calls(),1);assert.equal(s.saves(),0);
  for(const changed of [{sats:2000},{context:'run-2'}])await assert.rejects(s.context.requestContinue({...request,...changed}));
  writeSendRecord({...receipt('succeeded'),id:'ordinary-send'});clearBrowserPreferences(localStorage);
  assert.equal(readContinuations('p')[0].send.id,'send-1');s.context.dispose();
- const reloaded=setup();await reloaded.context.ready();assert.equal((await reloaded.context.requestContinue(request)).status,'succeeded');assert.equal(reloaded.calls(),0);reloaded.context.dispose();
+ const reloaded=setup();await reloaded.context.readyAsync();assert.equal((await reloaded.context.requestContinue(request)).status,'succeeded');assert.equal(reloaded.calls(),0);reloaded.context.dispose();
 });
 test('lost response remains pending; spending, reset and logout cannot discard it',async t=>{
  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>{throw Error('offline');});
- const s=setup({submit:async(a,r)=>{const saved={...r,send:receipt()};writeContinuation(saved);return continueResult(saved);}});await s.context.ready();
+ const s=setup({submit:async(a,r)=>{const saved={...r,send:receipt()};writeContinuation(saved);return continueResult(saved);}});await s.context.readyAsync();
  assert.equal((await s.context.requestContinue(request)).status,'pending');assert.equal((await s.context.requestContinue(request)).status,'pending');assert.equal(s.calls(),1);
  await assert.rejects(s.context.quoteAccountSend('tark1fixture',1000));await assert.rejects(getControls(s.context).reset());assert.throws(()=>pendingLogoutOperations());
  assert.equal((await s.context.getContinueStatus())[0].context,'run-1');s.context.dispose();
@@ -121,15 +121,15 @@ test('only exact finalized output reconciles; absent or wrong output does not im
  output.value=1000;assert.equal((await reconcileContinuation(account,record,signal)).status,'succeeded');
 });
 test('interrupted preparation is confirmed not submitted and never retried',async()=>{
- writeContinuation({request,profileId:'p',status:'pending'});const s=setup();await s.context.ready();
+ writeContinuation({request,profileId:'p',status:'pending'});const s=setup();await s.context.readyAsync();
  assert.equal((await s.context.requestContinue(request)).status,'failed');assert.equal(s.calls(),0);s.context.dispose();
 });
 test('no account blocks submission; late result retains original account and run',async()=>{
  let release;const gate=new Promise(r=>release=r);
- const s=setup({submit:async(a,r)=>{await gate;return continueResult({...r,status:'succeeded',send:receipt('succeeded')});}});await s.context.ready();
- const pending=s.context.requestContinue(request);await new Promise(r=>setImmediate(r));s.replace();await s.context.ready();release();
+ const s=setup({submit:async(a,r)=>{await gate;return continueResult({...r,status:'succeeded',send:receipt('succeeded')});}});await s.context.readyAsync();
+ const pending=s.context.requestContinue(request);await new Promise(r=>setImmediate(r));s.replace();await s.context.readyAsync();release();
  const result=await pending;assert.equal(result.profileId,'p');assert.equal(result.context,'run-1');assert.equal(s.context.getState().profileId,'other');
- s.replace(null);await s.context.ready();await assert.rejects(s.context.requestContinue({...request,operationId:'new'}));assert.equal(s.calls(),1);s.context.dispose();
+ s.replace(null);await s.context.readyAsync();await assert.rejects(s.context.requestContinue({...request,operationId:'new'}));assert.equal(s.calls(),1);s.context.dispose();
 });
 
 test('asset-bearing pending payment reconciles only with exact owned asset change and asset-free recipient',async t=>{

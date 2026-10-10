@@ -18,13 +18,13 @@ const transientRetryCount = 8;
 const transientRetryDelayMs = 1000;
 const pause = (milliseconds: number) => new Promise<void>(resolve => setTimeout(resolve, milliseconds));
 
-export async function mintAndVerifyMarketplaceCatalog(wallet: MarketplaceMintBatchWallet, isCurrent: () => boolean, onProgress: (progress: MarketplaceMintProgress) => void = () => {}): Promise<MarketplaceMintBatchResult> {
+export async function mintAndVerifyMarketplaceCatalog(wallet: MarketplaceMintBatchWallet, isCurrent: () => boolean, onProgress: (progress: MarketplaceMintProgress) => void = () => {}, operationVersion = 'v2'): Promise<MarketplaceMintBatchResult> {
   for (const item of marketplaceCatalogItems) {
     let result: BisMintAssetResult;
     for (let attempt = 0; ; attempt++) {
       if (!isCurrent()) return { status: 'error', code: 'account-changed' };
       onProgress({stage:'minting',itemName:item.name,attempt:attempt+1});
-      result = await wallet.mint(marketplaceMintRequest(item));
+      result = await wallet.mint(marketplaceMintRequest(item, operationVersion));
       // The asset API reports any post-submission uncertainty as outcome-unknown.
       // Only a pre-submission unavailable result is safe to retry while its
       // replacement VTXO becomes spendable after the preceding catalog mint.

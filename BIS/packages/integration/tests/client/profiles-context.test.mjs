@@ -24,7 +24,7 @@ function fixture({assets={list:async()=>[],mint:async()=>{throw Error('unused');
 
 test('player creation and restoration reject the identity selected as Game Wallet',async()=>{
   for (const gameWalletProfileId of ['profile-c','profile-b']) {
-    const f=fixture({gameWalletProfileId:()=>gameWalletProfileId});await f.context.ready();f.context.openProfileChooser();
+    const f=fixture({gameWalletProfileId:()=>gameWalletProfileId});await f.context.readyAsync();f.context.openProfileChooser();
     if(gameWalletProfileId==='profile-c') {await f.context.createAccount();await f.context.continueAccount();}
     else {f.context.openRestoreAccount();await getControls(f.context).restore('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');}
     assert.equal(f.context.getState().profileId,'profile-a');
@@ -35,7 +35,7 @@ test('player creation and restoration reject the identity selected as Game Walle
 });
 
 test('saved Player Wallet selection rejects the identity selected as Game Wallet',async()=>{
-  const f=fixture({gameWalletProfileId:()=> 'profile-b'});await f.context.ready();
+  const f=fixture({gameWalletProfileId:()=> 'profile-b'});await f.context.readyAsync();
   await assert.rejects(f.context.selectProfile('profile-b'),/Game Wallet/);
   assert.equal(f.context.getState().profileId,'profile-a');assert.equal(f.active,'profile-a');
   assert.match(f.context.getState().error??'',/Game Wallet/);f.context.dispose();
@@ -44,7 +44,7 @@ test('saved Player Wallet selection rejects the identity selected as Game Wallet
 test('programmatic profile selection aborts stale reads and preserves both profile records',async()=>{
   let resolve;const delayed=new Promise(r=>resolve=r);
   const f=fixture({assets:{list:()=>delayed,mint:async()=>{throw Error();}}});
-  await f.context.ready();assert.deepEqual(f.context.getState().savedProfiles,['profile-a','profile-b']);
+  await f.context.readyAsync();assert.deepEqual(f.context.getState().savedProfiles,['profile-a','profile-b']);
   const read=f.context.listAssets();await tick();
   await f.context.selectProfile('profile-b');
   resolve([{assetId:'a'.repeat(64)+'0000',quantity:'1'}]);
@@ -53,7 +53,7 @@ test('programmatic profile selection aborts stale reads and preserves both profi
 });
 
 test('programmatic profile management retains duplicate-safe create and restore',async()=>{
-  const f=fixture();await f.context.ready();f.context.openProfileChooser();
+  const f=fixture();await f.context.readyAsync();f.context.openProfileChooser();
   await f.context.createAccount();await f.context.continueAccount();
   assert.equal(f.context.getState().profileId,'profile-c');assert.deepEqual([...f.accounts.keys()],['profile-a','profile-b','profile-c']);
   f.context.openProfileChooser();f.context.openRestoreAccount();await getControls(f.context).restore('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
@@ -61,7 +61,7 @@ test('programmatic profile management retains duplicate-safe create and restore'
 });
 
 test('logout removes only the active profile and leaves no automatic selection',async()=>{
-  const f=fixture();await f.context.ready();f.context.openAccountDialog();f.context.openLogoutConfirmation();f.context.setLogoutBackupAcknowledged(true);await f.context.confirmLogout();
+  const f=fixture();await f.context.readyAsync();f.context.openAccountDialog();f.context.openLogoutConfirmation();f.context.setLogoutBackupAcknowledged(true);await f.context.confirmLogout();
   assert.equal(f.active,undefined);assert.equal(f.accounts.has('profile-a'),false);assert.equal(f.accounts.has('profile-b'),true);
   assert.equal(f.context.getState().profileId,undefined);assert.deepEqual(f.context.getState().savedProfiles,['profile-b']);f.context.dispose();
 });

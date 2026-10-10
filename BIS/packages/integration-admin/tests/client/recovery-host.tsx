@@ -16,7 +16,7 @@ document.getElementById('run')!.onclick=async()=>{
   const button=(label:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent?.replace(/[⚡✓]/g,'').trim()===label)!;
   const click=async(label:string)=>{check(!!button(label),`Missing ${label}`);button(label).click();await tick();};
   try {
-    await c.ready();c.openAccountDialog();await waitFor(()=>!!button('Accounts Details'));await click('Accounts Details');
+    await c.readyAsync();c.openAccountDialog();await waitFor(()=>!!button('Accounts Details'));await click('Accounts Details');
     const labels=[...host.querySelectorAll('.bis-actions button')].map(b=>b.textContent?.replace('⚡','').trim());
     check(labels.join('|')==='Assets|Contracts|Transactions|Get Recovery Phrase|Developer|Back','Account Details actions');
     await click('Get Recovery Phrase');await waitFor(()=>host.querySelectorAll('.bis-recovery li').length===12);
@@ -32,7 +32,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(!!copy&&!!eye&&eye.getAttribute('aria-pressed')==='false','Inline copy and eye off');
     check(!button('Show Recovery Phrase')&&!button('Copy Recovery Phrase'),'No separate recovery actions');
     check([...host.querySelectorAll('.bis-recovery-word')].every(word=>word.textContent?.startsWith('*')),'Words masked');
-    copy.click();await waitFor(()=>!!host.textContent?.includes('Copied to clipboard.'));check(copied===account.phrase,'Exact copy');
+    copy.click();await waitFor(()=>copy.title==='Copied');check(copied===account.phrase&&!host.textContent?.includes('Copied to clipboard.'),'Exact copy and checked success');
     copyFail=true;copy.click();await waitFor(()=>!!host.textContent?.includes('Could not copy.'));
     eye.click();await tick();check(eye.getAttribute('aria-pressed')==='true'&&!!host.querySelector('[aria-label="Hide seed words"]'),'Eye reveals words');
     const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'Narrow layout');

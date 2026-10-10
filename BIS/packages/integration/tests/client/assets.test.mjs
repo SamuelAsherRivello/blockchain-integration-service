@@ -14,6 +14,9 @@ test('exact quantities and validation reject lossy or unsupported input',()=>{
   for(const patch of [{name:''},{ticker:' '},{iconUrl:'javascript:alert(1)'},{iconUrl:'https://user:pass@example.com'},{controlAssetId:'x'}])assert.throws(()=>validateMint({...request,...patch}));
   assert.equal(validateMint({...request,iconUrl:'https://example.com/icon.png'}).iconUrl,'https://example.com/icon.png');
   assert.deepEqual(validateMint({...request,metadata:{bisGameId:'stealth-and-steel',bisAssetType:'item',bisTier:'1'}}).metadata,{bisAssetType:'item',bisGameId:'stealth-and-steel',bisTier:'1'});
+  assert.deepEqual(validateMint({...request,metadata:{bisAttributeDeltas:[{bisAttribute:'movementSpeed'}]}}).metadata,{bisAttributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:0}]});
+  assert.throws(()=>validateMint({...request,metadata:{bisAttributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:10},{bisAttribute:'movementSpeed',bisAttributeDelta:20}]}}));
+  assert.throws(()=>validateMint({...request,metadata:{bisAttributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:101}]}}));
   for(const metadata of [{icon:'https://example.com/x'}, {nested:{unsafe:true}}, {constructor:'unsafe'}, {bad:Infinity}, {bad:'x'.repeat(2049)}]) assert.throws(()=>validateMint({...request,metadata}));
   assert.deepEqual(normalizeAssetMetadata({safe:'yes',nested:{ignored:true},icon:'ignored'},'list'),{safe:'yes'});
 });
@@ -61,14 +64,14 @@ function setup(account={phrase:'test-only',profileId:'profile-a'}, assets={list:
  return {context,replace(){account={phrase:'test-only',profileId:'profile-b'};generation++;for(const l of listeners)l();}};
 }
 test('headless APIs leave UI state unchanged and sanitize failures',async()=>{
- const {context}=setup();await context.ready();const before=context.getState();assert.equal((await context.listAssets()).status,'success');assert.equal((await context.mintAsset(request)).status,'minted');assert.equal(context.getState(),before);context.dispose();assert.equal((await context.listAssets()).code,'disposed');
- const {context:empty}=setup(null);await empty.ready();assert.equal((await empty.mintAsset(request)).code,'account-required');assert.equal((await empty.listAssets()).code,'account-required');empty.dispose();
- const {context:bad}=setup(undefined,{list:async()=>{throw Error('secret source error');},mint:async()=>{throw Error('secret source error');}});await bad.ready();assert.equal((await bad.listAssets()).code,'unavailable');assert.ok(!JSON.stringify(await bad.mintAsset(request)).includes('secret'));bad.dispose();
+ const {context}=setup();await context.readyAsync();const before=context.getState();assert.equal((await context.listAssets()).status,'success');assert.equal((await context.mintAsset(request)).status,'minted');assert.equal(context.getState(),before);context.dispose();assert.equal((await context.listAssets()).code,'disposed');
+ const {context:empty}=setup(null);await empty.readyAsync();assert.equal((await empty.mintAsset(request)).code,'account-required');assert.equal((await empty.listAssets()).code,'account-required');empty.dispose();
+ const {context:bad}=setup(undefined,{list:async()=>{throw Error('secret source error');},mint:async()=>{throw Error('secret source error');}});await bad.readyAsync();assert.equal((await bad.listAssets()).code,'unavailable');assert.ok(!JSON.stringify(await bad.mintAsset(request)).includes('secret'));bad.dispose();
 });
 test('account change suppresses late asset response',async()=>{
- let resolve;const p=new Promise(r=>resolve=r);const s=setup(undefined,{list:()=>p,mint:async()=>{throw Error();}});await s.context.ready();const work=s.context.listAssets();await new Promise(r=>setImmediate(r));s.replace();resolve([{assetId:'a',quantity:'1'}]);assert.equal((await work).code,'account-changed');s.context.dispose();
+ let resolve;const p=new Promise(r=>resolve=r);const s=setup(undefined,{list:()=>p,mint:async()=>{throw Error();}});await s.context.readyAsync();const work=s.context.listAssets();await new Promise(r=>setImmediate(r));s.replace();resolve([{assetId:'a',quantity:'1'}]);assert.equal((await work).code,'account-changed');s.context.dispose();
 });
 test('lack of locks refuses mint',async()=>{
  const lock=navigator.locks;Object.defineProperty(navigator,'locks',{configurable:true,value:undefined});
- try{const {context}=setup();await context.ready();assert.equal((await context.mintAsset(request)).code,'unsupported-environment');context.dispose();}finally{Object.defineProperty(navigator,'locks',{configurable:true,value:lock});}
+ try{const {context}=setup();await context.readyAsync();assert.equal((await context.mintAsset(request)).code,'unsupported-environment');context.dispose();}finally{Object.defineProperty(navigator,'locks',{configurable:true,value:lock});}
 });

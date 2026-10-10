@@ -16,5 +16,5 @@ context.getWalletOperations=async()=>({operations,availableSats:3000,totalSats:1
 context.checkAccountSend=async()=>{checks++;return {status:'pending',verification:'unavailable'};};
 context.discardPreparedTransfer=async id=>{if(id!=='draft')throw Error('Wrong draft');operations=operations.filter(op=>op.id!==`transfer:${id}`);};
 const ui=createBisUi(context);ui.mount(document.getElementById('host')!);
-await context.ready();context.openAccountDialog();
+await context.readyAsync();context.openAccountDialog();
 Object.assign(window,{recoveryFixture:{get checks(){return checks;},settle(){operations=[];rows=[{...rows[0],status:'Settled offchain'}];void context.refreshActivity();}}});

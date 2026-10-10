@@ -99,7 +99,7 @@ test('public burn uses shared wallet lock and sanitizes failures',async t=>{
   const c=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,async()=>{
     calls++;await new Promise(resolve=>{finish=resolve;});throw Error('private provider failure');
   });
-  t.after(()=>c.dispose());await c.ready();
+  t.after(()=>c.dispose());await c.readyAsync();
   const first=c.burnAsset(request);while(!finish)await new Promise(setImmediate);
   const duplicate=await c.burnAsset(request);assert.equal(duplicate.status,'error');assert.equal(calls,1);
   finish();const result=await first;assert.equal(result.code,'unavailable');assert.ok(!result.message.includes('private'));

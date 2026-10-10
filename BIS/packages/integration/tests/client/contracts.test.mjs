@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emptyContractLedger, startLto, endContract, beginContractOperation,
-  markContractSubmission, finishContractOperation, presentContract, checkContracts,
+  markContractSubmission, finishContractOperation, presentContract, checkContractsAsync,
 } from '../../src/client/state-layer-core/contracts.ts';
 
 const scope = { network: 'signet', operator: 'https://signet.arkade.sh', playerId: 'player', gameId: 'game', exclusivityKey: 'treasure' };
@@ -43,10 +43,10 @@ test('player, game, network, operator and host key isolate queries and exclusivi
   const first = start();
   for (const key of Object.keys(scope)) {
     const otherScope = { ...scope, [key]: 'other' };
-    assert.deepEqual(checkContracts(first.ledger, otherScope, 1000), []);
+    assert.deepEqual(checkContractsAsync(first.ledger, otherScope, 1000), []);
     assert.equal(startLto(first.ledger, { ...request, scope: otherScope, id: `other-${key}` }, 1000).status, 'created');
   }
-  assert.equal(checkContracts(first.ledger, scope, 1000).length, 1);
+  assert.equal(checkContractsAsync(first.ledger, scope, 1000).length, 1);
 });
 
 test('end during funding persists forfeiture and late funding can only be refunded', () => {
@@ -82,12 +82,12 @@ test('wrong operation outcomes do not resolve funds, and verified completion is 
   const result = { operationId: 'refund-1', kind: 'refund', outcome: 'confirmed' };
   const refunded = finishContractOperation(prepared, result);
   assert.equal(finishContractOperation(refunded, result), refunded);
-  assert.deepEqual(checkContracts({ contracts: [refunded], attempts: [] }, scope, 2000), []);
+  assert.deepEqual(checkContractsAsync({ contracts: [refunded], attempts: [] }, scope, 2000), []);
 });
 
 test('public queries project known fields, detach nested data, and never invoke signing', () => {
   const contract = { ...funded(), secret: 'private-placeholder', signer: { sign() { throw Error('must not sign'); } } };
-  const result = checkContracts({ contracts: [contract], attempts: [] }, scope, 2000)[0];
+  const result = checkContractsAsync({ contracts: [contract], attempts: [] }, scope, 2000)[0];
   assert.equal('secret' in result, false);
   assert.equal('signer' in result, false);
   result.scope.playerId = 'changed';

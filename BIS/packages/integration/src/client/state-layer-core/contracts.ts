@@ -121,7 +121,7 @@ export function presentContract(contract: ContractRecord, now: number): BisContr
   };
 }
 /** Pure inspection: no provider, timer, signer, persistence or mutation. */
-export function checkContracts(ledger: ContractLedger, scope: ContractScope, now: number): readonly BisContract[] {
+export function checkContractsAsync(ledger: ContractLedger, scope: ContractScope, now: number): readonly BisContract[] {
   return ledger.contracts.filter(contract => sameScope(contract.scope, scope) && !contractResolved(contract)).map(contract => presentContract(contract, now));
 }
 export function endContract(contract: ContractRecord, reason: NonNullable<ContractRecord['ended']>): ContractRecord {

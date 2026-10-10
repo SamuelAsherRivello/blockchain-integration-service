@@ -21,7 +21,7 @@ test('review invalidates changed inputs, fees, account, amount, projections and 
 test('direct API confirmation requires an active wallet before any wallet operation',async()=>{
   assert.equal(boardingSubmissionEnabled,true);
   const c=createContext({load:async()=>({generation:0}),subscribe:()=>()=>{}});
-  await c.ready();
+  await c.readyAsync();
   await assert.rejects(c.confirmAccountTransfer({}),/An active account is required|safely coordinate wallet transfers/);
   c.dispose();
 });

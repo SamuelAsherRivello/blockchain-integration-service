@@ -20,7 +20,7 @@ function fixture() {
   const wallet = observable({ status: 'ready', profileId: 'game-wallet', network: 'signet', playerConnected: true, balance: { availableSats: 5000 } });
   let contracts = [], resetFailure = false, mintWait;
   Object.assign(context, {
-    ready: async () => {},
+    readyAsync: async () => {},
     onEvent: fn => { contextEvents.add(fn); return () => contextEvents.delete(fn); },
     openAccountDialog: () => context.set({ view: 'account' }),
     getContinueRecipient: () => 'unit-recipient',
@@ -38,18 +38,18 @@ function fixture() {
   Object.assign(wallet, { refresh: async () => {}, reset: async () => !resetFailure });
   const lto = observable({});
   Object.assign(lto, {
-    checkContracts: async () => ({ status: 'ready', contracts }), reconcile: async () => {},
+    checkContractsAsync: async () => ({ status: 'ready', contracts }), reconcile: async () => {},
     start: async request => { requests.push(request); return { status: 'pending' }; },
     claim: async () => ({ status: 'pending' }), reject: async () => ({ status: 'pending' }),
     endSession: async id => requests.push({ ended: id }), reset: async () => { contracts = []; },
   });
-  const ui = { mount: () => {}, isBisVisible: () => context.getState().view === 'account',
-    showLoading: () => {}, hideLoading: () => {}, unmount: () => {} };
+  const ui = { mount: () => {}, isLoadingUIVisible: () => context.getState().view === 'account',
+    showLoadingUI: () => {}, hideLoadingUI: () => {}, unmount: () => {} };
   const host = {
     getActiveGameSession: () => session,
     captureContinuationTarget: () => session ? { continuationTargetId: 'loss-1' } : undefined,
-    applyConfirmedContinuation: async input => { effects.push(input); return { status: 'applied' }; },
-    presentConfirmedPlayerReward: async input => { effects.push(input); return { status: 'applied' }; },
+    applyConfirmedContinuationAsync: async input => { effects.push(input); return { status: 'applied' }; },
+    presentConfirmedPlayerRewardAsync: async input => { effects.push(input); return { status: 'applied' }; },
     onBisEvent: event => events.push(event),
   };
   return { context, wallet, lto, ui, host, events, effects, requests, contextEvents,
@@ -100,7 +100,7 @@ test('BisService owns private resources and routes game workflows through the tw
     return { ...f, service, replaceHost: host => { f.host = host; } };
   }
   await t.test('private fields, owned listeners and copied/frozen projections', async () => {
-    const f = create(); await f.service.ready();
+    const f = create(); await f.service.readyAsync();
     for (const name of ['context', 'gameWallet', 'lto', 'ui', 'createContinue', 'createAssetCollection', 'createEquipment']) assert.equal(name in f.service, false);
     assert.equal(f.service.hasItemSupport(), true);
     const snapshot = f.service.getSnapshot();
@@ -126,31 +126,31 @@ test('BisService owns private resources and routes game workflows through the tw
     assert.doesNotThrow(() => f.context.set({ view: 'empty' })); assert.ok(calls <= 2);
   });
   await t.test('snapshots allowlist state and distinguish unavailable from empty without old-wallet leakage', async () => {
-    const f = create(); await f.service.ready();
+    const f = create(); await f.service.readyAsync();
     assert.equal(f.service.getSnapshot().contracts.status, 'ready');
     f.context.set({ recoveryPhrase: 'unit-private-marker', error: 'unit-private-marker' });
     assert.equal(JSON.stringify(f.service.getSnapshot()).includes('unit-private-marker'), false);
-    f.lto.checkContracts = async () => { throw Error('unit-private-provider-error'); };
-    assert.equal((await f.service.queryContracts()).status, 'unavailable');
+    f.lto.checkContractsAsync = async () => { throw Error('unit-private-provider-error'); };
+    assert.equal((await f.service.queryContractsAsync()).status, 'unavailable');
     assert.equal(JSON.stringify(f.service.getSnapshot()).includes('unit-private-provider-error'), false);
-    f.lto.checkContracts = async () => ({ status: 'ready', contracts: [{ id: 'old-wallet-offer', sessionId: 'old-offer' }] });
-    await f.service.queryContracts(); f.context.set({ profileId: 'replacement-player' });
+    f.lto.checkContractsAsync = async () => ({ status: 'ready', contracts: [{ id: 'old-wallet-offer', sessionId: 'old-offer' }] });
+    await f.service.queryContractsAsync(); f.context.set({ profileId: 'replacement-player' });
     assert.equal(f.service.getSnapshot().contracts.status, 'unavailable');
     f.service.dispose(); await settle();
   });
   await t.test('begin does not pay; concurrent pay delivers one confirmed origin effect', async () => {
     const f = create(), workflow = f.service.beginContinuation();
     assert.equal(workflow.sats, 1000); assert.equal(f.requests.length, 0);
-    await Promise.all([f.service.payContinuation(workflow.workflowId), f.service.payContinuation(workflow.workflowId)]); await settle();
+    await Promise.all([f.service.payContinuationAsync(workflow.workflowId), f.service.payContinuationAsync(workflow.workflowId)]); await settle();
     assert.equal(f.requests.length, 1); assert.equal(f.effects.length, 1);
     assert.equal(f.service.getSnapshot().continuations[0].effectReceipt.status, 'applied');
     f.service.endContinuation(workflow.workflowId);
-    await assert.rejects(f.service.payContinuation(workflow.workflowId), /Unknown or ended/);
+    await assert.rejects(f.service.payContinuationAsync(workflow.workflowId), /Unknown or ended/);
   });
   await t.test('no current continuation target or replaced run cannot initiate payment', async () => {
     const f = create(); f.endRun(); assert.throws(() => f.service.beginContinuation(), /current game/);
     const g = create(), workflow = g.service.beginContinuation(); g.replaceRun();
-    await assert.rejects(g.service.payContinuation(workflow.workflowId), /session has ended/);
+    await assert.rejects(g.service.payContinuationAsync(workflow.workflowId), /session has ended/);
     assert.equal(g.requests.length, 0);
   });
   await t.test('pending submission exposes its bound operation without claiming a game receipt', async () => {
@@ -158,7 +158,7 @@ test('BisService owns private resources and routes game workflows through the tw
     const gate = new Promise(resolve => { release = resolve; });
     f.context.requestContinue = async request => { f.requests.push(request); await gate; return { ...request, profileId: 'player', status: 'pending' }; };
     const workflow = f.service.beginContinuation();
-    const work = f.service.payContinuation(workflow.workflowId); await settle();
+    const work = f.service.payContinuationAsync(workflow.workflowId); await settle();
     const state = f.service.getSnapshot().continuations[0];
     assert.equal(state.status, 'pending'); assert.equal(state.operation.operationId, f.requests[0].operationId);
     assert.equal(state.operation.gameSession.gameSessionId, 'run-1'); assert.equal(state.effectReceipt, undefined);
@@ -168,46 +168,46 @@ test('BisService owns private resources and routes game workflows through the tw
   await t.test('reward captures origin before mint, preserves quantity and isolates effect receipt', async () => {
     const f = create();
     const workflow = f.service.beginReward({ asset: { name: 'Unit Trophy', ticker: 'UNIT', decimals: 0, amount: '3' }, successMessage: 'Unit collected' });
-    assert.equal(f.requests.length, 0); await f.service.refreshReward(workflow.workflowId);
-    await f.service.collectReward(workflow.workflowId); await settle();
+    assert.equal(f.requests.length, 0); await f.service.refreshRewardAsync(workflow.workflowId);
+    await f.service.collectRewardAsync(workflow.workflowId); await settle();
     assert.equal(f.requests.length, 1); assert.equal(f.effects.length, 1);
     assert.equal(f.effects[0].kind, 'asset'); assert.equal(f.effects[0].asset.quantity, '3');
     assert.equal(f.service.getSnapshot().rewards[0].effectReceipt.status, 'applied');
-    await f.service.collectReward(workflow.workflowId); assert.equal(f.requests.length, 1);
+    await f.service.collectRewardAsync(workflow.workflowId); assert.equal(f.requests.length, 1);
   });
   await t.test('a late mint never targets the replacement run or remints for failed delivery', async () => {
     const f = create(); let release; f.delayMint(new Promise(resolve => { release = resolve; }));
     const workflow = f.service.beginReward({ asset: { name: 'Unit Trophy', ticker: 'UNIT', decimals: 0, amount: '1' }, successMessage: 'Unit collected' });
-    await f.service.refreshReward(workflow.workflowId);
-    const work = f.service.collectReward(workflow.workflowId); await settle(); f.replaceRun(); release();
+    await f.service.refreshRewardAsync(workflow.workflowId);
+    const work = f.service.collectRewardAsync(workflow.workflowId); await settle(); f.replaceRun(); release();
     await work; await settle(); assert.equal(f.effects.length, 0); assert.equal(f.requests.length, 1);
     assert.equal(f.service.getSnapshot().rewards[0].effectReceipt.status, 'not-applicable');
   });
   await t.test('a rejected reward effect leaves the mint confirmed and cannot trigger recollection', async () => {
-    const f = create(); f.host.presentConfirmedPlayerReward = async () => { throw Error('unit presentation failure'); };
+    const f = create(); f.host.presentConfirmedPlayerRewardAsync = async () => { throw Error('unit presentation failure'); };
     const workflow = f.service.beginReward({ asset: { name: 'Unit Trophy', ticker: 'UNIT', decimals: 0, amount: '1' }, successMessage: 'Unit collected' });
-    await f.service.refreshReward(workflow.workflowId); await f.service.collectReward(workflow.workflowId); await settle();
+    await f.service.refreshRewardAsync(workflow.workflowId); await f.service.collectRewardAsync(workflow.workflowId); await settle();
     const state = f.service.getSnapshot().rewards[0];
     assert.equal(state.status, 'owned'); assert.equal(state.effectReceipt.status, 'not-applicable');
-    await f.service.checkReward(workflow.workflowId); await f.service.collectReward(workflow.workflowId);
+    await f.service.checkRewardAsync(workflow.workflowId); await f.service.collectRewardAsync(workflow.workflowId);
     assert.equal(f.requests.length, 1);
   });
   await t.test('host replacement suppresses a late confirmed continuation without resubmission', async () => {
     const f=create();let release;
     const gate=new Promise(resolve=>{release=resolve;});
     f.context.requestContinue=async request=>{f.requests.push(request);await gate;return {...request,profileId:'player',status:'succeeded'};};
-    const workflow=f.service.beginContinuation(),work=f.service.payContinuation(workflow.workflowId);
+    const workflow=f.service.beginContinuation(),work=f.service.payContinuationAsync(workflow.workflowId);
     await settle();f.replaceHost({...f.host});release();await work;await settle();
     assert.equal(f.effects.length,0);assert.equal(f.requests.length,1);
     assert.equal(f.service.getSnapshot().continuations[0].effectReceipt.status,'not-applicable');
-    await f.service.checkContinuation(workflow.workflowId);assert.equal(f.requests.length,1);
+    await f.service.checkContinuationAsync(workflow.workflowId);assert.equal(f.requests.length,1);
   });
   await t.test('reset suppresses late mint effects/events and disposes transient workflows', async () => {
     const f=create();let release;f.delayMint(new Promise(resolve=>{release=resolve;}));
     const workflow=f.service.beginReward({asset:{name:'Unit Trophy',ticker:'UNIT',decimals:0,amount:'1'},successMessage:'Unit collected'});
-    await f.service.refreshReward(workflow.workflowId);
-    const work=f.service.collectReward(workflow.workflowId);await settle();
-    assert.equal((await f.service.resetForGame()).status,'completed');
+    await f.service.refreshRewardAsync(workflow.workflowId);
+    const work=f.service.collectRewardAsync(workflow.workflowId);await settle();
+    assert.equal((await f.service.resetForGameAsync()).status,'completed');
     const events=f.events.length;release();await work.catch(()=>{});await settle();
     assert.equal(f.effects.length,0);assert.equal(f.events.length,events);
     assert.equal(f.service.getSnapshot().rewards.length,0);assert.equal(f.requests.length,1);
@@ -218,14 +218,14 @@ test('BisService owns private resources and routes game workflows through the tw
       metadata: { bisSchemaVersion: '1', ...marketplaceItemMetadata(item) } }));
     f.context.listAssets = async () => ({ status: 'success', profileId: 'player', assets });
     assert.equal(f.service.hasItemSupport(), true); assert.equal(f.service.hasContractSupport(), false);
-    assert.equal((await f.service.refreshEquipment()).ownedItems.length, 9);
-    assert.equal((await f.service.selectEquipment('unit-item-0')).effective.Shoes.tier, 1);
-    assert.equal((await f.service.selectEquipment('unit-item-1')).effective.Shoes.tier, 2);
-    assert.equal((await f.service.clearEquipment('Shoes')).effective.Shoes, undefined);
-    await assert.rejects(f.service.selectEquipment('unowned'), /freshly owned/);
+    assert.equal((await f.service.refreshEquipmentAsync()).ownedItems.length, 9);
+    assert.equal((await f.service.selectEquipmentAsync('unit-item-0')).effective.Shoes.tier, 1);
+    assert.equal((await f.service.selectEquipmentAsync('unit-item-1')).effective.Shoes.tier, 2);
+    assert.equal((await f.service.clearEquipmentAsync('Shoes')).effective.Shoes, undefined);
+    await assert.rejects(f.service.selectEquipmentAsync('unowned'), /freshly owned/);
   });
   await t.test('closed-window contract updates publish without a game poll', async () => {
-    const f = create(); await f.service.ready(); f.events.length = 0;
+    const f = create(); await f.service.readyAsync(); f.events.length = 0;
     f.publishContracts([{ id: 'offer-1', sessionId: 'offer-session', financial: 'funded', amountSats: 1000 }]);
     await settle(); assert.equal(f.service.getSnapshot().contracts.contracts[0].offerSessionId, 'offer-session');
     assert.ok(f.events.some(event => event.type === 'stateChanged' && event.snapshot.contracts.contracts.length === 1));
@@ -233,43 +233,43 @@ test('BisService owns private resources and routes game workflows through the tw
   });
   await t.test('contract offer identity is distinct from run/wallet identity and sats delivery is once', async () => {
     const f = create(), now = Date.now();
-    await f.service.startContract({ offerSessionId: 'offer-session', purpose: 'treasure', hostReference: 'chest',
+    await f.service.startContractAsync({ offerSessionId: 'offer-session', purpose: 'treasure', hostReference: 'chest',
       amountSats: 1250, startedAt: now, expiresAt: now + 90000, exclusivityKey: 'treasure' });
     assert.equal(f.requests[0].sessionId, 'offer-session'); assert.equal('offerSessionId' in f.requests[0], false);
     const confirmed = { id: 'contract-1', sessionId: 'offer-session', financial: 'claimed', amountSats: 1250, operationId: 'claim-1', purpose: 'treasure' };
     f.publishContracts([confirmed]); await settle(); f.publishContracts([confirmed]); await settle();
     assert.equal(f.effects.length, 1); assert.equal(f.effects[0].kind, 'sats'); assert.equal(f.effects[0].amountSats, 1250);
     assert.equal(f.effects[0].gameSession.gameSessionId, 'run-1');
-    await f.service.endContractSession('offer-session'); assert.equal(f.requests.at(-1).ended, 'offer-session');
+    await f.service.endContractSessionAsync('offer-session'); assert.equal(f.requests.at(-1).ended, 'offer-session');
   });
   await t.test('late sats confirmation keeps financial truth without affecting a replacement run', async () => {
     const f=create(),now=Date.now();
-    await f.service.startContract({offerSessionId:'old-offer',purpose:'treasure',hostReference:'chest',amountSats:1250,startedAt:now,expiresAt:now+90000,exclusivityKey:'treasure'});
+    await f.service.startContractAsync({offerSessionId:'old-offer',purpose:'treasure',hostReference:'chest',amountSats:1250,startedAt:now,expiresAt:now+90000,exclusivityKey:'treasure'});
     f.replaceRun();f.publishContracts([{id:'old-contract',sessionId:'old-offer',financial:'claimed',amountSats:1250,operationId:'old-claim',purpose:'treasure'}]);await settle();
     assert.equal(f.effects.length,0);assert.equal(f.service.getSnapshot().contracts.contracts[0].financial,'claimed');
     assert.ok(f.events.some(event=>event.type==='operationChanged'&&event.effectReceipt?.status==='not-applicable'));
   });
   await t.test('duplicate or ended offer IDs cannot rebind financial delivery to a new run', async () => {
     const f=create(),now=Date.now(),request={offerSessionId:'bound-offer',purpose:'treasure',hostReference:'chest',amountSats:1250,startedAt:now,expiresAt:now+90000,exclusivityKey:'treasure'};
-    await f.service.startContract(request);f.replaceRun();
-    assert.equal((await f.service.startContract(request)).status,'unavailable');assert.equal(f.requests.length,1);
+    await f.service.startContractAsync(request);f.replaceRun();
+    assert.equal((await f.service.startContractAsync(request)).status,'unavailable');assert.equal(f.requests.length,1);
     f.publishContracts([{id:'bound-contract',sessionId:'bound-offer',financial:'claimed',amountSats:1250,operationId:'bound-claim',purpose:'treasure'}]);await settle();assert.equal(f.effects.length,0);
-    await f.service.endContractSession('bound-offer');
-    assert.equal((await f.service.startContract(request)).status,'unavailable');
+    await f.service.endContractSessionAsync('bound-offer');
+    assert.equal((await f.service.startContractAsync(request)).status,'unavailable');
   });
   await t.test('absent-wallet reset succeeds and disposal passes the explicit preservation policy', async () => {
     const f=create();f.wallet.set({status:'empty',profileId:undefined});f.context.set({hasProfile:false,profileId:undefined,phase:'idle'});
-    assert.equal((await f.service.resetForGame()).status,'completed');
+    assert.equal((await f.service.resetForGameAsync()).status,'completed');
     let policy;f.lto.dispose=options=>{policy=options;};
     f.service.dispose({preserveContracts:true});assert.deepEqual(policy,{endSessions:false});
     const g=create();g.lto.dispose=options=>{policy=options;};g.service.dispose();assert.deepEqual(policy,{endSessions:true});
   });
   await t.test('reset is serialized, truthful, retryable and invalidates workflow delivery', async () => {
     const f = create(); f.service.beginContinuation(); f.failReset(true);
-    const first = f.service.resetForGame(), second = f.service.resetForGame(); assert.equal(first, second);
+    const first = f.service.resetForGameAsync(), second = f.service.resetForGameAsync(); assert.equal(first, second);
     assert.equal((await first).status, 'failed'); assert.equal(f.service.getSnapshot().continuations.length, 0);
-    f.failReset(false); assert.equal((await f.service.resetForGame()).status, 'completed');
+    f.failReset(false); assert.equal((await f.service.resetForGameAsync()).status, 'completed');
     assert.equal(f.service.getSnapshot().account.hasProfile, false);
-    f.service.dispose(); assert.equal((await f.service.resetForGame()).error.code, 'disposed');
+    f.service.dispose(); assert.equal((await f.service.resetForGameAsync()).error.code, 'disposed');
   });
 });

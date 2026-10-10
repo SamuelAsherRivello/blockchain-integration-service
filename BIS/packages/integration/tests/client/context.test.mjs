@@ -11,13 +11,13 @@ function setup(overrides={}) {
  return {context,storage,saves:()=>saves,account:()=>account};
 }
 test('entry round trip, repeated open, immutable state and disposal',async()=>{
- const {context}=setup();await context.ready();const views=[];const unsub=context.subscribe(()=>views.push(context.getState().view));
+ const {context}=setup();await context.readyAsync();const views=[];const unsub=context.subscribe(()=>views.push(context.getState().view));
  getControls(context).present();context.openAccountDialog();context.openAccountDialog();context.closeAccount();
  assert.deepEqual(views,['account-button','account','account-button']);assert.ok(Object.isFrozen(context.getState()));
  unsub();context.dispose();assert.throws(()=>context.openAccountDialog(),/disposed/);
 });
 test('recovery stays private and repeated Continue commits once before activation',async()=>{
- const {context,saves,account}=setup();await context.ready();const events=[];context.onEvent(e=>events.push(e));
+ const {context,saves,account}=setup();await context.readyAsync();const events=[];context.onEvent(e=>events.push(e));
  context.openAccountDialog();await context.createAccount();assert.equal(account(),null);assert.equal(context.getState().hasProfile,false);
  assert.equal(JSON.stringify(context.getState()).includes(secret.phrase),false);
  assert.equal(getControls(context).recovery(),secret.phrase);
@@ -27,42 +27,42 @@ test('recovery stays private and repeated Continue commits once before activatio
 });
 test('failed save retries same identity without premature event',async()=>{
  let tries=0;const {context}=setup({save:async(a)=>{assert.equal(a,secret);if(++tries===1)throw Error('private details');}});
- await context.ready();let events=0;context.onEvent(()=>events++);await context.createAccount();await context.continueAccount();
+ await context.readyAsync();let events=0;context.onEvent(()=>events++);await context.createAccount();await context.continueAccount();
  assert.equal(events,0);assert.equal(context.getState().phase,'error');assert.equal(context.getState().error.includes('private details'),false);
  await context.retry();assert.equal(events,1);context.dispose();
 });
 test('reset invalidates delayed creation and old subscribers',async()=>{
- const d=deferred();const {storage}=setup();const context=createContext(storage,()=>d.promise,async()=>secret.profileId);await context.ready();
+ const d=deferred();const {storage}=setup();const context=createContext(storage,()=>d.promise,async()=>secret.profileId);await context.readyAsync();
  const work=context.createAccount();await createBisAdminContext(context).resetClient();d.resolve(secret);await work;
  assert.equal(context.getState().hasProfile,false);assert.equal(context.getState().phase,'idle');assert.equal(getControls(context).recovery(),undefined);context.dispose();
 });
 test('reload restores same identity but incomplete creation is forgotten',async()=>{
- const {context,storage}=setup();await context.ready();await context.createAccount();context.dispose();
- const second=createContext(storage,async()=>secret,async()=>secret.profileId);await second.ready();assert.equal(second.getState().hasProfile,false);
+ const {context,storage}=setup();await context.readyAsync();await context.createAccount();context.dispose();
+ const second=createContext(storage,async()=>secret,async()=>secret.profileId);await second.readyAsync();assert.equal(second.getState().hasProfile,false);
  await second.createAccount();await second.continueAccount();second.dispose();
- const third=createContext(storage,async()=>{throw Error('must not create');},async()=>secret.profileId);await third.ready();assert.equal(third.getState().profileId,secret.profileId);third.dispose();
+ const third=createContext(storage,async()=>{throw Error('must not create');},async()=>secret.profileId);await third.readyAsync();assert.equal(third.getState().profileId,secret.profileId);third.dispose();
 });
 test('corrupt hydration is an error and cannot create a replacement',async()=>{
- const {context}=setup({load:async()=>{throw Error('private storage error');}});await context.ready();await context.createAccount();
+ const {context}=setup({load:async()=>{throw Error('private storage error');}});await context.readyAsync();await context.createAccount();
  assert.equal(context.getState().phase,'error');assert.equal(context.getState().canReset,true);context.dispose();
 });
 test('only Signet is accepted',()=>{requireSignet('signet');for(const n of ['bitcoin','mainnet','testnet','mutinynet','regtest'])assert.throws(()=>requireSignet(n));});
 
 test('cross-instance reset notification invalidates the remembered account',async()=>{
- const {context,storage}=setup();await context.ready();await context.createAccount();await context.continueAccount();
- const other=createContext(storage,async()=>secret,async()=>secret.profileId);await other.ready();assert.equal(other.getState().hasProfile,true);
- await createBisAdminContext(context).resetClient();await other.ready();assert.equal(other.getState().hasProfile,false);context.dispose();other.dispose();
+ const {context,storage}=setup();await context.readyAsync();await context.createAccount();await context.continueAccount();
+ const other=createContext(storage,async()=>secret,async()=>secret.profileId);await other.readyAsync();assert.equal(other.getState().hasProfile,true);
+ await createBisAdminContext(context).resetClient();await other.readyAsync();assert.equal(other.getState().hasProfile,false);context.dispose();other.dispose();
 });
 test('reset failure is visible and does not report success',async()=>{
- const {context}=setup({reset:async()=>{throw Error('failure');}});await context.ready();await context.createAccount();await context.continueAccount();
+ const {context}=setup({reset:async()=>{throw Error('failure');}});await context.readyAsync();await context.createAccount();await context.continueAccount();
  await assert.rejects(createBisAdminContext(context).resetClient());assert.equal(context.getState().hasProfile,true);assert.equal(context.getState().phase,'error');context.dispose();
 });
 test('duplicate creation and disposal during creation do not publish a result',async()=>{
  const {storage}=setup();const d=deferred();let calls=0;
- const context=createContext(storage,()=>{calls++;return d.promise;},async()=>secret.profileId);await context.ready();
+ const context=createContext(storage,()=>{calls++;return d.promise;},async()=>secret.profileId);await context.readyAsync();
  const work=context.createAccount();await context.createAccount();assert.equal(calls,1);context.dispose();d.resolve(secret);await work;assert.equal(getControls(context).recovery(),undefined);
 });
 test('Back abandons recovery and returns to the logged-out chooser',async()=>{
- const {context,account}=setup();await context.ready();context.openAccountDialog();await context.createAccount();context.closeAccount();await context.ready();
+ const {context,account}=setup();await context.readyAsync();context.openAccountDialog();await context.createAccount();context.closeAccount();await context.readyAsync();
  assert.equal(context.getState().view,'account');assert.equal(context.getState().phase,'idle');assert.equal(account(),null);context.dispose();
 });

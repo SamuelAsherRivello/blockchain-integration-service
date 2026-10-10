@@ -10,8 +10,8 @@ test('Marketplace derives every visible network route from the selected Player W
 
   assert.match(app, /const network=playerState\.network;/);
   assert.match(app, /createBisGameWallet\(\{playerProfileId:\(\)=>player\.getState\(\)\.profileId,playerNetwork:\(\)=>player\.getState\(\)\.network\}\)/);
-  assert.match(app, /if\(!network\)\{setGameItems\(\[\]\);setIsGameInventoryLoading\(false\);return/);
-  assert.match(app, /readPublicInventory\(inventoryAddress,controller\.signal,network\)/);
+  assert.match(app, /if\(isCatalogLoading\|\|!network\)return \[\];/);
+  assert.match(app, /readPublicInventory\(inventoryAddress,new AbortController\(\)\.signal,network\)/);
   assert.match(app, /Network: \{networkLabel\(network\)\}/);
   assert.match(app, /arkExplorerAssetUrl\(network,selected\.assetId\)/);
   assert.doesNotMatch(app, /Network: Signet/);

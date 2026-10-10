@@ -8,11 +8,11 @@
   ],
   "scripts": {
     "test": "node BIS/scripts/test.mjs",
-    "test:all": "npm run test && npm run test --workspace @spike/prototype-onboarding",
+    "test:all": "npm run test && npm run test --workspace @spike/prototype-onboarding && npm run test --workspace @spike/prototype-faucet",
     "dev": "node BIS/scripts/dev-all.mjs",
     "dev:admin": "npm run dev --workspace @bis/integration-admin -- --port 5174 --strictPort",
     "dev:marketplace": "npm run dev --workspace @bis/marketplace -- --port 5176 --strictPort",
-    "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-admin && npm run build --workspace @bis/marketplace",
+    "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-admin && npm run build --workspace @bis/marketplace && npm run build --workspace @spike/prototype-faucet",
     "build:all": "npm run build && npm run build --workspace @spike/prototype-onboarding",
     "typecheck": "tsc --noEmit",
     "preview": "npm run preview --workspace @bis/integration-admin",

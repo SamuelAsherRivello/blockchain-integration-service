@@ -15,7 +15,7 @@ export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string;
 export type BisContractsResult = Readonly<{ status: 'ready' | 'unavailable'; contracts: readonly BisContract[] }>;
 export type BisContractActionResult = Readonly<{ status: 'pending' | 'confirmed' | 'unavailable' | 'too-late' | 'not-submitted'; contract?: BisContract }>;
 export type BisLtoRequest = Omit<LtoRequest,'id'|'operationId'|'scope'> & Readonly<{ exclusivityKey: string }>;
-type Controller = { claim(id:string):Promise<BisContractActionResult>; reject(id:string):Promise<BisContractActionResult>; refund(id:string):Promise<BisContractActionResult>;checkContracts?(filter?:BisContractFilter):Promise<BisContractsResult> };
+type Controller = { claim(id:string):Promise<BisContractActionResult>; reject(id:string):Promise<BisContractActionResult>; refund(id:string):Promise<BisContractActionResult>;checkContractsAsync?(filter?:BisContractFilter):Promise<BisContractsResult> };
 const controllers = new WeakMap<BisContext,Controller>();
 export const contractController = (context: BisContext) => controllers.get(context);
 function createNetworkScopedPlayerStorage(selectedNetwork: () => TestNetwork | undefined): Pick<ReturnType<typeof createAccountStorage>, 'load'> {
@@ -227,7 +227,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
   }
   const controller = {
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    checkContracts: async(filter: BisContractFilter = {}):Promise<BisContractsResult> => {
+    checkContractsAsync: async(filter: BisContractFilter = {}):Promise<BisContractsResult> => {
       const profileId=context.getState().profileId;if(!profileId)return {status:'ready',contracts:[]};
       try {const result=inspectContractDocument(await storage.load(),profileId,filter,context.getState().network??'signet');return context.getState().profileId===profileId?result:{status:'unavailable',contracts:[]};}
       catch{return {status:'unavailable',contracts:[]};}

@@ -25,7 +25,7 @@ document.getElementById('run')!.onclick = async () => {
   const button = (name: string) => [...host.querySelectorAll('button')].find(b=>b.textContent===name)!;
   const value = (name: string) => (host.querySelector(`input[aria-label="${name}"]`) as HTMLInputElement)?.value;
   try {
-    await c.ready();c.openAccountDialog();c.openAccountDetails();await tick();
+    await c.readyAsync();c.openAccountDialog();c.openAccountDetails();await tick();
     c.openAccountTransfer();await tick();
     const transferCard=host.querySelector('.bis-card')!;
     check(transferCard.scrollHeight<=transferCard.clientHeight,'Zero Bitcoin transfer fits without cropping or scrolling');

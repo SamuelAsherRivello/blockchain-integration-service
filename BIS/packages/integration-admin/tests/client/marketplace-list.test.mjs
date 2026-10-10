@@ -5,7 +5,7 @@ import { listMarketplaceItems } from '../../src/client/admin-layer/marketplace-l
 test('C.G.4 reports only marketplace equipment from a fresh wallet listing', async () => {
   const equipment = {
     assetId: 'a'.repeat(64), quantity: '1', iconUrl:'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/shoes-1.png',
-    metadata: {bisSchemaVersion:'1',bisGameId:'stealth-and-steel',bisAssetType:'item',bisCatalogId:'stealth-steel-shoes-1',bisEquipmentFamily:'Shoes',bisTier:'1',bisPriceSats:'1000'},
+    metadata: {bisSchemaVersion:'1',bisGameId:'stealth-and-steel',bisAssetType:'item',bisCatalogId:'stealth-steel-shoes-1',bisEquipmentFamily:'Shoes',bisTier:'1',bisPriceSats:'1000',bisDescription:'Increases movement speed by 10%.',bisAttributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:10}]},
   };
   const unrelated = {assetId:'b'.repeat(64),quantity:'1',name:'Other'};
   const progress = [];

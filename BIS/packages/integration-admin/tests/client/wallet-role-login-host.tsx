@@ -26,7 +26,7 @@ document.getElementById('run')!.onclick=async()=>{
   result.textContent='Running';playerFirst.replaceChildren();gameFirst.replaceChildren();
   try {
     const player=createContext(accountStorage({profileId:'player-fixture',phrase:'fixture only'}),undefined,async()=> 'player-fixture');
-    await player.ready();
+    await player.readyAsync();
     const playerFirstWallet=createBisGameWallet({playerProfileId:()=>player.getState().profileId},walletDependencies());
     const playerRoot=createRoot(playerFirst);
     playerRoot.render(<div className="bis-layer bis-layer-open"><section className="bis-card"><GameWalletLogin wallet={playerFirstWallet} onBack={()=>undefined}/></section></div>);
@@ -40,7 +40,7 @@ document.getElementById('run')!.onclick=async()=>{
     let gameWallet:ReturnType<typeof createBisGameWallet>;
     const gameFirstPlayer=createContext(accountStorage(null),async()=>({profileId:'game-fixture',phrase:'fixture only'}),async()=> 'game-fixture',undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,{gameWalletProfileId:()=>gameWallet?.getState().profileId});
     gameWallet=createBisGameWallet({playerProfileId:()=>gameFirstPlayer.getState().profileId},walletDependencies());
-    await gameWallet.selectWallet({profileId:'game-fixture',phrase:'fixture only'});await gameFirstPlayer.ready();
+    await gameWallet.selectWallet({profileId:'game-fixture',phrase:'fixture only'});await gameFirstPlayer.readyAsync();
     const playerUi=createBisUi(gameFirstPlayer);playerUi.mount(gameFirst);gameFirstPlayer.openAccountDialog();await gameFirstPlayer.createAccount();await gameFirstPlayer.continueAccount();await tick();
     check(gameFirst.textContent?.includes('already configured as the Game Wallet'),'Game-first conflict is not visible');
     check(!gameFirstPlayer.getState().hasProfile&&gameWallet.getState().profileId==='game-fixture','Game-first conflict changed a role');

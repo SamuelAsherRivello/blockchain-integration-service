@@ -63,15 +63,22 @@ test('delivery selects only sufficient current asset inputs and refuses changed 
   assert.throws(()=>selectExactAssetDeliveryInputs(coins,'game-profile',assetId,4n),{code:'invalid-input'});
 });
 
-test('delivery confirmation requires the exact recipient allocation and sender asset change',()=>{
+test('delivery confirmation requires the exact recipient allocation and source reduction',()=>{
   const record={version:1,id:request.operationId,profileId:'game-profile',request,status:'pending',inputs:[input],inputAssets:[{assetId,quantity:'2'}],senderScript:'5120'+'c'.repeat(64),recipientScript:'5120'+'d'.repeat(64),sourceQuantity:'2',transactionId:txid};
   const evidence=[
     {txid,script:record.recipientScript,assets:[{assetId,amount:1n}]},
     {txid,script:record.senderScript,assets:[{assetId,amount:1n}]},
   ];
   assert.equal(hasExactDeliveryEvidence(record,1n,evidence),true);
-  assert.equal(hasExactDeliveryEvidence(record,1n,[evidence[0],{...evidence[1],assets:[]}]),false);
+  assert.equal(hasExactDeliveryEvidence(record,1n,[evidence[0],{...evidence[1],assets:[]}]),true);
   assert.equal(hasExactDeliveryEvidence(record,2n,evidence),false);
+});
+
+test('delivery confirmation accepts normalized sender change when recipient and source reduction are verified',()=>{
+  const record={version:1,id:request.operationId,profileId:'game-profile',request,status:'pending',inputs:[input],inputAssets:[{assetId,quantity:'2'}],senderScript:'5120'+'c'.repeat(64),recipientScript:'5120'+'d'.repeat(64),sourceQuantity:'2',transactionId:txid};
+  const recipientOnly=[{txid,script:record.recipientScript,assets:[{assetId,amount:1n}]}];
+  assert.equal(hasExactDeliveryEvidence(record,1n,recipientOnly),true);
+  assert.equal(hasExactDeliveryEvidence(record,2n,recipientOnly),false);
 });
 
 test('a pending delivery reserves only its selected wallet input',()=>{

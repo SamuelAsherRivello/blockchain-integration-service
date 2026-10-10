@@ -11,5 +11,7 @@ export const achievementPresets = [1, 2, 3].map(level => ({
     bisAssetType: 'trophy',
     bisCatalogId: `stealth-steel-trophy-${level}`,
     bisTier: String(level),
+    bisDescription: `Level ${level} achievement trophy.`,
+    bisAttributeDeltas: [],
   },
 }));

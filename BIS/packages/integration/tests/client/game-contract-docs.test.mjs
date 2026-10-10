@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 const root=fileURLToPath(new URL('../../../../../',import.meta.url));
 const documents=[
-  'BIS/documentation/deep-dive.md','BIS/documentation/BGS_PROJECT_BRIEF.md',
+  'BIS/documentation/deep-dive-overview.md','BIS/documentation/deep-dive-details.md','BIS/documentation/BGS_PROJECT_BRIEF.md',
   'BIS/documentation/design-discussion.md','BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md',
   'BIS/packages/integration/integration-package-readme.md',
   'BIS/packages/integration-admin/integration-admin-package-readme.md',
@@ -15,7 +15,7 @@ const documents=[
 ];
 
 test('canonical deep-dive example matches the compiled public package fixture',async()=>{
-  const docs=await readFile(resolve(root,documents[0]),'utf8');
+  const docs=await readFile(resolve(root,'BIS/documentation/deep-dive-details.md'),'utf8');
   const fixture=await readFile(resolve(root,'BIS/packages/integration/tests/fixtures/game-contract-types.ts'),'utf8');
   const example=docs.match(/export async function mountBis[\s\S]*?\n}/)?.[0];
   assert.ok(example);assert.ok(fixture.includes(example));

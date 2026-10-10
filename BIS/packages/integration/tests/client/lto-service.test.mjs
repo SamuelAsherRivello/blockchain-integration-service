@@ -233,11 +233,11 @@ test('explicit player or game network mismatch remains unavailable',async()=>{
 
 test('public inspection filters exact host reference, exposes roles and never signs',async()=>{
   const s=setup();await s.service.start(s.request);await delay();
-  const read=await s.service.checkContracts({hostReference:'chest'});
+  const read=await s.service.checkContractsAsync({hostReference:'chest'});
   assert.equal(read.contracts[0].role,'player');assert.equal(read.contracts[0].canRefund,false);
   assert.equal(read.contracts[0].canClaim,true);assert.equal('secretHex' in read.contracts[0],false);
-  assert.equal((await s.service.checkContracts({hostReference:'other'})).contracts.length,0);
-  s.playerState.profileId='game';const game=await s.service.checkContracts();
+  assert.equal((await s.service.checkContractsAsync({hostReference:'other'})).contracts.length,0);
+  s.playerState.profileId='game';const game=await s.service.checkContractsAsync();
   assert.equal(game.contracts[0].role,'game');assert.equal(game.contracts[0].canClaim,false);assert.equal(game.contracts[0].canRefund,true);
   assert.deepEqual(s.calls,['fund']);
 });

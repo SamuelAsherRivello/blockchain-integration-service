@@ -26,13 +26,13 @@ function setup() {
   return c;
 }
 document.getElementById('admin')!.onclick=event=>{(event.currentTarget as HTMLElement).textContent='Admin clicked';};
-document.getElementById('loading')!.onclick=async()=>{const c=setup();await c.ready();mode='pending';c.openAccountDialog();c.openAccountAssets();};
-document.getElementById('failure')!.onclick=async()=>{const c=setup();await c.ready();mode='fail';c.openAccountDialog();c.openAccountAssets();};
-document.getElementById('burning')!.onclick=async()=>{const c=setup();await c.ready();c.openAccountDialog();c.openAccountAssets();await wait(()=>!dialog()&&!!host.querySelector('.bis-asset-row'));host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Burn').click();await tick();button('OK').click();};
+document.getElementById('loading')!.onclick=async()=>{const c=setup();await c.readyAsync();mode='pending';c.openAccountDialog();c.openAccountAssets();};
+document.getElementById('failure')!.onclick=async()=>{const c=setup();await c.readyAsync();mode='fail';c.openAccountDialog();c.openAccountAssets();};
+document.getElementById('burning')!.onclick=async()=>{const c=setup();await c.readyAsync();c.openAccountDialog();c.openAccountAssets();await wait(()=>!dialog()&&!!host.querySelector('.bis-asset-row'));host.querySelector<HTMLButtonElement>('.bis-asset-row')!.click();await tick();button('Burn').click();await tick();button('OK').click();};
 document.getElementById('run')!.onclick=async()=>{
   result.textContent='Running';const checks:string[]=[];
   try {
-    const c=setup();await c.ready();c.openAccountDialog();mode='pending';c.openAccountAssets();
+    const c=setup();await c.readyAsync();c.openAccountDialog();mode='pending';c.openAccountAssets();
     await wait(()=>!!finishRead && !!dialog());
     assert(covered(),'Initial page is covered and inert');assert(dialog()?.textContent?.includes('Loading...'),'Loading label');
     assert(!host.querySelector('.bis-runtime-content')?.textContent?.includes('Loading...'),'No inline loading');
@@ -99,7 +99,7 @@ document.getElementById('lifecycle')!.onclick=async()=>{
   async function expectLabel(label:string){await wait(()=>!!gate && dialog()?.textContent?.includes(label)===true);assert(covered(),label+' covers runtime');}
   function release(){const done=gate;gate=undefined;done?.();}
   try {
-    await expectLabel('Loading...');release();await c.ready();await wait(()=>!dialog());
+    await expectLabel('Loading...');release();await c.readyAsync();await wait(()=>!dialog());
     c.openAccountDialog();void c.createAccount();await expectLabel('Creating...');release();await wait(()=>!dialog()&&c.getState().phase==='recovery');
     void c.continueAccount();await expectLabel('Saving...');release();await wait(()=>!dialog()&&c.getState().phase==='active');
     c.openLogoutConfirmation();c.setLogoutBackupAcknowledged(true);void c.confirmLogout();await expectLabel('Logging out...');release();await wait(()=>!dialog()&&!c.getState().hasProfile);

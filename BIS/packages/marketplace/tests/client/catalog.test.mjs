@@ -188,18 +188,21 @@ test('Marketplace derives item identity, price, and artwork from fresh chain ass
 test('Marketplace refreshes Game Wallet inventory after a completed checkout without exposing a manual refresh control', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
-  assert.match(app, /setInventoryRevision\(value=>value\+1\)/);
-  assert.match(app, /\[inventoryAddress,inventoryRevision,network,game,selectedGame\?\.gameId,selectedGame\?\.gameWalletAddress,gameState\.status\]/);
+  assert.match(app, /inventory\.retry\(source\)/);
+  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),\.\.\.inventorySources\.map\(source=>inventory\.retry\(source\)\)\]\)/);
 });
 
 test('Marketplace delegates visible Marketplace loading to the shared pending prompt', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /const \[isCatalogLoading,setIsCatalogLoading\]=useState\(true\)/);
-  assert.match(app, /const \[isGameInventoryLoading,setIsGameInventoryLoading\]=useState\(true\)/);
-  assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|isGameInventoryLoading/);
-  assert.match(app, /setIsGameInventoryLoading\(true\)/);
-  assert.match(app, /setIsGameInventoryLoading\(false\)/);
-  assert.match(app, /usePendingNotice\(isMarketplaceLoading\|\|!!operationLabel/);
+  assert.match(app, /createMarketplaceInventoryCoordinator/);
+  assert.match(app, /const selectedInventoryLoading=owner==='all'/);
+  assert.match(app, /const inventoryCycleLoading=!isCatalogLoading&&settledInventorySourceKey!==inventorySourceKey/);
+  assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|inventoryCycleLoading\|\|selectedInventoryLoading/);
+  assert.match(app, /const promptBusy=isMarketplaceLoading\|\|!!operationLabel/);
+  assert.match(app, /const MARKETPLACE_LOADING_SETTLE_MS=1000/);
+  assert.match(app, /inventoryError=owner==='all'/);
+  assert.match(app, /usePendingNotice\(loadingPromptVisible,operationLabel\?\?'Loading\.\.\.'/);
   assert.doesNotMatch(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.'/);
   assert.match(app, /No equipment is currently available for/);
 });

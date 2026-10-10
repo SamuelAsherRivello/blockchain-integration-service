@@ -15,7 +15,7 @@ document.getElementById('run')!.onclick=async()=>{
  const copy=()=>host.querySelector<HTMLButtonElement>('[aria-label="Copy recovery details"]')!;
  try{
   await render();check(host.querySelector('details')?.open,'Standalone report expanded');check(host.querySelector('textarea')?.readOnly,'Selectable report');
-  copy().click();await tick();check(copied===formatTransferRecoveryReport(status)&&host.textContent?.includes('Recovery details copied.'),'Exact report copy');
+  copy().click();await tick();check(copied===formatTransferRecoveryReport(status)&&copy().title==='Copied'&&!host.textContent?.includes('Recovery details copied.'),'Exact report copy and checked success');
   denied=true;copy().click();await tick();check(host.textContent?.includes('copy manually'),'Manual fallback');denied=false;
   delayed=true;copy().click();await tick();await render({...status,verification:'unavailable'});await render();release!();await tick();delayed=false;
   check(copy().title==='Copy recovery details'&&!host.textContent?.includes('Recovery details copied.'),'A B A ignores stale success');

@@ -104,6 +104,7 @@ export function GameWalletPanel({controller, onDetails, onRecipientChange, onOpe
       bitcoinReceivingAddress: current.addresses?.bitcoinAddress ?? 'Unavailable',
       balance: current.balance ?? 'Unavailable',
       continueRecipient: current.addresses?.arkadeAddress || 'Not configured',
+      ...(current.readStatus ? {readCategory:current.readStatus} : {}),
       ...(current.message ? {readStatus:current.message} : {}),
     });
   }

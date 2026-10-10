@@ -12,7 +12,7 @@ import { formatTransferRecoveryReport } from '../state-layer-core/boarding-statu
 import { CompactItemRow, StatusTypeIcon, type StatusType } from './StatusTypeIcon';
 import { networkLabel } from '../state-layer-core/test-network';
 
-export function AccountActivity({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContracts'>> }) {
+export function AccountActivity({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContractsAsync'>> }) {
   const id = useId();
   const [recoveryDialog, setRecoveryDialog] = useState<{ report: string; trigger: HTMLButtonElement }>();
   const [selectedId, setSelectedId] = useState<string>();
@@ -21,9 +21,9 @@ export function AccountActivity({ activity, onDetailChange, context }: { activit
   const [reportError, setReportError] = useState(false);
   const [contracts,setContracts]=useState<readonly BisContract[]>([]);
   useEffect(()=>{
-    if(!context?.checkContracts)return;
+    if(!context?.checkContractsAsync)return;
     let active=true,reading=false;
-    const refresh=async()=>{if(reading)return;reading=true;try{const result=await context.checkContracts!({includeResolved:true});if(active&&result.status==='ready')setContracts(result.contracts);}catch{}finally{reading=false;}};
+    const refresh=async()=>{if(reading)return;reading=true;try{const result=await context.checkContractsAsync!({includeResolved:true});if(active&&result.status==='ready')setContracts(result.contracts);}catch{}finally{reading=false;}};
     void refresh();const timer=setInterval(()=>void refresh(),2000);
     return()=>{active=false;clearInterval(timer);};
   },[context]);

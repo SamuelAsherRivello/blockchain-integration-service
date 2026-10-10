@@ -257,9 +257,9 @@ export function createBisUi(context: BisContext, options: { gameWallet?: GameWal
     showAccountButton() { internal.present(); },
     openDeveloperDialog() { internal.assertAlive(); openDeveloperDialog?.(); },
     openGameWalletLogin(){internal.assertAlive();openGameWalletDialog?.();},
-    isBisVisible() { return bisVisible; },
-    showLoading() { internal.assertAlive(); setHostLoading(true); },
-    hideLoading() { setHostLoading(false); },
+    isLoadingUIVisible() { return hostLoading; },
+    showLoadingUI() { internal.assertAlive(); setHostLoading(true); },
+    hideLoadingUI() { setHostLoading(false); },
     unmount() { setHostLoading(false); bisVisible = false; internal.toasts.clear(); internal.hideAssets(); root?.unmount(); root = undefined; host = undefined; openDeveloperDialog = undefined;openGameWalletDialog=undefined; },
   };
 }

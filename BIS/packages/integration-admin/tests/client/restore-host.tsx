@@ -17,7 +17,7 @@ const action=(text:string)=>Array.from(host.querySelectorAll<HTMLButtonElement>(
 const fields=()=>Array.from(host.querySelectorAll<HTMLInputElement>('.bis-word-input input'));
 const show=()=>host.querySelector<HTMLButtonElement>('.bis-visibility-toggle')!;
 function input(index:number,value:string){const field=fields()[index];Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(field,value);field.dispatchEvent(new Event('input',{bubbles:true}));}
-async function mount(next:BisContext){ui?.unmount();context?.dispose();context=next;ui=createBisUi(next);ui.mount(host);await next.ready();next.openAccountDialog();await tick();}
+async function mount(next:BisContext){ui?.unmount();context?.dispose();context=next;ui=createBisUi(next);ui.mount(host);await next.readyAsync();next.openAccountDialog();await tick();}
 async function waitFor(predicate:()=>boolean){for(let i=0;i<1000;i++){if(predicate())return;await tick();}throw Error('Operation did not finish');}
 document.getElementById('run')!.onclick=async()=>{
   result.textContent='Running isolated checks';
@@ -52,7 +52,7 @@ document.getElementById('run')!.onclick=async()=>{
     check(connects===2&&saves===1&&host.textContent?.includes('Accounts Details')&&!host.querySelector('.bis-restore-grid'),'Immediate Account destination');
     // New isolated client verifies Back clears entry and never affects real storage.
     const empty=createContext({load:async()=>({account:null,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}});
-    await mount(empty);empty.openRestoreAccount();await tick();input(0,'discard');await tick();action('Back').click();await empty.ready();empty.openRestoreAccount();await tick();check(fields().every(f=>f.value===''),'Back clears entry');
+    await mount(empty);empty.openRestoreAccount();await tick();input(0,'discard');await tick();action('Back').click();await empty.readyAsync();empty.openRestoreAccount();await tick();check(fields().every(f=>f.value===''),'Back clears entry');
     result.textContent='PASS: grid, masking, validation, checksum, atomic paste, denial, stale paste, network failure/OK and fresh restore, Account destination, Back clearing.';
   }catch{result.textContent='FAIL: isolated restoration checks';}
   finally{clipboard='';if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');}

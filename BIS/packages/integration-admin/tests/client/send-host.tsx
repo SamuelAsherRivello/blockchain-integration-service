@@ -17,7 +17,7 @@ document.getElementById('run')!.onclick=async()=>{
  const input=(label:string)=>host.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement;
  function fill(label:string,value:string){const el=input(label);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));}
  try {
- await c.ready();c.openAccountDialog();c.openAccountSend();await tick();
+ await c.readyAsync();c.openAccountDialog();c.openAccountSend();await tick();
  check(!host.textContent?.includes('Coming soon'),'Placeholder removed');check(!host.querySelector('select')&&!host.querySelector('input[type="radio"]'),'No unsupported source choices');
  check(!!input('Arkade balance')&&host.textContent?.includes('1,000 sats'),'Arkade balance uses the copyable balance layout');
  check(button('Review Send').disabled,'Empty review disabled');

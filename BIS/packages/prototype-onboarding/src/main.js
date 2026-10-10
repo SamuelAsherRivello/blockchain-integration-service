@@ -114,7 +114,7 @@ $('copy-recovery').onclick=async()=>{
 
  if(!accountId)return;
 
- try{const requested=accountId;const details=await recoveryDetails(requested);if(requested!==accountId)return;await navigator.clipboard.writeText(details.value);$('recovery-feedback').textContent='Copied.';}
+ try{const requested=accountId;const details=await recoveryDetails(requested);if(requested!==accountId)return;await navigator.clipboard.writeText(details.value);$('copy-recovery').textContent='✓';$('copy-recovery').title='Copied';$('recovery-feedback').textContent='';}
 
  catch{$('recovery-feedback').textContent='Copy unavailable. Reveal and copy manually.';}
 
@@ -540,7 +540,7 @@ async function tick(){
  }
 }
 
-$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(bitcoinAddress);$('copied').textContent=' Address copied.';}catch(error){captureError('application callback',error);$('address').select();$('copied').textContent=' Select and copy the address manually.';}};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(bitcoinAddress);$('copy').textContent='✓';$('copy').title='Copied';$('copied').textContent='';}catch(error){captureError('application callback',error);$('address').select();$('copied').textContent=' Select and copy the address manually.';}};
 
 $('faucet').onclick=()=>{if(wallet){try{window.open('https://signet.2nd.dev/','_blank','noopener,noreferrer');}catch(error){captureError('faucet navigation',error);$('fund-status').textContent='Use the direct faucet link and copy the boarding address above.';}void timing(2,'start').catch(error=>captureError('timing',error));}};
 

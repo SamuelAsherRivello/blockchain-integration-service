@@ -46,12 +46,12 @@ function setup() {
  const transfers={quote:async a=>transfer(a.profileId).quote,reconcile:async a=>readBoardingRecord(a.profileId)};
  const sends={funds:async()=>1000,quote:async a=>({...send(a.profileId).quote,expiresAt:Date.now()+60000}),reconcile:async a=>readSendRecord(a.profileId)};
  const context=createContext(storage,undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,transfers,undefined,sends);
- return {context,async switchTo(profileId){account={profileId,phrase:'fixture-only'};generation++;for(const fn of listeners)fn();await context.ready();await new Promise(r=>setImmediate(r));}};
+ return {context,async switchTo(profileId){account={profileId,phrase:'fixture-only'};generation++;for(const fn of listeners)fn();await context.readyAsync();await new Promise(r=>setImmediate(r));}};
 }
 
 test('current wallet status and spending ignore foreign pending operations, then restore their owner',async()=>{
  writeBoardingRecord(transfer('a'));writeSendRecord(send('a'));
- const {context,switchTo}=setup();await context.ready();
+ const {context,switchTo}=setup();await context.readyAsync();
  try {
   assert.equal((await context.checkAccountTransfer()).status,'idle');
   assert.equal((await context.checkAccountSend()).status,'idle');
