@@ -16,11 +16,11 @@ test.beforeEach(()=>{
  memory=new Map();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return memory.size;},key:i=>[...memory.keys()][i]??null,getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v),removeItem:k=>memory.delete(k)}});
  Object.defineProperty(navigator,'locks',{configurable:true,value:testLocks()});
 });
-function setup({submit,reconcile=reconcileContinuation,readBalance,observer,configured=destination,options={continueRecipient:configured}}={}){
+function setup({submit,reconcile=reconcileContinuation,readBalance,sends,observer,configured=destination,options={continueRecipient:configured}}={}){
  let account={profileId:'p',phrase:'fixture-only'},generation=0,calls=0,saves=0;const listeners=new Set();
  const storage={load:async()=>({account,generation}),save:async()=>{saves++;},reset:async()=>{account=null;},subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);}};
  const adapter={submit:async(a,r,signal,current)=>{calls++;if(submit)return submit(a,r,signal,current);const saved={...r,send:receipt('succeeded'),status:'succeeded'};writeContinuation(saved);return continueResult(saved);},reconcile};
- const context=createContext(storage,undefined,async()=>account?.profileId,undefined,readBalance,undefined,undefined,observer ?? (async()=>{}),undefined,undefined,undefined,undefined,adapter,options,observer);
+ const context=createContext(storage,undefined,async()=>account?.profileId,undefined,readBalance,undefined,undefined,observer ?? (async()=>{}),undefined,undefined,sends,undefined,adapter,options,observer);
  return {context,calls:()=>calls,saves:()=>saves,replace(profileId='other'){account=profileId?{profileId,phrase:'fixture-only'}:null;generation++;for(const l of listeners)l();}};
 }
 
@@ -67,7 +67,7 @@ test('an admin wallet imported after player startup supplies the live B.P.1 reci
 });
 
 test('B.P.1 reaches independent input selection while a known unrelated transfer remains pending',async()=>{
- const s=setup();await s.context.readyAsync();
+ const s=setup({readBalance:async()=>({availableSats:2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000}),sends:{funds:async()=>2000}});await s.context.readyAsync();
  const pending={version:1,id:'unrelated',profileId:'p',status:'pending',phase:'registered',intentId:'intent',inputs:[{txid:'f'.repeat(64),vout:0}],bitcoinAddress:'tb1-test',quote:{profileId:'p',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:2000,bitcoinAfterSats:1000,arkadeAfterSats:1000,totalAfterSats:2000,expiresAt:2000,fingerprint:'c'.repeat(64)}};
  writeBoardingRecord(pending);
  assert.equal((await s.context.getContinueAvailability()).canPay,true,'A withdrawal must not disable B.P.1 before a payment attempt');

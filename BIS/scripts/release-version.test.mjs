@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { validateReleaseVersion, validateTransition, validateVersion } from './check-release-version.mjs';
 
 test('active published release surfaces are synchronized', async () => {
   const result = await validateReleaseVersion();
-  assert.equal(result.version, '0.0.18');
+  const manifest = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
+  assert.equal(result.version, manifest.version);
 });
 
 test('accepts the initial baseline and valid patch transitions', () => {

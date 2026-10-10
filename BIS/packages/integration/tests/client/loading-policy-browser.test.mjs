@@ -29,7 +29,7 @@ test('account page policy blocks active, host, and retained spinners at both ove
     window.nonModalPages=Object.entries(viewLoadingPolicies).filter(([,policy])=>!policy.isLoadingModal).map(([key])=>key);
     flushSync(()=>root.render(<Screen/>));
   `;
-  const server=await createServer({configFile:false,root:process.cwd(),cacheDir:`output/tests/loading-policy-${process.pid}`,esbuild:{jsx:'automatic'},plugins:[{
+  const server=await createServer({configFile:false,root:process.cwd(),cacheDir:`output/tests/loading-policy-${process.pid}`,optimizeDeps:{noDiscovery:true,include:['react','react-dom','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime']},esbuild:{jsx:'automatic'},plugins:[{
     name:'loading-policy-fixture',
     resolveId(id){if(id==='/loading-policy-fixture.tsx')return id;},
     load(id){if(id==='/loading-policy-fixture.tsx')return fixture;},
@@ -43,8 +43,13 @@ test('account page policy blocks active, host, and retained spinners at both ove
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(new URL('/loading-policy-fixture.html',server.resolvedUrls.local[0]).href);
-  await page.waitForFunction(()=>typeof window.update==='function');
+  await page.waitForFunction(()=>typeof window.update==='function').catch(error=>{
+    assert.deepEqual(errors,[],'The loading fixture must initialize without browser errors');
+    throw error;
+  });
+  assert.deepEqual(errors,[],'The loading fixture must mount without React errors');
   const dialogs=page.getByRole('dialog',{includeHidden:true});
+  await dialogs.nth(1).waitFor({state:'attached'});
   assert.equal(await dialogs.count(),2);
   for(const collection of ['accountAssets','accountContracts','accountActivity']){
     await page.evaluate(collection=>window.update(collection,{busy:true,host:true}),collection);
