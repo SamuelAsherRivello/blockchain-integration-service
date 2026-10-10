@@ -33,6 +33,7 @@ import type { AccountAddresses } from '../wallet-layer-arkade/addresses.ts';
 import type { TestNetwork } from './test-network.ts';
 import { createReadCoordinator, type ReadKey } from './read-coordinator.ts';
 import { createBackgroundCache } from './background-cache.ts';
+import { getSharedAssetInventory, rememberSharedAssetInventory, invalidateSharedAssetInventory } from './shared-asset-inventory.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
 import type { BisContextDependencies } from './context-dependencies.ts';
 export type BisBalanceReadStatus = 'wallet-read' | 'storage';
@@ -366,7 +367,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
     if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void refreshBalanceView();});
   };
-  const invalidate = () => {warmer?.dispose();warmer=undefined;assetsInterest=false;reads.invalidate();issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
+  const invalidate = () => {warmer?.dispose();warmer=undefined;assetsInterest=false;reads.invalidate();invalidateSharedAssetInventory();issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
   const emit = (event: BisEvent, current: number) => {
     for (const listener of [...events]) {
@@ -423,7 +424,9 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     signal.throwIfAborted();
     const holdings = await assets.list(account, signal);
     signal.throwIfAborted();
-    return {profileId: account.profileId, assets: Object.freeze(holdings.map(asset => Object.freeze({...asset})).sort((a,b) => a.assetId.localeCompare(b.assetId)))};
+    const result={profileId: account.profileId, assets: Object.freeze(holdings.map(asset => Object.freeze({...asset})).sort((a,b) => a.assetId.localeCompare(b.assetId)))};
+    rememberSharedAssetInventory('player',account.profileId,account.network ?? state.network ?? 'signet',result.assets);
+    return result;
   }
   async function hydrate(suppressConnectionEvent = false) {
     invalidate(); const current=version;
@@ -491,7 +494,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     // Addresses are identity-derived and independent of ownership/payment evidence.
     reads.invalidate('balance'); reads.invalidate('contracts');
     if(refreshSource)reads.invalidate('activity');
-    if (refreshSource) reads.invalidate('assets');
+    if (refreshSource) { reads.invalidate('assets'); invalidateSharedAssetInventory(profileId, state.network ?? 'signet', 'player'); }
     cancelBalance();
     if (foregroundBalance) receiptBalanceLoading=true;
     if (walletRefreshQueued) return;
@@ -663,12 +666,14 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       });
     },
     async getContinueAvailability() {
-      // Availability means the player can attempt payment. A withdrawal can
-      // temporarily reserve the current inputs; only submission should quote
-      // fresh funds and report that failure, rather than disabling B.P.1.
       if(disposed||!state.hasProfile||state.phase!=='active'||!state.profileId)return {canPay:false,reason:'Awaiting Player Wallet'};
       if(!context.getContinueRecipient?.())return {canPay:false,reason:'Awaiting Game Wallet'};
-      return {canPay:true};
+      try {
+        const funds = await context.getWalletOperations?.();
+        if (funds?.availableSats === undefined) return {canPay:false,reason:'Balance unavailable'};
+        if (funds.availableSats < 1000) return {canPay:false,reason:'Insufficient balance',availableSats:funds.availableSats};
+        return {canPay:true,availableSats:funds.availableSats};
+      } catch { return {canPay:false,reason:'Balance unavailable'}; }
     },
     async getWalletOperations() {
       const account=await activeTransferAccount(),current=version;
@@ -834,7 +839,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     async prepareAssetInventory() {
       const profileId=state.profileId;
       if(!state.hasProfile || state.phase!=='active')return assetError('account-required');
-      try {return {status:'success',...(await prepareAssets(false,true)).value};}
+      try { const cached=getSharedAssetInventory('player',profileId!,state.network ?? 'signet'); if(cached)return cached; const result=await prepareAssets(false,true); rememberSharedAssetInventory('player',profileId!,state.network ?? 'signet',result.value.assets); return {status:'success' as const,...result.value}; }
       catch {return assetError('unavailable',profileId);}
     },
     async getPendingAssetMint() {

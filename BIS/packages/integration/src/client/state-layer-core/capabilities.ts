@@ -24,6 +24,11 @@ export function contractSupportAvailable(state: Pick<BisState, 'phase' | 'hasPro
   return walletsReady(state, gameWallet);
 }
 
+/** Payment support means both distinct wallets are available; balance is checked per payment. */
+export function paymentSupportAvailable(state: Pick<BisState, 'phase' | 'hasProfile' | 'profileId' | 'network'>, gameWallet: Pick<BisGameWalletState, 'status' | 'profileId' | 'playerConnected' | 'network'>): boolean {
+  return walletsReady(state, gameWallet);
+}
+
 /** Asset minting needs the contract wallet's minimum spendable balance in addition to wallet readiness. */
 export function assetMintingSupportAvailable(state: Pick<BisState, 'phase' | 'hasProfile' | 'profileId' | 'network'>, gameWallet: Pick<BisGameWalletState, 'status' | 'profileId' | 'playerConnected' | 'network' | 'balance'>, environment: CapabilityEnvironment = globalThis): boolean {
   return itemSupportAvailable(state, environment) && walletsReady(state, gameWallet) &&
@@ -66,6 +71,12 @@ export function itemSupportFeedback(state: Pick<BisState, 'phase' | 'hasProfile'
 export function contractSupportFeedback(state: PlayerWalletCapabilityState, gameWallet: GameWalletCapabilityState): string {
   if (contractSupportAvailable(state, gameWallet)) return 'Current status: available. Distinct Player and Game Wallets are ready on the same network.';
   return sentence('Contracts are unavailable', [...playerWalletReasons(state), ...gameWalletReasons(state, gameWallet)]);
+}
+
+/** Gives the Developer panel an exact explanation for a currently unavailable capability. */
+export function paymentSupportFeedback(state: PlayerWalletCapabilityState, gameWallet: GameWalletCapabilityState): string {
+  if (paymentSupportAvailable(state, gameWallet)) return 'Current status: available. Distinct Player and Game Wallets are ready for payments.';
+  return sentence('Payments are unavailable', [...playerWalletReasons(state), ...gameWalletReasons(state, gameWallet)]);
 }
 
 /** Gives the Developer panel an exact explanation for a currently unavailable capability. */

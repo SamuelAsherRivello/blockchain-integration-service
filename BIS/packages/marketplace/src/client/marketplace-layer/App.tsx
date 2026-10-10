@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, FormValue, createBisContext, createBisGameWallet, createBisUi, networkLabel, PendingOperations, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord } from '@bis/integration';
 import '@bis/integration/style.css';
 import { fallbackCatalog, type MarketplaceCatalog } from './catalog';
-import { readPublicInventory } from '../inventory-layer/inventory';
 import { createMarketplaceInventoryCoordinator, type MarketplaceInventorySource } from '../inventory-layer/inventory-cache';
 import { version } from '../../../package.json';
 import arkadeLogo from '../../../../integration-admin/src/client/ui-layer-react/assets/arkade-logo.png';
@@ -28,7 +27,6 @@ function gameplayMetadata(item:BisEquipmentItem){
 const MARKETPLACE_LOADING_SETTLE_MS=1000;
 // Inventory is a background read on the first page load. A slow or unavailable
 // indexer must not leave the whole Marketplace behind the BIS loading modal.
-const MARKETPLACE_INITIAL_INVENTORY_WAIT_MS=2000;
 const poeticQuotes:Record<string,string>={
   'Shoes I':'Dawn keeps a promise to the quiet road.',
   'Shoes II':'The horizon hums beneath a sleeping sky.',
@@ -68,7 +66,6 @@ function MarketplaceContent(){
   const walletHost=useRef<HTMLDivElement>(null);
   const [catalog,setCatalog]=useState<MarketplaceCatalog>(fallbackCatalog),[readable,setReadable]=useState(false);
   const [isCatalogLoading,setIsCatalogLoading]=useState(true);
-  const [initialInventoryWaitExpired,setInitialInventoryWaitExpired]=useState(false);
   const [selected,setSelected]=useState<BisEquipmentItem>();
   const [itemSnapshots,setItemSnapshots]=useState<Record<string,BisEquipmentItem>>({});
   const [checkout,setCheckout]=useState<BisMarketplaceCheckoutRecord>();
@@ -100,7 +97,6 @@ function MarketplaceContent(){
     if(playerState.profileId) void player.getPaymentRecipient?.().then(result=>{if(!cancelled)setPlayerDisplayAddress(result.address);}).catch(()=>{});
     return()=>{cancelled=true;};
   },[network,player,playerState.profileId]);
-  useEffect(()=>{const timeout=window.setTimeout(()=>setInitialInventoryWaitExpired(true),MARKETPLACE_INITIAL_INVENTORY_WAIT_MS);return()=>window.clearTimeout(timeout);},[]);
   useEffect(()=>{if(playerState.profileId&&(game==='all'||selectedGame?.gameWalletAddress))void gameWallet.refresh();},[gameWallet,network,playerState.profileId,game,selectedGame?.gameId,selectedGame?.gameWalletAddress]);
   const sessionGameAddress=gameState.addresses?.arkadeAddress;
   const playerArkadeAddress=playerState.addresses.status==='ready'?playerState.addresses.arkadeAddress:undefined;
@@ -118,18 +114,23 @@ function MarketplaceContent(){
       // Use the same raw account asset snapshot as BIS Assets. Equipment-loadout
       // selection persistence is unrelated to inventory and must not be able to
       // hide valid marketplace items.
-      const result=await (player.prepareAssetInventory?.()??player.listAssets());
+      // A presentation read can be invalidated while the Marketplace is being
+      // opened (for example when the wallet finishes restoring). If that read
+      // reports an error, retry through the authoritative public listing before
+      // declaring the wallet unavailable.
+      const prepared=player.prepareAssetInventory?await player.prepareAssetInventory():undefined;
+      const result=prepared?.status==='success'?prepared:await player.listAssets();
       if(result.status!=='success'||result.profileId!==playerState.profileId)throw Error('Player Wallet inventory unavailable');
       return result.assets.map(classifyBisEquipmentAsset).filter((item):item is BisEquipmentItem=>item!==null);
     }});
-    if(activeGameWallet&&(game==='all'||selectedGame?.gameWalletAddress)&&inventoryAddress)sources.push({role:'game',walletId:gameState.profileId!,network,read:async()=>{const assets=await readPublicInventory(inventoryAddress,new AbortController().signal,network);return assets.map(classifyBisEquipmentAsset).filter((item):item is BisEquipmentItem=>item!==null);}});
+    if(activeGameWallet&&(game==='all'||selectedGame?.gameWalletAddress)&&inventoryAddress)sources.push({role:'game',walletId:gameState.profileId!,network,read:async()=>{const result=await gameWallet.prepareAssetInventory?.();if(!result||result.status!=='success'||result.profileId!==gameState.profileId)throw Error('Game Wallet inventory unavailable');return result.assets.map(classifyBisEquipmentAsset).filter((item):item is BisEquipmentItem=>item!==null);}});
     return sources;
   },[activeGameWallet,game,gameState.profileId,inventoryAddress,isCatalogLoading,network,player,playerState.profileId,selectedGame?.gameWalletAddress]);
   const inventorySourcesRef=useRef<readonly MarketplaceInventorySource[]>([]);
   inventorySourcesRef.current=inventorySources;
   const invalidateInventory=()=>{
     const sources=inventorySourcesRef.current;
-    if(sources.length)void inventory.refresh(sources,true);
+    if(sources.length)void inventory.refresh(sources);
   };
   useEffect(()=>{
     const unsubscribePlayerEvents=player.onEvent(event=>{
@@ -153,12 +154,9 @@ function MarketplaceContent(){
     return()=>{unsubscribePlayerEvents();unsubscribePlayer();unsubscribeGame();};
   },[gameWallet,inventory,player]);
   const inventorySourceKey=inventorySources.map(source=>`${source.role}:${source.walletId}:${source.network}`).join('|')||'none';
-  const [settledInventorySourceKey,setSettledInventorySourceKey]=useState<string>();
   useEffect(()=>{
     if(isCatalogLoading)return;
-    let active=true;
-    void inventory.refresh(inventorySources).finally(()=>{if(active)setSettledInventorySourceKey(inventorySourceKey);});
-    return()=>{active=false;};
+    void inventory.refresh(inventorySources);
   },[inventory,inventorySourceKey,inventorySources,isCatalogLoading]);
   useEffect(()=>()=>inventory.dispose(),[inventory]);
   const gameItems=inventoryState.game.items;
@@ -200,8 +198,10 @@ function MarketplaceContent(){
   const selectedInventoryLoading=owner==='all'
     ?recordNeedsInitialRead('player')||recordNeedsInitialRead('game')
     :recordNeedsInitialRead(owner)||playerWalletStillLoading||gameWalletStillLoading;
-  const inventoryCycleLoading=!isCatalogLoading&&settledInventorySourceKey!==inventorySourceKey;
-  const isMarketplaceLoading=isCatalogLoading||(!initialInventoryWaitExpired&&(inventoryCycleLoading||selectedInventoryLoading));
+  // Loading belongs to the selected owner only. The other wallet is warmed in
+  // parallel, but its slower read cannot make a completed selected wallet look
+  // empty or keep the page covered.
+  const isMarketplaceLoading=isCatalogLoading||selectedInventoryLoading;
   const inventoryError=owner==='all'?[inventoryState.player.error,inventoryState.game.error].find(Boolean):selectedInventory.error;
   const promptBusy=isMarketplaceLoading||!!operationLabel;
   const [loadingPromptVisible,setLoadingPromptVisible]=useState(true);
@@ -221,10 +221,6 @@ function MarketplaceContent(){
   const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;
   const chooseOwner=(next:'all'|'game'|'player')=>{
     setOwner(next);
-    if(next==='player'){
-      const source=inventorySources.find(candidate=>candidate.role==='player');
-      if(source)void inventory.retry(source);
-    }
   };
   const pendingTransferTitle=pendingTransferIsSelected?'Transfer from Game Wallet to Player Wallet is pending ...':undefined;
   const explorerUrl=selected&&/^[a-f0-9]{68}$/i.test(selected.assetId)?arkExplorerAssetUrl(network,selected.assetId):undefined;
@@ -252,7 +248,7 @@ function MarketplaceContent(){
       },
     });
     setCheckout(next);
-    if(next.status==='completed') {await Promise.all([gameWallet.refresh(),inventory.refresh(inventorySources,true)]);}
+    if(next.status==='completed') {await Promise.all([gameWallet.refresh(),inventory.refresh(inventorySources)]);}
   }
   async function beginCheckout(direction:'buy'|'sell') {
     if(!selected||!salesEnabled||!gameState.profileId||!sessionGameAddress) return;

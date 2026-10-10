@@ -17,7 +17,7 @@ export type BisGameContinueOptions = Readonly<{
 /** One controller per defeat. Disposal abandons delivery, never cancels a payment. */
 export function createBisContinue(context: BisContext, options: BisGameContinueOptions) {
   if (!options.context?.trim()) throw Error('A continuation context is required.');
-  let disposed = false, checking = false, delivered = false;
+  let disposed = false, checking = false, delivered = false, availability: { canPay: boolean; reason?: string } | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let request: BisContinueRequest | undefined, profileId: string | undefined;
   let status: BisGameContinueState['status'] = 'idle', message = '';
@@ -28,10 +28,20 @@ export function createBisContinue(context: BisContext, options: BisGameContinueO
   };
   const getState = (): BisGameContinueState => Object.freeze({
     sats: getContinuePriceSats(), status, ...(request ? { operationId: request.operationId } : {}), message: message || (context.getContinueRecipient && !context.getContinueRecipient() ? 'Game wallet recipient is not configured.' : ''),
-    canPay: !disposed && (!context.getContinueRecipient || !!context.getContinueRecipient()) && loggedIn() && (status === 'idle' || status === 'failed'),
+    canPay: !disposed && (!context.getContinueRecipient || !!context.getContinueRecipient()) && loggedIn() && (status === 'idle' || status === 'failed') && (availability?.canPay ?? !context.getContinueAvailability),
   });
   const publish = () => { if (!disposed) for (const listener of listeners) listener(); };
-  const unsubscribe = context.subscribe(publish);
+  let availabilityRead = 0;
+  const refreshAvailability = async () => {
+    if (disposed || !context.getContinueAvailability) return;
+    const read = ++availabilityRead;
+    availability = undefined; publish();
+    try { const next = await context.getContinueAvailability(); if (!disposed && read === availabilityRead) availability = next; }
+    catch { if (!disposed && read === availabilityRead) availability = { canPay: false, reason: 'Balance unavailable' }; }
+    publish();
+  };
+  const unsubscribe = context.subscribe(() => { publish(); void refreshAvailability(); });
+  void refreshAvailability();
   const schedule = () => {
     clearTimeout(timer);
     if (!disposed && status === 'pending') timer = setTimeout(() => { void check(); }, 3000);

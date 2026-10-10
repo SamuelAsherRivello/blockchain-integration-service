@@ -49,6 +49,7 @@ export { MessageType } from './client/state-layer-core/toasts';
 
 export { getBisMarketplaceTradingAvailability } from './client/state-layer-core/marketplace-trading';
 export type { BisMarketplaceTradingAvailability } from './client/state-layer-core/marketplace-trading';
+export { paymentSupportAvailable } from './client/state-layer-core/capabilities';
 
 export { BIS_STEALTH_AND_STEEL_GAME_ID, bisMarketplaceItems, classifyBisEquipmentAsset, marketplaceItemMetadata } from './client/state-layer-core/equipment';
 export type { BisEquipmentDefinition, BisEquipmentFamily, BisEquipmentItem, BisEquipmentTier } from './client/state-layer-core/equipment';

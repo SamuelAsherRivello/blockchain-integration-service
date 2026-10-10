@@ -8,7 +8,8 @@ import { createBisEquipment } from '../state-layer-core/equipment-loadout';
 import type { IBisGame, BisGameSession, BisGameEffectReceipt, BisGameConfirmedPlayerReward } from '../state-layer-core/bis-game';
 import { createBisUi } from '../ui-layer-react/client';
 import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable,
-  assetMintingSupportFeedback, contractSupportFeedback, itemSupportFeedback } from '../state-layer-core/capabilities.ts';
+  assetMintingSupportFeedback, contractSupportFeedback, itemSupportFeedback, paymentSupportAvailable,
+  paymentSupportFeedback } from '../state-layer-core/capabilities.ts';
 import { version } from '../../../package.json';
 import type { IBis, BisOptions, BisDisposeOptions, BisSnapshot, BisEvent, BisResetResult,
   BisGameContinuationRequest, BisGameContinuationState, BisGameRewardRequest,
@@ -85,6 +86,7 @@ export class BisService implements IBis {
     this.#ui = createBisUi(this.#context, {
       gameWallet: wallet, hasItemSupport: () => this.hasItemSupport(),
       hasAssetMintingSupport: () => this.hasAssetMintingSupport(), hasContractSupport: () => this.hasContractSupport(),
+      hasPaymentSupport: () => this.hasPaymentSupport(),
     });
     let accountVisible = this.#context.getState().view === 'account';
     let accountKey = this.#accountKey();
@@ -191,6 +193,7 @@ export class BisService implements IBis {
   hasItemSupport() { return !this.#disposed && !this.#resetPromise && itemSupportAvailable(this.#context.getState()); }
   hasAssetMintingSupport() { return !this.#disposed && !this.#resetPromise && assetMintingSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
   hasContractSupport() { return !this.#disposed && !this.#resetPromise && contractSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
+  hasPaymentSupport() { return !this.#disposed && !this.#resetPromise && paymentSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
   getSnapshot(): BisSnapshot {
     const player = this.#context.getState(), game = this.#gameWallet.getState();
     return frozenCopy({ revision: this.#revision, version, disposed: this.#disposed,
@@ -200,7 +203,8 @@ export class BisService implements IBis {
       capabilities: {
         items: { available: this.hasItemSupport(), reason: itemSupportFeedback(player) },
         assetMinting: { available: this.hasAssetMintingSupport(), reason: assetMintingSupportFeedback(player, game) },
-        contracts: { available: this.hasContractSupport(), reason: contractSupportFeedback(player, game) } },
+        contracts: { available: this.hasContractSupport(), reason: contractSupportFeedback(player, game) },
+        payments: { available: this.hasPaymentSupport(), reason: paymentSupportFeedback(player, game) } },
       equipment: this.#equipment.getState(),
       continuations: [...this.#continuations].map(([id, workflow]) => this.#continuationState(id, workflow)),
       rewards: [...this.#rewards].map(([id, workflow]) => this.#rewardState(id, workflow)),

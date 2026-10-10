@@ -20,7 +20,7 @@ export function App({ request = defaultRequest } = {}) {
   const [balance, setBalance] = useState({ status: 'loading', message: 'Checking faucet balance…' });
   const [addresses, setAddresses] = useState({ status: 'loading', message: 'Loading faucet addresses…' });
   const [copiedAddress, setCopiedAddress] = useState('');
-  const [balanceRefresh, setBalanceRefresh] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const requestController = useRef();
   const validFormat = useMemo(() => isValidArkAddress(address.trim()), [address]);
   const amountValue = useMemo(() => Number(amount.trim()), [amount]);
@@ -35,7 +35,7 @@ export function App({ request = defaultRequest } = {}) {
       .then(result => setBalance({ status: 'ready', ...result }))
       .catch(error => { if (error?.name !== 'AbortError') setBalance({ status: 'error', message: error?.message ?? 'The faucet balance is unavailable.' }); });
     return () => controller.abort();
-  }, [network, balanceRefresh]);
+  }, [network, refreshKey]);
   useEffect(() => {
     const controller = new AbortController();
     setAddresses({ status: 'loading', message: 'Loading faucet addresses…' });
@@ -45,7 +45,7 @@ export function App({ request = defaultRequest } = {}) {
       .then(result => setAddresses({ status: 'ready', ...result }))
       .catch(error => { if (error?.name !== 'AbortError') setAddresses({ status: 'error', message: error?.message ?? 'The faucet addresses are unavailable.' }); });
     return () => controller.abort();
-  }, [network]);
+  }, [network, refreshKey]);
   useEffect(() => () => requestController.current?.abort(), []);
   async function submit(event) {
     event.preventDefault();
@@ -66,15 +66,21 @@ export function App({ request = defaultRequest } = {}) {
     try { await navigator.clipboard.writeText(value); setCopiedAddress(kind); window.setTimeout(() => setCopiedAddress(current => current === kind ? '' : current), 1400); }
     catch { setCopiedAddress(''); }
   }
+  function refreshFaucet() {
+    setState({ status: 'checking', message: 'Checking faucet availability…' });
+    setRefreshKey(value => value + 1);
+  }
   return <div className="faucet-shell">
-    <header className="spike-header"><div className="spike-identity"><span className="spike-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span><div><h1>BIS - Prototype Faucet</h1><p>Standalone Signet Spike</p></div></div><span className="spike-network">{NETWORKS[network].label}</span></header>
-    <main className="faucet-main"><section className="faucet-flow" aria-labelledby="faucet-title"><h2 id="faucet-title" className="workspace-title">Request test sats</h2><p className="intro">Fund an Arkade wallet with a bounded amount of test sats without visiting a third-party faucet.</p>
-      <section className={`panel status status-${statusKind}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">STATUS</span><strong>Status: {statusLabel}</strong></div><p>{statusMessage}</p>{state.network && <p>Requested {Number(state.amountSats).toLocaleString()} sats on {NETWORKS[state.network]?.label ?? state.network}.</p>}{state.address && <p className="operation-id">Destination: {state.address}</p>}{state.operationId && <p className="operation-id">Operation: {state.operationId}</p>}</section>
-      <section className="panel faucet-addresses" aria-label="Faucet addresses"><div className="status-heading"><span className="panel-kicker">FAUCET ADDRESSES</span><span className="address-network">{NETWORKS[network].label}</span></div>{addresses.status === 'ready' ? <><div className="faucet-address-row"><span className="faucet-address-label">BTC</span><code className="faucet-address-value" title={addresses.bitcoinAddress}>{shortAddress(addresses.bitcoinAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('bitcoin', addresses.bitcoinAddress)}>{copiedAddress === 'bitcoin' ? 'Copied' : 'Copy'}</button></div><div className="faucet-address-row"><span className="faucet-address-label">ARKADE</span><code className="faucet-address-value" title={addresses.arkadeAddress}>{shortAddress(addresses.arkadeAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('arkade', addresses.arkadeAddress)}>{copiedAddress === 'arkade' ? 'Copied' : 'Copy'}</button></div></> : <p className="address-message">{addresses.status === 'loading' ? 'Loading…' : addresses.message}</p>}</section>
-      <section className={`panel faucet-balance faucet-balance-${balance.status}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">FAUCET BALANCE</span><strong>{balance.status === 'ready' ? `${Number(balance.available ?? 0).toLocaleString()} sats available` : balance.status === 'loading' ? 'Checking…' : 'Unavailable'}</strong></div>{balance.status === 'ready' ? <p>Total: {Number(balance.total ?? 0).toLocaleString()} sats · Available: {Number(balance.available ?? 0).toLocaleString()} sats</p> : <p>{balance.message}</p>}{balance.status === 'error' && <button type="button" onClick={() => setBalanceRefresh(value => value + 1)}>Refresh faucet balance</button>}</section>
-      <section className="panel faucet-panel"><div className="panel-heading"><div><span className="panel-kicker">FAUCET REQUEST</span><h3>Choose destination and amount</h3></div><span className="prototype-badge">Experimental</span></div><div className="notice" role="note">Arkade only. This prototype does not fund ordinary on-chain Bitcoin and never asks for recovery material.</div>
+    <header className="spike-header"><div className="spike-identity"><span className="spike-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span><div><h1>BIS - Prototype Faucet</h1></div></div></header>
+    <main className="faucet-main"><section className="faucet-flow">
+      <section className="panel faucet-overview" aria-label="Faucet overview">
+        <div className="overview-controls"><label>Network<select value={network} onChange={event => { setNetwork(event.target.value); setState({ status: 'checking', message: 'Checking faucet availability…' }); }} disabled={busy}>{NETWORK_IDS.map(id => <option key={id} value={id}>{NETWORKS[id].label}</option>)}</select></label><button type="button" onClick={refreshFaucet} disabled={busy}>Refresh</button></div>
+        <section className={`overview-status status status-${statusKind}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">STATUS</span><strong>Status: {statusLabel}</strong></div><p>{statusMessage}</p>{state.network && <p>Requested {Number(state.amountSats).toLocaleString()} sats on {NETWORKS[state.network]?.label ?? state.network}.</p>}{state.address && <p className="operation-id">Destination: {state.address}</p>}{state.operationId && <p className="operation-id">Operation: {state.operationId}</p>}</section>
+        <div className="overview-details"><section className="overview-addresses" aria-label="Faucet addresses"><div className="status-heading"><span className="panel-kicker">FAUCET ADDRESSES</span><span className="address-network">{NETWORKS[network].label}</span></div>{addresses.status === 'ready' ? <><div className="faucet-address-row"><span className="faucet-address-label">BTC</span><code className="faucet-address-value" title={addresses.bitcoinAddress}>{shortAddress(addresses.bitcoinAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('bitcoin', addresses.bitcoinAddress)}>{copiedAddress === 'bitcoin' ? 'Copied' : 'Copy'}</button></div><div className="faucet-address-row"><span className="faucet-address-label">ARKADE</span><code className="faucet-address-value" title={addresses.arkadeAddress}>{shortAddress(addresses.arkadeAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('arkade', addresses.arkadeAddress)}>{copiedAddress === 'arkade' ? 'Copied' : 'Copy'}</button></div></> : <p className="address-message">{addresses.status === 'loading' ? 'Loading…' : addresses.message}</p>}</section>
+        <section className={`overview-balance faucet-balance-${balance.status}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">FAUCET BALANCE</span><strong>{balance.status === 'ready' ? `${Number(balance.available ?? 0).toLocaleString()} sats available` : balance.status === 'loading' ? 'Checking…' : 'Unavailable'}</strong></div>{balance.status === 'ready' ? <p>Total: {Number(balance.total ?? 0).toLocaleString()} sats · Available: {Number(balance.available ?? 0).toLocaleString()} sats</p> : <p>{balance.message}</p>}</section></div>
+      </section>
+      <section className="panel faucet-panel"><div className="panel-heading"><div><span className="panel-kicker">FAUCET REQUEST</span><h3>Choose destination and amount</h3></div><span className="prototype-badge">Experimental</span></div>
         <form onSubmit={submit}>
-          <label>Network<select value={network} onChange={event => { setNetwork(event.target.value); setState({ status: 'checking', message: 'Checking faucet availability…' }); }} disabled={busy}>{NETWORK_IDS.map(id => <option key={id} value={id}>{NETWORKS[id].label}</option>)}</select></label>
           <label>Arkade address<input aria-describedby="address-help" value={address} onChange={event => setAddress(event.target.value)} placeholder="tark1…" spellCheck="false" autoComplete="off" disabled={busy} /></label>
           <p id="address-help" className={address && !validFormat ? 'field-error' : 'field-help'}>{address && !validFormat ? 'Enter a valid test-network Arkade address.' : 'The server verifies that this address belongs to the selected operator.'}</p>
           <label>Amount in sats<input aria-describedby="amount-help" inputMode="numeric" value={amount} onChange={event => setAmount(event.target.value)} placeholder="50000" spellCheck="false" autoComplete="off" disabled={busy} /></label>
@@ -83,7 +89,7 @@ export function App({ request = defaultRequest } = {}) {
           <button className="primary" type="submit" disabled={!ready || busy}>{busy ? 'Requesting…' : 'Request Arkade sats'}</button>
         </form>
       </section>
-    </section></main><footer><span>Prototype only · Network: {NETWORKS[network].label} · No monetary value</span></footer>
+    </section></main><footer><span>Prototype only · No monetary value</span></footer>
   </div>;
 }
 

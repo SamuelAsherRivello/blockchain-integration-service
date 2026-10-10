@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, GAME_WALLET_MIN_ASSET_MINT_BALANCE_SATS, itemSupportAvailable, itemSupportFeedback } from '../../src/client/state-layer-core/capabilities.ts';
+import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, GAME_WALLET_MIN_ASSET_MINT_BALANCE_SATS, itemSupportAvailable, itemSupportFeedback, paymentSupportAvailable, paymentSupportFeedback } from '../../src/client/state-layer-core/capabilities.ts';
 
 const active = { phase: 'active', hasProfile: true };
 const supportedEnvironment = { navigator: { locks: {} } };
@@ -37,6 +37,13 @@ test('contract support requires distinct ready wallets but does not require a ba
   assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), false);
   assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), status: 'loading' }), false);
   assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), network: 'mutinynet' }), false);
+});
+
+test('payment support requires both wallets but does not require a balance', () => {
+  assert.equal(paymentSupportAvailable(activeNetwork, readyGameWallet(0)), true);
+  assert.equal(paymentSupportAvailable(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), false);
+  assert.equal(paymentSupportAvailable(activeNetwork, { ...readyGameWallet(), status: 'empty' }), false);
+  assert.equal(paymentSupportFeedback(activeNetwork, readyGameWallet(0)), 'Current status: available. Distinct Player and Game Wallets are ready for payments.');
 });
 
 test('Developer capability feedback reports the exact missing prerequisite', () => {

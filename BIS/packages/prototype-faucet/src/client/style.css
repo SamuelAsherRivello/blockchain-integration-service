@@ -16,8 +16,6 @@ button, input, select { font: inherit; }
 .spike-mark { flex: 0 0 auto; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: #a9d9c3; color: #19362a; }
 .spike-mark svg { width: 20px; height: 20px; }
 .spike-identity h1 { margin: 0; color: #eef1f6; font-size: 15px; font-weight: 650; letter-spacing: -.02em; line-height: 1.2; }
-.spike-identity p { margin: 3px 0 0; color: #8795a8; font-size: 11px; line-height: 1.25; }
-.spike-network { flex: 0 0 auto; padding: 5px 9px; border: 1px solid #394657; border-radius: 5px; color: #a9b6c7; font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
 
 .faucet-main { padding: 36px 0 80px; }
 .faucet-flow { display: grid; gap: 16px; }
@@ -28,7 +26,6 @@ button, input, select { font: inherit; }
 .panel-heading h3 { margin: 5px 0 0; color: #dce5ef; font-size: 17px; font-weight: 550; letter-spacing: -.015em; }
 .panel-kicker { color: #8795a8; font-size: 9px; font-weight: 700; letter-spacing: .07em; }
 .prototype-badge { flex: 0 0 auto; padding: 5px 8px; border: 1px solid #394657; border-radius: 4px; color: #a9d9c3; font-size: 9px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
-.notice { margin: 18px 0; padding: 12px 14px; border: 1px solid #394657; border-radius: 7px; background: #111821; color: #a9b6c7; font-size: 12px; line-height: 1.5; }
 form { display: grid; gap: 16px; }
 label, legend { color: #bec9d7; font-size: 12px; font-weight: 550; }
 select, input:not([type="radio"]) { display: block; width: 100%; margin-top: 7px; padding: 11px 12px; border: 1px solid #455368; border-radius: 6px; background: #11151c; color: #e5e9ef; }
@@ -50,6 +47,16 @@ button.primary:hover:not(:disabled) { background: #c5ead9; }
 .status { display: grid; gap: 8px; }
 .status-heading { align-items: center; }
 .status-heading strong { color: #dce5ef; font-size: 14px; font-weight: 650; }
+.faucet-overview { display: grid; gap: 18px; }
+.overview-controls { display: flex; align-items: end; gap: 12px; }
+.overview-controls label { flex: 1; }
+.overview-controls button { flex: 0 0 auto; }
+.overview-status { padding: 0 0 18px; border: 0; border-bottom: 1px solid #2c3947; border-radius: 0; background: transparent; }
+.overview-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.overview-addresses, .overview-balance { min-width: 0; }
+.overview-addresses { display: grid; gap: 4px; }
+.overview-balance { display: grid; align-content: start; gap: 8px; }
+.overview-balance p { margin: 0; color: #a9b6c7; font-size: 12px; line-height: 1.5; }
 .faucet-addresses { display: grid; gap: 4px; padding-top: 14px; padding-bottom: 14px; }
 .address-network { color: #8795a8; font-size: 10px; }
 .faucet-address-row { min-height: 30px; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-top: 1px solid #2c3947; }
@@ -72,12 +79,14 @@ footer { display: grid; gap: 5px; margin-bottom: 30px; padding: 16px; border: 1p
 }
 @media (max-width: 540px) {
   .spike-header { min-height: 62px; margin-left: 16px; margin-right: 16px; }
-  .spike-network { font-size: 9px; }
   .faucet-main { padding-top: 25px; }
   .panel { padding: 16px; }
   .panel-heading { display: grid; gap: 10px; }
   .prototype-badge { justify-self: start; }
   .amount-grid { grid-template-columns: 1fr; }
+  .overview-controls { align-items: stretch; flex-direction: column; }
+  .overview-controls button { width: 100%; }
+  .overview-details { grid-template-columns: 1fr; gap: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
   button { transition: none; }

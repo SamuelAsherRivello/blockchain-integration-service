@@ -136,6 +136,25 @@ test('BisService owns private resources and routes game workflows through the tw
     assert.equal(f.wallet.getState().profileId, undefined);
     f.service.dispose();
   });
+  await t.test('Account lifecycle events stay on the game channel and never reload the browser', async () => {
+    const f = create(); await f.service.readyAsync();
+    let reloads = 0;
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    Object.defineProperty(globalThis, 'window', { value: { location: { reload: () => { reloads++; } } }, configurable: true });
+    try {
+      for (const listener of f.contextEvents) listener({ type: 'accountConnected', profileId: 'new-player' });
+      for (const listener of f.contextEvents) listener({ type: 'accountDisconnected', profileId: 'new-player' });
+      assert.deepEqual(f.events.filter(event => event.type === 'accountConnected' || event.type === 'accountDisconnected').slice(-2).map(event => [event.type, event.profileId]), [
+        ['accountConnected', 'new-player'], ['accountDisconnected', 'new-player'],
+      ]);
+      assert.equal(reloads, 0);
+      assert.equal(Object.isFrozen(f.events.at(-1)), true);
+    } finally {
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+      else delete globalThis.window;
+      f.service.dispose();
+    }
+  });
   await t.test('snapshots allowlist state and distinguish unavailable from empty without old-wallet leakage', async () => {
     const f = create(); await f.service.readyAsync();
     assert.equal(f.service.getSnapshot().contracts.status, 'ready');

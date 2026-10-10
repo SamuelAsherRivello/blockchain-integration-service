@@ -198,19 +198,20 @@ test('Marketplace derives item identity, price, and artwork from fresh chain ass
   assert.match(app,/Image unavailable/);
 });
 
-test('Player Wallet inventory reuses the shared BIS Assets read and refreshes when selected', async () => {
+test('Player Wallet inventory reuses the shared BIS Assets read without retrying when selected', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
-  assert.match(app, /player\.prepareAssetInventory\?\.\(\)\?\?player\.listAssets\(\)/);
+  assert.match(app, /const prepared=player\.prepareAssetInventory\?await player\.prepareAssetInventory\(\):undefined/);
+  assert.match(app, /prepared\?\.status==='success'\?prepared:await player\.listAssets\(\)/);
   assert.match(app, /const chooseOwner=\(next:'all'\|'game'\|'player'\)=>/);
-  assert.match(app, /if\(next==='player'\)/);
-  assert.match(app, /inventory\.retry\(source\)/);
+  assert.doesNotMatch(app, /if\(next==='player'\)/);
+  assert.doesNotMatch(app, /const source=inventorySources\.find\(candidate=>candidate\.role==='player'\)/);
 });
 
 test('Marketplace refreshes Game Wallet inventory after a completed checkout without exposing a manual refresh control', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
   assert.match(app, /inventory\.retry\(source\)/);
-  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources,true\)\]\)/);
+  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources\)\]\)/);
 });
 
 test('Marketplace delegates visible Marketplace loading to the shared pending prompt', async () => {
@@ -218,9 +219,8 @@ test('Marketplace delegates visible Marketplace loading to the shared pending pr
   assert.match(app, /const \[isCatalogLoading,setIsCatalogLoading\]=useState\(true\)/);
   assert.match(app, /createMarketplaceInventoryCoordinator/);
   assert.match(app, /const selectedInventoryLoading=owner==='all'/);
-  assert.match(app, /const inventoryCycleLoading=!isCatalogLoading&&settledInventorySourceKey!==inventorySourceKey/);
-  assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|\(!initialInventoryWaitExpired&&\(inventoryCycleLoading\|\|selectedInventoryLoading\)\)/);
-  assert.match(app, /MARKETPLACE_INITIAL_INVENTORY_WAIT_MS=2000/);
+  assert.doesNotMatch(app, /inventoryCycleLoading|settledInventorySourceKey|initialInventoryWaitExpired|MARKETPLACE_INITIAL_INVENTORY_WAIT_MS/);
+  assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|selectedInventoryLoading/);
   assert.match(app, /const promptBusy=isMarketplaceLoading\|\|!!operationLabel/);
   assert.match(app, /const MARKETPLACE_LOADING_SETTLE_MS=1000/);
   assert.match(app, /inventoryError=owner==='all'/);

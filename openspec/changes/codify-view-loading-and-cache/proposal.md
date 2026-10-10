@@ -15,6 +15,9 @@ BIS currently decides loading behavior through scattered component conditions, s
 - Invalidate cached data on account or network changes, logout/reset, relevant wallet events, failed or partial reads, and other transitions that can change the underlying facts.
 - Keep cache data ephemeral and never persist balances, addresses, assets, or activity snapshots to browser storage.
 - Make loading icon presentation consistent: disabled refresh icons are visibly muted and spin while their associated read is in progress.
+- Make Marketplace Player Wallet and Game Wallet inventory reads independent, concurrent, and selected-tab truthful: a selected wallet remains covered by loading until its own read reaches a terminal state, without a fixed timeout or a false empty state.
+- Make Marketplace a consumer of BIS inventory preparation rather than an inventory-loading owner: both Player Wallet and Game Wallet reads go through BIS-owned APIs and the shared cache/in-flight lifecycle.
+- Reuse the same BIS account asset-cache and in-flight read lifecycle between Account Assets and Marketplace for compatible Player Wallet ownership data, while extending the provider-neutral cache contract to Game Wallet public inventory.
 
 ## Capabilities
 
@@ -36,5 +39,6 @@ BIS currently decides loading behavior through scattered component conditions, s
 - Affected UI state and loading orchestration in `BIS/packages/integration/src/client/ui-layer-react`.
 - Affected balance, activity, asset, address, and contract presentation lifecycles in `BIS/packages/integration/src/client/state-layer-core`.
 - Affected refresh-icon styling and loading-state tests.
+- Affected Marketplace inventory orchestration, selected-owner loading presentation, BIS wallet-inventory preparation, removal of Marketplace-owned provider/cache responsibilities, and Edge browser acceptance coverage.
 - No public wallet-operation API or persisted storage schema change is intended.
-- The Arkade SDK remains the source of fresh network data; the cache only suppresses redundant reads during the short in-memory freshness window.
+- The Arkade SDK remains the source of fresh network data; the shared cache only suppresses redundant reads during the configured in-memory freshness window.

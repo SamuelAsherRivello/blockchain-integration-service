@@ -28,6 +28,7 @@ export type BisCapabilities = Readonly<{
   items: Readonly<{ available: boolean; reason: string }>;
   assetMinting: Readonly<{ available: boolean; reason: string }>;
   contracts: Readonly<{ available: boolean; reason: string }>;
+  payments: Readonly<{ available: boolean; reason: string }>;
 }>;
 
 export type BisGameOperationReference = Readonly<{
@@ -113,6 +114,7 @@ export interface IBis {
   hasItemSupport(): boolean;
   hasAssetMintingSupport(): boolean;
   hasContractSupport(): boolean;
+  hasPaymentSupport(): boolean;
   beginContinuation(request?: BisGameContinuationRequest): BisGameContinuationState;
   payContinuationAsync(workflowId: string): Promise<BisGameContinuationState>;
   checkContinuationAsync(workflowId: string): Promise<BisGameContinuationState>;

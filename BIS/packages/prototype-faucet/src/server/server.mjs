@@ -47,7 +47,12 @@ function createLazyWallet(network) {
       return { operationId: transactionId, transactionId, status: 'pending' };
     },
     async balance() {
-      const value = await this.prepare();
+      const wallet = await getWallet();
+      if (!wallet) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
+      // Reading the faucet balance must not trigger onboarding or fee estimation.
+      // A provider may be able to report wallet funds while settlement is
+      // temporarily unavailable.
+      const value = await wallet.getBalance();
       const sats = amount => Number(amount ?? 0n);
       return { total: sats(value.total), available: sats(value.available), settled: sats(value.settled), preconfirmed: sats(value.preconfirmed), recoverable: sats(value.recoverable) };
     },

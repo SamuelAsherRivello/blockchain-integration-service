@@ -22,7 +22,7 @@ import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
 import { GameWalletLoginView } from './GameWalletLogin';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
 import { networkLabel } from '../state-layer-core/test-network';
-import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, itemSupportAvailable, itemSupportFeedback } from '../state-layer-core/capabilities';
+import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, itemSupportAvailable, itemSupportFeedback, paymentSupportAvailable, paymentSupportFeedback } from '../state-layer-core/capabilities';
 import { FormRowBoolean } from './FormRowBoolean';
 import { ViewTransition } from './ViewTransition';
 import { defaultViewLoadingPolicy, useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
@@ -97,10 +97,10 @@ function NetworkSelect({ value, onChange }: { value: 'signet' | 'mutinynet' | un
   </div>;
 }
 
-export function BisAccountView({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange, hostLoading, onBisVisibilityChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void;hostLoading?: HostLoading;onBisVisibilityChange?(visible:boolean):void }) {
-  return <PendingOperations overlay={<ToastViewport context={context} />} hostLoading={hostLoading} onBisVisibilityChange={onBisVisibilityChange}><BisAccountScreen context={context} gameWallet={gameWallet} hasItemSupport={hasItemSupport} hasAssetMintingSupport={hasAssetMintingSupport} hasContractSupport={hasContractSupport} onDeveloperDialogChange={onDeveloperDialogChange} onGameWalletDialogChange={onGameWalletDialogChange} /></PendingOperations>;
+export function BisAccountView({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, hasPaymentSupport, onDeveloperDialogChange, onGameWalletDialogChange, hostLoading, onBisVisibilityChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; hasPaymentSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void;hostLoading?: HostLoading;onBisVisibilityChange?(visible:boolean):void }) {
+  return <PendingOperations overlay={<ToastViewport context={context} />} hostLoading={hostLoading} onBisVisibilityChange={onBisVisibilityChange}><BisAccountScreen context={context} gameWallet={gameWallet} hasItemSupport={hasItemSupport} hasAssetMintingSupport={hasAssetMintingSupport} hasContractSupport={hasContractSupport} hasPaymentSupport={hasPaymentSupport} onDeveloperDialogChange={onDeveloperDialogChange} onGameWalletDialogChange={onGameWalletDialogChange} /></PendingOperations>;
 }
-function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
+function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, hasPaymentSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; hasPaymentSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
   const walletSnapshot = useSyncExternalStore(gameWallet?.subscribe ?? emptySubscribe, gameWallet?.getState ?? emptySnapshot, gameWallet?.getState ?? emptySnapshot);
   const [developerOpen, setDeveloperOpen] = useState(false);
@@ -157,6 +157,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const hostAssetMintingSupport = developer ? hasAssetMintingSupport?.() : undefined;
   const hostContractSupport = developer ? hasContractSupport?.() : undefined;
   const hostItemSupport = developer ? hasItemSupport?.() : undefined;
+  const hostPaymentSupport = developer ? hasPaymentSupport?.() : undefined;
   // Capability callbacks return a boolean while their underlying wallet read
   // is still in flight. Keep the indicators unresolved until that read settles
   // so a transient false is not presented as the final answer.
@@ -164,6 +165,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const assetMintingSupported = supportLoading ? undefined : hostAssetMintingSupport ?? (!!walletSnapshot && assetMintingSupportAvailable(state, walletSnapshot));
   const contractSupported = supportLoading ? undefined : hostContractSupport ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot));
   const itemsSupported = supportLoading ? undefined : hostItemSupport ?? itemSupportAvailable(state);
+  const paymentsSupported = supportLoading ? undefined : hostPaymentSupport ?? (!!walletSnapshot && paymentSupportAvailable(state, walletSnapshot));
   const hostFeedback = (capability: string, supported: boolean | undefined) => supported === undefined ? undefined : supported
     ? `Current status: available. ${capability} is enabled by the host capability check.`
     : `${capability} is unavailable because the host capability check returned false.`;
@@ -174,6 +176,9 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
     ? contractSupportFeedback(state, walletSnapshot)
     : 'Contracts are unavailable: select or create a Game Wallet.');
   const itemsTooltip = hostFeedback('Items', hostItemSupport) ?? itemSupportFeedback(state);
+  const paymentsTooltip = hostFeedback('Payments', hostPaymentSupport) ?? (walletSnapshot
+    ? paymentSupportFeedback(state, walletSnapshot)
+    : 'Payments are unavailable: select or create a Game Wallet.');
   useEffect(() => {
     if (state.accountRecovery) void getControls(context).revealRecovery();
   }, [context, state.accountRecovery]);
@@ -263,6 +268,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
             <FormRowBoolean label="Asset Minting" value={assetMintingSupported} enabledText={assetMintingTooltip} disabledText={assetMintingTooltip} />
             <FormRowBoolean label="Contracts" value={contractSupported} enabledText={contractTooltip} disabledText={contractTooltip} />
             <FormRowBoolean label="Items" value={itemsSupported} enabledText={itemsTooltip} disabledText={itemsTooltip} />
+            <FormRowBoolean label="Payments" value={paymentsSupported} enabledText={paymentsTooltip} disabledText={paymentsTooltip} />
           </div>
           <div className="bis-copy-field-heading"><h3>Player Wallet</h3></div>
           <p>Allow easy account funding.</p>
@@ -291,7 +297,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   </div>;
 }
 
-export function createBisUi(context: BisContext, options: { gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean } = {}) {
+export function createBisUi(context: BisContext, options: { gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; hasPaymentSupport?: () => boolean } = {}) {
   let root: Root | undefined;
   let host: HTMLElement | undefined;
   let openDeveloperDialog: (() => void) | undefined;
@@ -316,7 +322,7 @@ export function createBisUi(context: BisContext, options: { gameWallet?: GameWal
       }
       host = container;
       root = createRoot(container);
-      root.render(<BisAccountView context={context} gameWallet={options.gameWallet} hasItemSupport={options.hasItemSupport} hasAssetMintingSupport={options.hasAssetMintingSupport} hasContractSupport={options.hasContractSupport} onDeveloperDialogChange={open => { openDeveloperDialog = open; }} onGameWalletDialogChange={open=>{openGameWalletDialog=open;}} hostLoading={hostLoadingControl} onBisVisibilityChange={setBisVisible} />);
+      root.render(<BisAccountView context={context} gameWallet={options.gameWallet} hasItemSupport={options.hasItemSupport} hasAssetMintingSupport={options.hasAssetMintingSupport} hasContractSupport={options.hasContractSupport} hasPaymentSupport={options.hasPaymentSupport} onDeveloperDialogChange={open => { openDeveloperDialog = open; }} onGameWalletDialogChange={open=>{openGameWalletDialog=open;}} hostLoading={hostLoadingControl} onBisVisibilityChange={setBisVisible} />);
     },
     showAccountButton() { internal.present(); },
     openDeveloperDialog() { internal.assertAlive(); openDeveloperDialog?.(); },

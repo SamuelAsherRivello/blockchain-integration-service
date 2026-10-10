@@ -17,6 +17,7 @@ import {AssetDeliveryError,readAssetDeliveryRecord,validateAssetDelivery,type Bi
 import { testNetworks, type TestNetwork } from './test-network.ts';
 import { readWithRetry } from './pending-read.ts';
 import { clearBrowserGameWalletPreferences } from './logout-cleanup.ts';
+import { prepareSharedAssetInventory, invalidateSharedAssetInventory } from './shared-asset-inventory.ts';
 
 export type BisGameWalletReadStatus = 'storage' | 'wallet-read' | 'observation' | 'role-conflict' | 'network-mismatch';
 export type BisGameWalletAvailabilityReason = 'player-wallet' | 'game-wallet' | 'role-conflict' | 'network-mismatch' | 'wallet-read' | 'insufficient-funds' | 'unresolved-operation' | 'ready';
@@ -304,13 +305,13 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
     async logout() {
       if (disposed || importing) return;
       const signal = begin();
-      try { await storage.logout(); clearBrowserState(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } }
+      try { invalidateSharedAssetInventory(state.profileId, selectedNetwork(), 'game'); await storage.logout(); clearBrowserState(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } }
       catch { if (!signal.aborted) publish({...state, message:'Logout failed. Please retry.',readStatus:'storage'}); }
     },
     async reset() {
       if (disposed || importing) return false;
       const signal = begin();
-      try { await storage.reset(); clearBrowserState(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } return true; }
+      try { invalidateSharedAssetInventory(state.profileId, selectedNetwork(), 'game'); await storage.reset(); clearBrowserState(); if (!signal.aborted) { selectProfile(undefined); publish({status:'empty'}); } return true; }
       catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.',readStatus:'storage'}); return false; }
     },
     async importWallet(phrase: string) {
@@ -370,6 +371,10 @@ export function createLocalGameWallet(options: { playerProfileId(): string | und
         if(disposed||operation.signal.aborted||state.profileId!==account.profileId)return assetError('account-changed',account.profileId);
         return {status:'success',profileId:account.profileId,assets};
       } catch(error) {return assetError(error instanceof AssetError?error.code:'unavailable',state.profileId);}
+    },
+    async prepareAssetInventory():Promise<BisListAssetsResult> {
+      try { const account=await selectedAccount(), network=account.network ?? selectedNetwork(); return await prepareSharedAssetInventory({role:'game',profileId:account.profileId,network,load:signal=>minting.list ? minting.list(account,signal) : Promise.reject(Error('Game Wallet asset listing unavailable.'))}); }
+      catch { return assetError('unavailable',state.profileId); }
     },
     async createWallet() {
       if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return; }

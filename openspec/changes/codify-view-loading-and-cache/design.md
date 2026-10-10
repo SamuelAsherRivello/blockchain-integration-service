@@ -61,6 +61,18 @@ Cache keys include account and network, and lifecycle events invalidate affected
 
 All shared refresh-icon buttons continue to disable from their existing pending status. The shared CSS adds a muted disabled color and a rotation animation to `.bis-refresh-image`, with reduced-motion behavior. This covers automatic entry and manual Refresh because both transition the same state status.
 
+### 6. Let BIS own Marketplace inventory preparation
+
+Marketplace inventory is modeled as two independent records keyed by role, wallet profile, network, and data type: Player Wallet and Game Wallet. The page requests those records through BIS-owned preparation APIs. Marketplace maps the provider-neutral returned assets into catalog/equipment cards, but it does not call an Arkade indexer/provider and does not own an inventory cache.
+
+The existing Player Wallet `BisContext.prepareAssetInventory()` remains the shared presentation read used by Account Assets and Marketplace. The Game Wallet BIS object gains an equivalent preparation method backed by the same shared cache/in-flight lifecycle, using its wallet account and public asset-read adapter. `listAssets()` remains the live/mutation-safe operation; preparation is presentation-only and may reuse a complete fresh result.
+
+On Marketplace entry, eligible BIS preparation calls start concurrently. BIS owns the role-scoped `idle`, `loading`, `ready`, `empty`, or `unavailable` lifecycle and joins compatible in-flight work. A source record retains its own timestamp; completion of one source never clears, replaces, or delays the other. The cache is in-memory, identity/network/role/data-type scoped, invalidated by the existing BIS lifecycle, and never duplicated in Marketplace local storage.
+
+The selected Owner tab determines visible loading. If its record is pending, Marketplace shows the loading presentation. If its record is complete, Marketplace renders its items or truthful empty result. If the other wallet is still pending, it does not block the selected tab. Changing tabs only selects the existing record; it does not force a duplicate read or temporarily erase a valid result. Explicit retry remains the only force-refresh path.
+
+The existing two-second Marketplace timeout is removed. A timeout cannot establish that a wallet read is empty. The shared BIS cache is extended to support the Game Wallet's public asset read with the same scoping, freshness, invalidation, and in-flight joining rules used by Player Wallet Assets. The old Marketplace local-storage inventory coordinator is removed or reduced to view state only; it must not cache or fetch wallet inventory independently.
+
 ## Risks / Trade-offs
 
 - [Risk] A 15-second cached balance can be briefly stale after an external wallet change. → Explicit Refresh bypasses the cache, and wallet evidence events invalidate affected entries.
