@@ -142,7 +142,8 @@ test('item detail gives every metadata value the shared labeled, copyable field 
   assert.match(polish, /\.marketplace-detail-field \.bis-copy-field-heading/);
   assert.match(polish, /\.marketplace-detail-field input \{ width: 100%;/);
   assert.match(polish, /\.marketplace-detail-field \{[^}]*font: 600 13px\/1\.2 Inter/);
-  assert.match(polish, /\.marketplace-detail-field \.bis-copy-field-heading \{ gap: 4px; font: inherit;/);
+  assert.match(polish, /\.detail \.marketplace-detail-field \.bis-copy-field-heading \{ gap: 4px; \}/);
+  assert.doesNotMatch(polish, /\.marketplace-detail-field \.bis-copy-field-heading \{[^}]*font: inherit;/);
   assert.match(polish, /\.marketplace-detail-field input \{[^}]*font: inherit; text-align: left;/);
   assert.match(polish, /\.marketplace-gameplay-fields input \{ text-align: left;/);
 });
@@ -185,6 +186,14 @@ test('Marketplace derives item identity, price, and artwork from fresh chain ass
   assert.match(app,/Image unavailable/);
 });
 
+test('Player Wallet inventory reuses the shared BIS Assets read and refreshes when selected', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /player\.prepareAssetInventory\?\.\(\)\?\?player\.listAssets\(\)/);
+  assert.match(app, /const chooseOwner=\(next:'all'\|'game'\|'player'\)=>/);
+  assert.match(app, /if\(next==='player'\)/);
+  assert.match(app, /inventory\.retry\(source\)/);
+});
+
 test('Marketplace refreshes Game Wallet inventory after a completed checkout without exposing a manual refresh control', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
@@ -203,7 +212,7 @@ test('Marketplace delegates visible Marketplace loading to the shared pending pr
   assert.match(app, /const promptBusy=isMarketplaceLoading\|\|!!operationLabel/);
   assert.match(app, /const MARKETPLACE_LOADING_SETTLE_MS=1000/);
   assert.match(app, /inventoryError=owner==='all'/);
-  assert.match(app, /usePendingNotice\(loadingPromptVisible,operationLabel\?\?'Loading\.\.\.'/);
+  assert.match(app, /usePendingNotice\(loadingPromptVisible,operationLabel\?\?'Loading \.\.\.'/);
   assert.doesNotMatch(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.'/);
   assert.match(app, /No equipment is currently available for/);
 });
@@ -229,7 +238,7 @@ test('Marketplace requirement tooltip targets use the pointer cursor', async () 
 
 test('Marketplace places version and project resources in the selected-network bar without device-specific presentation logic', async () => {
   const [app, utilities, redesign] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/marketplace-utilities.css'), text('src/client/ui-layer-react/marketplace-redesign.css')]);
-  assert.match(app, /<div className="network-banner">\s*<span role="status">Network: \{networkLabel\(network\)\}<\/span>\s*<div className="marketplace-utilities" role="navigation" aria-label="Marketplace resources">/);
+  assert.match(app, /<div className="network-banner">\s*<span role="status">Network: \{networkLabel\(network\)\}<\/span>\s*<div className="marketplace-utilities" role="navigation" aria-label="Marketplace resources">[\s\S]*?<div className="marketplace-bis-host bis-account-launcher-anchor"/);
   assert.match(app, /v\{version\}/);
   assert.match(app, /https:\/\/github\.com\/SamuelAsherRivello\/blockchain-integration-service/);
   assert.match(app, /https:\/\/docs\.arkadeos\.com\//);
@@ -261,19 +270,21 @@ test('Marketplace changes to a touch-sized 1-to-6 vertical flow on narrow screen
   assert.match(redesign, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?overflow: visible;[\s\S]*?overscroll-behavior: auto;[\s\S]*?scrollbar-gutter: auto;/);
   assert.match(style, /@media \(max-width: 767px\)\s*\{[\s\S]*?html\s*\{[\s\S]*?overflow-y: auto;[\s\S]*?body\s*\{[\s\S]*?overflow: visible;[\s\S]*?#root\s*\{[\s\S]*?min-height: 100%;/);
   assert.match(style, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-pending-runtime,\s*\.marketplace-pending-runtime > \.bis-runtime-content\s*\{[\s\S]*?position: static;[\s\S]*?inset: auto;[\s\S]*?\.marketplace-pending-runtime > \.bis-pending-backdrop\s*\{[\s\S]*?position: fixed;/);
-  assert.match(launcher, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-bis-host \.bis-layer:not\(\.bis-layer-open\)\s*\{[\s\S]*?padding: calc\(40px \+ env\(safe-area-inset-top\)\) 16px 0;/);
+  assert.match(launcher, /\.marketplace-bis-host\s*\{[\s\S]*?--bis-launcher-offset: 8px;/);
 });
 
-test('closed BIS account launcher remains in the Marketplace upper-right without intercepting the catalog', async () => {
-  const [app, style, launcherStyle] = await Promise.all([
+test('closed BIS account launcher is anchored below the Marketplace banner without intercepting the catalog', async () => {
+  const [app, style, launcherStyle, sharedStyle] = await Promise.all([
     text('src/client/marketplace-layer/App.tsx'),
     text('src/client/ui-layer-react/style.css'),
     text('src/client/ui-layer-react/account-launcher.css'),
+    text('../integration/src/client/ui-layer-react/overlay.css'),
   ]);
-  assert.match(app, /className="marketplace-bis-host"/);
+  assert.match(app, /className="marketplace-bis-host bis-account-launcher-anchor"/);
   assert.match(style, /\.marketplace-bis-host \.bis-runtime \{ pointer-events: none; \}/);
-  assert.match(style, /\.marketplace-bis-host \.bis-layer \{ place-items: start end;/);
-  assert.match(launcherStyle, /\.marketplace-bis-host \.bis-layer:not\(\.bis-layer-open\)\s*\{[\s\S]*?padding: clamp\(/);
+  assert.match(launcherStyle, /--bis-launcher-offset/);
+  assert.match(sharedStyle, /\.bis-account-launcher-anchor \{ position: absolute; inset: 100% 0 auto;/);
+  assert.match(sharedStyle, /\.bis-account-launcher-anchor \.bis-layer\.bis-layer-open \{ position: fixed; inset: 0;/);
 });
 
 test('equipment artwork containers stay square when card content flexes at browser zoom', async () => {

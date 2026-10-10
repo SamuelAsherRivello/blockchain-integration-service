@@ -9,10 +9,10 @@ export function AccountDialogShell({ title, description, headingRef, headingActi
     <div className="bis-network-label">
       <span className="bis-network-anchor"><span className="bis-network-text">Network: {network}</span><span className="bis-version-label">BIS: v{version}</span></span>
     </div>
-    <div className="bis-dialog-heading">
+    <header className="bis-dialog-heading">
       <h2 ref={headingRef} tabIndex={-1} id={titleId}>{title}</h2>
       {headingActions}
-    </div>
+    </header>
     {description && <p id={descriptionId} role="status">{description}</p>}
     {children}
   </section>;

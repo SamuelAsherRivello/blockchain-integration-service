@@ -36,12 +36,11 @@ test('view cache uses short-lived identity-scoped entries and explicit invalidat
     text('src/client/state-layer-core/context.ts'),
     text('src/client/state-layer-core/asset-view-lifecycle.ts'),
   ]);
-  assert.match(context, /createViewCache/);
-  assert.match(context, /invalidateDataType\('activity'/);
-  assert.match(context, /refreshBalance: \(\) => \{if\(state\.profileId\)/);
-  assert.match(context, /const detailsRead = state\.accountDetails/);
-  assert.match(context, /viewCache\.set\(detailsKey/);
-  assert.match(context, /invalidateDataType\('details'/);
-  assert.match(lifecycle, /createViewCache/);
-  assert.match(lifecycle, /if \(background && cacheKey\) cache\.invalidate\(cacheKey\)/);
+  assert.match(context, /createReadCoordinator/);
+  assert.match(context, /reads\.invalidate\('activity'/);
+  assert.match(context, /refreshBalance:\(\)=>refreshBalanceView\(false,true\)/);
+  assert.match(context, /prepareBalance\(force,true\)/);
+  assert.match(context, /prepareAddresses\(force,true\)/);
+  assert.doesNotMatch(lifecycle, /createViewCache/);
+  assert.match(lifecycle, /options\.readSnapshot\(signal, force \|\| background\)/);
 });

@@ -10,17 +10,15 @@
 html, body, #root { height: 100%; }
 body { margin: 0; overflow: hidden; }
 
-.marketplace-bis-host { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+.marketplace-bis-host { --bis-launcher-offset: clamp(8px, 1vw, 14px); --bis-launcher-inline: clamp(12px, 2vw, 18px); }
 .marketplace-bis-host .bis-runtime { pointer-events: none; }
-.marketplace-bis-host .bis-layer { place-items: start end; padding: clamp(12px, 3vw, 48px) clamp(12px, 2vw, 18px) 0; transform: none; }
-.marketplace-bis-host .bis-layer-open { place-items: center; padding: 16px; transform: none; }
 
 .network-banner { display: flex; justify-content: center; border-bottom: .8px solid #e5b536; background: #fff0b8; color: #785317; font: 750 9px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
 .marketplace-shell { display: flex; flex-wrap: wrap; }
 .marketplace-sidebar, .collection-panel { min-width: 0; }
 .marketplace-sidebar { display: flex; flex-direction: column; }
-header { min-width: 0; }
-h1 { color: #182d39; }
+.marketplace-page header { min-width: 0; }
+.marketplace-page h1 { color: #182d39; }
 .lede { margin: 0; color: #647987; }
 
 .wallet-strip { display: grid; }
@@ -50,9 +48,16 @@ h1 { color: #182d39; }
 .truth { font-size: 12px; color: #647987 !important; }
 .marketplace-pending-runtime { z-index: 100; }
 .marketplace-pending-runtime .bis-pending-backdrop { z-index: 60; }
+/* Center the page-level prompt against the viewport from its first paint. The
+   runtime's initial layout can change while Marketplace content and fonts
+   settle, which otherwise makes an absolute backdrop visibly jump vertically. */
+.marketplace-pending-runtime > .bis-pending-backdrop { position: fixed; }
+/* Account-owned reads must cover and center against the complete Marketplace
+   viewport even though the closed Account launcher lives in the header. */
+.marketplace-bis-host .bis-pending-backdrop { position: fixed; }
 /* The Marketplace owns the page-level pending veil. Keep the nested BIS dialog
    interactive without stacking a second translucent veil over the page. */
-.marketplace-pending-runtime:has(> .bis-pending-backdrop) .marketplace-bis-host .bis-pending-backdrop { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.marketplace-pending-runtime:has(> .bis-pending-backdrop) .marketplace-bis-host .bis-pending-backdrop { display: none; }
 
 @media (max-width: 767px) {
   /* The document is the only mobile scroll surface. Keeping body visible avoids

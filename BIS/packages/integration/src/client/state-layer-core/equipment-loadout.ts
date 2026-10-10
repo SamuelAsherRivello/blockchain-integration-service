@@ -30,16 +30,16 @@ function effective(items:readonly BisEquipmentItem[],selections:SelectionRecord[
   return Object.freeze(slots);
 }
 
-export function createBisEquipment(context:Pick<BisContext,'getState'|'listAssets'|'subscribe'>) {
+export function createBisEquipment(context:Pick<BisContext,'getState'|'listAssets'|'subscribe'|'prepareAssetInventory'>) {
   let state:BisEquipmentState=Object.freeze({status:'idle',ownedItems:emptyItems,effective:emptySlots});
   let revision=0,disposed=false;const listeners=new Set<()=>void>();
   const publish=(next:BisEquipmentState)=>{if(!disposed){state=Object.freeze(next);listeners.forEach(listener=>listener());}};
-  async function refresh():Promise<BisEquipmentState>{
+  async function refresh(authoritative=true):Promise<BisEquipmentState>{
     const request=++revision,profileId=context.getState().profileId;
     publish({status:'loading',...(profileId?{profileId}:{}),ownedItems:emptyItems,effective:emptySlots});
     if(!profileId){const next={status:'ready' as const,ownedItems:emptyItems,effective:emptySlots};publish(next);return next;}
     try{
-      const result=await context.listAssets();
+      const result=await (!authoritative && context.prepareAssetInventory ? context.prepareAssetInventory() : context.listAssets());
       if(disposed||request!==revision||context.getState().profileId!==profileId)throw Error('changed');
       if(result.status==='error'||result.profileId!==profileId)throw Error('unavailable');
       const ownedItems=Object.freeze(result.assets.map(classifyBisEquipmentAsset).filter(item=>item!==null).sort((a,b)=>a.family.localeCompare(b.family)||a.tier-b.tier||a.assetId.localeCompare(b.assetId)));
@@ -60,7 +60,7 @@ export function createBisEquipment(context:Pick<BisContext,'getState'|'listAsset
     writeSelections({version:1,profileId,selections});
     const next:BisEquipmentState={...current,effective:effective(current.ownedItems,selections)};publish(next);return next;
   }
-  const unsubscribe=context.subscribe(()=>{if(context.getState().profileId!==state.profileId)void refresh();});
+  const unsubscribe=context.subscribe(()=>{if(context.getState().profileId!==state.profileId)void refresh(false);});
   return {
     getState:()=>state,
     subscribe(listener:()=>void){listeners.add(listener);return()=>listeners.delete(listener);},

@@ -4,6 +4,8 @@ import {createContext} from '../../src/client/state-layer-core/context.ts';
 import {readBoardingRecord,writeBoardingRecord} from '../../src/client/state-layer-core/boarding-record.ts';
 import {walletReservations} from '../../src/client/state-layer-core/wallet-reservations.ts';
 const tick=()=>new Promise(r=>setImmediate(r));
+globalThis.requestIdleCallback=()=>1;globalThis.cancelIdleCallback=()=>{};
+test.after(()=>{delete globalThis.requestIdleCallback;delete globalThis.cancelIdleCallback;});
 const pending=(id,input='a')=>({version:1,id,profileId:'player',status:'pending',phase:'registered',createdAt:id==='older'?1:2,inputs:[{txid:input.repeat(64),vout:0}],bitcoinAddress:'tb1-test',quote:{profileId:'player',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:2000,bitcoinAfterSats:1000,arkadeAfterSats:1000,totalAfterSats:2000,expiresAt:2000,fingerprint:'c'.repeat(64)}});
 function setup(t,{latestPending=true,persist=true,failBalance=false,delay,failAfter=false,shared=false}={}) {
  const memory=new Map();

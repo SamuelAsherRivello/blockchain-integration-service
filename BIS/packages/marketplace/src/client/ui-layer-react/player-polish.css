@@ -4,7 +4,7 @@
 body { background: #edf3f5; }
 .network-banner { box-shadow: inset 0 -1px rgb(229 181 54 / 50%); }
 .marketplace-sidebar { gap: 40px; }
-h1 { margin-top: 0; letter-spacing: -.04em; }
+.marketplace-page h1 { margin-top: 0; letter-spacing: -.04em; }
 .wallet-strip { border-color: #b8cbd1; background: #fbfdfd; box-shadow: none; }
 .catalog-toolbar { padding-bottom: 16px; }
 .filter-row button { min-height: 30px; transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out, transform 140ms ease-out; }
@@ -13,12 +13,10 @@ h1 { margin-top: 0; letter-spacing: -.04em; }
 .asset-card:hover, .asset-card:focus-visible { border-color: #487d66; background: #f5fffc; box-shadow: none; }
 .detail { border: 0; border-radius: 16px; background: #fbfdfd; box-shadow: 0 18px 42px rgb(8 24 32 / 30%); }
 .detail .marketplace-detail-field { display: flex; flex-wrap: wrap; align-items: end; gap: 5px; min-width: 0; margin: 0; color: #294650; font: 600 13px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; text-align: left; }
-.detail .marketplace-detail-field .bis-copy-field-heading { gap: 4px; font: inherit; }
-.detail .marketplace-detail-field .bis-copy-icon { flex-basis: 1.15em; width: 1.15em; height: 1.15em; padding: 0; font: inherit; }
+.detail .marketplace-detail-field .bis-copy-field-heading { gap: 4px; }
 .detail .marketplace-detail-field input { width: 100%; min-width: 0; padding: 8px 10px; border: .8px solid #c8d7dc; border-radius: 8px; background: #fff; color: inherit; font: inherit; text-align: left; }
 .detail .marketplace-generic-fields .marketplace-asset-id input { padding: 9px 10px; }
 .detail .marketplace-gameplay-fields input { text-align: left; color: #487d66; }
-.detail .marketplace-detail-field .bis-copy-status { flex-basis: 100%; min-height: 0; font-size: 10px; }
 .backdrop { background: rgb(24 45 57 / 47%); backdrop-filter: blur(2px); }
 .catalog-scroll { scrollbar-color: #77939b #dce7e9; }
 .catalog-scroll::-webkit-scrollbar { width: 10px; }

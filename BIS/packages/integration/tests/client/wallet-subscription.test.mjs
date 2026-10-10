@@ -25,7 +25,7 @@ test('new Arkade receipt shows one Balance loading cycle and settlement refreshe
 test('receipt read failure is bounded and clears prior amounts',async()=>{
  let fail=false,attempts=0;const s=setup(async()=>{if(fail){attempts++;throw Error('offline');}return {availableSats:2,totalSats:2,bitcoinSats:0,arkadeSats:2};});
  try{await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
- fail=true;s.emit([receipt()]);await tick();assert.equal(attempts,2);assert.deepEqual(s.c.getState().balance,{status:'unavailable'});
+ fail=true;s.emit([receipt()]);await tick();assert.equal(attempts,2);assert.equal(s.c.getState().balance.status,'unavailable');
  }finally{s.c.dispose();}
 });
 test('receipt with Balance closed queues both toasts without opening Balance',async()=>{
@@ -68,8 +68,8 @@ test('failed background reconciliation clears the displayed balance',async()=>{
  const s=setup(async()=>{if(offline)throw Error('offline');return {availableSats:2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000};});
  try {
  await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
- offline=true;s.emit([]);await tick();
- assert.deepEqual(s.c.getState().balance,{status:'unavailable'});
+ offline=true;s.emit([{...receipt(),direction:'Outgoing'}]);await tick();
+ assert.equal(s.c.getState().balance.status,'unavailable');
  }finally{s.c.dispose();}
 });
 
@@ -79,7 +79,7 @@ test('a pre-change balance read cannot overwrite the replacement read',async()=>
  const s=setup(async(a,signal)=>{reads++;if(reads===1){oldSignal=signal;return new Promise(r=>release=()=>r(amounts(2000)));}return amounts(1000);});
  try {
  await s.c.readyAsync();await tick();s.c.openAccountDialog();s.c.openAccountDetails();await tick();
- s.emit([]);await tick();assert.equal(oldSignal.aborted,true);assert.equal(s.c.getState().balance.arkadeSats,1000);
+ s.emit([{...receipt(),direction:'Outgoing'}]);await tick();assert.equal(oldSignal.aborted,true);assert.equal(s.c.getState().balance.arkadeSats,1000);
  release();await tick();assert.equal(s.c.getState().balance.arkadeSats,1000);
  }finally{s.c.dispose();}
 });

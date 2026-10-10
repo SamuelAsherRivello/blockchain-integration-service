@@ -26,29 +26,19 @@ export function AccountSendView({context}:{context:BisContext}) {
  const recipientId=useId();
  const expired = useQuoteExpiry(quote?.expiresAt);
  const fail=(e:unknown)=>e instanceof SendError||e instanceof BoardingBlockedError?e.message:'Send information could not be verified. Try again.';
- async function readInitialArkBalance(signal:AbortSignal) {
+ async function readInitialArkBalance(_signal:AbortSignal) {
+  // The context owns retries and request lifetime; unmount only detaches this UI.
+  if(context.prepareArkBalance)return context.prepareArkBalance();
   const cached=context.getCachedArkBalance?.();
   if(cached!==undefined)return cached;
   await context.refreshBalance();
-  const immediate=context.getCachedArkBalance?.();
-  if(immediate!==undefined)return immediate;
-  await new Promise<void>((resolve,reject)=>{
-   const unsubscribe=context.subscribe(()=>{
-    const value=context.getCachedArkBalance?.();
-    if(value!==undefined){unsubscribe();resolve();}
-    else if(['unavailable','error'].includes(context.getState().balance.status as string)){unsubscribe();reject(new SendError('Arkade balance could not be verified.'));}
-   });
-   const onAbort=()=>{unsubscribe();reject(signal.reason??new DOMException('Aborted','AbortError'));};
-   signal.addEventListener('abort',onAbort,{once:true});
-   if(signal.aborted)onAbort();
-  });
   const value=context.getCachedArkBalance?.();
   if(value===undefined)throw new SendError('Arkade balance could not be verified.');
   return value;
  }
  async function loadFunds(initial=false) {
   if(working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel(initial?'Loading ...':'Refreshing ...');setError('');setFunds(undefined);
-  try {const n=await readWithRetry(()=>initial ? readInitialArkBalance(readController.current.signal) : context.getSendSpendable(),readController.current.signal);if(alive.current&&request===revision.current)setFunds(n);}
+  try {const n=await (initial ? readInitialArkBalance(readController.current.signal) : readWithRetry(()=>context.getSendSpendable(),readController.current.signal));if(alive.current&&request===revision.current)setFunds(n);}
   catch(e){if(alive.current&&request===revision.current)setError(fail(e));}
   finally{if(alive.current&&request===revision.current){if(initial)initialLoad.current=false;working.current=false;setBusy(false);}}
  }

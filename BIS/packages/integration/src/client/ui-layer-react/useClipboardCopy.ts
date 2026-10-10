@@ -13,6 +13,39 @@ export function useClipboardCopy(value: () => string | undefined, scope: unknown
     setStatus('idle'); setHasCopied(false);
     return () => { alive.current = false; generation.current++; working.current = false; };
   }, [scope, disabled]);
+  async function writeClipboard(text: string) {
+    const copyWithSelection = () => {
+      if (typeof document === 'undefined') return false;
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        return document.execCommand('copy');
+      } finally {
+        textarea.remove();
+      }
+    };
+    // Keep this synchronous for HTTP/embedded previews: execCommand must run
+    // inside the original click gesture or the browser may reject the copy.
+    if (copyWithSelection()) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await Promise.race([
+          navigator.clipboard.writeText(text),
+          new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Clipboard write timed out.')), 250)),
+        ]);
+        return;
+      }
+    } catch {
+      // Embedded previews can expose navigator.clipboard but reject writes from
+      // their browsing context. Try the native selection fallback below.
+    }
+    throw new Error('Clipboard unavailable.');
+  }
   async function copy() {
     if (!alive.current || disabled || working.current) return;
     const text = value();
@@ -21,7 +54,7 @@ export function useClipboardCopy(value: () => string | undefined, scope: unknown
     const valid = () => alive.current && current === generation.current;
     working.current = true; setStatus('copying');
     try {
-      await navigator.clipboard.writeText(text);
+      await writeClipboard(text);
       if (valid()) { setHasCopied(true); setStatus('copied'); }
     } catch { if (valid()) setStatus('failed'); }
     finally { if (valid()) working.current = false; }

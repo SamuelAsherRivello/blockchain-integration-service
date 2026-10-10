@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createMarketplaceInventoryCoordinator, MARKETPLACE_INVENTORY_CACHE_TTL_MS, readMarketplaceInventoryCache, writeMarketplaceInventoryCache } from '../../src/client/inventory-layer/inventory-cache.ts';
+import { clearMarketplaceInventoryCache, createMarketplaceInventoryCoordinator, MARKETPLACE_INVENTORY_CACHE_TTL_MS, readMarketplaceInventoryCache, writeMarketplaceInventoryCache } from '../../src/client/inventory-layer/inventory-cache.ts';
 
 const item = (assetId='asset-1') => ({catalogId:'stealth-steel-shoes-1',name:'Shoes I',ticker:'SHO1',family:'Shoes',tier:1,priceSats:1000,description:'Increases movement speed by 10%.',attributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:10}],iconUrl:'https://example.com/shoes-1.png',assetId,quantity:'1'});
-const store = () => { const values = new Map(); return { getItem(key){return values.get(key) ?? null;}, setItem(key,value){values.set(key,value);}, removeItem(key){values.delete(key);}, values }; };
+const store = () => { const values = new Map(); return { get length(){return values.size;}, key(index){return [...values.keys()][index] ?? null;}, getItem(key){return values.get(key) ?? null;}, setItem(key,value){values.set(key,value);}, removeItem(key){values.delete(key);}, values }; };
 
 test('cache round trips public items and applies the five-minute freshness boundary', () => {
   const local = store();
@@ -63,4 +63,24 @@ test('explicit retry bypasses a fresh cache after a completed wallet operation',
   await coordinator.retry(source);
   assert.equal(calls,2);
   assert.equal(coordinator.getState().game.items[0].assetId,'asset-2');
+});
+
+test('explicit Player Wallet refresh replaces a cached empty result with fresh holdings', async() => {
+  const local = store(), coordinator = createMarketplaceInventoryCoordinator({now:()=>2000,store:local});
+  const emptySource={role:'player',walletId:'player-1',network:'signet',read:async()=>[]};
+  await coordinator.refresh([emptySource]);
+  assert.equal(coordinator.getState().player.status,'empty');
+  const freshSource={role:'player',walletId:'player-1',network:'signet',read:async()=>[item('player-item-1'),item('player-item-2')]};
+  await coordinator.retry(freshSource);
+  assert.equal(coordinator.getState().player.status,'ready');
+  assert.deepEqual(coordinator.getState().player.items.map(value=>value.assetId),['player-item-1','player-item-2']);
+});
+
+test('cache clearing removes inventory snapshots without touching unrelated storage', () => {
+  const local = store();
+  writeMarketplaceInventoryCache('player','player-1','signet',[item()],1000,local);
+  local.setItem('other-app-setting', 'keep');
+  clearMarketplaceInventoryCache(local);
+  assert.equal(readMarketplaceInventoryCache('player','player-1','signet',1001,local), undefined);
+  assert.equal(local.getItem('other-app-setting'), 'keep');
 });

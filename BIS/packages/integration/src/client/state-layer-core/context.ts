@@ -31,14 +31,12 @@ import { WalletRoleConflictError, withWalletRoleSelection } from './wallet-role.
 import type { BalanceAmounts } from '../wallet-layer-arkade/balance.ts';
 import type { AccountAddresses } from '../wallet-layer-arkade/addresses.ts';
 import type { TestNetwork } from './test-network.ts';
-import { createViewCache, DEFAULT_VIEW_CACHE_TTL_MS, type ViewCacheDataType, type ViewCacheKey } from './view-cache.ts';
+import { createReadCoordinator, type ReadKey } from './read-coordinator.ts';
+import { createBackgroundCache } from './background-cache.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
 import type { BisContextDependencies } from './context-dependencies.ts';
 export type BisBalanceReadStatus = 'wallet-read' | 'storage';
 export type BisBalance = Readonly<{ status: 'idle' | 'loading' }> | Readonly<{ status: 'unavailable'; readStatus?: BisBalanceReadStatus }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
-const VIEW_CACHE_TTL_MS = DEFAULT_VIEW_CACHE_TTL_MS;
-const contractCache = new Map<string, Readonly<{ value: BisContractsResult; fetchedAt: number }>>();
-const contractCacheKey = (profileId: string, network: TestNetwork, filter?: BisContractFilter) => `${network}:${profileId}:${JSON.stringify(filter ?? {})}`;
 export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
   savedProfiles: readonly string[];
@@ -91,6 +89,8 @@ export interface BisContext {
   getMintAvailability(): Promise<{canMint:boolean;reason?:string;availableSats?:number;minimumSats?:number}>;
   mintAsset(request: BisMintAssetRequest): Promise<BisMintAssetResult>;
   listAssets(): Promise<BisListAssetsResult>;
+  /** Presentation-only inventory reuse; ownership mutations still call listAssets. */
+  prepareAssetInventory?(): Promise<BisListAssetsResult>;
   getPendingAssetMint(): Promise<BisPendingMintResult>;
   getState(): BisState;
   subscribe(listener: () => void): () => void;
@@ -101,6 +101,8 @@ export interface BisContext {
   openAccountSend(): void;
   getSendSpendable(preserveAssets?:boolean): Promise<number>;
   getCachedArkBalance?(): number | undefined;
+  /** Internal presentation readiness; never authorizes spending. */
+  prepareArkBalance?(): Promise<number>;
   quoteAccountSend(recipient:string, amountSats?:number, preserveAssets?:boolean): Promise<BisSendQuote>;
   confirmAccountSend(quote:BisSendQuote): Promise<BisSendStatus>;
   checkAccountSend(): Promise<BisSendStatus>;
@@ -136,6 +138,14 @@ export interface BisContext {
 export function accountDestination(hasProfile: boolean) { return hasProfile ? 'account-menu' : 'account-chooser'; }
 type Controls = { toasts: ReturnType<typeof createToastQueue>; dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; forceReset(resetId?: string): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void> };
 const controls = new WeakMap<BisContext, Controls>();
+const presentationReads=new WeakMap<BisContext,ReturnType<typeof createReadCoordinator>>();
+const foregroundWork=new WeakMap<BisContext,<T>(work:()=>Promise<T>,mutation:boolean)=>Promise<T>>();
+/** Contract evidence owners call this; passive projection never reconciles. */
+export function invalidateContractPresentation(context:BisContext) { presentationReads.get(context)?.invalidate('contracts'); }
+/** Internal bridge for explicit operations owned outside the context facade. */
+export function withContextForegroundWork<T>(context:BisContext,work:()=>Promise<T>,mutation=false):Promise<T> {
+  return foregroundWork.get(context)?.(work,mutation) ?? work();
+}
 export function getControls(context: BisContext): Controls {
   const result = controls.get(context);
   if (!result) throw new Error('Expected a BIS context.');
@@ -172,9 +182,14 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   let observeActivity = dependencies.observeActivity;
   let observePayments = dependencies.observePayments;
   const toasts = createToastQueue();
-  const viewCache = createViewCache(VIEW_CACHE_TTL_MS);
+  let warmer: ReturnType<typeof createBackgroundCache> | undefined;
+  let foregroundOperations=0, assetsInterest=false;
+  const reads=createReadCoordinator({changed:()=>warmer?.wake()});
+  const mutationReads=new Set<string>(['confirmAccountSend','confirmAccountTransfer','requestContinue','burnAsset','deliverAsset','mintAsset','claimContractAsync','rejectContractAsync','refundContract']);
   const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
   if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
+  const historyWallet=sharedWallet ?? createSharedWalletObserver(observeActivity);
+  if(!sharedWallet)observeActivity=historyWallet.observe;
   let issuedSend:BisSendQuote|undefined,issuedSendPreservesAssets=false,sendRevision=0;
   const guardIndependentSpend=()=>{if(state.profileId&&globalThis.localStorage)eligibleUnreservedCoins([],walletReservations(state.profileId));};
   const guardSend=()=>{if(globalThis.localStorage){assertNoPendingSend(state.profileId);assertNoPendingBurn(state.profileId);}};
@@ -188,7 +203,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   const idleBalance: BisBalance = Object.freeze({status:'idle'});
   const idleAddresses: BisAddresses = Object.freeze({status:'idle'});
   let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:false,network:options.getNetwork?.() ?? (options.requireNetworkSelection ? undefined : 'signet'),balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
-  const cacheKey = (dataType: ViewCacheDataType, profileId = state.profileId, network = state.network ?? 'signet'): ViewCacheKey | undefined => profileId ? {dataType, profileId, network} : undefined;
+  const readKey = (dataType: string, query?: unknown): ReadKey => ({dataType,profileId:state.profileId ?? '',network:state.network ?? 'signet',generation:version,query});
   let revealedPhrase: string | undefined;
   let recoveryVersion = 0;
   let recoveryOperation = new AbortController();
@@ -201,7 +216,8 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     getIdentity: () => ({version, profileId: state.profileId}),
     isDisposed: () => disposed,
     isVisible: () => assetsVisible(state),
-    readSnapshot: signal => readWithRetry(readAssetSnapshot, signal),
+    readSnapshot: (_signal, force) => prepareAssets(force,true).then(entry=>entry.value),
+    invalidate: () => reads.invalidate('assets'),
     setAssets: assets => update({assets}),
     loadAccount: () => storage.load(),
     observeAssets,
@@ -242,14 +258,16 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     })().catch(()=>{if(current())update({onboarding:{status:'pending',detail:'Account storage could not be read. Onboarding is paused safely.',transactions:[]}});}));
   }
   let paymentGeneration = -1;
+  let paymentVersion = -1;
   let paymentOperation = new AbortController();
   let paymentRetry: ReturnType<typeof setTimeout> | undefined;
   function syncPaymentObserver() {
     const profile = state.hasProfile ? state.profileId : undefined;
-    if (profile === paymentProfile && generation === paymentGeneration) return;
+    if (profile === paymentProfile && generation === paymentGeneration && version === paymentVersion) return;
     paymentOperation.abort(); clearTimeout(paymentRetry); toasts.clear();
     paymentProfile = profile;
     paymentGeneration = generation;
+    paymentVersion = version;
     receiptBalanceLoading = false;
     paymentOperation = new AbortController();
     if (!profile || !observePayments) return;
@@ -269,7 +287,13 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
           const merged = globalThis.localStorage ? readBoardingRecords(profile).reduce((items, record) => withTransferActivity(items, record, profile), rows) : rows;
           const receipt = notifications.observe(merged);
           const snapshot = JSON.stringify(merged);
-          walletChanged(profile, false, receipt.newArkadeReceipt && state.accountDetails, snapshot === previousSnapshot);
+          // The initial snapshot establishes a baseline, not evidence of a
+          // wallet change since an already-running presentation read.
+          if(previousSnapshot!==undefined) walletChanged(profile, false, receipt.newArkadeReceipt && state.accountDetails, snapshot === previousSnapshot);
+          if(sharedWallet) {
+            const source=sharedWallet.snapshot();
+            if(source)reads.publish(readKey('activity'),source,source.fetchedAt);
+          }
           if(snapshot!==previousSnapshot)onboardingWorker?.refresh();
           previousSnapshot = snapshot;
           if (sharedWallet && activityVisible(state) && state.activity.status === 'unavailable') {
@@ -326,10 +350,10 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     }
     const enteringAssets = assetsVisible(state) && (!assetsVisible(before) || before.profileId !== state.profileId);
     if (!assetsVisible(state) || enteringAssets) { assetView.reset(); state = Object.freeze({...state, assets:idleAssets}); }
-    if (enteringAssets) assetView.beginVisibleSession();
+    if (enteringAssets) { assetsInterest=true; assetView.beginVisibleSession(); }
     const enteringActivity = activityVisible(state) && (!activityVisible(before) || before.profileId !== state.profileId);
     if (!activityVisible(state) || enteringActivity) { cancelActivity(); state=Object.freeze({...state,activity:idleActivity}); }
-    const entering=balanceVisible(state) && (!balanceVisible(before) || before.accountReceive!==state.accountReceive || before.accountTransfer!==state.accountTransfer || before.profileId!==state.profileId);
+    const entering=balanceVisible(state) && (!balanceVisible(before) || before.accountReceive!==state.accountReceive || before.accountTransfer!==state.accountTransfer || before.accountDetails!==state.accountDetails || before.accountSend!==state.accountSend || before.profileId!==state.profileId);
     const retainReceivedAddressForOnboarding=state.accountOnboarding&&before.accountReceive&&before.addresses.status==='ready';
     if ((!balanceVisible(state) || entering) && !retainReceivedAddressForOnboarding) {
       cancelBalance();
@@ -338,10 +362,11 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     if (enteringActivity) queueMicrotask(() => { if (!disposed && activityVisible(state) && state.activity.status === 'idle') void context.refreshActivity(); });
     syncPaymentObserver();
     syncOnboarding();
+    syncWarmer();
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
-    if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void context.refreshBalance();});
+    if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void refreshBalanceView();});
   };
-  const invalidate = () => {issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
+  const invalidate = () => {warmer?.dispose();warmer=undefined;assetsInterest=false;reads.invalidate();issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
   const emit = (event: BisEvent, current: number) => {
     for (const listener of [...events]) {
@@ -460,40 +485,26 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     }
   }
   let walletRefreshQueued = false;
-  let refreshWalletSource = false;
-  let foregroundWalletBalance = false;
   let receiptBalanceLoading = false;
-  let preserveQueuedBalance = true;
   function walletChanged(profileId: string, refreshSource = true, foregroundBalance = false, sameSnapshot = false) {
-    if (disposed || state.profileId !== profileId || state.phase !== 'active') return;
-    const network = state.network ?? 'signet';
-    viewCache.invalidateDataType('balance', profileId, network);
-    viewCache.invalidateDataType('addresses', profileId, network);
-    viewCache.invalidateDataType('details', profileId, network);
-    viewCache.invalidateDataType('activity', profileId, network);
-    for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${profileId}:`))contractCache.delete(key);
-    refreshWalletSource ||= refreshSource;
-    foregroundWalletBalance ||= foregroundBalance;
-    if (foregroundBalance) receiptBalanceLoading = true;
-    const preserveBalance = receiptBalanceLoading && sameSnapshot && !refreshSource && !foregroundBalance && state.balance.status === 'loading';
-    preserveQueuedBalance &&= preserveBalance;
+    if (disposed || state.profileId !== profileId || state.phase !== 'active' || sameSnapshot && !refreshSource && !foregroundBalance) return;
+    // Addresses are identity-derived and independent of ownership/payment evidence.
+    reads.invalidate('balance'); reads.invalidate('contracts');
+    if(refreshSource)reads.invalidate('activity');
+    if (refreshSource) reads.invalidate('assets');
+    cancelBalance();
+    if (foregroundBalance) receiptBalanceLoading=true;
     if (walletRefreshQueued) return;
-    walletRefreshQueued = true;
-    const current = version;
-    // Invalidate in-flight pre-change reads before scheduling replacement work.
-    if (!preserveBalance) cancelBalance();
-    queueMicrotask(() => {
-      walletRefreshQueued = false;
-      const refresh = refreshWalletSource; refreshWalletSource = false;
-      const foreground = foregroundWalletBalance || state.balance.status === 'loading'; foregroundWalletBalance = false;
-      const preserveBalance = preserveQueuedBalance; preserveQueuedBalance = true;
-      if (disposed || version !== current || state.profileId !== profileId || state.phase !== 'active') return;
-      if (balanceVisible(state) && (refresh || foreground && !preserveBalance)) update({balance:idleBalance,addresses:idleAddresses});
-      if (!preserveBalance) void refreshBalanceView(!refresh && !foreground);
-      if (refresh) void assetView.refresh(true);
-      if (refresh) {
-        if (sharedWallet) sharedWallet.refresh();
-        else void context.refreshActivity();
+    walletRefreshQueued=true;
+    const current=version;
+    queueMicrotask(()=>{
+      walletRefreshQueued=false;
+      if(disposed || current!==version || state.profileId!==profileId || state.phase!=='active')return;
+      if(balanceVisible(state)) void refreshBalanceView(!refreshSource && !foregroundBalance);
+      if(refreshSource) {
+        void assetView.refresh(true);
+        historyWallet.refresh();
+        if(!sharedWallet && activityVisible(state))void context.refreshActivity(false);
       }
     });
   }
@@ -522,79 +533,97 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       }
     }
   }
-  async function refreshBalanceView(background = false) {
-      assertAlive();
-      if(!balanceVisible(state)||(!background && (state.balance.status==='loading'||state.addresses.status==='loading')))return;
-      cancelBalance();
-      const request=balanceVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
-      const signal=balanceOperation.signal;
-      const current=()=>!disposed && !signal.aborted && request===balanceVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && balanceVisible(state);
-      const needsAddresses = state.accountReceive || state.accountOnboarding || state.accountDetails;
-      const needsBalance = !state.accountReceive;
-      const balanceKey=cacheKey('balance',profileId), addressKey=cacheKey('addresses',profileId), detailsKey=cacheKey('details',profileId);
-      const detailsRead = state.accountDetails;
-      const cachedDetails=detailsRead && detailsKey ? viewCache.get<{balance: BalanceAmounts; addresses: AccountAddresses}>(detailsKey) : undefined;
-      const cached=balanceKey && !state.accountDetails ? viewCache.get<BalanceAmounts>(balanceKey) : undefined;
-      const cachedAddresses=addressKey && !state.accountDetails ? viewCache.get<AccountAddresses>(addressKey) : undefined;
-      if (cachedDetails) {
-        if(current()) update({balance:Object.freeze({status:'ready',...cachedDetails.value.balance}),addresses:Object.freeze({status:'ready',...cachedDetails.value.addresses})});
-        return;
-      }
-      const readBalanceLive = needsBalance && !cached;
-      const readAddressesLive = needsAddresses && !cachedAddresses;
-      if (!readBalanceLive && !readAddressesLive) {
-        if(current()) update({
-          ...(cached && state.balance.status === 'idle' ? {balance:Object.freeze({status:'ready',...cached.value})} : {}),
-          ...(cachedAddresses && state.addresses.status === 'idle' ? {addresses:Object.freeze({status:'ready',...cachedAddresses.value})} : {}),
-        });
-        return;
-      }
-      if (!background || (readAddressesLive && state.addresses.status !== 'ready') || (readBalanceLive && state.balance.status !== 'ready')) update({balance:needsBalance ? (cached ? Object.freeze({status:'ready',...cached.value}) : Object.freeze({status:'loading'})) : idleBalance,addresses:needsAddresses ? (cachedAddresses ? Object.freeze({status:'ready',...cachedAddresses.value}) : Object.freeze({status:'loading'})) : idleAddresses});
-      let identityReadFailed=false;
-      try {
-        const result = await readWithRetry(async attemptSignal => {
-          let saved: StoredAccount;
-          try {saved=await readStable(accountVersion);identityReadFailed=false;}
-          catch(error){identityReadFailed=true;throw error;}
-          attemptSignal.throwIfAborted();
-          if (!saved.account || saved.generation !== accountGeneration || saved.account.profileId !== profileId) {
-            if(current()) initialization=hydrate();
-            throw new Error('Account changed.');
-          }
-          const [addresses,balance]=await Promise.all([
-            readAddressesLive ? readAddresses(saved.account, attemptSignal) : undefined,
-            readBalanceLive ? readBalance(saved.account, attemptSignal) : undefined,
-          ]);
-          return {addresses,balance};
-        // Account Details reads both the derived address and the live balance.
-        // The Arkade SDK may need to initialize its provider and indexer before
-        // either read resolves, so a short foreground deadline turns a healthy
-        // account into an intermittent "could not be loaded" error. Keep the
-        // single retry, but allow each attempt enough time for that startup
-        // work while retaining a bounded foreground wait.
-        }, signal, background ? 30000 : 10000);
-        if(current()) {
-          if (detailsRead && result.balance && result.addresses && detailsKey) viewCache.set(detailsKey,{balance:Object.freeze({...result.balance}),addresses:Object.freeze({...result.addresses})});
-          if(result.addresses) update({addresses:Object.freeze({status:'ready',...result.addresses})});
-          if(result.balance) {
-            const value=Object.freeze({...result.balance});
-            if (balanceKey) viewCache.set(balanceKey,value);
-            update({balance:Object.freeze({status:'ready',...value})});
-          }
-          if(result.addresses && addressKey) viewCache.set(addressKey,Object.freeze({...result.addresses}));
-        }
-      } catch {
-        if(current() && identityReadFailed) fail('load','Your saved account could not be opened.');
-        else if(current()) update({... (readAddressesLive ? {addresses:Object.freeze({status:'unavailable'} as const)} : {}),... (readBalanceLive ? {balance:Object.freeze({status:'unavailable',readStatus:identityReadFailed ? 'storage' : 'wallet-read'} as const)} : {})});
-      } finally { if(request===balanceVersion) { receiptBalanceLoading = false; cancelBalance(); } }
+  async function presentationAccount(signal:AbortSignal) {
+    const current=version, profile=state.profileId, expected=generation;
+    let saved:StoredAccount;
+    try { saved=await readStable(current); }
+    catch { throw Object.assign(new Error('Saved account unavailable.'),{storageRead:true}); }
+    signal.throwIfAborted();
+    if(disposed || current!==version || saved.generation!==expected || !saved.account || saved.account.profileId!==profile) throw Error('Account changed.');
+    return {...saved.account,network:saved.account.network ?? state.network ?? 'signet'};
+  }
+  const prepareBalance=(force=false,foreground=false)=>reads.read(readKey('balance'),async signal=>readBalance(await presentationAccount(signal),signal),{force,foreground,timeout:10000});
+  const prepareAddresses=(force=false,foreground=false)=>reads.read(readKey('addresses'),async signal=>readAddresses(await presentationAccount(signal),signal),{force,foreground,timeout:10000});
+  const prepareAssets=(force=false,foreground=false)=> {
+    assetsInterest=true;
+    return reads.read(readKey('assets'),readAssetSnapshot,{force,foreground,timeout:30000});
+  };
+  function mergedActivity(rows:readonly BisTransaction[],profile=state.profileId!) {
+    return globalThis.localStorage ? withSendActivity(withMintActivity(readBoardingRecords(profile).reduce((items,record)=>withTransferActivity(items,record,profile),rows),readAssetRecords(profile)),readSendRecord(profile),profile) : rows;
+  }
+  function prepareActivity(force=false,foreground=false) {
+    const key=readKey('activity'), profile=state.profileId!;
+    if(force && !reads.isPending(key)) historyWallet.refresh();
+    return reads.read(key,async signal=>{
+      const account=await presentationAccount(signal);
+      return historyWallet.first(account,signal);
+    },{force,foreground,timeout:75000,timestamp:value=>value.fetchedAt}).then(entry=>({...entry,value:mergedActivity(entry.value.rows,profile)}));
+  }
+  function syncWarmer() {
+    if(warmer || disposed || state.phase!=='active' || !state.hasProfile || !state.profileId || !state.network)return;
+    // A queued warmer cannot grant extra automatic retries after foreground
+    // preparation has already consumed the same evidence generation's budget.
+    const warm=(type:string,run:()=>Promise<unknown>,query?:unknown)=>{
+      const key=readKey(type,query);
+      return reads.existing(key) ?? (reads.wasAttempted(key) ? Promise.resolve() : run());
+    };
+    warmer=createBackgroundCache({
+      paused:()=>disposed || state.phase!=='active' || foregroundOperations>0 || reads.hasForeground(),
+      jobs:[
+        {run:()=>Promise.allSettled([warm('balance',()=>prepareBalance()),warm('addresses',()=>prepareAddresses())])},
+        {run:()=>warm('activity',()=>prepareActivity())},
+        {run:()=>warm('contracts',()=>passiveContracts({includeResolved:true,includeOtherNetworks:true}),contractQuery({includeResolved:true,includeOtherNetworks:true}))},
+        {eligible:()=>assetsInterest,run:()=>warm('assets',()=>prepareAssets())},
+      ],
+    });
+    warmer.wake();
+  }
+  async function refreshBalanceView(background = false, force = false) {
+    assertAlive();
+    if(!balanceVisible(state))return;
+    cancelBalance();
+    const request=balanceVersion, accountVersion=version;
+    const current=()=>!disposed && request===balanceVersion && accountVersion===version && balanceVisible(state);
+    const needsAddresses=state.accountReceive || state.accountOnboarding || state.accountDetails;
+    const needsBalance=!state.accountReceive;
+    const details=state.accountDetails && !force ? reads.compose<[BalanceAmounts,AccountAddresses]>([readKey('balance'),readKey('addresses')]) : undefined;
+    const balance=details ? {value:details.value[0]} : needsBalance && !force ? reads.peek<BalanceAmounts>(readKey('balance')) : undefined;
+    const addresses=details ? {value:details.value[1]} : needsAddresses && !force ? reads.peek<AccountAddresses>(readKey('addresses')) : undefined;
+    update({
+      ...(!background || state.balance.status!=='ready' ? {balance:needsBalance ? (balance ? {status:'ready' as const,...balance.value} : {status:'loading' as const}) : idleBalance} : {}),
+      ...(!background || state.addresses.status!=='ready' ? {addresses:needsAddresses ? (addresses ? {status:'ready' as const,...addresses.value} : {status:'loading' as const}) : idleAddresses} : {}),
+    });
+    // Dependencies settle independently: Receive and Send never wait for unrelated fields.
+    await Promise.all([
+      needsBalance ? prepareBalance(force,true).then(entry=>{if(current())update({balance:{status:'ready',...entry.value}});},error=>{
+        if(!current())return;
+        if(error?.storageRead)fail('load','Your saved account could not be opened.');
+        else update({balance:{status:'unavailable',readStatus:'wallet-read'}});
+      }) : undefined,
+      needsAddresses ? prepareAddresses(force,true).then(entry=>{if(current())update({addresses:{status:'ready',...entry.value}});},()=>{
+        if(current())update({addresses:{status:'unavailable'}});
+      }) : undefined,
+    ]);
+    if(current())receiptBalanceLoading=false;
+    // Details is exactly the pair of current primitives, with the older timestamp.
+  }
+  const contractQuery=(filter?:BisContractFilter)=>({...filter,includeResolved:filter?.includeResolved ?? false,includeOtherNetworks:filter?.includeOtherNetworks ?? false});
+  async function passiveContracts(filter?:BisContractFilter,force=false,foreground=false):Promise<BisContractsResult> {
+    if(!state.profileId || state.phase!=='active')return {status:'unavailable',contracts:[]};
+    const profile=state.profileId, network=state.network ?? 'signet';
+    try {
+      const entry=await reads.read(readKey('contracts',contractQuery(filter)),async signal=>{
+        signal.throwIfAborted();
+        const result=await (contractController(context)?.checkContractsAsync?.(filter) ?? queryAccountContracts(profile,filter,network));
+        if(result.status!=='ready')throw Error('Contracts unavailable.');
+        return result;
+      },{force,foreground});
+      return {...entry.value,contracts:entry.value.contracts.map(contract=>Date.now()>=contract.expiresAt && contract.eligibility==='within-window' ? {...contract,eligibility:'expired' as const,canClaim:false,canReject:false} : contract)};
+    } catch {return {status:'unavailable',contracts:[]};}
   }
   const context: BisContext = {
-    getCachedArkBalance() {
-      if (!state.profileId) return;
-      const key=cacheKey('balance');
-      const cached=key ? viewCache.get<BalanceAmounts>(key) : undefined;
-      return cached?.value.availableSats;
-    },
+    getCachedArkBalance() { return reads.peek<BalanceAmounts>(readKey('balance'))?.value.availableSats; },
+    prepareArkBalance:()=>prepareBalance(false,true).then(entry=>entry.value.availableSats),
     getContinueRecipient: () => validContinueRecipient(options.continueRecipient) ? options.continueRecipient!.trim() : undefined,
     async getPaymentRecipient() {
       const account = await activeTransferAccount(), current = version;
@@ -802,6 +831,12 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         return {status: 'success', ...result};
       } catch { return assetError(disposed ? 'disposed' : current !== version ? 'account-changed' : 'unavailable', profileId); }
     },
+    async prepareAssetInventory() {
+      const profileId=state.profileId;
+      if(!state.hasProfile || state.phase!=='active')return assetError('account-required');
+      try {return {status:'success',...(await prepareAssets(false,true)).value};}
+      catch {return assetError('unavailable',profileId);}
+    },
     async getPendingAssetMint() {
       const profileId = state.profileId, current = version;
       if (disposed) return assetError('disposed', profileId);
@@ -888,22 +923,14 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       assertAlive();if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountOnboarding:true,accountDetails:false,accountAssets:false,accountContracts:false,accountActivity:false,accountTransfer:false,accountReceive:false,accountSend:false,accountRecovery:false});
     },
     refreshOnboarding(){assertAlive();onboardingWorker?.refresh();},
-    async checkContractsAsync(filter, force = false) {
-      const profileId=state.profileId;
-      if(!profileId)return {status:'unavailable',contracts:[]};
-      const key=contractCacheKey(profileId,state.network??'signet',filter),cached=contractCache.get(key);
-      if(!force&&cached&&Date.now()-cached.fetchedAt<VIEW_CACHE_TTL_MS)return cached.value;
-      const result=await (contractController(context)?.checkContractsAsync?.(filter)??queryAccountContracts(profileId,filter,state.network??'signet'));
-      if(result.status==='ready')contractCache.set(key,{value:result,fetchedAt:Date.now()});
-      return !disposed&&state.profileId===profileId?result:{status:'unavailable',contracts:[]};
-    },
+    checkContractsAsync:(filter,force=false)=>passiveContracts(filter,force,true),
     openAccountContracts() {
       assertAlive();
       if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountContracts:true,accountAssets:false,accountActivity:false,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
     },
-    async claimContractAsync(id){const result=await (contractController(context)?.claim(id)??{status:'unavailable' as const});if(state.profileId)for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${state.profileId}:`))contractCache.delete(key);return result;},
-    async rejectContractAsync(id){const result=await (contractController(context)?.reject(id)??{status:'unavailable' as const});if(state.profileId)for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${state.profileId}:`))contractCache.delete(key);return result;},
-    async refundContract(id){const result=await (contractController(context)?.refund(id)??{status:'unavailable' as const});if(state.profileId)for(const key of [...contractCache.keys()])if(key.startsWith(`${state.network ?? 'signet'}:${state.profileId}:`))contractCache.delete(key);return result;},
+    async claimContractAsync(id){const result=await (contractController(context)?.claim(id)??{status:'unavailable' as const});reads.invalidate('contracts');return result;},
+    async rejectContractAsync(id){const result=await (contractController(context)?.reject(id)??{status:'unavailable' as const});reads.invalidate('contracts');return result;},
+    async refundContract(id){const result=await (contractController(context)?.refund(id)??{status:'unavailable' as const});reads.invalidate('contracts');return result;},
     openAccountActivity() {
       assertAlive();
       if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountActivity) update({accountActivity:true,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
@@ -916,7 +943,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     },
     async refreshAssets() {
       assertAlive();
-      return assetView.refresh();
+      return assetView.refresh(false,true);
     },
     openAccountRecovery() {
       assertAlive();
@@ -925,74 +952,34 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       clearRecovery();
       update({accountRecovery:true,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,recoveryStatus:'hidden',error:undefined,logoutBackupAcknowledged:false});
     },
-    async refreshActivity(force = false) {
+    async refreshActivity(force = activityVisible(state) && state.activity.status !== 'idle') {
       assertAlive();
-      if(!activityVisible(state) || state.activity.status==='loading') return;
-      if (!state.profileId) return;
-      if (state.activity.status !== 'idle') sharedWallet?.refresh();
+      if(!activityVisible(state) || !state.profileId)return;
       cancelActivity();
-      const request=activityVersion, accountVersion=version, accountGeneration=generation, profileId=state.profileId;
-      const signal=activityOperation.signal;
-      const current=()=>!disposed && !signal.aborted && request===activityVersion && accountVersion===version && accountGeneration===generation && profileId===state.profileId && activityVisible(state);
-      const activityKey=cacheKey('activity',profileId);
-      const cached=activityKey ? viewCache.get<readonly BisTransaction[]>(activityKey) : undefined;
-      if (!force && state.activity.status === 'idle' && cached) {
-        if(current()) update({activity:Object.freeze({status:'ready',transactions:cached.value})});
-        return;
-      }
-      const withOperations=(rows:readonly BisTransaction[])=>globalThis.localStorage
-        ? withSendActivity(withMintActivity(readBoardingRecords(profileId).reduce((items,record)=>withTransferActivity(items,record,profileId!),rows),readAssetRecords(profileId!)),readSendRecord(profileId),profileId!) : rows;
-      let lastTransactions: readonly BisTransaction[] = state.activity.status === 'ready' || state.activity.status === 'unavailable' ? state.activity.transactions ?? [] : [];
-      const unavailable=()=>{
-        let transactions:readonly BisTransaction[]=lastTransactions;
-        try {transactions=withOperations(lastTransactions);}catch {/* Unreadable journals are not transaction evidence. */}
-        update({activity:Object.freeze({status:'unavailable',...(transactions.length?{transactions}:{})})});
-      };
-      update({activity:Object.freeze({status:'loading'})});
-      for(let attempt=0; attempt<2 && current(); attempt++) {
-        const stream = new AbortController();
-        const abort = () => stream.abort();
-        signal.addEventListener('abort',abort,{once:true});
-        let first = false;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        let observer: Promise<void> = Promise.resolve();
-        let rejectFirst: (error: unknown) => void = () => {};
-        const interrupted = () => rejectFirst(new Error('History read cancelled.'));
-        stream.signal.addEventListener('abort',interrupted,{once:true});
-        try {
-          await new Promise<void>((resolve,reject) => {
-            rejectFirst=reject;
-            timer=setTimeout(()=>reject(new Error('History read timed out.')),75000);
-            observer=(async()=>{
-              const saved=await readStable(accountVersion);
-              if(!current() || stream.signal.aborted)return;
-              if(!saved.account || saved.generation!==accountGeneration || saved.account.profileId!==profileId) {initialization=hydrate();return;}
-              await observeActivity(saved.account,stream.signal,transactions=>{
-                if(current() && !stream.signal.aborted) {
-                  const rows=withOperations(Object.freeze(transactions.map(t=>Object.freeze({...t}))));
-                  lastTransactions=rows;first=true;clearTimeout(timer);
-                  if (activityKey) viewCache.set(activityKey,rows);
-                  update({activity:Object.freeze({status:'ready',transactions:rows})});
-                  resolve();
-                }
-              });
-              if(!first)reject(new Error('History ended without a result.'));
-            })();
-            observer.catch(reject);
-          });
-          clearTimeout(timer);
-          // Readiness is the first snapshot, while this method retains its observation lifetime.
-          await observer;
-          return;
-        } catch {
-          if(current() && (first || attempt===1)) {unavailable();return;}
-        } finally {
-          clearTimeout(timer);stream.signal.removeEventListener('abort',interrupted);
-          signal.removeEventListener('abort',abort);stream.abort();
-        }
-      }
+      const request=activityVersion,currentVersion=version,profile=state.profileId;
+      const current=()=>!disposed && request===activityVersion && currentVersion===version && activityVisible(state);
+      const cached=!force ? reads.peek<{rows:readonly BisTransaction[];fetchedAt:number}>(readKey('activity')) : undefined;
+      update({activity:cached ? {status:'ready',transactions:mergedActivity(cached.value.rows,profile)} : {status:'loading'}});
+      try {
+        const entry=await prepareActivity(force,true);
+        if(!current())return;
+        update({activity:{status:'ready',transactions:entry.value}});
+        // Presentation observation is distinct from first-snapshot readiness.
+        const signal=activityOperation.signal, account=await presentationAccount(signal);
+        const unavailable=()=>{
+          if(!current())return;
+          reads.invalidate('activity');
+          update({activity:{status:'unavailable',transactions:state.activity.status==='ready'?state.activity.transactions:undefined}});
+        };
+        void observeActivity(account,signal,rows=>{
+          if(!current())return;
+          const source=historyWallet.snapshot();
+          if(source)reads.publish(readKey('activity'),source,source.fetchedAt);
+          update({activity:{status:'ready',transactions:mergedActivity(rows,profile)}});
+        }).then(unavailable,unavailable);
+      } catch {if(current())update({activity:{status:'unavailable'}});}
     },
-    refreshBalance: () => {if(state.profileId){const network=state.network??'signet';viewCache.invalidateDataType('balance',state.profileId,network);viewCache.invalidateDataType('addresses',state.profileId,network);viewCache.invalidateDataType('details',state.profileId,network);}return refreshBalanceView();},
+    refreshBalance:()=>refreshBalanceView(false,true),
     openProfileChooser(){
       assertAlive();if(state.phase!=='active'&&state.phase!=='idle')return;
       context.openAccountDialog();
@@ -1138,7 +1125,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       else if(failure==='save')await context.continueAccount();
       else {failure=undefined;update({phase:'idle',error:undefined});await context.createAccount();}
     },
-    dispose() {if(disposed)return;onboardingOperation.abort();paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();unsubscribeStorage();listeners.clear();events.clear();},
+    dispose() {if(disposed)return;onboardingOperation.abort();paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();reads.dispose();unsubscribeStorage();listeners.clear();events.clear();},
   };
   controls.set(context,{
     toasts,
@@ -1234,6 +1221,29 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   const unsubscribeStorage=storage.subscribe(()=> {
     storageRevision++;
     if(!disposed&&!['resetting','logging-out','logout-error'].includes(state.phase)){initialization=hydrate(['restoring','restore-saving'].includes(state.phase));}
+  });
+  // Explicit wallet work pauses NEW speculative jobs, never cancels adopted reads.
+  for(const key of ['getSendSpendable','quoteAccountSend','confirmAccountSend','checkAccountSend','quoteAccountTransfer','getAccountTransferAvailability','confirmAccountTransfer','checkAccountTransfer','requestContinue','burnAsset','deliverAsset','checkAssetDelivery','mintAsset','claimContractAsync','rejectContractAsync','refundContract'] as const) {
+    const original=context[key];
+    if(!original)continue;
+    Object.defineProperty(context,key,{value:(...args:unknown[])=>{
+      foregroundOperations++;
+      if(mutationReads.has(key)) { reads.invalidate('balance');reads.invalidate('activity');reads.invalidate('assets');reads.invalidate('contracts'); }
+      const done=()=>{foregroundOperations--;warmer?.wake();};
+      try {return Promise.resolve(Reflect.apply(original,context,args)).finally(done);}
+      catch(error){done();throw error;}
+    }});
+  }
+  presentationReads.set(context,reads);
+  foregroundWork.set(context,async(work,mutation)=>{
+    const current=version;
+    foregroundOperations++;
+    if(mutation) {cancelBalance();reads.invalidate('balance');reads.invalidate('activity');reads.invalidate('assets');reads.invalidate('contracts');}
+    try {return await work();} finally {
+      foregroundOperations--;
+      if(mutation && !disposed && current===version && balanceVisible(state))void refreshBalanceView(true);
+      warmer?.wake();
+    }
   });
   initialization=hydrate();
   return context;

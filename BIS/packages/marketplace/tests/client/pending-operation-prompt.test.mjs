@@ -18,7 +18,7 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.match(app, /export function App\(\)\{return <PendingOperations className="marketplace-pending-runtime"><MarketplaceContent\/><\/PendingOperations>;\}/);
   assert.match(app, /function MarketplaceContent\(\)\{/);
   assert.match(app, /const \[operationLabel,setOperationLabel\]=useState<string>\(\);/);
-  assert.match(app, /usePendingNotice\(loadingPromptVisible,operationLabel\?\?'Loading\.\.\.',inventoryError\?\?operationError/);
+  assert.match(app, /usePendingNotice\(loadingPromptVisible,operationLabel\?\?'Loading \.\.\.',inventoryError\?\?operationError/);
   assert.doesNotMatch(app, /Payment confirmed; completing item delivery/);
   assert.doesNotMatch(app, /checkoutLabel/);
   assert.match(app, /readLocalMarketplaceCheckouts\(\)\.find\(record=>record\.status==='pending'\)/);
@@ -38,5 +38,7 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.doesNotMatch(app, /funds-backdrop|funds-dialog|Reconcile checkout/);
   assert.match(style, /\.marketplace-pending-runtime \{ z-index: 100; \}/);
   assert.match(style, /\.marketplace-pending-runtime \.bis-pending-backdrop \{ z-index: 60; \}/);
-  assert.match(style, /\.marketplace-pending-runtime:has\(> \.bis-pending-backdrop\) \.marketplace-bis-host \.bis-pending-backdrop \{ background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; \}/);
+  assert.match(style, /\.marketplace-pending-runtime > \.bis-pending-backdrop \{ position: fixed; \}/);
+  assert.match(style, /\.marketplace-bis-host \.bis-pending-backdrop \{ position: fixed; \}/);
+  assert.match(style, /\.marketplace-pending-runtime:has\(> \.bis-pending-backdrop\) \.marketplace-bis-host \.bis-pending-backdrop \{ display: none; \}/);
 });

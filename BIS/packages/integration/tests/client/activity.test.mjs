@@ -4,6 +4,8 @@ import { normalizeHistory, observeActivityWallet } from '../../src/client/wallet
 import { createContext } from '../../src/client/state-layer-core/context.ts';
 import { formatTransactions } from '../../src/client/state-layer-core/activity.ts';
 const tick=()=>new Promise(r=>setImmediate(r));
+globalThis.requestIdleCallback=()=>1;globalThis.cancelIdleCallback=()=>{};
+test.after(()=>{delete globalThis.requestIdleCallback;delete globalThis.cancelIdleCallback;});
 const tx=(id,createdAt=0,extra={})=>({key:{boardingTxid:id,arkTxid:'',commitmentTxid:''},amount:100,type:'RECEIVED',settled:false,createdAt,...extra});
 test('receipt verification requires exact owned spendable transaction amount and unique outputs',()=>{
  const incoming=tx('',1,{key:{arkTxid:'f3'},amount:1000});
@@ -89,8 +91,8 @@ test('degraded connection or latched provider failure never publishes history',a
 test('Account Activity lifecycle: no menu read, Back, switch, account change, logout, disposal',async()=>{
   for(const action of ['back','details','replace','logout','dispose','reset']){
     const s=setup();const c=s.context;await c.readyAsync();c.openAccountDialog();await tick();assert.equal(s.publish(),undefined);
-    c.openAccountActivity();await tick();const publish=s.publish();publish(normalizeHistory([tx('a')],[]));assert.equal(c.getState().activity.status,'ready');
+    c.openAccountActivity();await tick();const publish=s.publish();publish(normalizeHistory([tx('a')],[]));await tick();assert.equal(c.getState().activity.status,'ready');
     if(action==='back')c.closeAccount();if(action==='details')c.openAccountDetails();if(action==='replace')s.replace();if(action==='logout')c.openLogoutConfirmation();if(action==='dispose')c.dispose();if(action==='reset')await s.storage.reset();
-    await tick();assert.equal(s.signal().aborted,true);publish(normalizeHistory([tx('late')],[]));assert.equal(c.getState().activity.status,'idle');c.dispose();
+    await new Promise(r=>setTimeout(r,5));assert.equal(s.signal().aborted,true);publish(normalizeHistory([tx('late')],[]));assert.equal(c.getState().activity.status,'idle');c.dispose();
   }
 });

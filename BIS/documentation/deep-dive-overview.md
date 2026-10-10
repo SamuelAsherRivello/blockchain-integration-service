@@ -42,6 +42,8 @@ const snapshot = bis.getSnapshot();
 
 Learn more about the full command surface, ownership boundary, and cleanup behavior in [Deep Dive Details: BisService](deep-dive-details.md#1-bisservice).
 
+Account readiness does not await speculative reads. After activation and a render opportunity, the context prepares balance/addresses, missing Transactions, passive Contracts, and demand-eligible Assets in that order. Pages adopt current work without restarting it; Details remains non-modal. Warming is finite and memory-only, and explicit wallet operations retain live checks. Marketplace inventory, Game Wallet, and Onboarding keep their existing owners. See the [package caching policy](../packages/integration/integration-package-readme.md#accounts-caching-and-operations).
+
 ### 2. `IBis`
 
 [`IBis`](../packages/integration/src/client/integration-layer/bis.ts) is the complete game-to-BIS public service contract. It exposes readiness, mounting, Account visibility, copied snapshots, capability checks, named continuation/reward/equipment/contract commands, and safe reset/disposal without exposing mutable services or private controllers.

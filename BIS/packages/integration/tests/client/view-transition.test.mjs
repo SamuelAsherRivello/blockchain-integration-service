@@ -33,6 +33,8 @@ test('view transition values are centralized and wired to every BIS composition 
   assert.match(style, /--bis-view-transition-from-scale: \.8/);
   assert.match(style, /@keyframes bis-view-enter/);
   assert.match(style, /@keyframes bis-view-exit/);
+  assert.match(style, /\.bis-view-transition-surface:not\(\.bis-view-transition-exit\) > \* \{ pointer-events: auto; \}/);
+  assert.match(style, /\.bis-view-transition-exit \{ pointer-events: none;/);
   assert.match(style, /prefers-reduced-motion: reduce\) \{ \.bis-view-transition-enter, \.bis-view-transition-exit \{ animation: none; \} \}/);
   assert.equal((client.match(/<ViewTransition viewKey=/g) ?? []).length, 3);
   assert.match(pending, /className="bis-pending-backdrop"/);

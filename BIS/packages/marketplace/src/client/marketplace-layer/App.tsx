@@ -103,7 +103,7 @@ function MarketplaceContent(){
       // Use the same raw account asset snapshot as BIS Assets. Equipment-loadout
       // selection persistence is unrelated to inventory and must not be able to
       // hide valid marketplace items.
-      const result=await player.listAssets();
+      const result=await (player.prepareAssetInventory?.()??player.listAssets());
       if(result.status!=='success'||result.profileId!==playerState.profileId)throw Error('Player Wallet inventory unavailable');
       return result.assets.map(classifyBisEquipmentAsset).filter((item):item is BisEquipmentItem=>item!==null);
     }});
@@ -198,10 +198,17 @@ function MarketplaceContent(){
   const checkoutIsPending=activeCheckout?.status==='pending';
   const checkoutHasBeenSubmitted=pendingCheckout?.phase==='payment-submitted'||pendingCheckout?.phase==='delivery-submitted';
   const retrySelectedInventory=()=>{const source=inventorySources.find(candidate=>candidate.role===(owner==='player'?'player':'game'));if(source)void inventory.retry(source);};
-  usePendingNotice(loadingPromptVisible,operationLabel??'Loading...',inventoryError??operationError,()=>setOperationError(undefined),undefined,inventoryError?{label:'Retry',run:retrySelectedInventory}:undefined);
+  usePendingNotice(loadingPromptVisible,operationLabel??'Loading ...',inventoryError??operationError,()=>setOperationError(undefined),undefined,inventoryError?{label:'Retry',run:retrySelectedInventory}:undefined);
   const pendingTransferIsSelected=Boolean(selected&&pendingTransferFor(selected));
   const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;
   const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;
+  const chooseOwner=(next:'all'|'game'|'player')=>{
+    setOwner(next);
+    if(next==='player'){
+      const source=inventorySources.find(candidate=>candidate.role==='player');
+      if(source)void inventory.retry(source);
+    }
+  };
   const pendingTransferTitle=pendingTransferIsSelected?'Transfer from Game Wallet to Player Wallet is pending ...':undefined;
   const explorerUrl=selected&&/^[a-f0-9]{68}$/i.test(selected.assetId)?arkExplorerAssetUrl(network,selected.assetId):undefined;
   useEffect(()=>{
@@ -285,7 +292,6 @@ function MarketplaceContent(){
   },[pendingCheckout?.request.id,pendingCheckout?.phase,checkoutHasBeenSubmitted]);
 
   return <>
-    <div className="marketplace-bis-host" ref={walletHost}/>
     <div className="marketplace-page">
     <div className="network-banner">
       <span role="status">Network: {networkLabel(network)}</span>
@@ -296,11 +302,12 @@ function MarketplaceContent(){
       </a>
       <a className="marketplace-resource-link marketplace-arkade-link" href="https://docs.arkadeos.com/" target="_blank" rel="noopener noreferrer" aria-label="View Arkade documentation" title="Arkade documentation"><img src={arkadeLogo} width="20" height="20" alt="" /></a>
       </div>
+      <div className="marketplace-bis-host bis-account-launcher-anchor" ref={walletHost}/>
     </div>
     <main className="marketplace-shell">
       <header className="marketplace-heading"><h1>Marketplace</h1><p className="lede">Shop <button type="button" className="benefits-trigger" onClick={()=>setIsBenefitsOpen(true)}>before</button> you play.</p></header>
       <section className="catalog-toolbar" aria-label="Catalog filters">
-          <div className="filter-row"><span>Owner</span><div role="group" aria-label="Owner"><button aria-pressed={owner==='all'} onClick={()=>setOwner('all')}>All</button><button aria-pressed={owner==='game'} onClick={()=>setOwner('game')}>Game Wallet</button><button aria-pressed={owner==='player'} onClick={()=>setOwner('player')}>Player Wallet</button></div></div>
+          <div className="filter-row"><span>Owner</span><div role="group" aria-label="Owner"><button aria-pressed={owner==='all'} onClick={()=>chooseOwner('all')}>All</button><button aria-pressed={owner==='game'} onClick={()=>chooseOwner('game')}>Game Wallet</button><button aria-pressed={owner==='player'} onClick={()=>chooseOwner('player')}>Player Wallet</button></div></div>
           <div className="filter-row"><span>Game</span><div role="group" aria-label="Game"><button aria-pressed={game==='all'} onClick={()=>setGame('all')}>All</button>{catalog.games.map(entry=><button key={entry.gameId} aria-pressed={game===entry.gameId} onClick={()=>setGame(entry.gameId)}>{entry.displayName}</button>)}</div></div>
           <div className="filter-row"><span>Type</span><div role="group" aria-label="Type"><button aria-pressed={type==='all'} onClick={()=>setType('all')}>All</button><button aria-pressed={type==='speed'} onClick={()=>setType('speed')}>Speed</button><button aria-pressed={type==='offense'} onClick={()=>setType('offense')}>Offense</button><button aria-pressed={type==='defense'} onClick={()=>setType('defense')}>Defense</button></div></div>
       </section>

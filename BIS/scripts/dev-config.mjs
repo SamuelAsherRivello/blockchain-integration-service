@@ -73,6 +73,9 @@ function packageEntries() {
           if (path === '/documentation/user-stories' || path === '/documentation/user-stories/' || path === '/BIS/documentation/user-stories' || path === '/BIS/documentation/user-stories/') return redirect('/admin/documentation/user-stories/');
           // Never redirect Vite's raw Markdown imports.
           if (path === '/BIS/documentation/User Story Diagrams.md' && !url.search) return redirect('/admin/documentation/user-stories/');
+          // Let the shared Vite proxy forward the prototype faucet API before
+          // package-route handling treats it as a missing static file.
+          if (path.startsWith('/prototype-faucet/api/faucet/')) return next();
           const readme = path === '/integration/' ? '/BIS/packages/integration/integration-package-readme.md' : path;
           if (readmes.has(readme) && !url.search) {
             const html = await server.transformIndexHtml(path, await readmeHtml(readme));
@@ -107,7 +110,7 @@ function packageEntries() {
   };
 }
 
-export function developmentConfig({ port = 5174 } = {}) {
+export function developmentConfig({ port = 5174, faucetPort = 5190 } = {}) {
   return {
     configFile: false,
     root,
@@ -116,7 +119,7 @@ export function developmentConfig({ port = 5174 } = {}) {
     plugins: [packageEntries()],
     server: {
       host: '127.0.0.1', port, strictPort: true,
-      proxy: { '/prototype-faucet/api/faucet': { target: 'http://127.0.0.1:5190', rewrite: path => path.replace(/^\/prototype-faucet/, '') } },
+      proxy: { '/prototype-faucet/api/faucet': { target: `http://127.0.0.1:${faucetPort}`, rewrite: path => path.replace(/^\/prototype-faucet/, '') } },
       fs: { allow: [root] }, watch: { ignored: ['**/output/**'] },
     },
     optimizeDeps: { entries: packageRoutes.filter(app => !app.readme).map(app => `BIS/packages/${app.directory}/index.html`) },

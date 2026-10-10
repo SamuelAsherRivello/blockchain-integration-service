@@ -9,7 +9,9 @@ export function createSharedWalletObserver(source: typeof watchActivity) {
   let account: AccountSecret | undefined;
   let operation: AbortController | undefined;
   let snapshot: readonly BisTransaction[] | undefined;
-  function stop() { operation?.abort(); operation = undefined; snapshot = undefined; }
+  let fetchedAt = 0;
+  let signature: string | undefined;
+  function stop() { operation?.abort(); operation = undefined; snapshot = undefined; signature=undefined; }
   function start() {
     if (!account || !listeners.size) return;
     stop();
@@ -18,7 +20,9 @@ export function createSharedWalletObserver(source: typeof watchActivity) {
       if (current.signal.aborted) return;
       return source(account!, current.signal, rows => {
         if (current !== operation || current.signal.aborted) return;
-        snapshot = rows;
+        const nextSignature=JSON.stringify(rows);
+        if (nextSignature!==signature) fetchedAt=Date.now();
+        signature=nextSignature; snapshot = rows;
         for (const listener of [...listeners]) {
           if (listeners.has(listener)) {
             try { listener.publish(rows); } catch (error) { listener.end(error); }
@@ -55,5 +59,21 @@ export function createSharedWalletObserver(source: typeof watchActivity) {
       }
     });
   };
-  return {observe, refresh: start};
+  /** Replay preserves its source timestamp; readiness is not the observer lifetime. */
+  function first(nextAccount: AccountSecret, signal: AbortSignal) {
+    return new Promise<{rows:readonly BisTransaction[];fetchedAt:number}>((resolve,reject)=>{
+      const consumer=new AbortController();
+      const abort=()=>{consumer.abort();reject(signal.reason);};
+      if(signal.aborted){abort();return;}
+      signal.addEventListener('abort',abort,{once:true});
+      void observe(nextAccount,consumer.signal,rows=>{
+        signal.removeEventListener('abort',abort);
+        resolve({rows,fetchedAt});
+        // Let the readiness continuation attach a page before releasing this
+        // lease. Separate-source warmers otherwise stop after the first result.
+        setTimeout(()=>consumer.abort(),0);
+      }).catch(reject).finally(()=>signal.removeEventListener('abort',abort));
+    });
+  }
+  return {observe, refresh: start, first, snapshot:()=>snapshot ? {rows:snapshot,fetchedAt}:undefined};
 }

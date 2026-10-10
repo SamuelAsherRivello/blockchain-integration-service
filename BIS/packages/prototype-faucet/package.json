@@ -8,7 +8,7 @@
     "build": "vite build",
     "balance": "node scripts/get-balance.mjs",
     "fund": "node scripts/fund-address.mjs",
-    "server": "node --env-file-if-exists=.env.local src/server/server.mjs",
+    "server": "node --experimental-eventsource --env-file-if-exists=.env.local src/server/server.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {

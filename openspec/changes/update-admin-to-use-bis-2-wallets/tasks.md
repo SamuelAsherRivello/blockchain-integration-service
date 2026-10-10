@@ -22,5 +22,5 @@
 ## 4. Integrated verification and acceptance
 
 - [x] 4.1 Run focused integration-admin and integration tests plus repository typecheck and build; verify failures are resolved without weakening wallet isolation, durable recovery, or game-facing API boundaries.
-- [ ] 4.2 Perform live Signet verification with two distinct public wallet identities on the same network: log in through Runtime Preview, confirm Admin observes both wallets, record public status and addresses, and exercise supported Admin operations with real provider evidence.
-- [ ] 4.3 Record live acceptance evidence under the repository output policy without secrets, and verify the final change status/spec validation passes while unrelated working-tree edits remain untouched.
+- [x] 4.2 Perform live Signet verification with two distinct public wallet identities on the same network: log in through Runtime Preview, confirm Admin observes both wallets, record public status and addresses, and exercise supported Admin operations with real provider evidence.
+- [x] 4.3 Record live acceptance evidence under the repository output policy without secrets, and verify the final change status/spec validation passes while unrelated working-tree edits remain untouched.

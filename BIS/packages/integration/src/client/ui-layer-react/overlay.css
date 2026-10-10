@@ -1,5 +1,8 @@
 /* Native dimensions match the approved 80% preview; hosts mount at 100%. */
-.bis-layer { --bis-dialog-content-gap: 4.8px; --bis-card-bottom-clearance: 16px; --bis-scrollbar-width: 5px; --bis-scrollbar-content-gap: 10px; position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; color: #182d39; color-scheme: light; line-height: 1.5; }
+.bis-layer { --bis-dialog-content-gap: 4.8px; --bis-card-bottom-clearance: 16px; --bis-scrollbar-width: 5px; --bis-scrollbar-content-gap: 10px; position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; font: 400 12.8px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; font-synthesis: none; font-style: normal; font-variant: normal; letter-spacing: normal; text-align: initial; text-transform: none; color: #182d39; color-scheme: light; }
+.bis-account-launcher-anchor { position: absolute; inset: 100% 0 auto; z-index: 50; height: 0; pointer-events: none; }
+.bis-account-launcher-anchor .bis-layer:not(.bis-layer-open) { inset: 0 0 auto; display: flex; align-items: flex-start; justify-content: flex-end; min-height: 0; height: auto; padding: var(--bis-launcher-offset, 8px) var(--bis-launcher-inline, 18px) 0; transform: none; }
+.bis-account-launcher-anchor .bis-layer.bis-layer-open { position: fixed; inset: 0; height: auto; min-height: 100%; padding: 16px; }
 /* Keep overflowing production UI scrollable without visible scrollbars. */
 .bis-layer, .bis-layer * { box-sizing: border-box; scrollbar-width: none; }
 .bis-layer::-webkit-scrollbar, .bis-layer *::-webkit-scrollbar { display: none; }
@@ -12,22 +15,28 @@
 .bis-button:focus-visible { outline: 2.4px solid #30977f; outline-offset: 3.2px; }
 .bis-card { position: relative; width: min(100%, 256px); max-height: 100%; overflow: auto; text-align: center; padding: 22.4px 16px var(--bis-card-bottom-clearance); border-radius: 17.6px; border: 0.8px solid #fff; background: #f8fbfc; box-shadow: 0 16px 44px #0004; }
 .bis-network-label { position: sticky; top: -22.4px; z-index: 1; flex-shrink: 0; margin: -22.4px -16px 9.6px; padding: 8.8px 16px 7.2px; border-radius: 16.8px 16.8px 0 0; border-bottom: 0.8px solid #e5b536; background: #fff0b8; color: #785317; font-size: 8px; font-weight: 750; letter-spacing: .06em; line-height: 1.2; text-transform: uppercase; }
-.bis-card h2 { margin: 0 0 5.12px; font: inherit; font-size: 19.2px; font-weight: 650; line-height: 1.04; letter-spacing: -.04em; }
+.bis-card h2 { margin: 0 0 5.12px; font: inherit; font-size: 19.2px; font-weight: 650; line-height: 1.04; letter-spacing: -.04em; text-transform: none; }
 .bis-actions { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .bis-actions .bis-button { width: 100%; }
 .bis-entry-group { width: 100%; min-width: 0; text-align: left; }
 .bis-entry-group > .bis-copy-field-heading { margin-bottom: 4.8px; }
 .bis-entry-group > .bis-network-select, .bis-entry-group > .bis-account-actions { width: 100%; }
-.bis-network-select { position: relative; width: 100%; min-width: 0; }
-.bis-network-select-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; min-width: 0; min-height: 37px; padding: 0 18px 0 10px; border: 0.8px solid #b8cbd1; border-radius: 9.6px; background: #f6fafb; color: #294650; font: inherit; font-size: 11.2px; font-weight: 600; cursor: pointer; }
-.bis-network-select-trigger:hover { background: #eaf3f1; }
+.bis-network-select { position: relative; display: block; width: 100%; min-width: 0; pointer-events: auto; }
+.bis-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.bis-network-select-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; min-width: 0; min-height: 37px; padding: 0 36px 0 12px; border: 0.8px solid #b8cbd1; border-radius: 9.6px; background: #f6fafb; color: #294650; font: inherit; font-size: 11.2px; font-weight: 600; text-align: left; cursor: pointer; pointer-events: auto; transition: background-color 140ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out; }
+.bis-network-select-trigger:hover { background: #eaf3f1; border-color: #8ca9b2; }
+.bis-network-select-trigger[aria-expanded="true"] { border-color: #30977f; background: #f3fbf8; box-shadow: 0 0 0 3px rgb(48 151 127 / 16%); }
 .bis-network-select-trigger:focus-visible { outline: 2.4px solid #30977f; outline-offset: 3.2px; }
-.bis-network-caret { flex: 0 0 16px; width: 16px; height: 16px; margin-left: 12px; stroke: currentColor; stroke-width: 1.6; fill: none; }
-.bis-network-select-trigger[aria-expanded="true"] .bis-network-caret { transform: rotate(180deg); }
-.bis-network-menu { position: absolute; z-index: 12; top: calc(100% + 4px); left: 0; width: 100%; padding: 4.8px; border: 0.8px solid #b8cbd1; border-radius: 9.6px; background: #f6fafb; box-shadow: 0 8px 20px #14233033; text-align: left; }
-.bis-network-option { display: block; width: 100%; padding: 6.4px; border: 0; border-radius: 5.6px; background: transparent; color: #294650; font: inherit; font-size: 11.2px; font-weight: 600; text-align: left; cursor: pointer; }
+.bis-network-caret { position: absolute; top: 50%; right: 12px; width: 16px; height: 16px; margin-top: -8px; pointer-events: none; stroke: #294650; stroke-width: 1.6; fill: none; transition: transform 140ms ease-out; }
+.bis-network-select:has(.bis-network-menu) .bis-network-caret { transform: rotate(180deg); }
+.bis-network-menu { position: absolute; z-index: 12; top: calc(100% + 6px); left: 0; width: 100%; padding: 6px; border: 0.8px solid #b8cbd1; border-radius: 11.2px; background: #f8fbfc; box-shadow: 0 14px 30px rgb(20 35 48 / 20%), 0 3px 8px rgb(20 35 48 / 10%); text-align: left; animation: bis-network-menu-in 140ms ease-out; }
+.bis-network-menu-label { display: block; padding: 3px 7px 5px; color: #667a84; font-size: 8px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.bis-network-option { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 31px; padding: 6px 7px; border: 0; border-radius: 6.4px; background: transparent; color: #294650; font: inherit; font-size: 11.2px; font-weight: 600; text-align: left; cursor: pointer; }
 .bis-network-option:hover, .bis-network-option:focus-visible { background: #e0f4ed; color: #175a4c; outline: 0; }
 .bis-network-option-selected { background: #d7e8e2; color: #175a4c; }
+.bis-network-option-check { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.8; fill: none; }
+@keyframes bis-network-menu-in { from { opacity: 0; transform: translateY(-3px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .bis-network-select-trigger, .bis-network-caret, .bis-network-menu { transition: none; animation: none; } }
 .bis-account-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .bis-account-actions .bis-button { width: 100%; min-width: 0; padding-inline: 12px; white-space: nowrap; }
 .bis-back { position: relative; margin-top: 8px; }
@@ -86,7 +95,7 @@
 .bis-balance-amount span { font-size: 10.4px; font-weight: inherit; }
 .bis-addresses { margin-bottom: 11.2px; font-size: 9.6px; }
 .bis-address-row, .bis-account-id { display: flex; flex-wrap: wrap; align-items: end; gap: 4.8px; text-align: left; margin-bottom: 5.12px; }
-.bis-copy-field-heading { display: flex; align-items: center; gap: 3.2px; width: 100%; font-size: 9.6px; font-weight: 700; }
+.bis-copy-field-heading { display: flex; align-items: center; gap: 3.2px; width: 100%; font: 700 9.6px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; font-synthesis: none; font-style: normal; font-variant: normal; letter-spacing: normal; text-align: left; text-transform: none; }
 .bis-copy-field-heading label { min-width: 0; }
 .bis-copy-field-heading h3 { margin: 0; font: inherit; }
 .bis-balance-tooltip { position: relative; display: inline-flex; min-width: 0; outline: none; }
@@ -252,11 +261,14 @@
 :root { --bis-view-transition-duration: 100ms; --bis-view-transition-from-scale: .8; --bis-view-transition-to-scale: 1; --bis-view-transition-enter-ease: ease-out; --bis-view-transition-exit-ease: ease-in; --bis-backdrop-color: rgb(20 35 48 / 42%); --bis-backdrop-blur: blur(2px); }
 .bis-view-transition { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; }
 .bis-view-transition-surface { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; }
+.bis-view-transition-surface:not(.bis-view-transition-exit) > * { pointer-events: auto; }
 .bis-view-transition-enter { animation: bis-view-enter var(--bis-view-transition-duration) var(--bis-view-transition-enter-ease) both; }
 .bis-view-transition-exit { pointer-events: none; animation: bis-view-exit var(--bis-view-transition-duration) var(--bis-view-transition-exit-ease) both; }
+.bis-card-closing { animation: bis-view-exit var(--bis-view-transition-duration) var(--bis-view-transition-exit-ease) both; }
 @keyframes bis-view-enter { from { opacity: 0; transform: scale(var(--bis-view-transition-from-scale)); } to { opacity: 1; transform: scale(var(--bis-view-transition-to-scale)); } }
 @keyframes bis-view-exit { from { opacity: 1; transform: scale(var(--bis-view-transition-to-scale)); } to { opacity: 0; transform: scale(var(--bis-view-transition-from-scale)); } }
 @media (prefers-reduced-motion: reduce) { .bis-view-transition-enter, .bis-view-transition-exit { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .bis-card-closing { animation: none; } }
 .bis-toast-viewport { position: absolute; inset: 0; z-index: 30; overflow: hidden; pointer-events: none; padding: 12.8px; display: flex; justify-content: center; align-items: flex-start; }
 .bis-toast { box-sizing: border-box; width: min(100%, 288px); padding: 12.8px 16px; border: 1px solid #c8dcd5; border-top: 3px solid #487d66; border-radius: 10px; background: #f8fbfc; color: #182d39; box-shadow: 0 8px 24px #0003; font: 12.8px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; text-align: center; overflow-wrap: anywhere; white-space: pre-wrap; pointer-events: none; }
 .bis-toast[data-phase="entering"] { animation: bis-toast-enter var(--bis-toast-motion) ease-out both; }

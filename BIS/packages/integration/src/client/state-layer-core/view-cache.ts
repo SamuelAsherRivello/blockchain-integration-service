@@ -13,6 +13,18 @@ export type ViewCacheEntry<T> = Readonly<{
 
 export const DEFAULT_VIEW_CACHE_TTL_MS = 5 * 60_000;
 
+const hotReloadCaches = new Set<() => void>();
+/** Shared by completed caches and context-owned presentation coordinators. */
+export function registerPresentationCache(clear:()=>void) {
+  if(import.meta.hot)hotReloadCaches.add(clear);
+  return ()=>hotReloadCaches.delete(clear);
+}
+
+if (import.meta.hot) {
+  import.meta.hot.on('vite:beforeUpdate', () => hotReloadCaches.forEach(clear => clear()));
+  import.meta.hot.dispose(() => hotReloadCaches.clear());
+}
+
 export function viewCacheKey(key: ViewCacheKey): string {
   return `${key.dataType}:${key.network}:${key.profileId}`;
 }
@@ -53,6 +65,8 @@ export function createViewCache(ttlMs = DEFAULT_VIEW_CACHE_TTL_MS) {
   function clear(): void {
     entries.clear();
   }
+
+  registerPresentationCache(clear);
 
   return Object.freeze({ get, set, invalidate, invalidateDataType, invalidateProfile, clear });
 }

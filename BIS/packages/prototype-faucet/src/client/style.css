@@ -40,11 +40,8 @@ input:focus, select:focus, button:focus-visible { outline: 2px solid #a9d9c3; ou
 .field-error { color: #ffc8d0; }
 fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .amount-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
-.amount-choice { position: relative; }
-.amount-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.amount-choice span { display: block; padding: 11px 8px; border: 1px solid #455368; border-radius: 6px; color: #bec9d7; font-size: 12px; text-align: center; cursor: pointer; }
-.amount-choice span:hover { border-color: #a9d9c3; background: #202b35; }
-.amount-choice input:checked + span { border-color: #a9d9c3; background: #203d30; color: #d9f2e5; }
+.amount-choice { width: 100%; }
+.amount-choice.selected { border-color: #a9d9c3; background: #203d30; color: #d9f2e5; }
 button { min-height: 34px; padding: 7px 12px; border: 1px solid #455368; border-radius: 6px; background: #242d3a; color: #e5e9ef; cursor: pointer; font-size: 12px; transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out, transform 140ms ease-out; }
 button:hover:not(:disabled) { border-color: #a9d9c3; background: #2c3b4a; transform: translateY(-1px); }
 button:disabled { cursor: not-allowed; opacity: .5; }
@@ -53,6 +50,13 @@ button.primary:hover:not(:disabled) { background: #c5ead9; }
 .status { display: grid; gap: 8px; }
 .status-heading { align-items: center; }
 .status-heading strong { color: #dce5ef; font-size: 14px; font-weight: 650; }
+.faucet-addresses { display: grid; gap: 4px; padding-top: 14px; padding-bottom: 14px; }
+.address-network { color: #8795a8; font-size: 10px; }
+.faucet-address-row { min-height: 30px; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-top: 1px solid #2c3947; }
+.faucet-address-label { color: #8795a8; font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.faucet-address-value { min-width: 0; overflow: hidden; color: #dce5ef; text-overflow: ellipsis; white-space: nowrap; font: 11px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.address-message { margin: 4px 0 0; color: #a9b6c7; font-size: 11px; }
+.copy-button { min-height: 26px; padding: 4px 8px; font-size: 10px; }
 .status p { margin: 0; color: #a9b6c7; font-size: 12px; line-height: 1.5; }
 .status-success { border-color: #365247; background: #17251f; }
 .status-success .status-heading strong { color: #d9f2e5; }

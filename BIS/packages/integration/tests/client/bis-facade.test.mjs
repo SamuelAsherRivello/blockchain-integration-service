@@ -72,7 +72,7 @@ test('BisService owns private resources and routes game workflows through the tw
   Object.defineProperty(globalThis, 'navigator', { value: { locks: {} }, configurable: true });
   const mocks = new Map([
     ['/wallet-layer-arkade/context-composition.ts', `export const createBisContext=()=>globalThis.${key}.context;`],
-    ['/state-layer-core/context.ts', 'export const getControls=context=>context.controls;'],
+    ['/state-layer-core/context.ts', 'export const getControls=context=>context.controls;export const invalidateContractPresentation=()=>{};'],
     ['/state-layer-core/game-wallet.ts', `export const createBisGameWallet=()=>globalThis.${key}.wallet;`],
     ['/state-layer-core/lto-service.ts', `export const createBisLto=()=>globalThis.${key}.lto;`],
     ['/ui-layer-react/client.tsx', `export const createBisUi=()=>globalThis.${key}.ui;`],

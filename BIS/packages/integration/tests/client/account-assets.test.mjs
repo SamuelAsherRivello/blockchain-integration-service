@@ -21,9 +21,9 @@ test('failed refresh clears values; empty success is distinct and retry works',a
   mode='fail';const work=c.refreshAssets();assert.deepEqual(c.getState().assets,{status:'loading'});await work;assert.deepEqual(c.getState().assets,{status:'unavailable'});
   mode='empty';await c.refreshAssets();assert.deepEqual(c.getState().assets,{status:'ready',assets:[]});c.dispose();
 });
-test('old session response cannot overwrite newer same-account entry',async()=>{
+test('same-account reentry joins the original valid request',async()=>{
   const old=deferred(),fresh=deferred();let reads=0;const {context:c}=setup(()=>++reads===1?old.promise:fresh.promise);await c.readyAsync();c.openAccountDialog();c.openAccountAssets();await tick();
-  c.closeAccount();c.openAccountAssets();await tick();fresh.resolve([{...holding,quantity:'99'}]);await tick();old.resolve([holding]);await tick();assert.equal(c.getState().assets.assets[0].quantity,'99');c.dispose();
+  c.closeAccount();c.openAccountAssets();await tick();assert.equal(reads,1);old.resolve([holding]);await tick();assert.equal(c.getState().assets.assets[0].quantity,'12345');c.dispose();
 });
 test('account replacement and disposal invalidate obsolete reads',async()=>{
   const read=deferred();const s=setup(()=>read.promise),c=s.context;await c.readyAsync();c.openAccountDialog();c.openAccountAssets();await tick();s.replace();await c.readyAsync();read.resolve([holding]);await tick();assert.equal(c.getState().profileId,'account-b');assert.equal(c.getState().assets.status,'idle');
@@ -31,7 +31,7 @@ test('account replacement and disposal invalidate obsolete reads',async()=>{
 });
 test('presentation cleanup does not cancel independent callers',async()=>{
   const read=deferred();const signals=[];const {context:c}=setup((_account,signal)=>{signals.push(signal);return read.promise;});await c.readyAsync();c.openAccountDialog();c.openAccountAssets();await tick();const publicRead=c.listAssets();await tick();
-  getControls(c).hideAssets();assert.equal(signals[0].aborted,true);assert.equal(signals[1].aborted,false);read.resolve([holding]);assert.equal((await publicRead).status,'success');assert.equal(c.getState().assets.status,'idle');c.dispose();
+  getControls(c).hideAssets();assert.equal(signals[0].aborted,false);assert.equal(signals[1].aborted,false);read.resolve([holding]);assert.equal((await publicRead).status,'success');assert.equal(c.getState().assets.status,'idle');c.dispose();
 });
 test('each 30 second attempt is bounded despite a noncooperative reader',async(t)=>{
   t.mock.timers.enable({apis:['setTimeout']});

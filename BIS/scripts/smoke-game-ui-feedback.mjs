@@ -18,6 +18,13 @@ try {
  assert.equal(await page.locator('.game-account-status').isVisible(),false,'no loading placeholder');
  assert.equal(await page.locator('.game-account-status p').textContent(),'');
  await page.getByRole('button',{name:'⚡ Restore Account',exact:true}).click();
+ const firstWord=page.getByLabel('Word 1',{exact:true});
+ await firstWord.click();
+ await firstWord.fill('abandon');
+ assert.equal(await firstWord.inputValue(),'abandon','active Restore Account word field accepts pointer and keyboard input');
+ await page.getByRole('button',{name:'Show seed words',exact:true}).click();
+ assert.equal(await firstWord.getAttribute('type'),'text','active Restore Account visibility control works');
+ await page.getByRole('button',{name:'Hide seed words',exact:true}).click();
  for(const size of [{width:743,height:1321},{width:1000,height:900},{width:360,height:640},{width:393,height:700}]) {
   await page.setViewportSize(size);await page.waitForTimeout(100);
   assert.equal(await page.locator('.game-account-mount').evaluate(el=>getComputedStyle(el).transform),'none','native 100% host');

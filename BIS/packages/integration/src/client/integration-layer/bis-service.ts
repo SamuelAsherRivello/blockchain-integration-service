@@ -1,5 +1,5 @@
 import { createBisAssetCollection } from '../state-layer-core/asset-collection';
-import { getControls } from '../state-layer-core/context';
+import { getControls, invalidateContractPresentation } from '../state-layer-core/context';
 import { createBisContext } from '../wallet-layer-arkade/context-composition';
 import { createBisContinue } from '../state-layer-core/game-continue';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
@@ -103,7 +103,7 @@ export class BisService implements IBis {
       this.#context.onEvent(event => this.#emit(event)),
       this.#gameWallet.subscribe(() => { this.#publish(); refreshAccountProjection(); }),
       this.#equipment.subscribe(() => this.#publish()),
-      this.#lto.subscribe(() => { void this.#readContracts(); }),
+      this.#lto.subscribe(() => { invalidateContractPresentation(this.#context); void this.#readContracts(); }),
     );
   }
   #assertAlive() {
@@ -273,7 +273,7 @@ export class BisService implements IBis {
     const unfiltered = Object.keys(filter).length === 0;
     const generation = this.#generation, revision = unfiltered ? ++this.#queryRevision : this.#queryRevision, accountKey = this.#accountKey();
     let result: BisContractsResult;
-    try { result = await this.#lto.checkContractsAsync(filter); }
+    try { result = await (this.#context.checkContractsAsync?.(filter) ?? this.#lto.checkContractsAsync(filter)); }
     catch { result = { status: 'unavailable', contracts: [] }; }
     if (this.#disposed || this.#resetPromise || generation !== this.#generation || accountKey !== this.#accountKey()) return frozenCopy({ status: 'unavailable', contracts: [] });
     const projected: BisContractQueryResult = frozenCopy({ status: result.status, contracts: result.contracts.map(contract => ({ ...contract, offerSessionId: contract.sessionId })) });

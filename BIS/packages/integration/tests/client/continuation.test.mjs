@@ -34,7 +34,7 @@ test('pay 1000 and a delayed observer snapshot show only one Balance loading cyc
  s.context.subscribe(()=>{const loading=['idle','loading'].includes(s.context.getState().balance.status);if(loading&&!wasLoading)cycles++;wasLoading=loading;});
  await s.context.requestContinue(request);await tick();assert.equal(s.context.getState().balance.arkadeSats,1000);assert.equal(cycles,1);
  publish([]);await tick();assert.equal(cycles,1,'Delayed payment observation must not reopen loading');
- sats=1500;publish([]);await tick();assert.equal(s.context.getState().balance.arkadeSats,1500);assert.equal(cycles,1,'Independent changes still update silently');
+ sats=1500;publish([{id:'changed',identifier:'ark:changed',direction:'Outgoing',amountSats:500,status:'Settled offchain'}]);await tick();assert.equal(s.context.getState().balance.arkadeSats,1500);assert.equal(cycles,1,'Independent evidence still updates silently');
  await s.context.refreshBalance();assert.equal(cycles,2,'Manual Refresh still shows loading');
  } finally {s.context.dispose();}
 });

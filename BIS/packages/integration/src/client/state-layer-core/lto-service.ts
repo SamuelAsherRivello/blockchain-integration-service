@@ -1,4 +1,4 @@
-import type { BisContext } from './context.ts';
+import { invalidateContractPresentation, withContextForegroundWork, type BisContext } from './context.ts';
 import { createNetworkScopedGameWalletStorage, type createBisGameWallet } from './game-wallet.ts';
 import { createAccountStorage } from './account-storage.ts';
 import { createGameWalletStorage } from './game-wallet-storage.ts';
@@ -117,6 +117,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     publishContractReservations(next); return next;
   }
   function notify(record: ContractRecord, feedback: BisContractReconcileOptions['feedback'] = 'silent') {
+    invalidateContractPresentation(context);
     publish();
     if (feedback === 'silent' || detached || ![record.scope.playerId,record.scope.gameId].includes(context.getState().profileId ?? '')) return;
     const phase = record.operation.submission, key = `${record.operation.id}:${phase === 'confirmed' || phase === 'not-submitted' ? phase : 'pending'}`;
@@ -344,6 +345,12 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       if(controllers.get(context)===controller)controllers.delete(context);
     },
   };
+  // Passive query is intentionally excluded. Explicit provider operations from
+  // Admin or BisService have the same foreground priority as Account actions.
+  for(const kind of ['start','claim','reject','refund','reconcile'] as const) {
+    const original=controller[kind];
+    Object.defineProperty(controller,kind,{value:(...args:unknown[])=>withContextForegroundWork(context,()=>Reflect.apply(original,controller,args),kind!=='reconcile')});
+  }
   controllers.set(context,controller);
   return controller;
 }

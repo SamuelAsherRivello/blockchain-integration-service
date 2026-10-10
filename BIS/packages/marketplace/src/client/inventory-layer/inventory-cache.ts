@@ -25,7 +25,7 @@ const maxCacheBytes = 128 * 1024;
 const emptyRecord = (role: MarketplaceInventoryRole): MarketplaceInventoryRecord => Object.freeze({ role, status: 'idle', items: Object.freeze([]) });
 const initialState = Object.freeze({ player: emptyRecord('player'), game: emptyRecord('game') });
 
-type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> & Partial<Pick<Storage, 'length' | 'key'>>;
 type CacheEnvelope = Readonly<{version: 1; role: MarketplaceInventoryRole; walletId: string; network: TestNetwork; fetchedAt: number; items: readonly BisEquipmentItem[]}>;
 
 function storage(): StorageLike | undefined {
@@ -34,6 +34,23 @@ function storage(): StorageLike | undefined {
 
 function key(role: MarketplaceInventoryRole, walletId: string, network: TestNetwork) {
   return `${cachePrefix}${role}:${network}:${encodeURIComponent(walletId)}`;
+}
+
+export function clearMarketplaceInventoryCache(store = storage()): void {
+  if (!store) return;
+  try {
+    if (typeof store.length !== 'number' || typeof store.key !== 'function') return;
+    const keys = [] as string[];
+    for (let index = 0; index < store.length; index += 1) {
+      const storedKey = store.key(index);
+      if (storedKey?.startsWith(cachePrefix)) keys.push(storedKey);
+    }
+    keys.forEach(storedKey => store.removeItem(storedKey));
+  } catch { /* Cache invalidation must never block the live application. */ }
+}
+
+if (import.meta.hot) {
+  import.meta.hot.on('vite:beforeUpdate', () => clearMarketplaceInventoryCache());
 }
 
 function validItem(value: unknown): value is BisEquipmentItem {

@@ -7,7 +7,7 @@ import { AccountBalancesFormValue } from './AccountBalances';
 import { AccountSendView } from './AccountSend';
 import { AccountTransferView } from './AccountTransfer';
 import { AccountActivityView } from './AccountActivity.tsx';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { getControls, type BisContext } from '../state-layer-core/context';
 import { createBisContext } from '../wallet-layer-arkade/context-composition';
@@ -37,9 +37,13 @@ const networkOptions = [
 
 function NetworkSelect({ value, onChange }: { value: 'signet' | 'mutinynet' | undefined; onChange(network: 'signet' | 'mutinynet'): void }) {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(() => Math.max(0, networkOptions.findIndex(option => option.value === value)));
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const selected = networkOptions.find(option => option.value === value);
+  const listboxId = 'bis-network-options';
+  const selectedIndex = networkOptions.findIndex(option => option.value === value);
+  const displayedOption = selectedIndex >= 0 ? networkOptions[selectedIndex] : undefined;
+
   useEffect(() => {
     if (!open) return;
     const closeOnOutsidePointer = (event: PointerEvent) => {
@@ -48,15 +52,47 @@ function NetworkSelect({ value, onChange }: { value: 'signet' | 'mutinynet' | un
     document.addEventListener('pointerdown', closeOnOutsidePointer);
     return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
   }, [open]);
-  return <div className="bis-network-select" ref={root}>
-    <button ref={trigger} id="bis-network" className="bis-network-select-trigger" type="button" aria-label="Network" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(wasOpen => !wasOpen)} onKeyDown={event => {
-      if (event.key === 'Escape') setOpen(false);
-      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setOpen(true); }
-    }}>
-      <span>{selected?.label ?? 'Choose network'}</span><svg className="bis-network-caret" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 5 5 5 5-5" /></svg>
+
+  function choose(index: number) {
+    const option = networkOptions[index];
+    if (!option) return;
+    onChange(option.value);
+    setActiveIndex(index);
+    setOpen(false);
+    trigger.current?.focus();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const next = event.key === 'ArrowDown' ? activeIndex + 1 : activeIndex - 1;
+      setActiveIndex((next + networkOptions.length) % networkOptions.length);
+      setOpen(true);
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(event.key === 'Home' ? 0 : networkOptions.length - 1);
+      setOpen(true);
+    } else if ((event.key === 'Enter' || event.key === ' ') && open) {
+      event.preventDefault();
+      choose(activeIndex);
+    } else if (event.key === 'Escape' && open) {
+      event.preventDefault();
+      setOpen(false);
+    }
+  }
+
+  return <div ref={root} className="bis-network-select">
+    <span className="bis-visually-hidden">Network</span>
+    <button ref={trigger} id="bis-network" type="button" className="bis-network-select-trigger" aria-label="Network" aria-haspopup="listbox" aria-expanded={open} aria-controls={listboxId} onClick={() => { setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0); setOpen(current => !current); }} onKeyDown={handleKeyDown}>
+      <span>{displayedOption?.label ?? 'Choose network'}</span>
     </button>
-    {open && <div className="bis-network-menu" role="menu" aria-label="Network options">
-      {networkOptions.map(option => <button key={option.value} type="button" role="menuitemradio" aria-checked={option.value === value} className={`bis-network-option${option.value === value ? ' bis-network-option-selected' : ''}`} onClick={() => { onChange(option.value); setOpen(false); trigger.current?.focus(); }}>{option.label}</button>)}
+    <svg className="bis-network-caret" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 5 5 5 5-5" /></svg>
+    {open && <div id={listboxId} className="bis-network-menu" role="listbox" aria-label="Network options" tabIndex={-1}>
+      <span className="bis-network-menu-label">Select a network</span>
+      {networkOptions.map((option, index) => <button key={option.value} type="button" role="option" aria-selected={value === option.value} className={`bis-network-option${value === option.value ? ' bis-network-option-selected' : ''}`} onMouseEnter={() => setActiveIndex(index)} onClick={() => choose(index)}>
+        <span>{option.label}</span>
+        {value === option.value && <svg className="bis-network-option-check" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg>}
+      </button>)}
     </div>}
   </div>;
 }
@@ -109,6 +145,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const assets = state.phase === 'active' && state.accountAssets;
   const contracts = state.phase === 'active' && !!state.accountContracts;
   const [contractOpen,setContractOpen]=useState(false);
+  const [closingAccount,setClosingAccount]=useState(false);
   const receive = state.phase === 'active' && state.accountReceive;
   const send = state.phase === 'active' && state.accountSend;
   const developer = state.view === 'account' && developerOpen && !onboarding;
@@ -120,9 +157,13 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const hostAssetMintingSupport = developer ? hasAssetMintingSupport?.() : undefined;
   const hostContractSupport = developer ? hasContractSupport?.() : undefined;
   const hostItemSupport = developer ? hasItemSupport?.() : undefined;
-  const assetMintingSupported = hostAssetMintingSupport ?? (!!walletSnapshot && assetMintingSupportAvailable(state, walletSnapshot));
-  const contractSupported = hostContractSupport ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot));
-  const itemsSupported = hostItemSupport ?? itemSupportAvailable(state);
+  // Capability callbacks return a boolean while their underlying wallet read
+  // is still in flight. Keep the indicators unresolved until that read settles
+  // so a transient false is not presented as the final answer.
+  const supportLoading = walletSnapshot?.status === 'loading' || state.phase === 'loading' || state.phase === 'resetting';
+  const assetMintingSupported = supportLoading ? undefined : hostAssetMintingSupport ?? (!!walletSnapshot && assetMintingSupportAvailable(state, walletSnapshot));
+  const contractSupported = supportLoading ? undefined : hostContractSupport ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot));
+  const itemsSupported = supportLoading ? undefined : hostItemSupport ?? itemSupportAvailable(state);
   const hostFeedback = (capability: string, supported: boolean | undefined) => supported === undefined ? undefined : supported
     ? `Current status: available. ${capability} is enabled by the host capability check.`
     : `${capability} is unavailable because the host capability check returned false.`;
@@ -147,15 +188,20 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const phaseLabels: Record<string,string> = {loading:'Loading ...',creating:'Creating...',saving:'Saving...',resetting:'Resetting...', 'logging-out':'Logging out...', restoring:'Restoring...', 'restore-saving':'Saving...'};
   const pageLoading = !!data && (data.status === 'idle' || data.status === 'loading');
   const recoveryLoading = savedRecovery && (state.recoveryStatus === 'hidden' || state.recoveryStatus === 'loading');
-  const failure = state.error || (!onboarding && !assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
-  const accountDetailsLoading = details && pageLoading;
+  const failure = state.error || (details && state.addresses.status==='unavailable' ? 'Receiving addresses could not be loaded.' : undefined) || (!onboarding && !assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
+  const accountDetailsLoading = details && (pageLoading || state.addresses.status==='idle' || state.addresses.status==='loading');
   const entryViewKey = receive ? 'receive' : transfer ? 'transfer' : activity ? 'activity' : contracts ? 'contracts' : savedRecovery ? 'recovery' : 'none';
   const entryLoading = entryViewKey === 'recovery' ? recoveryLoading : !!entryViewKey && entryViewKey !== 'none' && pageLoading;
   const entryPolicy = viewLoadingPolicies[entryViewKey] ?? defaultViewLoadingPolicy;
   const gatedEntryLoading = useEntryLoadingGate(entryLoading, entryViewKey !== 'none', entryPolicy, entryViewKey);
   const foregroundPageLoading = entryViewKey !== 'none' ? gatedEntryLoading : (!assets && !accountDetailsLoading && !onboarding ? pageLoading : false);
-  usePendingNotice(state.view !== 'empty' && (busy || foregroundPageLoading), phaseLabels[state.phase] ?? 'Loading ...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
+  // Account Details owns a non-modal balance read: its placeholders and the
+  // controls that are already prepared must remain usable while the read runs.
+  // Keep this explicit at the pending-dialog boundary so a future loading
+  // source cannot accidentally make the Details page inert again.
+  usePendingNotice(state.view !== 'empty' && !accountDetailsLoading && (busy || foregroundPageLoading), phaseLabels[state.phase] ?? 'Loading ...', state.view !== 'empty' ? failure : undefined, () => getControls(context).dismissOperationError());
   const handleBack = () => {
+    if (closingAccount) return;
     if (onboarding && developerReturn) {
       // Leave the nested onboarding route explicitly before revealing the
       // Developer view. This keeps the local presentation state and the
@@ -163,6 +209,14 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
       setDeveloperOpen(true);
       setDeveloperReturn(false);
       context.openAccountDetails();
+      return;
+    }
+    if (menu) {
+      setClosingAccount(true);
+      window.setTimeout(() => {
+        setClosingAccount(false);
+        context.closeAccount();
+      }, 100);
       return;
     }
     context.closeAccount();
@@ -180,11 +234,11 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const viewKey = state.view === 'account-button' ? 'account-button' : gameWalletLogin ? 'game-wallet' : developer ? 'developer' : onboarding ? 'onboarding' : restoring ? 'restore-account' : recovery ? 'set-recovery-phrase' : savedRecovery ? 'get-recovery-phrase' : logout ? 'logout-confirmation' : state.phase === 'creating' ? 'create-account' : details ? 'account-details' : transfer ? 'swap' : send ? 'send' : receive ? 'receive' : 'account-menu';
   return <div className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
-      <ViewTransition viewKey={viewKey}><AccountDialogShell network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}
+      <ViewTransition viewKey={viewKey}><AccountDialogShell network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={`${onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}${closingAccount ? ' bis-card-closing' : ''}`}
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
         headingActions={gameWalletLogin && gameWallet ? <IconButton className="bis-title-icon" label="Refresh Game Wallet" disabled={walletSnapshot?.status === 'loading'} onClick={()=>void gameWallet.refresh()}>
             <span className="bis-refresh-image" aria-hidden="true" />
-          </IconButton> : !gameWalletLogin && (assets || details || transfer || activity || receive) && <IconButton className="bis-title-icon" label={`Refresh ${title}`} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : state.balance.status === 'loading' || state.balance.status === 'idle'} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : context.refreshBalance())}>
+          </IconButton> : !gameWalletLogin && (assets || details || transfer || activity || receive) && <IconButton className="bis-title-icon" label={`Refresh ${title}`} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : accountDetailsLoading} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : context.refreshBalance())}>
             <span className="bis-refresh-image" aria-hidden="true" />
           </IconButton>}
         description={gameWalletLogin ? 'Set the wallet used by this game’s contracts.' : developer ? 'Developer tools for this BIS session.' : (send ? `Send ${networkLabel(state.network)} test funds to another Arkade address.` : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Back up your recovery phrase. Logout removes this saved wallet access and its local transaction records. Submitted transactions are not cancelled.' : state.hasProfile ? (onboarding || assets || details || transfer || activity ? null : 'You are logged in.') : recovery ? 'Save these words privately.' : 'You are not logged in.')}>

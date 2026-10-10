@@ -21,8 +21,8 @@ test('transfer navigation reads fresh, returns to Details and is cleared by acco
   const tick = () => new Promise(resolve=>setImmediate(resolve));
   await c.readyAsync();c.openAccountDialog();c.openAccountDetails();await tick();
   c.openAccountTransfer();await tick();
-  assert.equal(c.getState().accountTransfer,true);assert.equal(c.getState().accountDetails,false);assert.equal(reads,2);
-  c.closeAccount();await tick();assert.equal(c.getState().accountDetails,true);assert.equal(c.getState().accountTransfer,false);assert.equal(reads,3);
+  assert.equal(c.getState().accountTransfer,true);assert.equal(c.getState().accountDetails,false);assert.equal(reads,1);
+  c.closeAccount();await tick();assert.equal(c.getState().accountDetails,true);assert.equal(c.getState().accountTransfer,false);assert.equal(reads,1);
   c.openAccountTransfer();await tick();account={phrase:'other-placeholder',profileId:'profile-b'};notify();await c.readyAsync();await tick();
   assert.equal(c.getState().accountTransfer,false);
   c.dispose();

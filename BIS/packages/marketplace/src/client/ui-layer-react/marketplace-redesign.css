@@ -21,6 +21,7 @@
 .marketplace-page ::selection { background: #bfe0d7; color: var(--market-ink); }
 
 .marketplace-page .network-banner {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;

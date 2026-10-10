@@ -7,6 +7,10 @@ import { withTemporaryWallet } from '../../src/client/wallet-layer-arkade/accoun
 const tick=()=>new Promise(r=>setImmediate(r));
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const amounts={availableSats:1000,totalSats:1500};
+// These are foreground tests; startup scheduling is exercised deterministically
+// in background-context.test.mjs.
+globalThis.requestIdleCallback=()=>1;globalThis.cancelIdleCallback=()=>{};
+test.after(()=>{delete globalThis.requestIdleCallback;delete globalThis.cancelIdleCallback;});
 function setup(read=async()=>amounts) {
   let account={phrase:'isolated-placeholder',profileId:'profile-a'},generation=0,writes=0;
   const listeners=new Set();
@@ -56,22 +60,41 @@ test('on-open/manual refresh clears old values, failure remains retryable, no st
   let calls=0,next=deferred();const {context,writes}=setup(()=>{calls++;return next.promise;});
   await context.readyAsync();assert.equal(calls,0);context.openAccountDialog();context.openAccountDetails();await tick();
   assert.deepEqual(context.getState().balance,{status:'loading'});
-  context.openAccountDialog();context.openAccountDetails();await context.refreshBalance();assert.equal(calls,1);
-  next.resolve(amounts);await tick();assert.deepEqual(context.getState().balance,{status:'ready',...amounts});
+  context.openAccountDialog();context.openAccountDetails();const joined=context.refreshBalance();await tick();assert.equal(calls,1);
+  next.resolve(amounts);await joined;await tick();assert.deepEqual(context.getState().balance,{status:'ready',...amounts});
   next=deferred();const work=context.refreshBalance();assert.deepEqual(context.getState().balance,{status:'loading'});await tick();
   next.reject(Error('private source failure'));await work;assert.deepEqual(context.getState().balance,{status:'unavailable',readStatus:'wallet-read'});assert.equal(context.getState().phase,'active');
   next=deferred();const retry=context.refreshBalance();await tick();next.resolve({availableSats:0,totalSats:0});await retry;
   assert.equal(context.getState().balance.availableSats,0);assert.equal(writes(),0);assert.equal(calls,4);
-  context.closeAccount();assert.deepEqual(context.getState().balance,{status:'idle'});context.openAccountDialog();context.openAccountDetails();await tick();assert.equal(calls,5);context.dispose();
+  context.closeAccount();assert.deepEqual(context.getState().balance,{status:'idle'});context.openAccountDialog();context.openAccountDetails();await tick();assert.equal(calls,4);context.dispose();
 });
 
-test('Back and logout cancellation discard pending work and request fresh balances',async()=>{
+test('Account Details publishes the Arkade address before the balance read completes',async()=>{
+  const address=deferred(),balance=deferred();
+  const account={phrase:'isolated-placeholder',profileId:'profile-a'};
+  const context=createContext(
+    {load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},
+    undefined,async()=>account.profileId,undefined,
+    async()=>balance.promise,undefined,async()=>address.promise,
+  );
+  await context.readyAsync();context.openAccountDialog();context.openAccountDetails();await tick();
+  assert.deepEqual(context.getState().addresses,{status:'loading'});
+  address.resolve({arkadeAddress:'tark1-address',bitcoinAddress:'tb1p-address'});await tick();
+  assert.deepEqual(context.getState().addresses,{status:'ready',arkadeAddress:'tark1-address',bitcoinAddress:'tb1p-address'});
+  assert.equal(context.getState().balance.status,'loading');
+  balance.resolve({availableSats:1000,totalSats:1500,bitcoinSats:500,arkadeSats:1000});await tick();
+  assert.deepEqual(context.getState().balance,{status:'ready',availableSats:1000,totalSats:1500,bitcoinSats:500,arkadeSats:1000});
+  context.dispose();
+});
+
+test('Back and logout confirmation detach presentation without restarting valid balance work',async()=>{
   const reads=[];const {context}=setup((_,signal)=>{const d=deferred();reads.push({...d,signal});return d.promise;});
-  await context.readyAsync();context.openAccountDialog();context.openAccountDetails();await tick();context.closeAccount();assert.ok(reads[0].signal.aborted);
+  await context.readyAsync();context.openAccountDialog();context.openAccountDetails();await tick();context.closeAccount();assert.equal(reads[0].signal.aborted,false);
   reads[0].resolve(amounts);await tick();assert.equal(context.getState().balance.status,'idle');
-  context.openAccountDialog();context.openAccountDetails();await tick();context.openLogoutConfirmation();assert.ok(reads[1].signal.aborted);assert.equal(context.getState().phase,'logout-confirmation');
-  context.cancelLogout();await tick();assert.equal(reads.length,2);assert.equal(context.getState().accountDetails,false);context.openAccountDetails();await tick();assert.equal(reads.length,3);reads[1].resolve(amounts);await tick();assert.equal(context.getState().balance.status,'loading');
-  reads[2].resolve(amounts);await tick();assert.equal(context.getState().balance.status,'ready');context.dispose();
+  context.openAccountDialog();context.openAccountDetails();await tick();assert.equal(context.getState().balance.status,'ready');
+  context.openLogoutConfirmation();assert.equal(context.getState().phase,'logout-confirmation');
+  context.cancelLogout();await tick();assert.equal(reads.length,1);assert.equal(context.getState().accountDetails,false);
+  context.openAccountDetails();await tick();assert.equal(context.getState().balance.status,'ready');assert.equal(reads.length,1);context.dispose();
 });
 
 test('replacement, reset and disposal invalidate old reads without publishing',async()=>{
