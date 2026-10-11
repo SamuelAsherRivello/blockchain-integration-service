@@ -19,7 +19,7 @@ function accountStorage(account:{profileId:string;phrase:string}|null) {
 }
 function walletDependencies() {
   let selected:{profileId:string;phrase:string}|null=null;
-  return {storage:{load:async()=>selected,select:async(account:{profileId:string;phrase:string})=>{selected=account;},logout:async()=>{selected=null;},subscribe:()=>()=>{},dispose:()=>{}},restore:async()=>({profileId:'player-fixture',phrase:'fixture only'}),addresses:async()=>({arkadeAddress:'tark1fixture',bitcoinAddress:'tb1fixture'}),balance:async()=>({availableSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}),watch:undefined};
+  return {storage:{load:async()=>selected,select:async(account:{profileId:string;phrase:string})=>{selected=account;},logout:async()=>{selected=null;},subscribe:()=>()=>{},dispose:()=>{}},restore:async()=>({profileId:'player-fixture',phrase:'fixture only'}),addresses:async()=>({arkadeAddress:'tark1fixture',bitcoinAddress:'tb1fixture'}),balance:async()=>({availableSats:0,availableBitcoinSats:0,availableArkadeSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}),watch:undefined};
 }
 
 document.getElementById('run')!.onclick=async()=>{

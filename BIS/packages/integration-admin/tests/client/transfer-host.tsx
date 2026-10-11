@@ -11,15 +11,15 @@ let cleanup = () => {};
 document.getElementById('run')!.onclick = async () => {
   cleanup(); result.textContent = 'Running';
   const account = {phrase:'isolated-placeholder',profileId:'1234567890abcdef'};
-  let fail = false, quoteLifetime=60000;
+  let fail = false, quoteLifetime=60000, quoteCalls=0;
   let emptyBitcoin = true;
   let policyUnavailable = false;
   const c = createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}}, undefined, async()=>account.profileId, undefined,
-    async()=>{if(fail)throw Error('private');return emptyBitcoin ? {availableSats:289715,totalSats:289715,bitcoinSats:0,arkadeSats:289715} : {availableSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000};});
+    async()=>{if(fail)throw Error('private');return emptyBitcoin ? {availableSats:289715,availableBitcoinSats:0,availableArkadeSats:289715,totalSats:289715,bitcoinSats:0,arkadeSats:289715} : {availableSats:800,availableBitcoinSats:500,availableArkadeSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000};});
   c.getPendingAccountTransfers=()=>[];
   c.checkAccountTransfer=async()=>({status:'idle'});
-  c.getAccountTransferAvailability=async()=>policyUnavailable?{available:false,reason:'unsupported-fees',message:'The current operator fee terms are not supported for Account Transfer.'}:{available:true};
-  c.quoteAccountTransfer=async(amount=500,direction='to-arkade')=>({profileId:account.profileId,direction,amountSats:amount,feeSats:0,netSats:amount,maxSats:500,bitcoinAfterSats:500-amount,arkadeAfterSats:1000+amount,totalAfterSats:1500,expiresAt:Date.now()+quoteLifetime,fingerprint:'test-only'});
+  c.getAccountTransferAvailability=async()=>policyUnavailable?{available:false,reason:'unsupported-fees',message:'The current operator fee terms are not supported for Account Transfer.'}:emptyBitcoin?{available:false,reason:'insufficient-funds',message:'No confirmed eligible Bitcoin funds are available.'}:{available:true};
+  c.quoteAccountTransfer=async(amount=500,direction='to-arkade')=>{quoteCalls++;return {profileId:account.profileId,direction,amountSats:amount,feeSats:0,netSats:amount,maxSats:500,bitcoinAfterSats:500-amount,arkadeAfterSats:1000+amount,totalAfterSats:1500,expiresAt:Date.now()+quoteLifetime,fingerprint:'test-only'};};
   c.confirmAccountTransfer=async()=>{throw Error('Unexpected submission');};
   const ui = createBisUi(c);ui.mount(host);cleanup=()=>{ui.unmount();c.dispose();};
   const button = (name: string) => [...host.querySelectorAll('button')].find(b=>b.textContent===name)!;
@@ -30,6 +30,11 @@ document.getElementById('run')!.onclick = async () => {
     const transferCard=host.querySelector('.bis-card')!;
     check(transferCard.scrollHeight<=transferCard.clientHeight,'Zero Bitcoin transfer fits without cropping or scrolling');
     check(host.querySelectorAll('.bis-balance-direction').length===1 && !!button('→'),'Single direction button starts forward');
+    const quotesBeforeUnavailableReview=quoteCalls;
+    (host.querySelector('[aria-label="Increase amount"]') as HTMLButtonElement).click();await tick();
+    check(button('Review Transfer').disabled,'Positive amount is disabled when Bitcoin has no confirmed eligible funds');
+    button('Review Transfer').click();await tick();
+    check(quoteCalls===quotesBeforeUnavailableReview,'Disabled Review Transfer does not request a quote');
     const transferControls = [
       host.querySelector<HTMLElement>('[aria-label="Total balance"]')!,
       host.querySelector<HTMLElement>('[aria-label="Bitcoin balance"]')!,

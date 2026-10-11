@@ -16,7 +16,7 @@ function fixture(t,{lose=false,affordable=true,current=true,storageFailure=false
  t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({network:'signet'})}));
  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'signet',fees:{txFeeRate:'0',intentFee:{}},vtxoMinAmount:330n,vtxoMaxAmount:0n}));
  const coin={txid:'a'.repeat(64),vout:0,value:coinValue??(affordable?(withAssets?289715:2000):500),...(withAssets?{assets:[0,1,2].map(n=>({assetId:String(n+1).repeat(64)+'0000',amount:1n}))}:{})};
- const wallet={getSpendableVtxos:async()=>[coin],getBalance:async()=>({available:coin.value,total:coin.value,boarding:{total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{disposed++;}};
+ const wallet={getSpendableVtxos:async()=>[coin],getBalance:async()=>({available:coin.value,total:coin.value,boarding:{confirmed:0,total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{disposed++;}};
  t.mock.method(ReadonlyWallet,'create',async()=>{reads++;const destination=own;return {...wallet,getAddress:async()=>destination.encode(),getBoardingAddress:async()=> 'tb1fixture'};});
  t.mock.method(RestArkProvider.prototype,'submitTx',async()=>{submits++;assert.equal(readContinuations('p')[0].status,'pending');assert.ok(readContinuations('p')[0].send.transactionId);if(lose)throw Error('response lost');return {};});
  t.mock.method(Wallet,'create',async options=>({...wallet,getAddress:async()=>own.encode(),send:async()=>{

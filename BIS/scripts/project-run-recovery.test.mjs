@@ -14,9 +14,14 @@ test('run helper contains the recovery contract', async () => {
   assert.match(helper, /npm run dev -- --host 127\.0\.0\.1 --port \$candidate/);
   assert.match(helper, /Get-ListeningPids/);
   assert.match(helper, /netstat\.exe/);
+  assert.match(helper, /Test-RouteHealth/);
+  assert.match(helper, /-not \$listeners\.Count/);
+  assert.match(helper, /Test-StableServer/);
+  assert.match(helper, /project-run\.json/);
+  assert.doesNotMatch(helper, /if \(\$listener -or \$diagnostics -match 'Project run mode:'\)/);
   assert.match(helper, /EADDRINUSE/);
   assert.match(helper, /host-verification-pending/);
-  assert.match(skill, /preserve unrelated listeners/);
+  assert.match(skill, /preserve unrelated listeners/i);
   assert.match(skill, /fallback/);
   assert.match(skill, /sidecar/);
 });

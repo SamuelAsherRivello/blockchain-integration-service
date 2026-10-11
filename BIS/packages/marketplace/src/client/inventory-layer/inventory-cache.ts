@@ -4,11 +4,26 @@ export type MarketplaceInventoryStatus = 'idle' | 'loading' | 'ready' | 'empty' 
 export type MarketplaceInventoryRead = Readonly<{ items: readonly BisEquipmentItem[]; invalidMetadataCount?: number; migrationRequiredCount?: number }>;
 export type MarketplaceInventoryRecord = Readonly<{ role: MarketplaceInventoryRole; walletId?: string; network?: TestNetwork; status: MarketplaceInventoryStatus; items: readonly BisEquipmentItem[]; invalidMetadataCount: number; migrationRequiredCount: number; fetchedAt?: number; error?: string }>;
 export type MarketplaceInventorySource = Readonly<{ role: MarketplaceInventoryRole; walletId: string; network: TestNetwork; read(): Promise<readonly BisEquipmentItem[] | MarketplaceInventoryRead> }>;
+const DEFAULT_READ_TIMEOUT_MS = 15000;
+async function readWithTimeout<T>(read: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      read,
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(Error('Marketplace inventory read timed out.')), timeoutMs); }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 const emptyRecord = (role: MarketplaceInventoryRole): MarketplaceInventoryRecord => Object.freeze({ role, status: 'idle', items: Object.freeze([]), invalidMetadataCount: 0, migrationRequiredCount: 0 });
 const initialState = Object.freeze({ player: emptyRecord('player'), game: emptyRecord('game') });
 const freezeItem = (item: BisEquipmentItem): BisEquipmentItem => Object.freeze({ ...item, attributeDeltas: Object.freeze(item.attributeDeltas.map(delta => Object.freeze({ ...delta }))) });
 /** Marketplace-owned view state only. Inventory data and caching belong to BIS. */
-export function createMarketplaceInventoryCoordinator() {
+export function createMarketplaceInventoryCoordinator(options: Readonly<{ readTimeoutMs?: number }> = {}) {
+  const readTimeoutMs = Number.isFinite(options.readTimeoutMs) && (options.readTimeoutMs ?? 0) > 0
+    ? options.readTimeoutMs!
+    : DEFAULT_READ_TIMEOUT_MS;
   let state = initialState, disposed = false, sequence = { player: 0, game: 0 };
   const listeners = new Set<() => void>();
   const publish = (role: MarketplaceInventoryRole, next: MarketplaceInventoryRecord) => { if (disposed) return; state = Object.freeze({ ...state, [role]: Object.freeze(next) }); listeners.forEach(listener => listener()); };
@@ -17,7 +32,7 @@ export function createMarketplaceInventoryCoordinator() {
     const retainedItems = previous.walletId === source.walletId && previous.network === source.network ? previous.items : Object.freeze([]);
     publish(source.role, { role: source.role, walletId: source.walletId, network: source.network, status: 'loading', items: retainedItems, invalidMetadataCount: previous.invalidMetadataCount, migrationRequiredCount: previous.migrationRequiredCount, ...(previous.error ? { error: previous.error } : {}) });
     try {
-      const read = await source.read();
+      const read = await readWithTimeout(source.read(), readTimeoutMs);
       const result: MarketplaceInventoryRead = Array.isArray(read) ? { items: read as readonly BisEquipmentItem[] } : read as MarketplaceInventoryRead;
       const items = Object.freeze(result.items.map(freezeItem));
       const invalidMetadataCount = result.invalidMetadataCount ?? 0;

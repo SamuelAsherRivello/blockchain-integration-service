@@ -28,3 +28,9 @@ test('metadata states remain distinct from empty and unavailable', async() => {
   await coordinator.refresh([{role:'game',walletId:'game-1',network:'signet',read:async()=>({items:[]})}]);
   assert.equal(coordinator.getState().game.status,'empty');
 });
+test('a stalled inventory read becomes unavailable instead of loading forever', async() => {
+  const coordinator = createMarketplaceInventoryCoordinator({readTimeoutMs:5});
+  await coordinator.refresh([{role:'game',walletId:'game-1',network:'signet',read:()=>new Promise(()=>{})}]);
+  assert.equal(coordinator.getState().game.status,'unavailable');
+  assert.match(coordinator.getState().game.error,/Try again/);
+});

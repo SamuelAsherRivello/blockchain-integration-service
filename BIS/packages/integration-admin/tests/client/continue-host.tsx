@@ -30,7 +30,7 @@ const gameWalletFactory: typeof createBisGameWallet = options => createBisGameWa
  },
  restore:async()=>({profileId:'fixture-game',phrase:'fixture-only'}),
  addresses:async()=>({arkadeAddress:recipient,bitcoinAddress:'tb1fixture'}),
- balance:async()=>({availableSats:1000,totalSats:1000,arkadeSats:1000,bitcoinSats:0}),watch:undefined,
+ balance:async()=>({availableSats:1000,availableBitcoinSats:0,availableArkadeSats:1000,totalSats:1000,arkadeSats:1000,bitcoinSats:0}),watch:undefined,
 });
 const fundedFactory: typeof factory = options => {
  const context=factory(options);

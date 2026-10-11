@@ -28,9 +28,22 @@ function Get-ListeningPids([int] $port) {
   try {
     return @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess)
   } catch {
-    $netstatLines = @(netstat.exe -ano -p tcp 2>$null | Select-String "LISTENING\s+$port\s*$")
-    return @($netstatLines | ForEach-Object { if ($_.Line -match '\s+(\d+)\s*$') { [int]$Matches[1] } })
+    $netstatLines = @(netstat.exe -ano -p tcp 2>$null | Select-String "LISTENING")
+    return @($netstatLines | ForEach-Object {
+      if ($_.Line -match "\s(?:[^\s:]+|\[[^\]]+\]):$port\s+.*LISTENING\s+(\d+)\s*$") { [int]$Matches[1] }
+    })
   }
+}
+
+function Test-RouteHealth([int] $port) {
+  foreach ($route in $routes) {
+    try {
+      $response = Invoke-WebRequest "http://127.0.0.1:$port$($route.route)" -UseBasicParsing -TimeoutSec 2
+      if ([int]$response.StatusCode -lt 200 -or [int]$response.StatusCode -ge 400 -or [string]::IsNullOrWhiteSpace($response.Content)) { return $false }
+      if ($response.Content -notmatch '<title[^>]*>\s*([^<]+?)\s*</title>' -or $matches[1].Trim() -ne $route.label) { return $false }
+    } catch { return $false }
+  }
+  return $true
 }
 
 $canInspectProcesses = $true
@@ -61,14 +74,7 @@ $reuse = $false
 do {
   $listener = @(Get-ListeningPids $candidate)
   if (-not $listener) { break }
-  if (-not $canInspectProcesses) {
-    $reuse = $true
-    foreach ($route in $routes) {
-      try { Invoke-WebRequest "http://127.0.0.1:$candidate$($route.route)" -UseBasicParsing -TimeoutSec 1 | Out-Null }
-      catch { $reuse = $false; break }
-    }
-    if ($reuse) { break }
-  }
+  if (-not $canInspectProcesses -and $listener -and (Test-RouteHealth $candidate)) { $reuse = $true; break }
   $candidate++
   Start-Sleep -Milliseconds 25
 } while ($candidate -lt ($Port + $PortCount))
@@ -94,18 +100,22 @@ if (-not $reuse) {
     do {
       $listener = @(Get-ListeningPids $candidate)
       $diagnostics = Get-LogText $logPath
-      # An existing listener may belong to another project. Only this launch's
-      # own Vite-ready output proves that the selected port is ours.
-      if ($listener -or $diagnostics -match 'Project run mode:') { $launchSucceeded = $true; break }
+      # Startup text is diagnostic only. A candidate is ready only when its
+      # listener exists and all configured routes respond.
+      if ($listener -and (Test-RouteHealth $candidate)) { $launchSucceeded = $true; break }
       if ($child.HasExited) { break }
       Start-Sleep -Milliseconds 50
     } while ([DateTime]::UtcNow -lt $startupDeadline)
     if ($launchSucceeded) { break }
-    if (-not $child.HasExited -and $child.ProcessId -and ([int]$child.ProcessId -gt 0)) {
+    # Start-Process can report the wrapper as exited while npm/node descendants
+    # remain alive. Always reconcile the complete candidate tree after a failed
+    # attempt, then give Windows a short interval to reap it before retrying.
+    if ($child.ProcessId -and ([int]$child.ProcessId -gt 0)) {
       & taskkill.exe /PID ([int]$child.ProcessId) /T /F | Out-Null
+      Start-Sleep -Milliseconds 100
     }
     $diagnostics = Get-LogText $logPath
-    if ($diagnostics -match "Port $candidate .*in use|EADDRINUSE|strictPort") { $candidate++; continue }
+    if ($diagnostics -match "Port $candidate .*in use|EADDRINUSE|strictPort|address already in use") { $candidate++; continue }
     throw "Vite launcher failed on $candidate with code $($child.ExitCode). $diagnostics"
   }
   if (-not $launchSucceeded) { throw "No available project port found from $Port through $($Port + $PortCount - 1)." }

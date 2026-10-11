@@ -7,7 +7,7 @@ const phrase = 'abandon abandon abandon abandon abandon abandon abandon abandon 
 const host = document.getElementById('host')!;
 const result = document.getElementById('result')!;
 const listeners = new Set<() => void>();
-const state = {status:'ready', selectionVersion:0, playerConnected:true, profileId:undefined as string | undefined, addresses: undefined as {arkadeAddress:string;bitcoinAddress:string} | undefined, balance: undefined as {availableSats:number;totalSats:number;bitcoinSats:number;arkadeSats:number} | undefined, message: undefined as string | undefined};
+const state = {status:'ready', selectionVersion:0, playerConnected:true, profileId:undefined as string | undefined, addresses: undefined as {arkadeAddress:string;bitcoinAddress:string} | undefined, balance: undefined as {availableSats:number;availableBitcoinSats:number;availableArkadeSats:number;totalSats:number;bitcoinSats:number;arkadeSats:number} | undefined, message: undefined as string | undefined};
 let imported = '';
 let address = 'tark1game-wallet-fixture';
 let copied = '';
@@ -16,7 +16,7 @@ let releaseImport = () => {};
 const wallet = {
   subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
   getState: () => state,
-  async importWallet(value: string) { imported = value; await new Promise<void>(resolve => { releaseImport = resolve; }); state.profileId = 'game-wallet-fixture'; state.addresses = {arkadeAddress:address, bitcoinAddress:'tb1game-wallet-fixture'}; state.balance = {availableSats:1234,totalSats:1234,bitcoinSats:0,arkadeSats:1234}; listeners.forEach(listener => listener()); return true; },
+  async importWallet(value: string) { imported = value; await new Promise<void>(resolve => { releaseImport = resolve; }); state.profileId = 'game-wallet-fixture'; state.addresses = {arkadeAddress:address, bitcoinAddress:'tb1game-wallet-fixture'}; state.balance = {availableSats:1234,availableBitcoinSats:0,availableArkadeSats:1234,totalSats:1234,bitcoinSats:0,arkadeSats:1234}; listeners.forEach(listener => listener()); return true; },
   async logout() { await new Promise<void>(resolve => { releaseLogout = resolve; }); state.profileId = undefined; listeners.forEach(listener => listener()); },
 } as Parameters<typeof GameWalletLoginView>[0]['wallet'];
 const root = createRoot(host);

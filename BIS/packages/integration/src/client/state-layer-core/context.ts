@@ -1226,7 +1226,14 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   });
   const unsubscribeStorage=storage.subscribe(()=> {
     storageRevision++;
-    if(!disposed&&!['resetting','logging-out','logout-error'].includes(state.phase)){initialization=hydrate(['restoring','restore-saving'].includes(state.phase));}
+    // A restore owns the commit window after the account has been connected.
+    // Hydrating from a cross-context notification here would invalidate the
+    // restore operation and can briefly read the pre-commit empty state,
+    // sending the UI back to the logged-out Account menu. The post-save
+    // readStable() check below is the authoritative reconciliation for this
+    // operation; notifications during the earlier network phase still need
+    // to invalidate the stale restore as usual.
+    if(!disposed&&!['resetting','logging-out','logout-error','restore-saving'].includes(state.phase)){initialization=hydrate(state.phase==='restoring');}
   });
   // Explicit wallet work pauses NEW speculative jobs, never cancels adopted reads.
   for(const key of ['getSendSpendable','quoteAccountSend','confirmAccountSend','checkAccountSend','quoteAccountTransfer','getAccountTransferAvailability','confirmAccountTransfer','checkAccountTransfer','requestContinue','burnAsset','deliverAsset','checkAssetDelivery','mintAsset','claimContractAsync','rejectContractAsync','refundContract'] as const) {

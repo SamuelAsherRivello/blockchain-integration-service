@@ -18,7 +18,7 @@ test('send preparation excludes pending transfer inputs and preserves the transf
  // schedule is still part of the quote fingerprint and is checked on submit.
  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'signet',fees:{txFeeRate:'1',intentFee:{offchainInput:'1'}},vtxoMinAmount:1n,vtxoMaxAmount:0n}));
  t.mock.method(RestArkProvider.prototype,'submitTx',async()=>{throw Error('response lost');});
- const wallet={getAddress:async()=>own,getSpendableVtxos:async()=>[reserved,f.coin],getBalance:async()=>({available:5000,total:5000,boarding:{total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{}};
+ const wallet={getAddress:async()=>own,getSpendableVtxos:async()=>[reserved,f.coin],getBalance:async()=>({available:5000,total:5000,boarding:{confirmed:0,total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{}};
  t.mock.method(ReadonlyWallet,'create',async()=>wallet);
  t.mock.method(Wallet,'create',async options=>({...wallet,send:async({selectedVtxos})=>{assert.deepEqual(selectedVtxos,[f.coin]);await options.arkProvider.submitTx(encoded(f.tx),[encoded(f.cp)]);return f.tx.id;}}));
  const account={profileId:'p',phrase:'abandon '.repeat(11)+'about'};
@@ -49,7 +49,7 @@ test('adapter persists before network, preserves a lost response, and blocks lat
  const info={network:'signet',fees:{txFeeRate:'0',intentFee:{}},vtxoMinAmount:1n,vtxoMaxAmount:0n};
  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>info);
  t.mock.method(RestArkProvider.prototype,'submitTx',async()=>{network++;assert.equal(readSendRecord('p').transactionId,f.tx.id);throw Error('response lost');});
- const wallet={getAddress:async()=>own,getSpendableVtxos:async()=>[f.coin],getBalance:async()=>({available:1000,total:1000,boarding:{total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{}};
+ const wallet={getAddress:async()=>own,getSpendableVtxos:async()=>[f.coin],getBalance:async()=>({available:1000,total:1000,boarding:{confirmed:0,total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{}};
  t.mock.method(ReadonlyWallet,'create',async()=>wallet);
  t.mock.method(Wallet,'create',async options=>{assert.equal(options.settlementConfig,false);return {...wallet,send:async()=>{await options.arkProvider.submitTx(encoded(f.tx),[encoded(f.cp)]);return f.tx.id;}};});
  // Published BIP39 test vector; never a user account or funded identity.

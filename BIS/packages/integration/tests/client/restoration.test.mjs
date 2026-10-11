@@ -24,7 +24,7 @@ function fixture(connect) {
   });
   const events=[];context.onEvent(e=>events.push(e));
   const open=async()=>{await context.readyAsync();context.openRestoreAccount();};
-  return {context,storage,phrase,events,open,saves:()=>saves,calls:()=>calls,replace(){generation++;account={phrase:fresh(),profileId:'public-test-id'};for(const l of listeners)l();}};
+  return {context,storage,phrase,events,open,saves:()=>saves,calls:()=>calls,notify(){for(const listener of listeners)listener();},replace(){generation++;account={phrase:fresh(),profileId:'public-test-id'};for(const l of listeners)l();}};
 }
 test('word membership, twelve words, normalization and full checksum',()=>{
   const phrase=fresh();
@@ -71,6 +71,16 @@ test('save failure and ambiguous completion reconcile without another connection
     await f.open();await getControls(f.context).restore(f.phrase);assert.equal(f.events.length,0);
     await f.context.retry();assert.equal(f.calls(),1);assert.equal(f.saves(),1);assert.equal(f.events.length,1);f.context.dispose();
   }
+});
+test('storage notification during restore save cannot restart hydration',async()=>{
+  const f=fixture();
+  const save=f.storage.save;
+  f.storage.save=async(...args)=>{await save(...args);f.notify();};
+  await f.open();
+  await getControls(f.context).restore(f.phrase);
+  assert.equal(f.context.getState().phase,'active');
+  assert.equal(f.context.getState().profileId,'public-test-id');
+  f.context.dispose();
 });
 test('Back, disposal and concurrent account replacement invalidate delayed restoration',async()=>{
   for(const action of ['back','dispose','replace','reset']){

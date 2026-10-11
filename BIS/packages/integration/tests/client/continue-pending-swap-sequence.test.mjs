@@ -37,7 +37,7 @@ test('account switch -> pay -> mint to player -> pay -> submit 1000-sat swap -> 
  t.mock.method(RestIndexerProvider.prototype,'getVtxos',async()=>({vtxos:[...coins,...consumed]}));
  t.mock.method(RestIndexerProvider.prototype,'getAssetDetails',async assetId=>({assetId,metadata}));
  t.mock.method(CSVMultisigTapscript,'decode',()=>({params:{timelock:{type:'blocks',value:100n}}}));
- const base=()=>({dustAmount:330n,boardingTapscript:{exitScript:'00'},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoin,getBoardingUtxos:async()=>[],getSpendableVtxos:async()=>coins,getVtxos:async()=>coins,getBalance:async()=>({available:total(),total:total(),boarding:{total:0},assets:coins.flatMap(c=>c.assets??[])}),getProviderConnectionState:()=>({mode:'online',source:'live'}),onchainProvider:{getChainTip:async()=>({height:1}),getTransactions:async()=>transactions},dispose:async()=>{}});
+ const base=()=>({dustAmount:330n,boardingTapscript:{exitScript:'00'},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoin,getBoardingUtxos:async()=>[],getSpendableVtxos:async()=>coins,getVtxos:async()=>coins,getBalance:async()=>({available:total(),total:total(),boarding:{confirmed:0,total:0},assets:coins.flatMap(c=>c.assets??[])}),getProviderConnectionState:()=>({mode:'online',source:'live'}),onchainProvider:{getChainTip:async()=>({height:1}),getTransactions:async()=>transactions},dispose:async()=>{}});
  t.mock.method(ReadonlyWallet,'create',async options=>{const w={...base(),...options};w.assetManager=new AssetManager(w);return w;});
  t.mock.method(Wallet,'create',async options=>{
   let settling=false;

@@ -21,7 +21,7 @@ const controller: any = {
   subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
   async refresh() {
     refreshes += 1;
-    state = { ...state, status: 'ready', balance: { availableSats: 321, totalSats: 321, bitcoinSats: 0, arkadeSats: 321 }, message: undefined, readStatus: undefined };
+    state = { ...state, status: 'ready', balance: { availableSats: 321, availableBitcoinSats: 0, availableArkadeSats: 321, totalSats: 321, bitcoinSats: 0, arkadeSats: 321 }, message: undefined, readStatus: undefined };
     listeners.forEach(listener => listener());
     return state;
   },

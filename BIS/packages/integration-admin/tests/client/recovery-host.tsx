@@ -11,7 +11,7 @@ document.getElementById('run')!.onclick=async()=>{
   const account={phrase:Array.from({length:12},(_,i)=>`placeholder-${i+1}`).join(' '),profileId:'test-profile'};
   const original=Object.getOwnPropertyDescriptor(navigator,'clipboard');let copied='',copyFail=false;
   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(value:string)=>{if(copyFail)throw Error('denied');copied=value;}}});
-  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{throw Error('Unexpected reset');},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}));
+  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{throw Error('Unexpected reset');},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,availableBitcoinSats:0,availableArkadeSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}));
   const ui=createBisUi(c);ui.mount(host);
   const button=(label:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent?.replace(/[⚡✓]/g,'').trim()===label)!;
   const click=async(label:string)=>{check(!!button(label),`Missing ${label}`);button(label).click();await tick();};

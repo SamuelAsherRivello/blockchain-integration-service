@@ -13,7 +13,7 @@ document.getElementById('run')!.onclick=async()=>{
   let fail=false,copyFail=false,copied='';
   const original=Object.getOwnPropertyDescriptor(navigator,'clipboard');
   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(value:string)=>{if(copyFail)throw Error('denied');copied=value;}}});
-  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}),undefined,async()=>{if(fail)throw Error('private');return addresses;});
+  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,availableBitcoinSats:0,availableArkadeSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}),undefined,async()=>{if(fail)throw Error('private');return addresses;});
   const ui=createBisUi(c);ui.mount(host);
   cleanup=()=>{ui.unmount();c.dispose();if(original)Object.defineProperty(navigator,'clipboard',original);else Reflect.deleteProperty(navigator,'clipboard');};
   try {

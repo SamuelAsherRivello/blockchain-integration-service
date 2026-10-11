@@ -17,7 +17,7 @@ let mode:'ready'|'pending'|'fail'|'once'='ready', reads=0, burns=0, data=[asset]
 function setup() {
   cleanup();mode='ready';reads=0;burns=0;data=[asset];
   const c=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,
-    async()=>({availableSats:10,totalSats:10,bitcoinSats:0,arkadeSats:10}),undefined,
+    async()=>({availableSats:10,availableBitcoinSats:0,availableArkadeSats:10,totalSats:10,bitcoinSats:0,arkadeSats:10}),undefined,
     async()=>({bitcoinAddress:'fixture-bitcoin',arkadeAddress:'fixture-arkade'}),
     async(_a,signal,publish)=>{publish([{id:'fixture-tx',amountSats:5,direction:'Incoming',status:'Pending',identifier:'fixture-record'}]);await new Promise<void>(resolve=>signal.addEventListener('abort',()=>resolve(),{once:true}));},undefined,
     {list:async()=>{reads++;if(mode==='fail')throw Error('fixture');if(mode==='once'){mode='ready';throw Error('first attempt');}if(mode==='pending')return new Promise<BisAsset[]>(resolve=>{finishRead=resolve;});return data;},mint:async()=>{throw Error('No mint in fixture');}});

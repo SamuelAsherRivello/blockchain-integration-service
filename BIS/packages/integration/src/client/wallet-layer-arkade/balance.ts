@@ -2,9 +2,19 @@ import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, RestIndexerProvider,
 import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
 
-export type BalanceAmounts = Readonly<{ availableSats: number; totalSats: number; bitcoinSats: number; arkadeSats: number }>;
+export type BalanceAmounts = Readonly<{
+  /** Available off-chain sats retained for existing payment capability checks. */
+  availableSats: number;
+  /** Confirmed, currently available boarding sats before transfer reservations. */
+  availableBitcoinSats: number;
+  /** Available off-chain Arkade sats. */
+  availableArkadeSats: number;
+  totalSats: number;
+  bitcoinSats: number;
+  arkadeSats: number;
+}>;
 type BalanceWallet = {
-  getBalance(): Promise<{ available: number; total: number; boarding: { total: number } }>;
+  getBalance(): Promise<{ available: number; total: number; boarding: { confirmed: number; total: number } }>;
   getProviderConnectionState(): { mode: string; source: string };
 };
 // Kept private to the adapter, with a structural seam for failure-path tests.
@@ -14,11 +24,19 @@ export async function readFreshBalance(wallet: BalanceWallet): Promise<BalanceAm
   if (connection.mode !== 'online' || connection.source !== 'live' ||
       !Number.isSafeInteger(balance.available) || balance.available < 0 ||
       !Number.isSafeInteger(balance.total) || balance.total < balance.available ||
-      !Number.isSafeInteger(balance.boarding?.total) || balance.boarding.total < 0 ||
+      !Number.isSafeInteger(balance.boarding?.confirmed) || balance.boarding.confirmed < 0 ||
+      !Number.isSafeInteger(balance.boarding?.total) || balance.boarding.total < balance.boarding.confirmed ||
       balance.boarding.total > balance.total - balance.available) {
     throw new Error('Balance unavailable.');
   }
-  return Object.freeze({ availableSats: balance.available, totalSats: balance.total, bitcoinSats: balance.boarding.total, arkadeSats: balance.total - balance.boarding.total });
+  return Object.freeze({
+    availableSats: balance.available,
+    availableBitcoinSats: balance.boarding.confirmed,
+    availableArkadeSats: balance.available,
+    totalSats: balance.total,
+    bitcoinSats: balance.boarding.total,
+    arkadeSats: balance.total - balance.boarding.total,
+  });
 }
 
 export async function loadBalance(account: AccountSecret, signal: AbortSignal): Promise<BalanceAmounts> {

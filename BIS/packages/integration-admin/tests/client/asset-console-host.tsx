@@ -41,7 +41,7 @@ function contextFactory() {
     subscribe: () => () => {},
   }, async () => { throw Error('Account creation is outside this isolated fixture'); }, async () => publicProfileId,
   async () => { throw Error('Account restoration is outside this isolated fixture'); },
-  async () => ({ availableSats: 1000, totalSats: 1000, bitcoinSats: 0, arkadeSats: 1000 }),
+ async () => ({ availableSats: 1000, availableBitcoinSats: 0, availableArkadeSats: 1000, totalSats: 1000, bitcoinSats: 0, arkadeSats: 1000 }),
   async () => { throw Error('Funding is outside this isolated fixture'); },
   async () => { throw Error('Address reads are outside this isolated fixture'); },
   async () => {});

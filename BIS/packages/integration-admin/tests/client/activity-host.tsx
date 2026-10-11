@@ -19,7 +19,7 @@ document.getElementById('run')!.onclick=async()=>{
   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{if(copyFail)throw Error('denied');copied=text;}}});
   let data=rows;
   const account={phrase:'isolated-placeholder',profileId:'1234567890abcdef'};
-  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}),undefined,undefined,async(_,signal,publish)=>{
+  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>({availableSats:0,availableBitcoinSats:0,availableArkadeSats:0,totalSats:0,bitcoinSats:0,arkadeSats:0}),undefined,undefined,async(_,signal,publish)=>{
     await tick();if(signal.aborted)return;publish(data);await new Promise<void>((resolve,reject)=>{rejectRead=reject;signal.addEventListener('abort',()=>resolve(),{once:true});});
   });
   const ui=createBisUi(c);ui.mount(host);

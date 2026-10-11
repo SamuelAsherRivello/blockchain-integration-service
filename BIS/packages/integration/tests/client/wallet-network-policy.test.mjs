@@ -32,7 +32,7 @@ test('Mutinynet decimal-zero fees allow a transfer review without creating a wal
   t.mock.method(RestArkProvider.prototype,'getInfo',async()=>operatorInfo(fees));
   t.mock.method(CSVMultisigTapscript,'decode',()=>({params:{timelock:{type:'blocks',value:100n}}}));
   const coin={txid:'b'.repeat(64),vout:0,value:1000};
-  const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:1000,total:1000,boarding:{total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async()=>[coin]};
+  const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:1000,total:1000,boarding:{confirmed:0,total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async()=>[coin]};
   t.mock.method(ReadonlyWallet,'create',async()=>wallet);
   t.mock.method(Wallet,'create',async()=>{signingWallets++;throw Error('Quote must not create a signing wallet.');});
   const availability=await getBoardingAvailability(account,new AbortController().signal,'to-bitcoin');

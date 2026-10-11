@@ -50,7 +50,7 @@ function Artwork({item,large=false,list=false}:{item:BisEquipmentItem;large?:boo
 export function App(){return <MarketplaceContent/>;}
 
 function MarketplacePendingNotice({busy,label,error,dismiss,retry}: {busy:boolean;label:string;error?:string;dismiss():void;retry?:()=>void}) {
-  usePendingNotice(busy,label,error,dismiss,undefined,retry?{label:'Retry',run:retry}:undefined);
+  usePendingNotice(busy,label,error,dismiss,undefined,retry?{label:'Retry',run:retry,allowCancel:true}:undefined);
   return null;
 }
 
@@ -76,6 +76,7 @@ function MarketplaceContent(){
   const [checkout,setCheckout]=useState<BisMarketplaceCheckoutRecord>();
   const [operationLabel,setOperationLabel]=useState<string>();
   const [operationError,setOperationError]=useState<string>();
+  const [inventoryErrorDismissed,setInventoryErrorDismissed]=useState(false);
   const [isBenefitsOpen,setIsBenefitsOpen]=useState(false);
   const [owner,setOwner]=useState<'all'|'game'|'player'>('game'),[game,setGame]=useState<string>('stealth-and-steel'),[type,setType]=useState<'all'|'speed'|'offense'|'defense'>('all');
   const selectedGame=game==='all'?undefined:catalog.games.find(entry=>entry.gameId===game);
@@ -129,7 +130,16 @@ function MarketplaceContent(){
       const classified=result.assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));
       return {items:classified.map(row=>row.item).filter((item):item is BisEquipmentItem=>item!==null),invalidMetadataCount:classified.filter(row=>row.status==='invalid-metadata').length,migrationRequiredCount:classified.filter(row=>row.status==='migration-required').length};
     }});
-    if(activeGameWallet&&(game==='all'||selectedGame?.gameWalletAddress)&&inventoryAddress)sources.push({role:'game',walletId:gameState.profileId!,network,read:async()=>{const result=await gameWallet.prepareAssetInventory?.();if(!result||result.status!=='success'||result.profileId!==gameState.profileId)throw Error('Game Wallet inventory unavailable');const classified=result.assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));return {items:classified.map(row=>row.item).filter((item):item is BisEquipmentItem=>item!==null),invalidMetadataCount:classified.filter(row=>row.status==='invalid-metadata').length,migrationRequiredCount:classified.filter(row=>row.status==='migration-required').length};}});
+    if(activeGameWallet&&(game==='all'||selectedGame?.gameWalletAddress)&&inventoryAddress)sources.push({role:'game',walletId:gameState.profileId!,network,read:async()=>{
+      // The shared presentation read is fast when its cache is warm, but a
+      // failed or stale cache must not hide a wallet that can still answer an
+      // authoritative asset listing. This mirrors the Player Wallet path.
+      const prepared=gameWallet.prepareAssetInventory?await gameWallet.prepareAssetInventory():undefined;
+      const result=prepared?.status==='success'?prepared:await gameWallet.listAssets();
+      if(result.status!=='success'||result.profileId!==gameState.profileId)throw Error('Game Wallet inventory unavailable');
+      const classified=result.assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));
+      return {items:classified.map(row=>row.item).filter((item):item is BisEquipmentItem=>item!==null),invalidMetadataCount:classified.filter(row=>row.status==='invalid-metadata').length,migrationRequiredCount:classified.filter(row=>row.status==='migration-required').length};
+    }});
     return sources;
   },[activeGameWallet,game,gameState.profileId,inventoryAddress,isCatalogLoading,network,player,playerState.profileId,selectedGame?.gameWalletAddress]);
   const inventorySourcesRef=useRef<readonly MarketplaceInventorySource[]>([]);
@@ -200,15 +210,16 @@ function MarketplaceContent(){
     return Boolean(source&&(record.status==='idle'||record.status==='loading'||record.walletId!==source.walletId||record.network!==source.network));
   };
   const playerWalletStillLoading=owner==='player'&&!playerState.profileId&&playerState.phase==='loading';
-  const gameWalletStillLoading=owner==='game'&&gameState.status==='loading'&&!inventoryAddress;
   const selectedInventoryLoading=owner==='all'
     ?recordNeedsInitialRead('player')||recordNeedsInitialRead('game')
-    :recordNeedsInitialRead(owner)||playerWalletStillLoading||gameWalletStillLoading;
+    :recordNeedsInitialRead(owner)||playerWalletStillLoading;
   // Loading belongs to the selected owner only. The other wallet is warmed in
   // parallel, but its slower read cannot make a completed selected wallet look
   // empty or keep the page covered.
   const isMarketplaceLoading=isCatalogLoading||selectedInventoryLoading;
-  const inventoryError=owner==='all'?[inventoryState.player.error,inventoryState.game.error].find(Boolean):selectedInventory.error;
+  const rawInventoryError=owner==='all'?[inventoryState.player.error,inventoryState.game.error].find(Boolean):selectedInventory.error;
+  const inventoryError=inventoryErrorDismissed?undefined:rawInventoryError;
+  useEffect(()=>{setInventoryErrorDismissed(false);},[rawInventoryError]);
   const promptBusy=isMarketplaceLoading||!!operationLabel;
   const [loadingPromptVisible,setLoadingPromptVisible]=useState(true);
   useEffect(()=>{
@@ -220,7 +231,7 @@ function MarketplaceContent(){
   const playerOwnsSelected=Boolean(selected&&playerItems.some(item=>item.assetId===selected.assetId));
   const checkoutIsPending=activeCheckout?.status==='pending';
   const checkoutHasBeenSubmitted=pendingCheckout?.phase==='payment-submitted'||pendingCheckout?.phase==='delivery-submitted';
-  const retrySelectedInventory=()=>{const source=inventorySources.find(candidate=>candidate.role===(owner==='player'?'player':'game'));if(source)void inventory.retry(source);};
+  const retrySelectedInventory=()=>{setInventoryErrorDismissed(false);const source=inventorySources.find(candidate=>candidate.role===(owner==='player'?'player':'game'));if(source)void inventory.retry(source);};
   const pendingTransferIsSelected=Boolean(selected&&pendingTransferFor(selected));
   const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;
   const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;
@@ -310,7 +321,7 @@ function MarketplaceContent(){
   useEffect(()=>{setOperationLabel(undefined);setOperationError(undefined);},[playerState.profileId,playerState.phase,network,gameState.profileId,gameState.selectionVersion]);
 
   return <PendingOperations className="marketplace-pending-runtime" loadingContext={player} hostContextNotices>
-    <MarketplacePendingNotice busy={loadingPromptVisible} label={operationLabel??'Loading ...'} error={inventoryError??operationError} dismiss={()=>setOperationError(undefined)} retry={inventoryError?retrySelectedInventory:undefined}/>
+    <MarketplacePendingNotice busy={loadingPromptVisible} label={operationLabel??'Loading ...'} error={inventoryError??operationError} dismiss={()=>{setOperationError(undefined);if(rawInventoryError)setInventoryErrorDismissed(true);}} retry={inventoryError?retrySelectedInventory:undefined}/>
     <div className="marketplace-page">
     <div className="network-banner">
       <span role="status">Network: {networkLabel(network)}</span>

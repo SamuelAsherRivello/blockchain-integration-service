@@ -12,7 +12,7 @@ Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:
 const root=createRoot(document.getElementById('root')!);
 function factory() {
  context=createContext({load:async()=>({account:stored,generation:0}),save:async value=>{stored=value;},reset:async()=>{throw Error('Unexpected reset');},subscribe:()=>()=>{}},async()=>account,async()=>account.profileId,undefined,
- async()=>({availableSats:100,totalSats:150,bitcoinSats:50,arkadeSats:100}),undefined,async()=>({bitcoinAddress:'tb1fixture',arkadeAddress:'tark1fixture'}),
+ async()=>({availableSats:100,availableBitcoinSats:50,availableArkadeSats:100,totalSats:150,bitcoinSats:50,arkadeSats:100}),undefined,async()=>({bitcoinAddress:'tb1fixture',arkadeAddress:'tark1fixture'}),
  async(_account,signal,publish)=>{publish(transactionRows);await new Promise<void>(resolve=>signal.addEventListener('abort',()=>resolve(),{once:true}));},undefined,
  {list:async()=>assetRows,mint:async()=>{throw Error('Unexpected mint');}});
  context.checkAccountSend=async()=>({status:'idle'});context.getSendSpendable=async()=>100;

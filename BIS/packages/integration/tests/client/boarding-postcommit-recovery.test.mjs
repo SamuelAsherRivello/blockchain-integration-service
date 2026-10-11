@@ -28,7 +28,7 @@ async function fixture(t,{shared=false,evidence='valid'}={}) {
  t.mock.method(RestArkProvider.prototype,'registerIntent',async()=>`11111111-1111-4111-8111-${String(++calls.register).padStart(12,'0')}`);
  t.mock.method(RestArkProvider.prototype,'deleteIntent',async()=>{calls.delete++;throw Error('Unexpected cancellation');});
  const sdkSnapshots=[];
- const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:6000,total:6000,boarding:{total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async()=>coins};
+ const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:6000,total:6000,boarding:{confirmed:0,total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async()=>coins};
  t.mock.method(ReadonlyWallet,'create',async()=>wallet);
  t.mock.method(Batch,'join',async()=>commitment);
  t.mock.method(Wallet,'create',async options=>{

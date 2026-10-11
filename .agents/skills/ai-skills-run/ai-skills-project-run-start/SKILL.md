@@ -34,6 +34,8 @@ when it owns the port, preserve unrelated listeners and choose a fallback
 port, retry launch races, keep a healthy Vite server when the optional faucet
 sidecar conflicts, and retain a live server when sandbox loopback checks are
 blocked. These are recovery cases, not reasons to stop and report failure.
+Startup log text is diagnostic only; a candidate is not ready until its
+listener and configured-route health are proven.
 
 1. Read the repository `AGENTS.md`, confirm the package manager and `dev`
    script, and determine the routes the launcher exposes. If
@@ -62,7 +64,8 @@ blocked. These are recovery cases, not reasons to stop and report failure.
 6. Execute the real command from the project root in a live Windows PTY:
    `cmd.exe /d /c "npm run dev -- --host 127.0.0.1 --port <PORT>"`. Bind to the
    same loopback interface used for HTTP verification. Keep its returned session or
-   process identity. The command must be executed before opening a terminal
+   process identity. If a detached launch loses its child, retain or recreate a
+   live PTY-owned session before reporting a URL. The command must be executed before opening a terminal
    panel; `open_in_codex` only displays a session and does not type commands.
 7. Enforce one server after launch: confirm the new process tree is the only
    Vite process associated with this project. If duplicates appear, stop the
@@ -72,19 +75,32 @@ blocked. These are recovery cases, not reasons to stop and report failure.
    Vite server serving multiple package routes; in `single` mode verify the one
    entry point. Never start one Vite per package unless the project explicitly
    declares that topology.
-9. Verify the expected application identity, not only Vite's startup banner.
+9. Verify the expected application identity, not only Vite's startup banner. A
+   listener without HTTP identity is process-only evidence, not a successful
+   start.
    Use the returned HTML title and, when necessary, a distinctive application
    marker in the response. Use the host-level/local runtime when sandbox
    loopback access prevents verification.
-10. Do not open browser windows or tabs as part of verification. Report each
-    verified route using its application identity/title from the HTTP response:
-    `<application name> — <verified URL>`.
+10. Verify every reported URL in a real browser context before declaring the
+    run successful. Navigate to each configured route with the browser
+    verification tool, wait for the page to load, and confirm that the expected
+    application identity is visible. A URL is not verified merely because
+    `Invoke-WebRequest`, `curl`, a listener, or a Vite startup banner succeeds.
+    If the browser shows `This site can't be reached`, `ERR_CONNECTION_REFUSED`,
+    a timeout, a blank page, or another navigation failure, keep the server
+    running while diagnosing the binding, tunnel, port, or process ownership;
+    do not report that link as working.
+11. Do not return success until both host-level HTTP checks and browser checks
+    pass for every route. Report each verified route using its application
+    identity/title:
+    `<application name> — <verified browser URL>`.
     Use the route label when it is explicitly configured; otherwise use the
     verified HTML title. Do not substitute unrelated application names.
-11. Keep the one server running. If loopback verification or terminal
-    attachment is unavailable, retain the live process and report the URLs with
-    their verification state; never stop a healthy server or declare startup
-    impossible because of the observation environment.
+12. Keep the one server running after verification. If browser verification,
+    loopback verification, or terminal attachment is unavailable, retain the
+    live process and explicitly report the URLs as unverified; never claim they
+    work and never declare startup successful merely because the observation
+    environment is restricted.
 
 Never claim a URL is working without listener and HTTP verification. Do not
 install dependencies or change project configuration as part of start. All

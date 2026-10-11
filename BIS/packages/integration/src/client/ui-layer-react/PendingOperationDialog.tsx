@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef,
 
 export type BisPendingDiagnostic = Readonly<{code:string;message:string;recoverable:boolean;submitted:boolean;operationId?:string;itemName?:string}>;
 type NoticeInfo = {title:string;message:string;confirm?:()=>void};
-type Notice = { label: string; host?: true; error?: string; diagnostic?:BisPendingDiagnostic; info?:NoticeInfo; errorAction?: {label:string;run:()=>void}; dismiss(): void };
+type Notice = { label: string; host?: true; error?: string; diagnostic?:BisPendingDiagnostic; info?:NoticeInfo; errorAction?: {label:string;run:()=>void;allowCancel:boolean}; dismiss(): void };
 type Register = (id: string, notice?: Notice) => void;
 export type HostLoading = Readonly<{subscribe(listener: () => void): () => void; getSnapshot(): boolean}>;
 const PendingContext = createContext<Register | undefined>(undefined);
@@ -18,7 +18,7 @@ const PENDING_NOTICE_GAP_GRACE_MS = 250;
 const HOST_LOADING_NOTICE: Notice = {label:'Loading ...',host:true,dismiss:()=>{}};
 
 /** Child layout effects publish before paint, including the initial page render. */
-export function usePendingNotice(busy: boolean, label: string, error: string | undefined, dismiss: () => void, info?:NoticeInfo, errorAction?: {label:string;run:()=>void}, diagnostic?:BisPendingDiagnostic) {
+export function usePendingNotice(busy: boolean, label: string, error: string | undefined, dismiss: () => void, info?:NoticeInfo, errorAction?: {label:string;run:()=>void;allowCancel?:boolean}, diagnostic?:BisPendingDiagnostic) {
   const register = useContext(PendingContext);
   const id = useId();
   const action = useRef(dismiss); action.current = dismiss;
@@ -27,7 +27,7 @@ export function usePendingNotice(busy: boolean, label: string, error: string | u
   const errorActionRun=useRef(errorAction?.run);errorActionRun.current=errorAction?.run;
   const errorActionLabel=errorAction?.label;
   useLayoutEffect(() => {
-    register?.(id, busy || error || infoTitle ? {label, error: busy ? undefined : error, diagnostic:!busy&&error?diagnostic:undefined, errorAction:!busy&&error&&errorActionLabel?{label:errorActionLabel,run:()=>errorActionRun.current?.()}:undefined, info:!busy&&infoTitle?{title:infoTitle,message:infoMessage!,...(hasConfirmation?{confirm:()=>confirmation.current?.()}:{})}:undefined, dismiss:()=>action.current()} : undefined);
+    register?.(id, busy || error || infoTitle ? {label, error: busy ? undefined : error, diagnostic:!busy&&error?diagnostic:undefined, errorAction:!busy&&error&&errorActionLabel?{label:errorActionLabel,run:()=>errorActionRun.current?.(),allowCancel:errorAction?.allowCancel===true}:undefined, info:!busy&&infoTitle?{title:infoTitle,message:infoMessage!,...(hasConfirmation?{confirm:()=>confirmation.current?.()}:{})}:undefined, dismiss:()=>action.current()} : undefined);
   }, [register, id, busy, label, error,diagnostic,infoTitle,infoMessage,hasConfirmation,errorActionLabel]);
   useLayoutEffect(() => () => register?.(id), [register, id]);
 }
@@ -102,9 +102,9 @@ export function PendingOperations({children, overlay, className, hostLoading, on
       }}>
         <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" data-closing={!active && !retained || undefined} role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info?description:undefined}>
           <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Error':current.info?.title??displayLabel}</h2>
-          {failed ? <><div className="bis-pending-error-field">
+            {failed ? <><div className="bis-pending-error-field">
               <FormValue id={description} className="bis-pending-error-field" label="Message" value={current.error ?? ''} copyable copy={errorCopy} multiline rows={3} disabled={errorCopy.status === 'copying'} />
-            </div>{current.diagnostic&&<div className="bis-pending-diagnostic" role="status"><p>Reason: {current.diagnostic.code}</p>{current.diagnostic.itemName&&<p>Item: {current.diagnostic.itemName}</p>}{current.diagnostic.operationId&&<p>Operation: {current.diagnostic.operationId}</p>}<p>{current.diagnostic.submitted?'Reconcile the original operation before retrying.':current.diagnostic.recoverable?'Refresh and retry when the wallet is ready.':'No network submission was made.'}</p></div>}<button className="bis-button" onClick={()=>current.errorAction?.run() ?? current.dismiss()}>{current.errorAction?.label ?? 'OK'}</button></>
+            </div>{current.diagnostic&&<div className="bis-pending-diagnostic" role="status"><p>Reason: {current.diagnostic.code}</p>{current.diagnostic.itemName&&<p>Item: {current.diagnostic.itemName}</p>}{current.diagnostic.operationId&&<p>Operation: {current.diagnostic.operationId}</p>}<p>{current.diagnostic.submitted?'Reconcile the original operation before retrying.':current.diagnostic.recoverable?'Refresh and retry when the wallet is ready.':'No network submission was made.'}</p></div>}{current.errorAction ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.errorAction.run}>{current.errorAction.label}</button>{current.errorAction.allowCancel&&<button className="bis-button" onClick={current.dismiss}>Cancel</button>}</div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
             : current.info ? <><p id={description}>{current.info.message}</p>{current.info.confirm ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.info.confirm}>Yes</button><button className="bis-button" onClick={current.dismiss}>Cancel</button></div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
             : <span className="bis-bolt bis-bolt-spin bis-lightning" aria-hidden="true">⚡</span>}
         </div>

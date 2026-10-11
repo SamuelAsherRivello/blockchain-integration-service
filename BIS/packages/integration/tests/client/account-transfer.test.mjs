@@ -5,10 +5,10 @@ import { createContext } from '../../src/client/state-layer-core/context.ts';
 
 test('balance split includes nonspendable Arkade holdings and rejects inconsistent boarding amounts', async () => {
   const wallet = value => ({getBalance: async () => value, getProviderConnectionState: () => ({mode:'online',source:'live'})});
-  assert.deepEqual(await readFreshBalance(wallet({available:800,total:1500,boarding:{total:500}})), {
-    availableSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000,
+  assert.deepEqual(await readFreshBalance(wallet({available:800,total:1500,boarding:{confirmed:500,total:500}})), {
+    availableSats:800,availableBitcoinSats:500,availableArkadeSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000,
   });
-  for (const boarding of [undefined, {total:-1}, {total:0.5}, {total:NaN}, {total:701}, {total:1600}]) {
+  for (const boarding of [undefined, {confirmed:0,total:-1}, {confirmed:0,total:0.5}, {confirmed:0,total:NaN}, {confirmed:701,total:701}, {confirmed:0,total:1600}]) {
     await assert.rejects(readFreshBalance(wallet({available:800,total:1500,boarding})));
   }
 });

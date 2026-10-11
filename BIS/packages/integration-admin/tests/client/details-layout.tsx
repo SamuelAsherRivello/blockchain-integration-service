@@ -12,7 +12,7 @@ document.getElementById('run')!.onclick = async () => {
   cleanup();
   result.textContent = 'Running';
   const account = { phrase: 'isolated-placeholder', profileId: '1234567890abcdef' };
-  let balance!: (value: { availableSats: number; totalSats: number; bitcoinSats: number; arkadeSats: number }) => void;
+  let balance!: (value: { availableSats: number; availableBitcoinSats: number; availableArkadeSats: number; totalSats: number; bitcoinSats: number; arkadeSats: number }) => void;
   const addresses = { arkadeAddress: 'tark1' + 'a'.repeat(150), bitcoinAddress: 'tb1p' + 'b'.repeat(58) };
   const context = createContext({ load: async () => ({ account, generation: 0 }), save: async () => { throw Error('Unexpected write'); }, reset: async () => {}, subscribe: () => () => {} }, undefined, async () => account.profileId, undefined,
     () => new Promise(resolve => { balance = resolve; }), undefined,
@@ -36,13 +36,13 @@ document.getElementById('run')!.onclick = async () => {
       check(card.scrollWidth <= card.clientWidth, 'No horizontal overflow');
     };
     check(host.querySelector('[aria-label="Arkade address"]')?.value === addresses.arkadeAddress, 'Arkade address appears in Account Details');
-    balance({ availableSats: 1000, totalSats: 1500, bitcoinSats: 500, arkadeSats: 1000 }); await tick(); stable();
+    balance({ availableSats: 1000, availableBitcoinSats: 500, availableArkadeSats: 1000, totalSats: 1500, bitcoinSats: 500, arkadeSats: 1000 }); await tick(); stable();
     check(fields[0].value === addresses.arkadeAddress && fields[1].value === '1,500 sats', 'Arkade address and balances populated');
     const refreshing = context.refreshBalance(); await tick(); stable();
     check(fields.slice(1).every(field => field.value === '—'), 'Refresh clears stale balance values');
-    balance({ availableSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 });  await refreshing; await tick(); stable();
+    balance({ availableSats: 0, availableBitcoinSats: 0, availableArkadeSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 });  await refreshing; await tick(); stable();
     const retry = context.refreshBalance(); await tick(); stable();
-    balance({ availableSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 }); await retry; await tick(); stable();
+    balance({ availableSats: 0, availableBitcoinSats: 0, availableArkadeSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 }); await retry; await tick(); stable();
     result.textContent = 'PASS: stable fields and geometry during loading, values and refresh.';
   } catch (error) { result.textContent = `FAIL: ${error instanceof Error ? error.message : 'layout checks'}`; }
 };

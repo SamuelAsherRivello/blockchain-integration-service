@@ -19,7 +19,7 @@ function fixture(t,{withAssets=true,value=280715}={}) {
  const info={network:'signet',sessionDuration:60n,fees:{txFeeRate:'0',intentFee:{}},utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n};
  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>info);
  t.mock.method(CSVMultisigTapscript,'decode',()=>({params:{timelock:{type:'blocks',value:100n}}}));
- const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:value,total:value,boarding:{total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async options=>{assert.deepEqual(options,{withRecoverable:false,withUnrolled:false});return [coin];}};
+ const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:value,total:value,boarding:{confirmed:0,total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async options=>{assert.deepEqual(options,{withRecoverable:false,withUnrolled:false});return [coin];}};
  t.mock.method(ReadonlyWallet,'create',async()=>wallet);
  return {coin,wallet,quote:amount=>quoteBoarding(account,amount,new AbortController().signal,'to-bitcoin')};
 }

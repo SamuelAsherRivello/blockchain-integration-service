@@ -7,7 +7,7 @@ import '@bis/integration/style.css';
 Object.defineProperty(window,'localStorage',{configurable:true,value:{length:0,key:()=>null,getItem:()=>null}});
 let publish:(rows:readonly BisTransaction[])=>void=()=>{},rows:readonly BisTransaction[]=[],hold=false;
 const reads: (()=>void)[]=[];
-const amounts=()=>({availableSats:rows.length?3000:2000,totalSats:rows.length?3000:2000,bitcoinSats:0,arkadeSats:rows.length?3000:2000});
+const amounts=()=>({availableSats:rows.length?3000:2000,availableBitcoinSats:0,availableArkadeSats:rows.length?3000:2000,totalSats:rows.length?3000:2000,bitcoinSats:0,arkadeSats:rows.length?3000:2000});
 const observer=async(_account:unknown,signal:AbortSignal,callback:typeof publish)=>{publish=callback;callback(rows);await new Promise<void>(resolve=>signal.addEventListener('abort',()=>resolve(),{once:true}));};
 const account={profileId:'fixture',phrase:'not-a-wallet'};
 const context=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>hold?new Promise(resolve=>reads.push(()=>resolve(amounts()))):amounts(),undefined,undefined,observer,undefined,undefined,undefined,undefined,undefined,{},observer);

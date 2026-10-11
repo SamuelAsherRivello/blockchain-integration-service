@@ -43,7 +43,7 @@ async function run(t,kind) {
  t.mock.method(RestArkProvider.prototype,'submitTreeNonces',async()=>{calls.nonces++;if(kind==='lost-nonces')throw Error('transport response lost');});
  t.mock.method(RestArkProvider.prototype,'submitTreeSignatures',async()=>{calls.signatures++;});
  t.mock.method(RestArkProvider.prototype,'getEventStream',async function*(signal){streamSignal=signal;yield {type:'fixture-probe'};});
- const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:3000,total:3000,boarding:{total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async()=>[coin]};
+ const wallet={dustAmount:330n,boardingTapscript:{exitScript:'00'},dispose:async()=>{},getAddress:async()=>own.encode(),getBoardingAddress:async()=>bitcoinAddress,getBoardingUtxos:async()=>[],getBalance:async()=>({available:3000,total:3000,boarding:{confirmed:0,total:0}}),onchainProvider:{getChainTip:async()=>({height:1})},getProviderConnectionState:()=>({mode:'online',source:'live'}),getSpendableVtxos:async()=>[coin]};
  t.mock.method(ReadonlyWallet,'create',async()=>wallet);
  let finish,handlerError,releaseEvents,enteredBatch,settleFinished,current=true;
  const eventGate=new Promise(resolve=>{releaseEvents=resolve;});

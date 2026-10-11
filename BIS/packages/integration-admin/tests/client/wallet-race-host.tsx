@@ -4,7 +4,7 @@ import {AdminGameWalletView} from '../../src/client/admin-layer/GameWalletPanel'
 const reads:Array<(value:any)=>void>=[];
 const wallet=createLocalGameWallet({playerProfileId:()=> 'player',playerNetwork:()=> 'signet'},{
  storage:{load:()=>new Promise(resolve=>reads.push(resolve)),subscribe:()=>()=>{},dispose(){},select:async()=>{},logout:async()=>{},reset:async()=>{}},
- restore:async()=>({profileId:'game',phrase:'fixture-only'}),addresses:async()=>({arkadeAddress:'tark1fixture',bitcoinAddress:'tb1fixture'}),balance:async()=>({availableSats:2000,totalSats:2000,arkadeSats:2000,bitcoinSats:0}),watch:undefined,
+ restore:async()=>({profileId:'game',phrase:'fixture-only'}),addresses:async()=>({arkadeAddress:'tark1fixture',bitcoinAddress:'tb1fixture'}),balance:async()=>({availableSats:2000,availableBitcoinSats:0,availableArkadeSats:2000,totalSats:2000,arkadeSats:2000,bitcoinSats:0}),watch:undefined,
 },undefined,undefined,()=>{});
 createRoot(document.getElementById('host')!).render(<AdminGameWalletView controller={wallet} mode="account" onOpenDeveloper={()=>{}} onDetails={report=>{document.getElementById('details')!.textContent=JSON.stringify(report);}}/>);
 document.getElementById('run')!.onclick=async()=>{

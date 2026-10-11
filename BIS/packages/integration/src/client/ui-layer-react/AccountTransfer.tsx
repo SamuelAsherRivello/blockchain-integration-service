@@ -40,13 +40,11 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   const valid = /^\d+$/.test(amount) && Number.isSafeInteger(numeric) && numeric > 0;
   const label = direction === 'to-arkade' ? 'Bitcoin → Arkade' : 'Arkade → Bitcoin';
   const pending = status.status === 'pending';
-  const policyBlocked = availability !== undefined && !availability.available && status.status !== 'pending';
-  // A balance can be visible while the transfer-specific eligibility probe is
-  // negative (for example, while a Bitcoin output is awaiting confirmation).
-  // Let the user edit and review the amount; quoteAccountTransfer is the
-  // authoritative check for the exact selected amount.
-  const insufficientEligibility = availability?.available === false && availability.reason === 'insufficient-funds';
-  const blocked = !statusChecked || (policyBlocked && !insufficientEligibility);
+  const sourceAvailable = balance.status === 'ready'
+    ? direction === 'to-arkade' ? balance.availableBitcoinSats : balance.availableArkadeSats
+    : undefined;
+  const amountExceedsAvailable = sourceAvailable !== undefined && valid && numeric > sourceAvailable;
+  const blocked = !statusChecked || availability === undefined || !availability.available || amountExceedsAvailable;
   function failure(cause: unknown) {
     const message = cause instanceof Error ? cause.message : '';
     return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
@@ -72,8 +70,8 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
       const records=context.getPendingAccountTransfers();
       if(records.length){initialLoading.current=false;setStatus(records[records.length-1]);setStatusChecked(true);setBusy(false);setForeground(false);}
       else {
-        // Entry is intentionally balance-only. Status and policy are live
-        // operation reads and belong to review/check-status, not first paint.
+        // Balance values are presentation data; transfer availability is loaded
+        // by the direction effect below before Review Transfer can be enabled.
         initialLoading.current=false;
         setStatus({status:'idle'});
         setStatusChecked(true);
@@ -83,6 +81,10 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
     }catch(cause){initialLoading.current=false;setError(failure(cause));setBusy(false);setForeground(false);}
     return()=>{alive.current=false;request.current++;readController.current.abort();};
   },[context]);
+  useEffect(()=>{
+    if(!alive.current)return;
+    void check(false,false,false);
+  },[direction]);
   useEffect(()=>{
     if(!pending||review||warning||submitted)return;
     const timer=setInterval(()=>{if(!busy)void check(false,true);},10000);
@@ -159,7 +161,8 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
       {amount !== '0' && !valid && <p id={`${amountId}-help`} className="bis-transfer-help">Enter a positive whole number of sats.</p>}
     </div>}
     {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}
-    {availability && !availability.available && status.status !== 'pending' && availability.reason !== 'insufficient-funds' && <p className="bis-transfer-help bis-transfer-status" role="status">Transfer unavailable.</p>}
+    {availability && !availability.available && status.status !== 'pending' && <p className="bis-transfer-help bis-transfer-status" role="status">{availability.message ?? 'Transfer unavailable.'}</p>}
+    {amountExceedsAvailable && <p className="bis-transfer-help bis-transfer-status" role="status">Amount exceeds the currently available {direction === 'to-arkade' ? 'Bitcoin' : 'Arkade'} balance.</p>}
     {!boardingSubmissionEnabled && <p className="bis-warning">Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.</p>}
     {pending && <p className="bis-transfer-help" role="status">Check Transactions for updates on pending transfers.</p>}
     {status.status==='not-submitted' && <p role="status">Transfer was not submitted. Review again to start a new transfer.</p>}

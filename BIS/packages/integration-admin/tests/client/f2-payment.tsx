@@ -9,13 +9,13 @@ import '../../src/client/ui-layer-react/style.css';
 let account: {profileId:string;phrase:string}|null=null, changed=()=>{}, publish: (rows:readonly BisTransaction[])=>void=()=>{}, submissions=0;
 let complete=()=>{};
 const observer=async(_a:unknown,signal:AbortSignal,p:(rows:readonly BisTransaction[])=>void)=>{publish=p;p([]);await new Promise<void>(r=>signal.addEventListener('abort',()=>r(),{once:true}));};
-const context=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:l=>{changed=l;return()=>{};}},undefined,async()=>account!.profileId,undefined,async()=>({availableSats:2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000}),undefined,async()=>({arkadeAddress:'tark1fixture',bitcoinAddress:'tb1fixture'}),async()=>{},undefined,undefined,undefined,undefined,undefined,{},observer);
+const context=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:l=>{changed=l;return()=>{};}},undefined,async()=>account!.profileId,undefined,async()=>({availableSats:2000,availableBitcoinSats:0,availableArkadeSats:2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000}),undefined,async()=>({arkadeAddress:'tark1fixture',bitcoinAddress:'tb1fixture'}),async()=>{},undefined,undefined,undefined,undefined,undefined,{},observer);
 const scenario = new URLSearchParams(location.search).get('boarding') ?? 'ready';
 const low = new URLSearchParams(location.search).has('low');
 const game={profileId:'ABCDfixture56789',phrase:'fixture-only'};
 const walletFactory:typeof createBisGameWallet=(options)=>{ const wallet=createBisGameWallet(options,{
  storage:{load:async()=>game,select:async()=>{},logout:async()=>{},subscribe:()=>()=>{},dispose(){}},restore:async()=>game,
- addresses:async()=>({arkadeAddress:'tark1gamefixture',bitcoinAddress:'tb1gamefixture'}),balance:async()=>({availableSats:low ? 0 : 2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000}),
+ addresses:async()=>({arkadeAddress:'tark1gamefixture',bitcoinAddress:'tb1gamefixture'}),balance:async()=>({availableSats:low ? 0 : 2000,availableBitcoinSats:0,availableArkadeSats:low ? 0 : 2000,totalSats:2000,bitcoinSats:0,arkadeSats:2000}),
 },undefined,{pay:async()=>{
  submissions++;document.getElementById('result')!.textContent=`Submissions: ${submissions}`;
  await new Promise<void>(resolve=>{complete=resolve;});
