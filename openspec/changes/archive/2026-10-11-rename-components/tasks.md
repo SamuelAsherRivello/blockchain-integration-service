@@ -22,4 +22,4 @@
 ## 4. Integration verification and cleanup
 
 - [x] 4.1 Remove obsolete component files and aliases only after the repository-wide reference search is clean; verify the intended `Form*` and domain-first `*View` exports are present.
-- [ ] 4.2 Run `npm run test` and `npm run build`, then verify Account, Admin, Marketplace, onboarding, and integration routes retain their existing behavior and visual composition.
+- [x] 4.2 Run `npm run test` and `npm run build`, then verify Account, Admin, Marketplace, onboarding, and integration routes retain their existing behavior and visual composition.
