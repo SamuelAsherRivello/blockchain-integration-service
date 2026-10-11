@@ -1,12 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { configureApplications, ownedProfileKey, OwnedBrowser } from './test-wallets/owned-browser.mjs';
+import { configureApplications, ownedProfileKey, ownedLaunchOptions, OwnedBrowser } from './test-wallets/owned-browser.mjs';
 import { assertGameProvenance, gameAdapter, gameUrl, verifyGameProvenance } from './test-wallets/game-adapter.mjs';
 
 function vaultState() {
   const state = {};
   return { state, transaction: async work => work(state) };
 }
+
+test('verified Edge WebGPU launch settings apply only to Windows game sessions', () => {
+  assert.deepEqual(ownedLaunchOptions('game', 'win32'), {
+    channel: 'msedge', args: ['--enable-unsafe-webgpu', '--mute-audio'],
+    viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
+  });
+  for (const app of ['admin', 'marketplace', 'onboarding']) assert.deepEqual(ownedLaunchOptions(app, 'win32'), {});
+  assert.deepEqual(ownedLaunchOptions('game', 'linux'), {});
+});
 
 test('game adapter is a fixed muted public registry entry', async () => {
   const vault = vaultState();

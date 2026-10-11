@@ -14,6 +14,14 @@ import { publicScreens, browserEnvironment, validatePayment, publicSends, matchi
 import { gameAdapter, gameUrl } from './game-adapter.mjs';
 
 const paths = { admin: '/admin/', marketplace: '/marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/', game: gameAdapter.path };
+export function ownedLaunchOptions(app, platform = process.platform) {
+  // Verified Windows game smoke configuration. Keep ordinary BIS Chromium
+  // defaults and never inherit arbitrary executable overrides or GPU flags.
+  return app === 'game' && platform === 'win32' ? {
+    channel: 'msedge', args: ['--enable-unsafe-webgpu', '--mute-audio'],
+    viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
+  } : {};
+}
 export function ownedProfileKey(pairLabel, network, selectedOrigin, app) {
   // Keep established Marketplace recovery paths; other apps own independent
   // browser storage even when hosted on the same loopback origin.
@@ -71,6 +79,7 @@ export class OwnedBrowser {
       stage = 'launch';
       this.context = await chromium.launchPersistentContext(profile, { headless: true, acceptDownloads: false,
         viewport: { width: 1280, height: 900 }, timeout: 20000,
+        ...ownedLaunchOptions(app),
         env: browserEnvironment(),
       });
       this.context.setDefaultTimeout(20000);
