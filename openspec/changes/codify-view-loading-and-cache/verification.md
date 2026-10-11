@@ -113,3 +113,25 @@ This closes tasks 4.1/4.3 and leaves **15/16** tasks checked. It does not close
 the live requirement in 5.5. A separately assigned Marketplace address-label
 optimization follows this checkpoint and remains subject to the coordinator's
 subsequent release gates; this note does not pre-verify that later work.
+
+## Bounded existing-fixture discovery
+
+At 22:18 on 2026-10-11 (Asia/Tbilisi), the coordinator-assigned exclusive
+read-only discovery checked supplied test-account-1 through test-account-4
+and existing agent-player-1 on both Mutinynet and Signet. All ten bounded
+full-wallet asset reads completed successfully through the same approved
+`listWalletAssets` adapter used by the runner's observations boundary.
+Test-account-2 on Mutinynet held two generic assets and zero classified BIS
+items. The other nine account/network combinations held zero assets and
+zero classified items. No qualifying existing two-item fixture was found
+in this deliberately bounded set; this is not an exhaustive claim about
+other registered identities or wallets.
+
+Only public labels, networks, profile IDs, counts and classification results
+were retained at
+output/reports/codify-view-loading-and-cache/existing-fixture-discovery.json.
+The helper suppressed SDK/provider logging and kept recovery material private
+in process memory. No pair assignments, accounts, holdings, funding requests
+or operation journals were changed. No browser session was opened. Discovery
+finished and the exclusive slot was released. Task 5.5 remains unchecked;
+no financial workaround or fabricated metadata was attempted.
