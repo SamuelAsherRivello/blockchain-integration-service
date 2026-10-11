@@ -12,7 +12,9 @@ export const packageRoutes = [
   { label: 'BIS - Marketplace', route: '/marketplace/', directory: 'marketplace' },
   { label: 'BIS - Prototype Onboarding', route: '/onboarding/', directory: 'prototype-onboarding' },
   { label: 'BIS - Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
+  { label: 'BIS - Prototype Sandbox', route: '/prototype-sandbox/', directory: 'prototype-sandbox' },
   { label: 'BIS - Integration', route: '/integration/', directory: 'integration', readme: true },
+  { label: 'BIS - Shared', route: '/shared/', directory: 'shared', readme: true },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);
 const isFile = async path => (await stat(path).catch(() => undefined))?.isFile() ?? false;
@@ -64,6 +66,11 @@ function packageEntries() {
         try {
           const url = new URL(request.url ?? '/', 'http://localhost');
           const path = decodeURIComponent(url.pathname);
+          // This middleware precedes package rewrites and Markdown/raw imports.
+          // The committed placeholder template is public; populated env files are not.
+          if (path.split('/').some(part => /^\.env(?:\..*)?$/.test(part) && part !== '.env.local.template')) {
+            response.statusCode = 403; response.end('Private configuration'); return;
+          }
           if (path.includes('\\') || path.split('/').includes('..')) { response.statusCode = 400; response.end('Invalid path'); return; }
           const redirect = target => { response.statusCode = 302; response.setHeader('Location', target + url.search); response.end(); };
           if (path === '/') return redirect('/README.md');
@@ -75,8 +82,9 @@ function packageEntries() {
           if (path === '/BIS/documentation/User Story Diagrams.md' && !url.search) return redirect('/admin/documentation/user-stories/');
           // Let the shared Vite proxy forward the prototype faucet API before
           // package-route handling treats it as a missing static file.
-          if (path.startsWith('/prototype-faucet/api/faucet/')) return next();
-          const readme = path === '/integration/' ? '/BIS/packages/integration/integration-package-readme.md' : path;
+          if (path.startsWith('/prototype-faucet/api/faucet/') || path.startsWith('/prototype-sandbox/api/')) return next();
+          const readmeApp = packageRoutes.find(app => app.readme && path === app.route);
+          const readme = readmeApp ? `/BIS/packages/${readmeApp.directory}/${readmeApp.directory}-package-readme.md` : path;
           if (readmes.has(readme) && !url.search) {
             const html = await server.transformIndexHtml(path, await readmeHtml(readme));
             response.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -119,7 +127,10 @@ export function developmentConfig({ port = 5174, faucetPort = 5190 } = {}) {
     plugins: [packageEntries()],
     server: {
       host: '127.0.0.1', port, strictPort: true,
-      proxy: { '/prototype-faucet/api/faucet': { target: `http://127.0.0.1:${faucetPort}`, rewrite: path => path.replace(/^\/prototype-faucet/, '') } },
+      proxy: {
+        '/prototype-faucet/api/faucet': { target: `http://127.0.0.1:${faucetPort}`, rewrite: path => path.replace(/^\/prototype-faucet/, '') },
+        '/prototype-sandbox/api': { target: `http://127.0.0.1:${faucetPort}`, rewrite: path => path.replace(/^\/prototype-sandbox/, '') },
+      },
       fs: { allow: [root] }, watch: { ignored: ['**/output/**'] },
     },
     optimizeDeps: { entries: packageRoutes.filter(app => !app.readme).map(app => `BIS/packages/${app.directory}/index.html`) },

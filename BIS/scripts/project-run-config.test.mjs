@@ -13,6 +13,7 @@ test('project run configuration is a valid shared-server contract', () => {
     'BIS - Prototype Onboarding',
     'BIS - Prototype Faucet',
     'BIS - Integration',
+    'BIS - Shared',
   ]);
 });
 

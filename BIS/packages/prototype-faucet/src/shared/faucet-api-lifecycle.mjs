@@ -22,7 +22,7 @@ export function createFaucetApiLifecycle({
 
   async function start() {
     if (await healthy()) return { started: false };
-    child = spawnImpl(processPath, ['--experimental-eventsource', '--env-file-if-exists=.env.local', 'src/server/server.mjs'], {
+    child = spawnImpl(processPath, ['--experimental-eventsource', 'src/server/server.mjs'], {
       cwd: packageRoot,
       env: { ...env, FAUCET_PORT: String(apiPort) },
       stdio: 'inherit',

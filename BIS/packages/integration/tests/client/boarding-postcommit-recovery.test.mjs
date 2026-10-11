@@ -16,13 +16,14 @@ const commitment='d'.repeat(64),assetId='a'.repeat(64)+'0000';
 const asset={assetId,amount:9007199254740993n};
 // This isolates the real SDK's processing after Batch.join returns a commitment.
 // Handler/tree validation itself is covered in boarding-sdk-handler.test.mjs.
-async function fixture(t,{shared=false,evidence='valid'}={}) {
+async function fixture(t,{shared=false,evidence='valid',network='signet'}={}) {
+ const scopedAccount={...account,network};
  const data=new Map(),calls={register:0,delete:0,db:0,signingWallets:0};let disposed;
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return data.size;},key:i=>[...data.keys()][i]??null,getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)}});
  Object.defineProperty(navigator,'locks',{configurable:true,value:testLocks()});
  t.mock.method(globalThis,'fetch',async()=>{throw Error('No live network in postcommit fixture');});
  const coins=[{txid:'b'.repeat(64),vout:0,value:4000,assets:[asset]},...(shared?[{txid:'c'.repeat(64),vout:0,value:2000}]:[])];
- const info={network:'signet',sessionDuration:60n,fees:{txFeeRate:'0',intentFee:{}},utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n};
+ const info={network,sessionDuration:60n,fees:{txFeeRate:'0',intentFee:{}},utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n};
  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>info);
  t.mock.method(CSVMultisigTapscript,'decode',()=>({params:{timelock:{type:'blocks',value:100n}}}));
  t.mock.method(RestArkProvider.prototype,'registerIntent',async()=>`11111111-1111-4111-8111-${String(++calls.register).padStart(12,'0')}`);
@@ -49,10 +50,10 @@ async function fixture(t,{shared=false,evidence='valid'}={}) {
  });
  for(let i=0;i<(shared?2:1);i++) {
   const finished=new Promise(resolve=>{disposed=resolve;});
-  await submitBoarding(account,await quoteBoarding(account,1000,new AbortController().signal,'to-bitcoin'));
+  await submitBoarding(scopedAccount,await quoteBoarding(scopedAccount,1000,new AbortController().signal,'to-bitcoin'));
   await finished;
  }
- const originals=readBoardingRecords(account.profileId);
+ const originals=readBoardingRecords(account.profileId,network);
  assert.equal(calls.db,originals.length,`Actual SDK reaches its postcommit database update: ${JSON.stringify(sdkSnapshots)}`);
  assert.equal(sdkSnapshots.filter(s=>s.state==='batch_succeeded'&&s.commitmentTransactionId===commitment).length,originals.length);
  assert.equal(calls.delete,0,'SDK postcommit branch never cancels');
@@ -62,22 +63,22 @@ async function fixture(t,{shared=false,evidence='valid'}={}) {
  t.mock.method(ReadonlyWallet,'create',async()=>({dispose:async()=>{},getProviderConnectionState:()=>({mode:'online',source:'live'}),getVtxos:async()=>evidence==='missing-change'?[]:receipts,onchainProvider:{getTransactions:async()=>evidence==='absent'?[]:[tx]}}));
  t.mock.method(RestIndexerProvider.prototype,'getVtxos',async()=>({vtxos:originals.flatMap(r=>r.inputs).map(c=>({...c,isSpent:true,settledBy:commitment}))}));
  const before={...calls};
- await reconcileBoarding(account,new AbortController().signal);
+ await reconcileBoarding(scopedAccount,new AbortController().signal);
  assert.deepEqual(calls,before,'Reconciliation performs no signing, replay or cancellation');
- return {originals,records:readBoardingRecords(account.profileId)};
+ return {originals,records:readBoardingRecords(account.profileId,network)};
 }
-for(const shared of [false,true])test(`local SDK failure after ${shared?'shared':'single'} commitment resolves original operation from exact receipts`,async t=>{
- const {originals,records}=await fixture(t,{shared});
+for(const network of ['signet','mutinynet'])for(const shared of [false,true])test(`${network}: local SDK failure after ${shared?'shared':'single'} commitment resolves original operation from exact receipts`,async t=>{
+ const {originals,records}=await fixture(t,{shared,network});
  assert.equal(records.length,shared?2:1);
  for(const [i,r] of records.entries()){
   assert.equal(r.status,'succeeded');assert.equal(r.commitmentTxid,commitment);
   assert.equal(r.id,originals[i].id);assert.equal(r.intentId,originals[i].intentId);
   assert.deepEqual(r.inputs,originals[i].inputs);assert.deepEqual(r.assetChange,originals[i].assetChange);
  }
- assert.equal(walletReservations(account.profileId).length,0);
+ assert.equal(walletReservations(account.profileId,network).length,0);
 });
-for(const evidence of ['absent','wrong-bitcoin','wrong-assets','unconfirmed','missing-change'])test(`local SDK postcommit failure stays unresolved with ${evidence} receipt evidence`,async t=>{
- const {originals,records}=await fixture(t,{evidence});
- assert.deepEqual(records,originals);assert.equal(walletReservations(account.profileId).length,1);
- assert.equal(readBoardingRecord(account.profileId).status,'pending');
+for(const network of ['signet','mutinynet'])for(const evidence of ['absent','wrong-bitcoin','wrong-assets','unconfirmed','missing-change'])test(`${network}: local SDK postcommit failure stays unresolved with ${evidence} receipt evidence`,async t=>{
+ const {originals,records}=await fixture(t,{evidence,network});
+ assert.deepEqual(records,originals);assert.equal(walletReservations(account.profileId,network).length,1);
+ assert.equal(readBoardingRecord(account.profileId,undefined,network).status,'pending');
 });

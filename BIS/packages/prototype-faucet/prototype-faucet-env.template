@@ -1,11 +1,4 @@
-# Copy this file to .env.local, then replace both placeholders with the
-# disposable testnet mnemonics for the matching Arkade network.
-# Never commit .env.local or paste its values into chat.
-
-FAUCET_SIGNET_MNEMONIC="replace-with-your-signet-mnemonic"
-FAUCET_MUTINYNET_MNEMONIC="replace-with-your-mutinynet-mnemonic"
-
-# Optional non-secret settings:
-# FAUCET_SIGNET_MAX_SATS=200000
-# FAUCET_MUTINYNET_MAX_SATS=200000
-# FAUCET_PORT=5190
+# Deprecated location; do not populate a new local file here.
+# Use ../shared/.env.local.template -> ../shared/.env.local instead.
+# That template includes faucet signer and supplied test-account slots.
+# Existing .env.local here is used only while shared/.env.local is absent.

@@ -102,6 +102,7 @@ BIS separates reusable game integration from its development demos for Signet an
 <!-- AI: Link to the main documentation files that actually exist using relative Markdown links and a short purpose for each. Update links when files move; do not reference documentation inherited from another project unless present here. -->
 - [Diagram](BIS/documentation/bis-concept-diagram-1.png): BIS architecture and integration overview.
 - [Faucets](BIS/documentation/Faucets%20-%20README.md): Faucets for funding an account.
+- [Agent test wallets](BIS/documentation/agent-test-wallets.md): Private test identities and autonomous workflow implementation status.
 - [Integration Admin](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
 - [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
 
@@ -113,6 +114,7 @@ BIS separates reusable game integration from its development demos for Signet an
 - `BIS/packages/integration-admin/`: Admin UI, 9:16 preview, and documentation viewer.
 - `BIS/packages/marketplace/`: Equipment catalog and account UI using the public integration API.
 - `BIS/packages/prototype-faucet/`: Experimental Arkade faucet page and server; not part of the BIS product API.
+- `BIS/packages/shared/`: Server-only local secret configuration and the canonical environment template.
 - `BIS/packages/prototype-onboarding/`: Independent Arkade onboarding experiment with separate browser persistence.
 
 ## Project Details
@@ -139,6 +141,7 @@ React and TypeScript power the reusable integration, Admin, Marketplace, and onb
 
 #### Internal Packages
 
+- [Shared](BIS/packages/shared/shared-package-readme.md): Central `.env.local` setup for local faucet and test-account tooling; never a browser secret export.
 - [Integration](BIS/packages/integration/integration-package-readme.md): Reusable BIS UI, state, and wallet integration library.
 - [Integration Admin (BIS Admin)](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin controls and the runtime preview.
 - [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.

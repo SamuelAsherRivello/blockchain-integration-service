@@ -153,7 +153,7 @@ async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:(
   let intentHash:string|undefined,selectedBatch:string|undefined;
   const observe=async(stage:BoardingStage,action?:BoardingAction)=>{
     if(!recordId||!active)return;
-    try {await withBoardingRecordLock(account.profileId,recordId,()=>active?recordBoardingProgress(account.profileId,recordId!,stage,'running',action):undefined);}
+    try {await withBoardingRecordLock(account.profileId,recordId,()=>active?recordBoardingProgress(account.profileId,recordId!,stage,'running',action,Date.now(),network):undefined,network);}
     catch {/* Observational metadata must not interrupt signing. */}
   };
   const provider=c.options.arkProvider;
@@ -209,21 +209,21 @@ async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:(
       const record:BoardingRecord={version:1,id:operationId,createdAt:Date.now(),profileId:account.profileId,network:account.network ?? 'signet',status:'pending',phase:'prepared',quote:fresh.quote,inputs:fresh.params.inputs.map(i=>{if(typeof i==='string')throw Error('Unexpected input.');return {txid:i.txid,vout:i.vout};}),bitcoinAddress:fresh.bitcoinAddress,...(fresh.assetChange?{assetChange:fresh.assetChange}:{})};
       recordId=record.id;
       writeBoardingRecord(record);
-      attempt=createBoardingAttempt(record.id,()=>active&&isCurrent(),Math.min(deadline,quote.expiresAt),account.profileId);
+      attempt=createBoardingAttempt(record.id,()=>active&&isCurrent(),Math.min(deadline,quote.expiresAt),account.profileId,Date.now,network);
       try {
         const commitment=await wallet.settle(fresh.params,async event=>{
           if(event.type==='batch_started'&&intentHash&&event.intentIdHashes.includes(intentHash))selectedBatch=event.id;
           if(!active||!selectedBatch||event.id!==selectedBatch)return;
           if(event.type==='tree_signing_started')await observe('batch-selected','validate-tree');
           if(event.type==='batch_finalization')await observe(readBoardingRecord(account.profileId,record.id,account.network ?? 'signet')?.progress?.stage??'batch-selected','validate-finalization');
-          if(event.type==='batch_failed')await withBoardingRecordLock(account.profileId,record.id,()=>{if(active)attempt!.interrupted('batch-failed');});
+          if(event.type==='batch_failed')await withBoardingRecordLock(account.profileId,record.id,()=>{if(active)attempt!.interrupted('batch-failed');},network);
         });
-        await withBoardingRecordLock(account.profileId,record.id,()=>attempt!.committed(commitment));
+        await withBoardingRecordLock(account.profileId,record.id,()=>attempt!.committed(commitment),network);
       }
       catch(error) { await withBoardingRecordLock(account.profileId,record.id,()=>{
         const current=readBoardingRecord(account.profileId,record.id,account.network ?? 'signet');
         attempt!.interrupted(current?.phase==='submitting'?'registration-unconfirmed':current?.diagnostic==='batch-failed'?'batch-failed':settlementDiagnostic(error),error,{sdkVersion:installedSdkVersion,batchId:selectedBatch});
-      }); }
+      },network); }
       attempt.close();
       return readBoardingRecord(account.profileId,record.id,account.network ?? 'signet')!;
     },timeout);
@@ -272,7 +272,7 @@ async function reconcileRecord(account:AccountSecret,signal:AbortSignal,record:B
     const consumed=outpoints.length ? (await new RestIndexerProvider(operatorFor(account.network ?? 'signet')).getVtxos({outpoints})).vtxos : [];
     const commitmentTxid=verifiedBoardingCommitment(record,transactions,vtxos,consumed,records);
     if(commitmentTxid) {
-      const current=readBoardingRecord(account.profileId,record.id);
+      const current=readBoardingRecord(account.profileId,record.id,account.network ?? 'signet');
       if(current?.id!==record.id)return current;
       return {...current,status:'succeeded' as const,commitmentTxid};
     }
@@ -285,7 +285,7 @@ async function reconcileRecord(account:AccountSecret,signal:AbortSignal,record:B
     // newer signing acknowledgement or resurrect a cleared operation.
     const next={...current,status:'succeeded' as const,commitmentTxid:result.commitmentTxid,progress:{stage:'confirmed' as const,execution:'awaiting-confirmation' as const,observedAt:Date.now()}};
     writeBoardingRecord(next);return next;
-  });
+  },account.network ?? 'signet');
   return readBoardingRecord(account.profileId,record.id,account.network ?? 'signet')??result;
 }
 

@@ -1,6 +1,7 @@
 .setup/
 .env
 .env.*
+!BIS/packages/shared/.env.local.template
 node_modules/
 dist/
 

@@ -3,31 +3,32 @@ import assert from 'node:assert/strict';
 import {createContext} from '../../src/client/state-layer-core/context.ts';
 import {readBoardingRecord,writeBoardingRecord} from '../../src/client/state-layer-core/boarding-record.ts';
 import {walletReservations} from '../../src/client/state-layer-core/wallet-reservations.ts';
+import {testLocks} from './locks-fixture.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
 globalThis.requestIdleCallback=()=>1;globalThis.cancelIdleCallback=()=>{};
 test.after(()=>{delete globalThis.requestIdleCallback;delete globalThis.cancelIdleCallback;});
 const pending=(id,input='a')=>({version:1,id,profileId:'player',status:'pending',phase:'registered',createdAt:id==='older'?1:2,inputs:[{txid:input.repeat(64),vout:0}],bitcoinAddress:'tb1-test',quote:{profileId:'player',direction:'to-bitcoin',amountSats:1000,feeSats:0,netSats:1000,maxSats:2000,bitcoinAfterSats:1000,arkadeAfterSats:1000,totalAfterSats:2000,expiresAt:2000,fingerprint:'c'.repeat(64)}});
-function setup(t,{latestPending=true,persist=true,failBalance=false,delay,failAfter=false,shared=false}={}) {
+function setup(t,{latestPending=true,persist=true,failBalance=false,delay,failAfter=false,shared=false,network='signet'}={}) {
  const memory=new Map();
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return memory.size;},key:i=>[...memory.keys()][i]??null,getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)}});
  t.mock.method(globalThis,'fetch',async()=>{throw Error('No network allowed');});
- writeBoardingRecord(pending('older'));if(latestPending)writeBoardingRecord(pending('latest','b'));
- let account={profileId:'player',phrase:'not-a-wallet'},generation=0,notify=()=>{},resolved=false;
+ writeBoardingRecord({...pending('older'),network});if(latestPending)writeBoardingRecord({...pending('latest','b'),network});
+ let account={profileId:'player',phrase:'not-a-wallet',network},generation=0,notify=()=>{},resolved=false;
  const reads={balance:0,assets:0,activity:0};
  const storage={load:async()=>({account,generation}),subscribe:fn=>{notify=fn;return()=>{};}};
  const reconcile=async()=>{
   if(delay)await delay;
   if(!persist)throw Error('Persistence unavailable');
-  const record=readBoardingRecord('player','older');
+  const record=readBoardingRecord('player','older',network);
   writeBoardingRecord({...record,status:'succeeded',commitmentTxid:'d'.repeat(64)});resolved=true;
   if(failAfter)throw Error('Later operation read unavailable');
-  return readBoardingRecord('player',latestPending?'latest':'older');
+  return readBoardingRecord('player',latestPending?'latest':'older',network);
  };
  const observe=async(_account,signal,publish)=>{reads.activity++;publish([]);await new Promise(r=>signal.addEventListener('abort',r,{once:true}));};
  const context=createContext(storage,undefined,async()=>account.profileId,undefined,
   async()=>{reads.balance++;if(resolved&&failBalance)throw Error('Balance unavailable');return {availableSats:resolved?1000:2000,totalSats:2000,arkadeSats:resolved?1000:2000,bitcoinSats:resolved?1000:0};},undefined,undefined,
   observe,
-  {reconcile}, {list:async()=>{reads.assets++;return [];}},undefined,undefined,undefined,undefined,shared?observe:undefined);
+  {reconcile}, {list:async()=>{reads.assets++;return [];}},undefined,undefined,undefined,{getNetwork:()=>network},shared?observe:undefined);
  t.after(()=>context.dispose());
  return {context,reads,replace(){account={profileId:'other-player',phrase:'not-a-wallet'};generation++;notify();}};
 }
@@ -77,4 +78,34 @@ test('shared wallet source is invalidated once for verified resolution',async t=
  await f.context.checkAccountTransfer();await tick();await tick();
  assert.equal(f.reads.activity,before+1);assert.equal(f.context.getState().balance.arkadeSats,1000);
  await f.context.checkAccountTransfer();await tick();assert.equal(f.reads.activity,before+1);
+});
+
+test('Mutinynet recovery retains pending fallback and publishes resolution without reading a colliding Signet record',async t=>{
+ const f=setup(t,{network:'mutinynet',failAfter:true});
+ writeBoardingRecord(pending('older'));
+ await f.context.readyAsync();f.context.openAccountDialog();f.context.openAccountDetails();await tick();
+ assert.equal(f.context.getPendingAccountTransfers().length,2);
+ const before=f.reads.balance;
+ const status=await f.context.checkAccountTransfer();await tick();
+ assert.equal(status.status,'pending');assert.equal(status.verification,'unavailable');
+ assert.equal(status.operationId,'latest');
+ assert.equal(f.reads.balance,before+1);
+ assert.equal(readBoardingRecord('player','older','mutinynet').status,'succeeded');
+ assert.equal(readBoardingRecord('player','older','signet').status,'pending');
+ assert.deepEqual(f.context.getPendingAccountTransfers().map(row=>row.operationId),['latest']);
+});
+
+test('discarding a Mutinynet prepared transfer cannot discard the same Signet ID or a registered intent',async t=>{
+ const f=setup(t,{network:'mutinynet'});
+ const descriptor=Object.getOwnPropertyDescriptor(navigator,'locks');
+ Object.defineProperty(navigator,'locks',{configurable:true,value:testLocks()});
+ t.after(()=>{if(descriptor)Object.defineProperty(navigator,'locks',descriptor);else delete navigator.locks;});
+ writeBoardingRecord({...pending('older'),phase:'prepared',network:'signet'});
+ writeBoardingRecord({...pending('older'),phase:'prepared',network:'mutinynet'});
+ await f.context.readyAsync();
+ await f.context.discardPreparedTransfer('older');
+ assert.equal(readBoardingRecord('player','older','mutinynet').status,'not-submitted');
+ assert.equal(readBoardingRecord('player','older','signet').status,'pending');
+ await assert.rejects(f.context.discardPreparedTransfer('latest'),/Only a draft proven not submitted/);
+ assert.equal(readBoardingRecord('player','latest','mutinynet').status,'pending');
 });

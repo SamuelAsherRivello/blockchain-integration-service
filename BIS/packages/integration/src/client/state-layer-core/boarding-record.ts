@@ -64,8 +64,8 @@ const key = (network:TestNetwork='signet') => `bis-${network}-boarding-operation
 const txid = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
 export class BoardingBlockedError extends Error {}
 export class PendingTransferConfirmationError extends BoardingBlockedError {}
-export function assertPendingTransfersAcknowledged(profileId:string|undefined, acknowledged:readonly string[]=[]) {
-  const pending=readBoardingRecords(profileId).filter(r=>r.status==='pending');
+export function assertPendingTransfersAcknowledged(profileId:string|undefined, acknowledged:readonly string[]=[],network:TestNetwork='signet') {
+  const pending=readBoardingRecords(profileId,network).filter(r=>r.status==='pending');
   if(pending.some(r=>!acknowledged.includes(r.id)))throw new PendingTransferConfirmationError('Pending transfers changed. Confirm whether you want to send another.');
 }
 function validate(r: BoardingRecord): BoardingRecord {
@@ -133,54 +133,54 @@ export function withWalletMutation<T>(work:()=>Promise<T>, profileId: string | u
 export function assertNoPendingBoarding(profileId: string | undefined,network:TestNetwork='signet') {
   if(readBoardingRecords(profileId,network).some(r=>r.status==='pending'))throw new BoardingBlockedError('A transfer is unresolved. Open Account Transfer and check its status before clearing this account or using these funds.');
 }
-export function updateBoardingRecord(id:string, patch:Partial<BoardingRecord>, profileId: string) {
-  const record=readBoardingRecord(profileId,id);
+export function updateBoardingRecord(id:string, patch:Partial<BoardingRecord>, profileId: string,network:TestNetwork='signet') {
+  const record=readBoardingRecord(profileId,id,network);
   if (!record || record.id!==id || record.status!=='pending') throw new BoardingBlockedError('The transfer operation changed.');
   const next={...record,...patch};writeBoardingRecord(next);return next;
 }
-export function recordBoardingProgress(profileId:string,id:string,stage:BoardingStage,execution:NonNullable<BoardingRecord['progress']>['execution']='running',action?:BoardingAction,now=Date.now()) {
-  const record=readBoardingRecord(profileId,id);
+export function recordBoardingProgress(profileId:string,id:string,stage:BoardingStage,execution:NonNullable<BoardingRecord['progress']>['execution']='running',action?:BoardingAction,now=Date.now(),network:TestNetwork='signet') {
+  const record=readBoardingRecord(profileId,id,network);
   if(!record||record.status!=='pending')return record;
   const previous=record.progress;
   if(previous && boardingStages.indexOf(previous.stage)>boardingStages.indexOf(stage))return record;
-  return updateBoardingRecord(id,{progress:{stage,execution,observedAt:Math.max(previous?.observedAt??0,now),...(action?{action}:{})}},profileId);
+  return updateBoardingRecord(id,{progress:{stage,execution,observedAt:Math.max(previous?.observedAt??0,now),...(action?{action}:{})}},profileId,network);
 }
-export async function withBoardingRecordLock<T>(profileId:string,id:string,work:()=>T|Promise<T>):Promise<T> {
+export async function withBoardingRecordLock<T>(profileId:string,id:string,work:()=>T|Promise<T>,network:TestNetwork='signet'):Promise<T> {
   if(!globalThis.navigator?.locks)return work();
-  return navigator.locks.request(`bis-signet-transfer-record:${encodeURIComponent(profileId)}:${encodeURIComponent(id)}`,{},work);
+  return navigator.locks.request(`bis-${network}-transfer-record:${encodeURIComponent(profileId)}:${encodeURIComponent(id)}`,{},work);
 }
 // Safe only while holding the mutation lock: no active attempt can register.
 export function recoverPreparedBoarding(record:BoardingRecord) {
   return record.status==='pending' && record.phase==='prepared'
-    ? updateBoardingRecord(record.id,{status:'not-submitted'},record.profileId) : record;
+    ? updateBoardingRecord(record.id,{status:'not-submitted'},record.profileId,record.network??'signet') : record;
 }
 // The provider wrapper calls beforeRegister synchronously immediately before its
 // network call. A durable submitting marker is required, even if response is lost.
-export function createBoardingAttempt(id:string, isCurrent:()=>boolean, deadline:number, profileId: string, now=Date.now) {
+export function createBoardingAttempt(id:string, isCurrent:()=>boolean, deadline:number, profileId: string, now=Date.now,network:TestNetwork='signet') {
   let open=true;
   return {
     beforeRegister() {
-      const record=readBoardingRecord(profileId,id);
+      const record=readBoardingRecord(profileId,id,network);
       if(!open || !isCurrent() || now()>=deadline || record?.id!==id || record.status!=='pending' || record.phase!=='prepared') throw Error('Transfer details changed. Review again.');
-      updateBoardingRecord(id,{phase:'submitting'},profileId);
+      updateBoardingRecord(id,{phase:'submitting'},profileId,network);
     },
-    registered(intentId:string) {updateBoardingRecord(id,{phase:'registered',intentId},profileId);recordBoardingProgress(profileId,id,'registered','running',undefined,now());},
+    registered(intentId:string) {updateBoardingRecord(id,{phase:'registered',intentId},profileId,network);recordBoardingProgress(profileId,id,'registered','running',undefined,now(),network);},
     committed(commitmentTxid:string) {
-      const record=readBoardingRecord(profileId,id);
-      if(record?.id===id && record.status==='pending'){updateBoardingRecord(id,{commitmentTxid},profileId);recordBoardingProgress(profileId,id,'broadcast','awaiting-confirmation',undefined,now());}
+      const record=readBoardingRecord(profileId,id,network);
+      if(record?.id===id && record.status==='pending'){updateBoardingRecord(id,{commitmentTxid},profileId,network);recordBoardingProgress(profileId,id,'broadcast','awaiting-confirmation',undefined,now(),network);}
     },
     interrupted(diagnostic:NonNullable<BoardingRecord['diagnostic']>,error?:unknown,metadata:{sdkVersion?:string;batchId?:string}={}) {
-      const record=readBoardingRecord(profileId,id);
+      const record=readBoardingRecord(profileId,id,network);
       if(record?.id===id && record.status==='pending'){
         const detail={code:failureCode(error),observedAt:now(),endReason:diagnostic,...(record.progress?.stage?{stage:record.progress.stage}:{}),...(record.progress?.action?{action:record.progress.action}:{})};
         const failure=error===undefined?record.failure:publicBoardingFailure({...detail,...metadata})??publicBoardingFailure(detail);
-        updateBoardingRecord(id,{diagnostic,...(failure?{failure}:{})},profileId);
-        if(record.phase==='registered'&&record.progress?.stage!=='broadcast'&&record.progress?.stage!=='confirmed')recordBoardingProgress(profileId,id,record.progress?.stage??'registered','interrupted',record.progress?.action,now());
+        updateBoardingRecord(id,{diagnostic,...(failure?{failure}:{})},profileId,network);
+        if(record.phase==='registered'&&record.progress?.stage!=='broadcast'&&record.progress?.stage!=='confirmed')recordBoardingProgress(profileId,id,record.progress?.stage??'registered','interrupted',record.progress?.action,now(),network);
       }
     },
     close() {
       open=false;
-      const record=readBoardingRecord(profileId,id);
+      const record=readBoardingRecord(profileId,id,network);
       if(record?.id===id)recoverPreparedBoarding(record);
     },
   };

@@ -12,18 +12,21 @@ import { PendingTransferConfirmationError } from '../state-layer-core/boarding-r
 import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
 export function AccountTransferView({ context, balance, onBack }: { context: BisContext; balance: BisBalance; onBack(): void }) {
+  const cachedAvailability = context.peekAccountTransferAvailability?.('to-arkade');
   const [direction, setDirection] = useState<'to-arkade' | 'to-bitcoin'>('to-arkade');
   const [amount, setAmount] = useState('0');
   const [review, setReview] = useState(false);
   const [quote, setQuote] = useState<BoardingQuote>();
-  const [busy, setBusy] = useState(true);
-  const [foreground, setForeground] = useState(true);
+  const [working, setBusy] = useState(!cachedAvailability);
+  const [checking, setChecking] = useState(false);
+  const busy = working || checking;
+  const [foreground, setForeground] = useState(!cachedAvailability);
   const [operationLabel,setOperationLabel] = useState('Loading ...');
   const readController=useRef(new AbortController());
-  const [statusChecked, setStatusChecked] = useState(false);
+  const [statusChecked, setStatusChecked] = useState(!!cachedAvailability);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<BisTransferStatus>({status:'idle'});
-  const [availability,setAvailability]=useState<WalletOperationAvailability>();
+  const [availability,setAvailability]=useState<WalletOperationAvailability | undefined>(cachedAvailability);
   const [error, setError] = useState('');
   const [submitted,setSubmitted]=useState(false);
   const [warning,setWarning]=useState<readonly BisTransferStatus[]>();
@@ -31,10 +34,11 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   const expired = useQuoteExpiry(quote?.expiresAt);
   const alive = useRef(true);
   const request = useRef(0);
+  const checkRequest = useRef(0);
   const reviewHeading = useRef<HTMLHeadingElement>(null);
   const amountInput = useRef<HTMLInputElement>(null);
   const firstRender = useRef(true);
-  const initialLoading = useRef(true);
+  const initialLoading = useRef(!cachedAvailability);
   const amountId = useId();
   const numeric = Number(amount);
   const valid = /^\d+$/.test(amount) && Number.isSafeInteger(numeric) && numeric > 0;
@@ -50,19 +54,23 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
     return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
   }
   async function check(clearError=true, background=false, initial=false) {
-    const current=++request.current;if(!background)setBusy(true);
-    if(!background){setForeground(true);setOperationLabel(initial ? 'Loading ...' : 'Checking...');if(clearError)setError('');}
+    // Amount edits invalidate quotes, not the selected direction's independent
+    // availability read. Separate generations also prevent an older check from
+    // clearing the foreground state of a newer quote/submission.
+    const current=++checkRequest.current;
+    if(!background){setChecking(true);setStatusChecked(false);setAvailability(undefined);}
+    if(!background){setForeground(true);setOperationLabel('Loading ...');if(clearError)setError('');}
     try {
       const [next,policy]=await Promise.all([
         readWithRetry(()=>context.checkAccountTransfer(),readController.current.signal),
         readWithRetry(()=>context.getAccountTransferAvailability(direction),readController.current.signal),
       ]);
-      if(!alive.current||current!==request.current)return;
+      if(!alive.current||current!==checkRequest.current)return;
       setStatus(next);setAvailability(policy);setStatusChecked(true);
       if(next.status==='succeeded'&&!background)await context.refreshBalance();
     } catch(cause) {
-      if(alive.current&&current===request.current){setStatusChecked(false);setStatus(previous=>previous.status==='pending'?{...previous,verification:'unavailable'}:previous);if(!background)setError(failure(cause));}
-    } finally {if(alive.current&&current===request.current){if(initial)initialLoading.current=false;setBusy(false);setForeground(false);}}
+      if(alive.current&&current===checkRequest.current){setStatusChecked(false);setStatus(previous=>previous.status==='pending'?{...previous,verification:'unavailable'}:previous);if(!background)setError(failure(cause));}
+    } finally {if(alive.current&&current===checkRequest.current){if(initial)initialLoading.current=false;setChecking(false);if(!background)setForeground(false);}}
   }
   useEffect(()=>{
     alive.current=true;readController.current=new AbortController();
@@ -79,10 +87,18 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
         setForeground(false);
       }
     }catch(cause){initialLoading.current=false;setError(failure(cause));setBusy(false);setForeground(false);}
-    return()=>{alive.current=false;request.current++;readController.current.abort();};
+    return()=>{alive.current=false;request.current++;checkRequest.current++;readController.current.abort();};
   },[context]);
   useEffect(()=>{
     if(!alive.current)return;
+    const cached=context.peekAccountTransferAvailability?.(direction);
+    if(cached){
+      setAvailability(cached);
+      setStatusChecked(true);
+      setChecking(false);
+      setForeground(false);
+      return;
+    }
     void check(false,false,false);
   },[direction]);
   useEffect(()=>{
@@ -140,13 +156,18 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
     :submitted?{title:'Transfer pending.',message:'You can view progress in Transactions.'}:undefined);
   return <>
     <div className="bis-transfer-balances"><AccountBalancesFormValue balance={balance} directionControl={
-      <button type="button" className="bis-button bis-balance-direction" disabled={busy||blocked||review}
+      <button type="button" className="bis-button bis-balance-direction" disabled={busy||review}
         aria-label={`${label}. Toggle transfer direction`} title={`${label}. Toggle transfer direction`}
-        onClick={() => {edit(amount);setDirection(current => current === 'to-arkade' ? 'to-bitcoin' : 'to-arkade');}}>
+        onClick={() => {
+          edit(amount);
+          setAvailability(context.peekAccountTransferAvailability?.(direction === 'to-arkade' ? 'to-bitcoin' : 'to-arkade'));
+          setStatusChecked(!!context.peekAccountTransferAvailability?.(direction === 'to-arkade' ? 'to-bitcoin' : 'to-arkade'));
+          setDirection(current => current === 'to-arkade' ? 'to-bitcoin' : 'to-arkade');
+        }}>
         {direction === 'to-arkade' ? '→' : '←'}
       </button>
     } /></div>
-    {review ? <div className="bis-review">
+    {review ? <div className="bis-review" data-bis-quote-fingerprint={quote?.fingerprint} data-bis-quote-expires-at={quote?.expiresAt}>
       <h3 ref={reviewHeading} tabIndex={-1} data-bis-autofocus>Review: {label}</h3>
       <FormValueList rows={[
         ['Amount', sats(numeric)], ['Fee', quote ? sats(quote.feeSats) : 'Unavailable'],

@@ -103,6 +103,11 @@ export function BisAccountView({ context, gameWallet, hasItemSupport, hasAssetMi
 function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMintingSupport, hasContractSupport, hasPaymentSupport, onDeveloperDialogChange, onGameWalletDialogChange }: { context: BisContext; gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; hasPaymentSupport?: () => boolean; onDeveloperDialogChange?(open: (() => void) | undefined): void;onGameWalletDialogChange?(open:(()=>void)|undefined):void }) {
   const state = useSyncExternalStore(context.subscribe, context.getState, context.getState);
   const walletSnapshot = useSyncExternalStore(gameWallet?.subscribe ?? emptySubscribe, gameWallet?.getState ?? emptySnapshot, gameWallet?.getState ?? emptySnapshot);
+  // Public identity only: lets hosts verify the visible account session without
+  // reading recovery/storage internals or navigating away from a review.
+  const publicScope = {'data-bis-player-id':state.profileId ?? '',
+    'data-bis-game-address':walletSnapshot?.addresses?.arkadeAddress ?? '',
+    'data-bis-network':state.network ?? ''};
   const [developerOpen, setDeveloperOpen] = useState(false);
   const [transactionOpen, setTransactionOpen] = useState(false);
   const [assetOpen, setAssetOpen] = useState(false);
@@ -230,7 +235,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   // Collection views own their selection and list/detail navigation. Changing
   // this transition key for a detail page remounts them and loses that state.
   const collectionKey = assets ? 'assets' : contracts ? 'contracts' : activity ? 'activity' : undefined;
-  if (state.view === 'account' && (assets || contracts || activity)) return <div className="bis-layer bis-layer-open bis-layer-collection">
+  if (state.view === 'account' && (assets || contracts || activity)) return <div {...publicScope} className="bis-layer bis-layer-open bis-layer-collection">
     <ViewTransition viewKey={collectionKey ?? 'collection'}>
       {assets && state.network && <AccountAssetsView key={state.profileId} assets={state.assets} network={state.network} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
       {contracts && <AccountContractsView key={state.profileId} context={context} onDetailChange={setContractOpen} />}
@@ -239,7 +244,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   </div>;
   const title = gameWalletLogin ? 'Game Wallet' : developer ? 'Developer' : onboarding ? 'Onboarding' : assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Swap' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Accounts Details' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : 'Account';
   const viewKey = state.view === 'account-button' ? 'account-button' : gameWalletLogin ? 'game-wallet' : developer ? 'developer' : onboarding ? 'onboarding' : restoring ? 'restore-account' : recovery ? 'set-recovery-phrase' : savedRecovery ? 'get-recovery-phrase' : logout ? 'logout-confirmation' : state.phase === 'creating' ? 'create-account' : details ? 'account-details' : transfer ? 'swap' : send ? 'send' : receive ? 'receive' : 'account-menu';
-  return <div className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
+  return <div {...publicScope} className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
       <ViewTransition viewKey={viewKey}><AccountDialogShell network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={`${onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}${closingAccount ? ' bis-card-closing' : ''}`}
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}

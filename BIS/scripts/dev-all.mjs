@@ -5,9 +5,11 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { developmentConfig } from './dev-config.mjs';
 import { projectRunConfig, validateProjectRunConfig } from './project-run-config.mjs';
+import { readSharedEnvironment } from '../packages/shared/src/server/environment.mjs';
 
 const config = validateProjectRunConfig(projectRunConfig);
-const { values } = parseArgs({ options: { host: { type: 'string', default: '127.0.0.1' }, port: { type: 'string', default: String(config.preferredPort) }, faucetPort: { type: 'string', default: process.env.FAUCET_PORT ?? '5190' }, strictPort: { type: 'boolean' }, 'no-hmr': { type: 'boolean' } } });
+const localPort = readSharedEnvironment({ keys: ['FAUCET_PORT'], legacyFaucetFallback: true }).values.FAUCET_PORT;
+const { values } = parseArgs({ options: { host: { type: 'string', default: '127.0.0.1' }, port: { type: 'string', default: String(config.preferredPort) }, faucetPort: { type: 'string', default: localPort || '5190' }, strictPort: { type: 'boolean' }, 'no-hmr': { type: 'boolean' } } });
 const port = Number(values.port ?? config.preferredPort);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Port must be an integer from 1 to 65535.');
 let activePort = port;
@@ -23,7 +25,7 @@ let faucetApi;
 try {
   await fetch(`http://127.0.0.1:${faucetPort}/api/faucet/health`, { signal: AbortSignal.timeout(500) });
 } catch {
-  faucetApi = spawn(process.execPath, ['--experimental-eventsource', '--env-file-if-exists=.env.local', 'src/server/server.mjs'], {
+  faucetApi = spawn(process.execPath, ['--experimental-eventsource', 'src/server/server.mjs'], {
     cwd: faucetPackage,
     env: { ...process.env, FAUCET_PORT: String(faucetPort) },
     stdio: 'inherit',

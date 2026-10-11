@@ -4,6 +4,7 @@ import { access } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readSharedEnvironment } from '../../shared/src/server/environment.mjs';
 
 export const DEFAULT_API = 'http://127.0.0.1:5190';
 export const ALLOWED_AMOUNTS = Object.freeze([50_000, 100_000, 200_000]);
@@ -51,7 +52,11 @@ export function parseArgs(argv) {
     address,
     network,
     amount: parseSats(values.get('amount')),
-    api: String(values.get('api') ?? DEFAULT_API).replace(/\/$/, ''),
+    api: String(values.get('api') ?? (() => {
+      const port = readSharedEnvironment({ keys: ['FAUCET_PORT'], legacyFaucetFallback: true }).values.FAUCET_PORT;
+      if (port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535)) throw usageError('FAUCET_PORT must be a valid local port.');
+      return port ? `http://127.0.0.1:${Number(port)}` : DEFAULT_API;
+    })()).replace(/\/$/, ''),
     idempotencyKey: String(values.get('idempotency-key') ?? randomUUID()),
   });
 }
@@ -94,7 +99,7 @@ export async function ensureApi(options, fetchImpl = fetch) {
   const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const serverPath = path.join(packageRoot, 'src', 'server', 'server.mjs');
   await access(serverPath, fsConstants.R_OK);
-  const server = spawn(process.execPath, ['--env-file-if-exists=.env.local', serverPath], {
+  const server = spawn(process.execPath, ['--experimental-eventsource', serverPath], {
     cwd: packageRoot,
     env: { ...process.env, FAUCET_PORT: new URL(options.api).port || '5190' },
     detached: true,

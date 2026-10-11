@@ -51,6 +51,21 @@ export function pendingLogoutOperations(storage: WebStorage | undefined = global
     if(prefix==='bis-signet-onboarding-v1'){
       if(onboardingKey(record)!==key||!readOnboardingRecord(record,storage))throw Error('Pending operations could not be counted.');
       if(record.status==='pending')pending.add(`${prefix}:${record.profileId}:${record.id}`);
+    } else if (prefix.endsWith('-wallet-operations-v2')) {
+      // This is a reservation container, not a status-bearing legacy record.
+      // Retained reservations remain conservative recovery evidence even if
+      // their originating journal is missing. An empty valid container is not
+      // an unreadable operation and must not disable readiness inspection.
+      if(record?.version!==2||typeof record.profileId!=='string'||!record.profileId||
+        key!==`${prefix}:${encodeURIComponent(record.profileId)}`||!Array.isArray(record.operations))throw Error('Pending operations could not be counted.');
+      const ids=new Set<string>();
+      for(const operation of record.operations){
+        if(!operation||typeof operation.id!=='string'||!operation.id||ids.has(operation.id)||
+          (operation.transactionId!==undefined&&!/^[a-f0-9]{64}$/i.test(operation.transactionId))||
+          ['inputs','independent'].some(field=>operation[field]!==undefined&&(!Array.isArray(operation[field])||(field==='inputs'&&!operation[field].length)||operation[field].some((input:{txid:string;vout:number})=>!input||!/^[a-f0-9]{64}$/i.test(input.txid)||!Number.isSafeInteger(input.vout)||input.vout<0))))throw Error('Pending operations could not be counted.');
+        ids.add(operation.id);
+        pending.add(`${prefix}:${record.profileId}:${operation.id}`);
+      }
     } else if (prefix.endsWith('-mints-v1')) {
       if(profileId&&!key.startsWith(`${prefix}:${encodeURIComponent(profileId)}`))continue;
       if (!Array.isArray(record?.operations)) throw Error('Pending operations could not be counted.');

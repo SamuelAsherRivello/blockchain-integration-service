@@ -2,11 +2,14 @@ import { defineConfig } from 'vite';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createFaucetApiLifecycle } from './src/shared/faucet-api-lifecycle.mjs';
+import { readSharedEnvironment } from '../shared/src/server/environment.mjs';
+
+const apiPort = Number(readSharedEnvironment({ keys: ['FAUCET_PORT'], legacyFaucetFallback: true }).values.FAUCET_PORT || 5190);
 
 function faucetApiPlugin() {
   const packageRoot = fileURLToPath(new URL('.', import.meta.url));
   const lifecycle = createFaucetApiLifecycle({
-    apiPort: Number(process.env.FAUCET_PORT ?? 5190),
+    apiPort,
     packageRoot,
     processPath: process.execPath,
     env: process.env,
@@ -28,6 +31,6 @@ function faucetApiPlugin() {
 export default defineConfig({
   plugins: [faucetApiPlugin()],
   server: {
-    proxy: { '/api/faucet': { target: `http://127.0.0.1:${Number(process.env.FAUCET_PORT ?? 5190)}` } },
+    proxy: { '/api/faucet': { target: `http://127.0.0.1:${apiPort}` } },
   },
 });

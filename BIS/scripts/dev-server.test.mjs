@@ -64,6 +64,13 @@ test('one Vite server serves package applications, resources, and linked READMEs
     assert.match(await get(path), /href="\.\.\/\.\.\/\.\.\/README.md"/);
   }
   assert.match(await get('/BIS/packages/integration/integration-package-readme.md?raw&import', 'javascript'), /export default/);
+  const sharedReadme = await get('/shared/');
+  assert.match(sharedReadme, /<title>BIS - Shared<\/title>/);
+  assert.match(sharedReadme, /<base href="\/BIS\/packages\/shared\/">/);
+  for (const path of [
+    '/BIS/packages/shared/.env.local', '/BIS/packages/shared/%2eenv.local?raw&import',
+    '/shared/.env.local', '/prototype-faucet/.env.local', '/BIS/packages/shared/.env.local.backup',
+  ]) assert.equal((await fetch(origin + path)).status, 403, 'private environment path must be denied');
 
   // Exercise the actual root launcher: it must fail, not move to another port.
   const child = spawn(process.execPath, [fileURLToPath(new URL('./dev-all.mjs', import.meta.url)), '--port', String(server.httpServer.address().port)], { stdio: ['ignore', 'pipe', 'pipe'] });

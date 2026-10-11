@@ -4,8 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { configureEventSource, InMemoryContractRepository, InMemoryWalletRepository, MnemonicIdentity, RestArkProvider, RestIndexerProvider, Wallet } from '@arkade-os/sdk';
 import { createSharedArkadeWalletService } from '../../../integration/src/client/wallet-layer-arkade/shared-wallet-service.ts';
 import { createFaucetService, safeError } from '../shared/faucet-core.mjs';
+import { queryBalance } from '../../scripts/get-balance.mjs';
 import { NETWORKS, NETWORK_IDS } from '../shared/network-config.mjs';
 import { createFaucetOperationStore, createProcessWalletLock } from '../shared/faucet-operation-store.mjs';
+import { loadFaucetEnvironment } from '../../../shared/src/server/environment.mjs';
+
+loadFaucetEnvironment();
 
 const port = Number(process.env.FAUCET_PORT ?? 5190);
 const maxBodyBytes = 16_384;
@@ -138,6 +142,17 @@ const server = createServer(async (request, response) => {
     if (!NETWORK_IDS.includes(network)) return json(response, 400, { code: 'NETWORK_INVALID', message: 'Choose Signet or Mutinynet.' });
     try { return json(response, 200, { network, ...(await wallets[network].balance()) }); }
     catch (error) { console.error(`Faucet balance preparation failed for ${network}:`, error?.stack ?? error); const result = safeError(error); if (result.code === 'UNAVAILABLE') result.message = 'Faucet funds are not currently spendable. Try refreshing the balance shortly.'; return json(response, 503, result); }
+  }
+  if (request.method === 'GET' && url.pathname === '/api/balance') {
+    const network = url.searchParams.get('network');
+    const address = url.searchParams.get('address')?.trim();
+    if (!NETWORK_IDS.includes(network)) return json(response, 400, { code: 'NETWORK_INVALID', message: 'Choose Signet or Mutinynet.' });
+    if (!address) return json(response, 400, { code: 'ADDRESS_INVALID', message: 'An Arkade address is required.' });
+    try { return json(response, 200, await queryBalance({ network, address })); }
+    catch (error) {
+      console.error(`Sandbox balance lookup failed for ${network}:`, error?.stack ?? error);
+      return json(response, 400, { code: error?.code ?? 'BALANCE_UNAVAILABLE', message: error?.message ?? 'The public Arkade balance API is unavailable.' });
+    }
   }
   if (request.method === 'POST' && url.pathname === '/api/faucet/onboard') {
     try {

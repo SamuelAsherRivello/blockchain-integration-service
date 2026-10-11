@@ -55,6 +55,30 @@ test('unreadable operation data does not silently become zero pending', () => {
   assert.throws(()=>pendingLogoutOperations(memory([['bis-signet-send-operation-v1:a','broken']])));
 });
 
+test('v2 wallet reservations use their container schema on both networks', () => {
+  for(const network of ['signet','mutinynet']){
+    const key=`bis-${network}-wallet-operations-v2:player`;
+    const journal={version:2,profileId:'player',operations:[]};
+    const storage=memory([[key,JSON.stringify(journal)]]);
+    assert.equal(pendingLogoutOperations(storage).count,0);
+    journal.operations.push({id:'send:original',inputs:[{txid:'a'.repeat(64),vout:0}],independent:[]});
+    storage.setItem(key,JSON.stringify(journal));
+    assert.equal(pendingLogoutOperations(storage).count,1);
+    assert.equal(pendingLogoutOperations(storage,'other').count,0);
+    assert.equal(storage.getItem(key),JSON.stringify(journal));
+    for(const malformed of [
+      {...journal,version:1},{...journal,profileId:'wrong'},{...journal,operations:null},
+      {...journal,operations:[{}]},{...journal,operations:[{id:'same'},{id:'same'}]},
+      {...journal,operations:[{id:'x',inputs:[]}]},{...journal,operations:[{id:'x',inputs:[null]}]},
+      {...journal,operations:[{id:'x',independent:[{txid:'invalid',vout:0}]}]},
+      {...journal,operations:[{id:'x',transactionId:'invalid'}]},
+    ]){
+      storage.setItem(key,JSON.stringify(malformed));
+      assert.throws(()=>pendingLogoutOperations(storage),/could not be counted/);
+    }
+  }
+});
+
  test('logout clears unreadable recovery journals and preferences', () => {
   const storage=memory([['bis-signet-send-operation-v1:a','broken'],['bis.integration-demo.preview-scale','1']]);
   assert.doesNotThrow(()=>clearBrowserPreferences(storage));
