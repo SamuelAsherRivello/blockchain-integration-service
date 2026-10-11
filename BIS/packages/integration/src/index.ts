@@ -25,6 +25,7 @@ export type { BisLtoRequest, BisContractFilter, BisContractsResult, BisContractA
 export type { BisContract } from './client/state-layer-core/contracts';
 export type { BisGameWalletState } from './client/state-layer-core/game-wallet';
 export { validateMint, normalizeAssetMetadata } from './client/state-layer-core/assets';
+export { prepareAssetMintBatch } from './client/wallet-layer-arkade/asset-mint-batch';
 export { createBisAssetCollection } from './client/state-layer-core/asset-collection';
 export type { BisAssetCollectionOptions, BisAssetCollectionState } from './client/state-layer-core/asset-collection';
 export type { BisAsset, BisAssetMetadata, BisAssetMetadataValue, BisMintAssetRequest, BisMintAssetResult, BisListAssetsResult, BisAssetError, BisPendingMintResult } from './client/state-layer-core/assets';

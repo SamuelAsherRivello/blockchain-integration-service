@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { createBisGameWallet } from '@bis/integration';
+import { createBisGameWallet, prepareAssetMintBatch } from '@bis/integration';
+import { marketplaceCatalogItems, marketplaceMintRequest } from './marketplace-catalog';
 import { prepareMintDestination } from './mint-destination';
 import { mintAndVerifyMarketplaceCatalog } from './marketplace-mint-batch';
 import { burnMarketplaceListing } from './marketplace-burn-batch';
@@ -16,13 +17,16 @@ export function AdminMarketplaceView({ controller, onLog, children }: {controlle
       const targetProfile = controller.getState().profileId;
       if (!targetProfile) throw Error();
       const target = await prepareMintDestination('game', controller, controller, () => controller.getState().profileId === targetProfile, result => onLog({operation:'C.G.2. Marketplace mint', result}));
+      const requests = await prepareAssetMintBatch(targetProfile, controller.getState().network ?? 'signet', marketplaceCatalogItems.map(item => marketplaceMintRequest(item, 'v3')));
+      if (!target.isCurrent()) throw Error('The selected wallet changed.');
+      const operationVersion = requests[0].operationId.slice(`marketplace-${marketplaceCatalogItems[0].id}-`.length);
       const batch = await mintAndVerifyMarketplaceCatalog({mint:target.mint,listAssets:()=>controller.listAssets(),pendingMintRequest:target.request}, target.isCurrent, progress => {
         const message = progress.stage === 'minting' ? `Minting ${progress.itemName} (attempt ${progress.attempt})…`
           : progress.stage === 'retrying' ? `${progress.itemName} unavailable; retrying after ${progress.delayMs / 1000}s.`
-          : progress.stage === 'minted' ? `${progress.itemName} minted; continuing catalog.`
+          : progress.stage === 'minted' ? `${progress.itemName} ${progress.status === 'already-minted' ? 'previously minted' : 'minted'}; continuing catalog.`
           : 'Verifying fresh marketplace inventory…';
         onLog({operation:'C.G.2. Marketplace mint',status:'pending',message,progress,operationId:'operationId' in progress ? progress.operationId : undefined,submissionBoundary:'submissionBoundary' in progress ? progress.submissionBoundary : undefined});
-      }, 'v3');
+      }, operationVersion);
       if (batch.status === 'error') {
       onLog({operation:'C.G.2. Marketplace mint', status:'error', message:`Catalog paused${batch.itemName ? ` at ${batch.itemName}` : ''}: ${batch.code}.`, result:batch,operationId:batch.operationId,submissionBoundary:batch.submissionBoundary});
         return;

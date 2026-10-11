@@ -3,6 +3,7 @@ import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketp
 import '@bis/integration/style.css';
 import { fallbackCatalog, type MarketplaceCatalog } from './catalog';
 import { readPublicInventory } from '../inventory-layer/inventory';
+import { marketplaceGameInventoryAddress } from '../inventory-layer/inventory-source';
 import { createMarketplaceInventoryCoordinator, type MarketplaceInventorySource } from '../inventory-layer/inventory-cache';
 import {createCheckoutSession, type CheckoutScope} from './checkout-session';
 import { version } from '../../../package.json';
@@ -81,7 +82,8 @@ function MarketplaceContent(){
   const [owner,setOwner]=useState<'all'|'game'|'player'>('game'),[game,setGame]=useState<string>('stealth-and-steel'),[type,setType]=useState<'all'|'speed'|'offense'|'defense'>('all');
   const selectedGame=game==='all'?undefined:catalog.games.find(entry=>entry.gameId===game);
   const defaultGame=catalog.games.find(entry=>entry.gameId==='stealth-and-steel');
-  const publicGameAddress=game==='all'?defaultGame?.gameWalletAddress:selectedGame?.gameWalletAddress;
+  const registeredGameAddress=game==='all'?defaultGame?.gameWalletAddress:selectedGame?.gameWalletAddress;
+  const publicGameAddress=registeredGameAddress?marketplaceGameInventoryAddress({registeredAddress:registeredGameAddress,playerProfileId:playerState.profileId,gameProfileId:gameState.profileId,sessionAddress:gameState.addresses?.arkadeAddress,network,gameNetwork:gameState.network}):undefined;
   useEffect(()=>{
     try {
       const pending=readLocalMarketplaceCheckouts().find(record=>record.status==='pending');

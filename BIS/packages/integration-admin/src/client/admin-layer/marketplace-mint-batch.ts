@@ -12,7 +12,7 @@ export type MarketplaceMintBatchResult =
   | Readonly<{ status: 'error'; itemName?: string; operationId?: string; code: string; submissionBoundary?: 'preflight'|'submitted'|'unknown' }>;
 export type MarketplaceMintProgress = Readonly<{stage:'minting';itemName:string;operationId:string;attempt:number;submissionBoundary:'preflight'|'submitted'|'unknown'}>
   | Readonly<{stage:'retrying';itemName:string;operationId:string;attempt:number;delayMs:number;code:string;submissionBoundary:'preflight'}>
-  | Readonly<{stage:'minted';itemName:string;operationId:string;status:string;submissionBoundary:'submitted'}>
+  | Readonly<{stage:'minted';itemName:string;operationId:string;status:string;submissionBoundary:'preflight'|'submitted'}>
   | Readonly<{stage:'verifying'}>;
 
 const transientRetryCount = 8;
@@ -49,7 +49,7 @@ export async function mintAndVerifyMarketplaceCatalog(wallet: MarketplaceMintBat
   for (const item of marketplaceCatalogItems) {
     const request = marketplaceMintRequest(item, operationVersion);
     if (completedCatalogIds.has(item.id)) {
-      onProgress({stage:'minted',itemName:item.name,operationId:request.operationId,status:'already-minted',submissionBoundary:'submitted'});
+      onProgress({stage:'minted',itemName:item.name,operationId:request.operationId,status:'already-minted',submissionBoundary:'preflight'});
       continue;
     }
     let result: BisMintAssetResult;
@@ -65,12 +65,13 @@ export async function mintAndVerifyMarketplaceCatalog(wallet: MarketplaceMintBat
       await pause(transientRetryDelayMs);
     }
     if (result.status === 'error') return { status: 'error', itemName: item.name, operationId: request.operationId, code: result.code, submissionBoundary: result.code === 'outcome-unknown' ? 'unknown' : 'preflight' };
-    onProgress({stage:'minted',itemName:item.name,operationId:result.operationId,status:result.status,submissionBoundary:'submitted'});
+    const submissionBoundary = result.status === 'already-minted' ? 'preflight' : 'submitted';
+    onProgress({stage:'minted',itemName:item.name,operationId:result.operationId,status:result.status,submissionBoundary});
     const itemRead = await wallet.listAssets();
-    if (itemRead.status === 'error') return { status: 'error', itemName: item.name, operationId: request.operationId, code: itemRead.code, submissionBoundary: 'submitted' };
-    if (!isCurrent()) return { status: 'error', itemName: item.name, operationId: request.operationId, code: 'account-changed', submissionBoundary: 'submitted' };
+    if (itemRead.status === 'error') return { status: 'error', itemName: item.name, operationId: request.operationId, code: itemRead.code, submissionBoundary };
+    if (!isCurrent()) return { status: 'error', itemName: item.name, operationId: request.operationId, code: 'account-changed', submissionBoundary };
     const itemMatches = itemRead.assets.filter(asset => classifyBisEquipmentAsset(asset)?.catalogId === item.id);
-    if (itemMatches.length !== 1) return { status: 'error', itemName: item.name, operationId: request.operationId, code: 'verification-failed', submissionBoundary: 'submitted' };
+    if (itemMatches.length !== 1) return { status: 'error', itemName: item.name, operationId: request.operationId, code: 'verification-failed', submissionBoundary };
   }
   if (!isCurrent()) return { status: 'error', code: 'account-changed' };
   onProgress({stage:'verifying'});

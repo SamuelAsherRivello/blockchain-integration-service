@@ -26,6 +26,8 @@ Reset Client is a development action with production safeguards. It can clear in
 
 ## Run and verify
 
+C.G.2 retains operation IDs across interrupted batch retries. After all nine prior assets are confirmed fully burned, another explicit mint starts a new generation. Missing wallet holdings alone never authorize replacement; transferred assets and unavailable supply evidence preserve the original generation and its recovery records.
+
 Run `npm run dev` from the repository root and open the printed `/admin/` URL. The default port is `5174`; the same server also hosts Marketplace, the onboarding spike, and integration documentation. Admin and Marketplace share BIS storage on their common origin. Data stored under a previous port stays there unless an explicit migration is performed.
 
 Run `npm run typecheck`, `npm test`, and `npm run build --workspace @bis/integration-admin` for the relevant workspace checks and build. Browser fixtures live under `tests/client` and should be treated according to their documented isolation. The production build retains the `/blockchain-integration-service/admin/` base for the existing GitHub Pages release. Starting a development preview does not publish a release or establish live wallet acceptance.

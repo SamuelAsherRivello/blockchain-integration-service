@@ -2,6 +2,37 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { marketplaceCatalogItems, marketplaceMintRequest } from '../../src/client/admin-layer/marketplace-catalog.ts';
 import { mintAndVerifyMarketplaceCatalog } from '../../src/client/admin-layer/marketplace-mint-batch.ts';
+import { selectAssetMintBatch } from '../../../integration/src/client/state-layer-core/asset-mint-batch.ts';
+
+test('Admin mint burn remint creates nine new assets and interrupted retries reuse the new generation',async()=>{
+  const records=[],owned=new Map(),supplies=new Map(),calls=[];
+  const base=marketplaceCatalogItems.map(item=>marketplaceMintRequest(item,'v3'));
+  let interrupt=false;
+  const wallet={
+    async mint(request){
+      calls.push(request.operationId);
+      const prior=records.find(r=>r.request.operationId===request.operationId);
+      if(prior)return {status:'already-minted',profileId:'game',operationId:request.operationId,asset:prior.asset};
+      if(interrupt&&request.name==='Shoes II'){interrupt=false;return {status:'error',code:'outcome-unknown',message:'interrupted'};}
+      const asset={assetId:`mint-${records.length}`,quantity:'1',iconUrl:request.iconUrl,metadata:{...request.metadata,bisSchemaVersion:'1'}};
+      records.push({request,status:'succeeded',asset});owned.set(asset.assetId,asset);supplies.set(asset.assetId,1n);
+      return {status:'minted',profileId:'game',operationId:request.operationId,asset};
+    },
+    async listAssets(){return {status:'success',profileId:'game',assets:[...owned.values()]};},
+  };
+  const version=async()=>{const prepared=await selectAssetMintBatch(base,records,async id=>supplies.get(id));return prepared[0].operationId.slice(`marketplace-${marketplaceCatalogItems[0].id}-`.length);};
+  assert.equal((await mintAndVerifyMarketplaceCatalog(wallet,()=>true,undefined,await version())).status,'verified');
+  for(const id of owned.keys())supplies.set(id,0n);owned.clear();
+  interrupt=true;
+  const next=await version();assert.equal(next,'v3-g1');
+  assert.equal((await mintAndVerifyMarketplaceCatalog(wallet,()=>true,undefined,next)).status,'error');
+  assert.equal(await version(),next);
+  assert.equal((await mintAndVerifyMarketplaceCatalog(wallet,()=>true,undefined,await version())).status,'verified');
+  assert.equal(owned.size,9);assert.equal(records.length,18);
+  const count=calls.length;
+  assert.equal((await mintAndVerifyMarketplaceCatalog(wallet,()=>true,undefined,await version())).status,'verified');
+  assert.equal(calls.length,count);
+});
 
 function chainAssets() {
   return marketplaceCatalogItems.map((item, index) => ({
@@ -14,6 +45,18 @@ function chainAssets() {
     },
   }));
 }
+
+test('historical results never report a new submission during progress or verification failure',async()=>{
+  const progress=[];
+  const wallet={mint:async request=>({status:'already-minted',profileId:'game',operationId:request.operationId,asset:chainAssets()[0]}),listAssets:async()=>({status:'success',profileId:'game',assets:[]})};
+  const result=await mintAndVerifyMarketplaceCatalog(wallet,()=>true,event=>progress.push(event),'v3');
+  assert.equal(result.submissionBoundary,'preflight');
+  assert.equal(progress.find(event=>event.stage==='minted').submissionBoundary,'preflight');
+  progress.length=0;
+  wallet.listAssets=async()=>({status:'success',profileId:'game',assets:chainAssets()});
+  assert.equal((await mintAndVerifyMarketplaceCatalog(wallet,()=>true,event=>progress.push(event),'v3')).status,'verified');
+  assert.equal(progress.filter(event=>event.submissionBoundary==='submitted').length,0);
+});
 test('an owned but uncertain catalog mint reconciles its original request before skipping or minting',async()=>{
   const pending=marketplaceMintRequest(marketplaceCatalogItems[5],'v3'),calls=[];
   const result=await mintAndVerifyMarketplaceCatalog({pendingMintRequest:pending,mint:async request=>{calls.push(request);return {status:'already-minted',profileId:'game',operationId:request.operationId,asset:chainAssets()[5]};},listAssets:async()=>({status:'success',profileId:'game',assets:chainAssets()})},()=>true,undefined,'v3');
@@ -50,7 +93,7 @@ test('an interrupted or incomplete batch never returns verified publication reco
     async mint(request) { return {status:'already-minted',profileId:'game',operationId:request.operationId,asset:{assetId:'a',quantity:'1'}}; },
     async listAssets() { return {status:'success',profileId:'game',assets:chainAssets().slice(0,8)}; },
   },()=>true);
-  assert.deepEqual(incomplete,{status:'error',itemName:'Shield III',operationId:'marketplace-stealth-steel-shield-3-v2',code:'verification-failed',submissionBoundary:'submitted'});
+  assert.deepEqual(incomplete,{status:'error',itemName:'Shield III',operationId:'marketplace-stealth-steel-shield-3-v2',code:'verification-failed',submissionBoundary:'preflight'});
 });
 
 test('a transient unavailable result retries the same catalog operation before pausing the batch', async () => {
