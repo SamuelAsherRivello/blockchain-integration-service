@@ -43,6 +43,36 @@ test('requested admin navigation controls use an arrow-only affordance', async (
   assert.match(gameWalletSource, /<button aria-label="A.G.2\. Game Wallet \(User-facing\)" disabled=\{!controller \|\| !playerReady\} onClick=\{onOpenDeveloper\}>↗<\/button>/, 'A.G.2 is arrow-only');
 });
 
+test('C.P.1 opens the trophy preview without collecting and blocks competing flows', async () => {
+  const AdminPanelView = await loadAdmin();
+  let opened = 0;
+  const onCompleteLevel = () => { opened++; };
+  const findAction = node => {
+    if (!node || typeof node !== 'object') return undefined;
+    if (node.props?.id === 'C.P.1') return node;
+    for (const child of [node.props?.children].flat(Infinity)) {
+      const found = findAction(child);
+      if (found) return found;
+    }
+  };
+  for (const playerActive of [false, true]) {
+    const props = { playerActive, consoleOutput: '', onCompleteLevel };
+    const action = findAction(AdminPanelView(props));
+    assert.ok(action, 'Assets includes the trophy preview action');
+    assert.equal(Boolean(action.props.disabled), false, 'Guest preview requires no signing identity');
+    assert.equal(opened, playerActive ? 1 : 0, 'Rendering does not open or collect');
+    action.props.onClick();
+    const html = renderToStaticMarkup(createElement(AdminPanelView, props));
+    assert.match(html, /aria-label="C\.P\.1\. Reward Player With Trophy After Level Complete"[^>]*>↗<\/button>/);
+    for (const blocked of [{ accountOpen: true }, { completionOpen: true }, { assetBusy: true }, { continueBusy: true }, { onCompleteLevel: undefined }]) {
+      const disabledHtml = renderToStaticMarkup(createElement(AdminPanelView, { ...props, ...blocked }));
+      const button = disabledHtml.match(/<button\b[^>]*aria-label="C\.P\.1\.[^"]*"[^>]*>/)?.[0];
+      assert.ok(button?.includes('disabled=""'), JSON.stringify(blocked));
+    }
+  }
+  assert.equal(opened, 2, 'Only explicit preview actions invoke the supplied callback');
+});
+
 test('B.P.1 stays enabled with the Account dialog open and retains payment guards', async () => {
   const AdminPanelView = await loadAdmin();
   for (const accountOpen of [false, true]) {
@@ -137,7 +167,8 @@ test('Admin renders implemented asset stories and omits empty categories', async
     assert.match(html, />C\. Assets</);
     assert.match(html, /C.G.1\. Mint Asset &amp; Send/);
     assert.doesNotMatch(html, /<span>C4<\/span>List Assets/);
-    assert.doesNotMatch(html, /C6|Reward Player With Trophy After Level Complete/);
+    assert.doesNotMatch(html, /<span>C6<\/span>/);
+    assert.match(html, /C\.P\.1\. Reward Player With Trophy After Level Complete/);
     assert.match(html, />B\. Payments</);
     assert.match(html, /&quot;Pay 1000 Sats To Continue&quot;/);
     assert.match(html, /aria-label="Console output"/);
