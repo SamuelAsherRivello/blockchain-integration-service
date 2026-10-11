@@ -288,7 +288,7 @@ function MarketplaceContent(){
     const intent=Object.freeze({direction,assetId:selected.assetId,quantity:String(selected.quantity),priceSats:selected.priceSats});
     setOperationError(undefined);
     invalidateInventory();
-    setOperationLabel(direction==='buy'?'Buying ...':'Selling ...');
+    setOperationLabel(direction==='buy'?'Buying...':'Selling...');
     const loadingTimer=window.setTimeout(()=>{if(checkoutSession.current(scope))setOperationLabel(undefined);},3000);
     try {
       const record=await checkoutSession.prepare(intent,scope);

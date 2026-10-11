@@ -32,7 +32,7 @@ test('one Vite server serves package applications, resources, and linked READMEs
   assert.ok(catalog.games.some(game => game.gameId === 'stealth-and-steel'));
   for (const app of packageRoutes.filter(app => !app.readme)) {
     const favicon = await fetch(origin + app.route + 'favicon.png');
-    if (app.directory === 'prototype-faucet') assert.equal(favicon.status, 404, app.route + 'favicon.png');
+    if (app.directory === 'prototype-faucet' || app.directory === 'prototype-sandbox') assert.equal(favicon.status, 404, app.route + 'favicon.png');
     else {
       assert.equal(favicon.status, 200, app.route + 'favicon.png');
       assert.ok(favicon.headers.get('content-type')?.includes('image/png'));

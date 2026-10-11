@@ -6,8 +6,8 @@ import {quoteSend,submitSend,reconcileSend,type SendJournal} from './sending.ts'
 import {continueResult,readContinuations,writeContinuation,type ContinueRecord} from '../state-layer-core/continuation.ts';
 
 function journal(record:ContinueRecord):SendJournal {
-  const read=()=>readContinuations(record.profileId).find(r=>r.request.operationId===record.request.operationId)!.send;
-  return {read,write(send){writeContinuation({...record,send,status:send.status});},complete(id,transactionId){
+  const read=()=>readContinuations(record.profileId).find(r=>r.request.operationId===record.request.operationId)?.send;
+  return {read,write(send){if(!readContinuations(record.profileId).some(r=>r.request.operationId===record.request.operationId))throw Error('Continuation changed.');writeContinuation({...record,send,status:send.status});},complete(id,transactionId){
     const send=read();if(!send || send.id!==id || send.transactionId!==transactionId)throw Error('Continuation changed.');
     writeContinuation({...record,send:{...send,status:'succeeded'},status:'succeeded'});
   }};
@@ -29,7 +29,8 @@ export async function submitContinuation(account:AccountSecret,record:ContinueRe
     if(!isCurrent())throw Error('Account changed.');
     await submitSend(account,quote,isCurrent,journal(record),true,`continue:${record.request.operationId}`,session);
   } catch(error) {
-    const saved=readContinuations(account.profileId).find(r=>r.request.operationId===record.request.operationId)!;
+    const saved=readContinuations(account.profileId).find(r=>r.request.operationId===record.request.operationId);
+    if(!saved)throw Error('Account changed.');
     if(!saved.send)writeContinuation({...saved,status:'failed',message:error instanceof SendError?error.message:'Payment preparation failed; no payment was submitted.'});
   }
   return continueResult(readContinuations(account.profileId).find(r=>r.request.operationId===record.request.operationId)!);
