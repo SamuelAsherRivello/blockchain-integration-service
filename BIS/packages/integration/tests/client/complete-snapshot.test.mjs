@@ -13,11 +13,12 @@ test('full live coverage includes inactive/recoverable contracts and starts at z
 });
 test('pagination is complete and required later page failure cannot return a partial success',async()=>{
   let calls=0;
-  const provider={getVtxos:async q=>{calls++;return {vtxos:[coin(String(q.pageIndex))],page:{current:q.pageIndex,next:q.pageIndex+1,total:2}};}};
+  const provider={getVtxos:async q=>{calls++;return {vtxos:[coin(String(q.pageIndex))],page:{current:q.pageIndex+1,next:q.pageIndex+1,total:2}};}};
   const result=await readCompleteContracts(manager(),provider,signal());assert.equal(result[0].vtxos.length,2);assert.equal(calls,2);
-  provider.getVtxos=async q=>{if(q.pageIndex)throw Error('offline');return {vtxos:[coin('one')],page:{current:0,next:1,total:2}};};
+  provider.getVtxos=async q=>{if(q.pageIndex)throw Error('offline');return {vtxos:[coin('one')],page:{current:1,next:1,total:2}};};
   await assert.rejects(readCompleteContracts(manager(),provider,signal()),/offline/);
-  for(const page of [{current:1,next:2,total:2},{current:0,next:0,total:2},{current:0,next:1,total:NaN}])await assert.rejects(readCompleteContracts(manager(),{getVtxos:async()=>({vtxos:[coin('one')],page})},signal()));
+  for(const page of [{current:2,next:2,total:2},{current:1,next:0,total:2},{current:1,next:1,total:NaN}])await assert.rejects(readCompleteContracts(manager(),{getVtxos:async()=>({vtxos:[coin('one')],page})},signal()));
+  const empty=await readCompleteContracts(manager(),{getVtxos:async()=>({vtxos:[],page:{current:1,next:0,total:0}})},signal());assert.ok(empty.every(row=>row.vtxos.length===0));
 });
 test('attempt failure followed by success recovers; old repository outputs and watcher status are not evidence',async()=>{
   let fail=true;

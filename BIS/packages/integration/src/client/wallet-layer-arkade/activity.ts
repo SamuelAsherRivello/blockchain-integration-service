@@ -100,9 +100,23 @@ export async function observeActivityWallet(pending: Promise<ActivityWallet>, si
   }
 }
 
-export async function watchActivity(account: AccountSecret, signal: AbortSignal, publish: (rows: readonly BisTransaction[]) => void): Promise<void> {
+export async function watchActivity(account: AccountSecret, signal: AbortSignal, publish: (rows: readonly BisTransaction[]) => void,session?:import('./adapter-session.ts').RoleWalletAccess): Promise<void> {
   if (!validRecovery(account.phrase)) throw Error('Invalid account.');
   signal.throwIfAborted();
+  if(session)return session.read(account,signal,async wallet=>{
+    // The observer owns callbacks/timers, never the retained SDK wallet.
+    const borrowed:ActivityWallet={
+      getTransactionHistory:()=>session.history(account,signal),getBoardingUtxos:()=>wallet.getBoardingUtxos(),
+      getProviderConnectionState:()=>({mode:'online',source:'live',lastOnlineAt:Date.now()}),getSpendableVtxos:options=>session.read(account,signal,current=>current.getSpendableVtxos(options)),
+      onchainProvider:wallet.onchainProvider,dispose:async()=>{},
+      notifyIncomingFunds:async callback=>{
+        const stop=new AbortController();
+        void session.observe(account,AbortSignal.any([signal,stop.signal]),()=>callback({} as never)).catch(()=>{});
+        return ()=>stop.abort();
+      },
+    };
+    return observeActivityWallet(Promise.resolve(borrowed),signal,publish);
+  },false);
   const network=account.network ?? 'signet',operator=operatorFor(network);
   const arkProvider = new RestArkProvider(operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);

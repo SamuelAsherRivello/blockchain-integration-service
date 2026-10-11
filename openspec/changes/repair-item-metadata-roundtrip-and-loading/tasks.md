@@ -21,4 +21,4 @@
 - [x] 4.1 Verify selected matching-network wallets, spendable funds, recovery records, and current holdings through Admin before mutation; record public identity/network only.
 - [x] 4.2 Mint missing catalog items through Admin and freshly list all nine successfully; reconcile uncertain operations with their original IDs and record public chain evidence.
 - [x] 4.3 Verify Game Wallet and Player Wallet listings in Marketplace, purchase one item, and verify fresh Player ownership with real transaction evidence.
-- [ ] 4.4 Consume the repaired BIS integration in the separate game and verify equipping/using the purchased item affects gameplay through chain-provided deltas; record browser evidence.
+- [x] 4.4 Consume the repaired BIS integration in the separate game and verify equipping/using the purchased item affects gameplay through chain-provided deltas; record browser evidence.

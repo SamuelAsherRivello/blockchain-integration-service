@@ -150,6 +150,7 @@ export async function listWalletAssets(account: AccountSecret, signal: AbortSign
           const known=cache!.get(key);if(known)return known;
           const details=await wallet.assetManager.getAssetDetails(assetId);
           if(details.assetId!==assetId)throw new AssetError('unavailable');
+          normalizeAssetMetadata(details.metadata,'list');
           deadline.throwIfAborted();cache!.set(key,details);return details;
         },
       } as ReadonlyWallet['assetManager']});
@@ -351,7 +352,8 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
 }
 
 /** Stream wallet output changes directly; no history or balance polling. */
-export async function watchAssetChanges(account: AccountSecret, signal: AbortSignal, changed: () => void): Promise<void> {
+export async function watchAssetChanges(account: AccountSecret, signal: AbortSignal, changed: () => void,session?:RoleWalletAccess): Promise<void> {
+  if(session)return session.observe(account,signal,changed);
   const p = providers(signal, undefined, undefined, account.network ?? 'signet');
   const identity = await MnemonicIdentity.fromMnemonic(account.phrase, {isMainnet:false}).toReadonly();
   const wallet = await ReadonlyWallet.create({identity, arkProvider:p.arkProvider, indexerProvider:p.indexerProvider, storage:storage()});

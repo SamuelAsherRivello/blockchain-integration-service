@@ -5,7 +5,7 @@
 - [x] 1.1 Add a private Arkade session factory with Player/Game slots, explicit in-memory repositories, `settlementConfig: false`, narrow read/sign borrowing, and an injectable SDK factory; verify fake-factory tests show zero wallets before eligibility, one Player wallet, and at most two role wallets with Game enabled.
 - [x] 1.2 Implement shared bounded acquisition, failure reset, caller detachment, late-acquisition retirement, and single disposal ownership; verify tests for concurrent acquisition, cancelled first caller, creation failure followed by recovery, and disposal during initialization.
 - [x] 1.3 Implement monotonic role generations and non-overlapping retirement/replacement, including bounded unavailable/quarantine state when cleanup is uncertain; verify A-to-B-to-A, network/operator replacement, and hung cleanup cannot publish stale results or create another signer.
-- [ ] 1.4 Document owner-versus-borrower lifetime and secret-handling constraints beside the private factory; verify exported package declarations contain no SDK wallet, provider, repository, or new secret-bearing session type.
+- [x] 1.4 Document owner-versus-borrower lifetime and secret-handling constraints beside the private factory; verify exported package declarations contain no SDK wallet, provider, repository, or new secret-bearing session type.
 
 ## 2. App composition and account transitions
 
@@ -13,7 +13,7 @@
 - [ ] 2.2 Replace Game refresh-on-every-context-publication with identity/network/relevant-evidence triggers and eligible in-flight joins; verify navigation/status-only publications cause no Game provider requests, while actual Game changes refresh once under existing policy.
 - [ ] 2.3 Move creation/restoration SDK validation into serialized role-slot candidate handoff without changing encrypted account persistence; verify successful activation reuses the candidate and failed restore preserves the previous saved identity without overlapping wallets.
 - [ ] 2.4 Connect logout, reset, network changes, cross-instance identity changes, and root disposal to retirement and publication guards; verify wallet-role, wallet-scope, network-selection, readiness-race, and game-wallet tests preserve existing access and guest-play behavior.
-- [ ] 2.5 Update the integration package's existing named README with the app-session ownership boundary and unchanged public API; verify relative links remain valid and the package README stays within the repository's approximate length target.
+- [x] 2.5 Update the integration package's existing named README with the app-session ownership boundary and unchanged public API; verify relative links remain valid and the package README stays within the repository's approximate length target.
 - [ ] 2.6 Preserve direct adapter entry points used by test-wallet inventory creation, live observations, funding receipts, and Swap verification through independent bounded Node lifetimes; verify focused test-wallet tests pass, standalone resources are disposed, and no browser-private signer or recovery material is exposed.
 
 ## 3. Fresh read boundary and balance reuse

@@ -1,18 +1,18 @@
 export const DEMOS = Object.freeze([
-  { number: 1, subject: 'Get Wallet', title: 'Get Wallet', path: '/prototype-sandbox/demo-1/' },
-  { number: 2, subject: 'Get Balance', title: 'Private Wallet', path: '/prototype-sandbox/demo-2/' },
-  { number: 3, subject: 'Get Balance', title: 'Public Address', path: '/prototype-sandbox/demo-3/' },
-  { number: 4, subject: 'Send Payment', title: 'Send Payment', path: '/prototype-sandbox/demo-4/' },
-  { number: 5, subject: 'Receive Payment', title: 'Receive Payment', path: '/prototype-sandbox/demo-5/' },
-  { number: 6, subject: 'Payment History', title: 'Payment History', path: '/prototype-sandbox/demo-6/' },
-  { number: 7, subject: 'Mint Asset', title: 'Mint Asset', path: '/prototype-sandbox/demo-7/' },
-  { number: 8, subject: 'Send Asset', title: 'Send Asset', path: '/prototype-sandbox/demo-8/' },
-  { number: 9, subject: 'Receive Asset', title: 'Receive Asset', path: '/prototype-sandbox/demo-9/' },
-  { number: 10, subject: 'Asset History', title: 'Private Wallet', path: '/prototype-sandbox/demo-10/' },
-  { number: 11, subject: 'Asset History', title: 'Public Address', path: '/prototype-sandbox/demo-11/' },
+  { number: 1, subject: 'Get Wallet', title: 'Get Wallet', path: '/prototype-interactive-docs/demo-1/' },
+  { number: 2, subject: 'Get Balance', title: 'Private Wallet', path: '/prototype-interactive-docs/demo-2/' },
+  { number: 3, subject: 'Get Balance', title: 'Public Address', path: '/prototype-interactive-docs/demo-3/' },
+  { number: 4, subject: 'Send Payment', title: 'Send Payment', path: '/prototype-interactive-docs/demo-4/' },
+  { number: 5, subject: 'Receive Payment', title: 'Receive Payment', path: '/prototype-interactive-docs/demo-5/' },
+  { number: 6, subject: 'Payment History', title: 'Payment History', path: '/prototype-interactive-docs/demo-6/' },
+  { number: 7, subject: 'Mint Asset', title: 'Mint Asset', path: '/prototype-interactive-docs/demo-7/' },
+  { number: 8, subject: 'Send Asset', title: 'Send Asset', path: '/prototype-interactive-docs/demo-8/' },
+  { number: 9, subject: 'Receive Asset', title: 'Receive Asset', path: '/prototype-interactive-docs/demo-9/' },
+  { number: 10, subject: 'Asset History', title: 'Private Wallet', path: '/prototype-interactive-docs/demo-10/' },
+  { number: 11, subject: 'Asset History', title: 'Public Address', path: '/prototype-interactive-docs/demo-11/' },
 ]);
 
-export const SETUP_PATH = '/prototype-sandbox/setup/';
+export const SETUP_PATH = '/prototype-interactive-docs/setup/';
 export const DEFAULT_ADDRESS = 'tark1qz9l2ctqalrkjyftxcw7gytm83cm3r9pdudmna4v0gncry56h30x4yp2v8xdrmv5xwjpk25whlrlrqj8fsv360vezp9jz3ufyzldv4an4md0qf';
 export const NETWORK_STORAGE_KEY = 'network';
 export const DEFAULT_NETWORK = 'signet';
@@ -44,7 +44,7 @@ export function setupMnemonicValues(storage = globalThis.localStorage) {
 }
 
 export function getActiveDemo(pathname = '') {
-  const match = String(pathname).match(/\/prototype-sandbox\/demo-(\d+)(?:\/|$)/i);
+  const match = String(pathname).match(/\/prototype-interactive-docs\/demo-(\d+)(?:\/|$)/i);
   const number = Number(match?.[1]);
   return DEMOS.some(demo => demo.number === number) ? number : 1;
 }

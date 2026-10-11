@@ -6,7 +6,7 @@
 
 ## Demo entry points
 
-Open the shared development server and use `/prototype-sandbox/demo-1/` through `/prototype-sandbox/demo-10/`. The Navigation section lists all ten demos in one horizontal row. The current demo is disabled, while the other nine items are links to their dedicated entry points.
+Open the shared development server and use `/prototype-interactive-docs/demo-1/` through `/prototype-interactive-docs/demo-11/`. The Navigation section lists the demos in rows. The current demo is disabled, while the other items are links to their dedicated entry points.
 
 The initial pages intentionally contain no Faucet form, wallet action, network request, or placeholder behavior. The network selector keeps the existing Prototype Faucet presentation and confirmation behavior so future demos can add network-specific content without changing the shell contract.
 

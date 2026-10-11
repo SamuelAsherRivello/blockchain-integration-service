@@ -158,3 +158,43 @@ After the final import, the reloaded muted game again opened Account with
 and two WebGPU warnings. Edge was minimized in the verification finally block.
 Task 4.4 remains incomplete until real equip/use is verified in the signed-in
 game; successful chain-delta calculation is not counted as live gameplay.
+
+## Final live gameplay acceptance (2026-10-11)
+
+The authenticated in-app browser exposed the muted local game above. Its
+Game Wallet view displayed Mutinynet and the expected Game address. After
+reloading the busy wallet view without clearing storage, the real Items read
+settled with Shoes I, price 1,000 sats, Speed +10%, Offense/Defense 0%.
+The item card's data-asset-id was
+`f77b4dd78aad82de661e67523466de7830d6422d6f0d0141e2d8ed1e0fbf61cc0000`,
+exactly the asset delivered by the confirmed marketplace checkout above.
+Clicking the card produced aria-pressed=true, a check mark, and the Shoes I
+HUD slot; clearing it removed those active indicators. No new purchase,
+mint, funding, login/logout test, credential copy or journal reset occurred.
+
+Acceptance uncovered a game-consumer defect: equipment notifications updated
+the menu/HUD snapshot but not already-spawned actors. Because initial wallet
+hydration may exceed the 1.5-second guest-start budget, this could display
+active Shoes while keeping baseline physics. The game now synchronizes live
+player combat snapshots and movement multipliers on equipment changes.
+The movement setter validates the normalized multiplier and resets invalid
+values to baseline. This is game host wiring, not fabricated chain metadata.
+
+Development-only canvas data-player-motion exposes the same getMovementSpeed
+method used by real locomotion and the actor's actual world position. The
+live unequipped run reported speed 210. After selecting Shoes I on the
+existing player and starting gameplay, it reported 231.00000000000003,
+an exact 10% increase within floating-point precision. Moving the joystick
+changed the actor position from (224,224) to approximately
+(222.471934,379.666376) while retaining that equipped speed. The game was
+left paused in Settings with the Shoes I HUD slot active.
+
+Raw pointer-hold distance comparisons were not used as timing benchmarks:
+collision/grid alignment and browser input timing affected those samples.
+The real actor regression instead measures identical simulation intervals,
+proves 1.1x distance after activation and baseline after clearing, and covers
+invalid multipliers. A second regression checks host notification wiring.
+All 1,132 game tests pass with zero failures/skips; BIS contract typecheck,
+production build and scoped diff checks pass. Build retains its existing
+large-chunk advisory. Task 4.4 is now complete; earlier pending notes above
+describe historical checkpoints, not the final outcome.

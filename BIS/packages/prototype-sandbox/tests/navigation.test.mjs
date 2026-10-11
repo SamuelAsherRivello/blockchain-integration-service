@@ -4,7 +4,7 @@ import { DEFAULT_ADDRESS, DEFAULT_NETWORK, DEMOS, NETWORK_STORAGE_KEY, SETUP_PAT
 
 test('defines eleven labeled demo routes', () => {
   assert.equal(DEMOS.length, 11);
-  assert.deepEqual(DEMOS.map(demo => demo.path), Array.from({ length: 11 }, (_, index) => `/prototype-sandbox/demo-${index + 1}/`));
+  assert.deepEqual(DEMOS.map(demo => demo.path), Array.from({ length: 11 }, (_, index) => `/prototype-interactive-docs/demo-${index + 1}/`));
   assert.equal(DEMOS[0].subject, 'Get Wallet');
   assert.equal(DEMOS[1].subject, 'Get Balance');
   assert.equal(DEMOS[1].title, 'Private Wallet');
@@ -16,11 +16,16 @@ test('defines eleven labeled demo routes', () => {
 });
 
 test('derives active demo from direct paths and defaults safely', () => {
-  assert.equal(getActiveDemo('/prototype-sandbox/demo-4/'), 4);
-  assert.equal(getActiveDemo('/prototype-sandbox/demo-6/'), 6);
-  assert.equal(getActiveDemo('/prototype-sandbox/demo-10/'), 10);
-  assert.equal(getActiveDemo('/prototype-sandbox/'), 1);
-  assert.equal(getActiveDemo('/prototype-sandbox/demo-11/'), 11);
+  assert.equal(getActiveDemo('/prototype-interactive-docs/demo-4/'), 4);
+  assert.equal(getActiveDemo('/prototype-interactive-docs/demo-6/'), 6);
+  assert.equal(getActiveDemo('/prototype-interactive-docs/demo-10/'), 10);
+  assert.equal(getActiveDemo('/prototype-interactive-docs/'), 1);
+  assert.equal(getActiveDemo('/prototype-interactive-docs/demo-11/'), 11);
+});
+
+test('each setup and demo route resolves without throwing', () => {
+  const paths = [SETUP_PATH, ...DEMOS.map(demo => demo.path)];
+  for (const path of paths) assert.doesNotThrow(() => getActiveDemo(path), path);
 });
 
 test('setup defaults both public address slots and persists them', () => {
@@ -29,8 +34,8 @@ test('setup defaults both public address slots and persists them', () => {
   assert.deepEqual(setupStorageValues(storage), { address1: DEFAULT_ADDRESS, address2: DEFAULT_ADDRESS });
   assert.equal(values.get('address-1'), DEFAULT_ADDRESS);
   assert.equal(values.get('address-2'), DEFAULT_ADDRESS);
-  assert.equal(SETUP_PATH, '/prototype-sandbox/setup/');
-  assert.equal(isSetupPath('/prototype-sandbox/setup/'), true);
+  assert.equal(SETUP_PATH, '/prototype-interactive-docs/setup/');
+  assert.equal(isSetupPath('/prototype-interactive-docs/setup/'), true);
 });
 
 test('setup initializes the network storage value', () => {

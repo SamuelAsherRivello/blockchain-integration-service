@@ -5,6 +5,7 @@ import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
 import type { BoardingQuote } from './boarding-quote.ts';
 import { assertNoPendingBoarding, withWalletMutation } from './boarding-record.ts';
 import { transferStatus } from './boarding-status.ts';
+import type {RoleWalletAccess} from '../wallet-layer-arkade/adapter-session.ts';
 
 export const gameBoardingOwnerPrefix = 'bis-game-wallet-boarding-owner:';
 export function preserveGameBoarding(profileId: string) {
@@ -13,21 +14,21 @@ export function preserveGameBoarding(profileId: string) {
   if (localStorage.getItem(key) !== '1') throw Error('Recovery storage unavailable.');
 }
 export const gameWalletBoarding = {
-  async quote(account: AccountSecret, signal: AbortSignal) {
-    eligibleUnreservedCoins([],walletReservations(account.profileId));
+  async quote(account: AccountSecret, signal: AbortSignal,session?:RoleWalletAccess) {
+    eligibleUnreservedCoins([],walletReservations(account.profileId,account.network??'signet'));
 
-    return quoteBoarding(account, undefined, signal, 'to-arkade');
+    return quoteBoarding(account, undefined, signal, 'to-arkade',session);
   },
-  async submit(account: AccountSecret, quote: BoardingQuote, current: () => boolean) {
+  async submit(account: AccountSecret, quote: BoardingQuote, current: () => boolean,session?:RoleWalletAccess) {
     return withWalletMutation(async () => {
-      eligibleUnreservedCoins([],walletReservations(account.profileId));
+      eligibleUnreservedCoins([],walletReservations(account.profileId,account.network??'signet'));
 
       if (!current() || quote.direction !== 'to-arkade') throw Error('Review a fresh boarding quote.');
       preserveGameBoarding(account.profileId);
-      return transferStatus(await submitBoarding(account, quote, current));
-    }, account.profileId);
+      return transferStatus(await submitBoarding(account, quote, current,session));
+    }, account.profileId,account.network??'signet');
   },
-  async check(account: AccountSecret, signal: AbortSignal) {
-    return transferStatus(await reconcileBoarding(account, signal));
+  async check(account: AccountSecret, signal: AbortSignal,session?:RoleWalletAccess) {
+    return transferStatus(await reconcileBoarding(account, signal,session));
   },
 };

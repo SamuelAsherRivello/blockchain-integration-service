@@ -1,6 +1,7 @@
 import {SendError} from '../state-layer-core/sending.ts';
 import {type AccountSecret} from './account.ts';
 import {validContinueRecipient} from './continue-recipient.ts';
+import type {RoleWalletAccess} from './adapter-session.ts';
 import {quoteSend,submitSend,reconcileSend,type SendJournal} from './sending.ts';
 import {continueResult,readContinuations,writeContinuation,type ContinueRecord} from '../state-layer-core/continuation.ts';
 
@@ -19,14 +20,14 @@ export async function reconcileContinuation(account:AccountSecret,record:Continu
   try {await reconcileSend(account,signal,journal(record));}catch {/* Unknown is still pending. */}
   return continueResult(readContinuations(account.profileId).find(r=>r.request.operationId===record.request.operationId)!);
 }
-export async function submitContinuation(account:AccountSecret,record:ContinueRecord,signal:AbortSignal,isCurrent:()=>boolean) {
+export async function submitContinuation(account:AccountSecret,record:ContinueRecord,signal:AbortSignal,isCurrent:()=>boolean,session?:RoleWalletAccess) {
   writeContinuation(record);
   try {
     if (!validContinueRecipient(record.request.recipient)) throw new SendError('Configure a valid game wallet recipient before paying.');
     const arkadeAddress = record.request.recipient!;
-    const quote=await quoteSend(account,arkadeAddress,record.request.sats,signal,true,`continue:${record.request.operationId}`);
+    const quote=await quoteSend(account,arkadeAddress,record.request.sats,signal,true,`continue:${record.request.operationId}`,session);
     if(!isCurrent())throw Error('Account changed.');
-    await submitSend(account,quote,isCurrent,journal(record),true,`continue:${record.request.operationId}`);
+    await submitSend(account,quote,isCurrent,journal(record),true,`continue:${record.request.operationId}`,session);
   } catch(error) {
     const saved=readContinuations(account.profileId).find(r=>r.request.operationId===record.request.operationId)!;
     if(!saved.send)writeContinuation({...saved,status:'failed',message:error instanceof SendError?error.message:'Payment preparation failed; no payment was submitted.'});

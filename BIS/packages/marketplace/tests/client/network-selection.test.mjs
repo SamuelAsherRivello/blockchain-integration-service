@@ -10,11 +10,14 @@ test('Marketplace derives every visible network route from the selected Player W
 
   assert.match(app, /const network=playerState\.network;/);
   assert.match(app, /playerNetwork:\(\)=>player\.getState\(\)\.network,playerSubscribe:player\.subscribe/);
-  assert.match(app, /playerSessionKey:\(\)=>JSON\.stringify\(\[player\.getState\(\)\.profileId,player\.getState\(\)\.phase,player\.getState\(\)\.network\]\)/);
+  // Loading/ready phase changes do not replace the retained wallet session.
+  // Only identity or network changes invalidate the Game Wallet's player scope.
+  assert.match(app, /playerSessionKey:\(\)=>JSON\.stringify\(\[player\.getState\(\)\.profileId,player\.getState\(\)\.network\]\)/);
   assert.match(app, /hasGameWallet:\(\)=>!!gameWalletRef\.current\?\.getState\(\)\.profileId,resetGameWallet:async\(\)=>await gameWalletRef\.current\?\.reset\(\) \?\? false/);
   assert.match(app, /if\(isCatalogLoading\|\|!network\)return \[\];/);
   assert.match(app, /prepareAssetInventory\?await player\.prepareAssetInventory\(force\):await player\.listAssets\(\)/);
-  assert.match(app, /gameWallet\.prepareAssetInventory\?await gameWallet\.prepareAssetInventory\(force\):await gameWallet\.listAssets\(\)/);
+  assert.match(app, /readPublicInventory\(publicGameAddress,new AbortController\(\)\.signal,network\)/);
+  assert.match(inventory, /new RestIndexerProvider\(testNetwork\(network\)\.operator\)/);
   assert.match(app, /Network: \{networkLabel\(network\)\}/);
   assert.match(app, /arkExplorerAssetUrl\(network,selected\.assetId\)/);
   assert.doesNotMatch(app, /Network: Signet/);

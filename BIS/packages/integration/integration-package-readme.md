@@ -8,7 +8,7 @@
 
 Start with `src/index.ts`: `IBis` defines commands, `BisService` coordinates services, and `IBisGame` supplies five callbacks including `onBisEvent`. Import `@bis/integration/style.css`. Wallet creation, restoration, and selection remain explicit.
 
-Game commands expose readonly `BisSnapshot` copies. Games use `BisGame` names; system payloads use `Bis`. The [boundary example](tests/fixtures/game-contract-types.ts) rejects missing callbacks, private access, and mutable snapshots. Admin and Marketplace retain supported lower-level exports.
+Game commands expose readonly `BisSnapshot` copies. The [boundary example](tests/fixtures/game-contract-types.ts) rejects missing callbacks, private access, and mutable snapshots. Admin and Marketplace retain supported lower-level exports.
 
 `state-layer-core` owns lifecycle, persistence, and operations; `ui-layer-react` owns components; `wallet-layer-arkade` adapts providers. Demo composition belongs in consuming packages.
 
@@ -22,9 +22,9 @@ Family, tier, catalog identity, price, and description support display and valid
 
 ## Accounts, caching, and operations
 
-Remembered accounts use encrypted, origin-scoped browser storage. Refresh and disposal retain committed access. Compromised same-origin code can still access browser secrets; never log recovery phrases or put them in public state, telemetry, or reports. Logout/reset confirmations preserve unresolved-operation guards; clearing local access cannot cancel submitted transactions or erase remote holdings.
+Remembered accounts use encrypted, origin-scoped storage. Compromised same-origin code can access secrets; never log recovery phrases or put them in public state or reports. Logout remains available without settlement waits; risk checkboxes are informational acknowledgements. Deliberate logout clears local recovery records, not remote holdings or transactions. Admin Reset retains its separate guards.
 
-After activation and initial rendering, BIS warms balance and addresses, then Transactions and passive Contracts. Assets require inventory demand or a current-session visit. BIS owns role/profile/network-scoped inventory snapshots, reuse, and invalidation. Marketplace owns view state and classification counts. Onboarding and Game Wallet retain their workers.
+Each app privately owns one lazy Player SDK wallet and one optional Game wallet. Reads, observers, and authorized operations reuse them; automatic settlement is disabled. Navigation never disposes them. Identity/network replacement retires resources; uncertain cleanup quarantines replacement signing without blocking local logout. Complete live ownership reads remain separate from five-minute display caches and network/operator/asset-scoped immutable metadata. Standalone CLI adapters retain independent bounded lifetimes.
 
 One speculative job runs at a time; foreground work takes priority. Page entry joins compatible reads without restarting deadlines or retries. Leaving detaches presentation. Balance and addresses settle independently; Details requires both. History reuses the observer without awaiting its lifetime.
 
@@ -32,7 +32,7 @@ Successful snapshots, including empty collections, stay fresh for five minutes. 
 
 Mint readiness requires fresh provider evidence, eligible unreserved inputs, valid metadata, and durable recovery storage. Pre-submission failures expose retryable reasons such as `reserved-inputs`. Uncertain submissions retain their operation ID as `outcome-unknown` for reconciliation. Diagnostics exclude SDK errors, keys, recovery phrases, and private transaction payloads.
 
-Continue hosts await `controller.readyAsync()` before checking `canPay`; it joins current eligibility work, including superseding evidence. Preparing is distinct from verified unavailable and submitted pending. Account, network, recipient, or session replacement abandons an unsubmitted gesture. Game Wallet refreshes publish only current reads, including conflict diagnostics; obsolete completions cannot overwrite a newer selection.
+Continue hosts await `controller.readyAsync()` before checking `canPay`. Preparing, unavailable, and submitted pending remain distinct. Identity, network, recipient, or session replacement abandons unsubmitted gestures. Obsolete Game Wallet completions cannot overwrite a newer selection; status-only publications do not restart its reads.
 
 Modal pages retain first-frame construction gates. Details shows placeholders and spinning Refresh while pending. Background failures stay silent. Mutations, recovery, and reconciliation retain authoritative checks.
 

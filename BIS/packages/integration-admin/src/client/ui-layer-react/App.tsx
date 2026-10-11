@@ -154,15 +154,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
     // player context or interrupting reconciliation of an existing payment.
     let gameWallet: ReturnType<typeof createBisGameWallet> | undefined;
     const context = contextFactory({get continueRecipient() { return recipientRef.current; },gameWalletProfileId: () => gameWalletRef.current?.getState().profileId,hasGameWallet:()=>!!gameWallet?.getState().profileId,resetGameWallet:async()=>gameWallet ? gameWallet.reset() : true});
-    gameWallet = gameWalletFactory({playerProfileId: () => context.getState().profileId,playerNetwork:()=>context.getState().network,playerSubscribe:context.subscribe,playerSessionKey:()=>JSON.stringify([context.getState().profileId,context.getState().phase,context.getState().network])});
-    let playerKey = `${context.getState().profileId ?? ''}:${context.getState().network ?? ''}`;
-    context.subscribe(() => {
-      const next = context.getState();
-      const nextPlayerKey = `${next.profileId ?? ''}:${next.network ?? ''}`;
-      if (nextPlayerKey === playerKey) return;
-      playerKey = nextPlayerKey;
-      void gameWallet?.refresh();
-    });
+    gameWallet = gameWalletFactory({playerProfileId: () => context.getState().profileId,playerNetwork:()=>context.getState().network,playerSubscribe:context.subscribe,playerSessionKey:()=>JSON.stringify([context.getState().profileId,context.getState().network])});
     setRuntimeContext(context);
     setGameWalletController(gameWallet);
     const adminContext = createBisAdminContext(context);

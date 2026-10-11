@@ -76,10 +76,11 @@ test('owner acquisition deadline retires late creation and prevents overlapping 
 test('A-B-A and network replacement retire before creating and reject old completion',async()=>{
   const {session,wallets}=fixture();const pending=deferred();
   const old=session.read('player',account(),signal(),async()=>pending.promise);
+  const obsolete=assert.rejects(old);
   await tick();const retirement=session.retire('player');
   const replacement=session.read('player',account('b'),signal(),async()=>{});
   await tick();assert.equal(wallets.length,1);
-  pending.resolve('obsolete');await assert.rejects(old);await retirement;await replacement;
+  pending.resolve('obsolete');await obsolete;await retirement;await replacement;
   assert.equal(wallets[0].disposed,1);
   await session.read('player',account(),signal(),async()=>{});
   await session.read('player',account('a','mutinynet'),signal(),async()=>{});

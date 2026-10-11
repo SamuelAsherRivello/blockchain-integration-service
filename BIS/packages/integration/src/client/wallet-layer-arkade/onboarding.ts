@@ -10,6 +10,7 @@ import {onboardingStream} from '../state-layer-core/onboarding-stream.ts';
 import {settlementTimeoutMs} from '../state-layer-core/boarding-status.ts';
 import {withBrowserMutation} from '../state-layer-core/logout-cleanup.ts';
 import {createSharedArkadeWalletService} from './shared-wallet-service.ts';
+import type {RoleWalletAccess} from './adapter-session.ts';
 const hex=(value:Uint8Array)=>Array.from(value,b=>b.toString(16).padStart(2,'0')).join('');
 const plain=({txid,vout,value}:OnboardingCoin)=>({txid,vout,value});
 const point=(c:{txid:string;vout:number})=>`${c.txid}:${c.vout}`;
@@ -79,12 +80,23 @@ export async function readOnboardingFacts(wallet:ReadonlyWallet,provider:RestArk
   return {snapshot,address,transactions,independent:[...new Map(independent.map(c=>[point(c),c])).values()],...(next&&next!==r?{reconciled:next}:{})};
 }
 const runtime={provider:(operator:string)=>new RestArkProvider(operator),readonly:async(provider:RestArkProvider,account:AccountSecret,operator:string)=>ReadonlyWallet.create({...options(provider,operator),identity:await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly()}),signing:(provider:RestArkProvider,account:AccountSecret,operator:string)=>Wallet.create({...options(provider,operator),identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})})};
-export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>boolean,dependencies=runtime):OnboardingAdapter{
+export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>boolean,dependencies=runtime,session?:RoleWalletAccess):OnboardingAdapter{
   const scope=onboardingScope(account.profileId,account.network??'signet');
   let cleanup:Promise<void>=Promise.resolve();
   const current=(signal:AbortSignal)=>{signal.throwIfAborted();if(!isCurrent())throw Error('Onboarding account changed.');};
   return {
     async inspect(record,signal){
+      if(session){
+        current(signal);
+        const provider=dependencies.provider(scope.operator);
+        return session.read(account,signal,async wallet=>{
+          const borrowed=new Proxy(wallet,{get(target,key){
+            if(key==='getSpendableVtxos')return (options:Parameters<ReadonlyWallet['getSpendableVtxos']>[0])=>session.read(account,signal,w=>w.getSpendableVtxos(options));
+            const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
+          }});
+          return readOnboardingFacts(borrowed,provider,scope,record,signal);
+        },false);
+      }
       await bounded(cleanup,signal);current(signal);
       const provider=dependencies.provider(scope.operator);let wallet:ReadonlyWallet|undefined;
       const acquiring=dependencies.readonly(provider,account,scope.operator);
@@ -96,6 +108,7 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
       await navigator.locks.request(`bis-onboarding-signer:${account.profileId}`,{ifAvailable:true},async lease=>{
         if(!lease)return;
         await withBrowserMutation(async()=>{
+          const execute=async()=>{
           let wallet:Wallet|undefined,settling:Promise<string>|undefined,attemptTimer:ReturnType<typeof setTimeout>|undefined;const stop=new AbortController(),active=AbortSignal.any([signal,stop.signal]);const provider=dependencies.provider(scope.operator);let hash:string|undefined,open=true,progressWindow=300000,deadline=Date.now()+300000;
           const assert=()=>{current(active);if(!open||Date.now()>=deadline)throw Error('Onboarding signing deadline exceeded.');};
           const progress=async(stage:NonNullable<OnboardingRecord['progress']>['stage'])=>{assert();await checkpoint(r=>{
@@ -128,7 +141,7 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
           try{
             const {info,policy:initialPolicy}=await bounded(readWalletNetworkPolicy(scope.network,provider),active);requireZeroFeePolicy(initialPolicy,'automatic onboarding');progressWindow=settlementTimeoutMs(info);deadline=Date.now()+progressWindow;
             attemptTimer=setTimeout(()=>{open=false;stop.abort();},Math.max(1,deadline-Date.now()));
-            acquisition=dependencies.signing(provider,account,scope.operator);wallet=await bounded(acquisition,active);assert();
+            acquisition=session?retainedSigner(session,account,provider,active,stop):dependencies.signing(provider,account,scope.operator);wallet=await bounded(acquisition,active);assert();
             const r=readOnboardingRecord(scope);if(!r?.plan||r.id!==original.id||r[which].phase!=='prepared')return;
             const facts=await readOnboardingFacts(wallet,provider,scope,r,active),p=r.plan,policy=facts.snapshot.policy;
             if(policy.reason!=='supported'||!policy.zeroFees||p.targetSats<policy.arkadeMinimum||p.returnSats<policy.bitcoinMinimum||policy.arkadeMaximum>0&&p.totalSats>policy.arkadeMaximum||policy.bitcoinMaximum>0&&p.returnSats>policy.bitcoinMaximum||p.bitcoinScript!==facts.snapshot.bitcoinScript||p.arkadeScript!==facts.snapshot.arkadeScript){
@@ -155,10 +168,38 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
           }finally{
             open=false;stop.abort();clearTimeout(attemptTimer);
             // Keep signer ownership until actual SDK cleanup ends, including a late acquisition.
-            if(wallet)await Promise.allSettled([wallet.dispose(),...(settling?[settling]:[])]);else if(acquisition)await acquisition.then(w=>w.dispose()).catch(()=>{});
+            if(wallet){
+              if(session&&settling)await settling.catch(()=>{});
+              await Promise.allSettled([wallet.dispose(),...(!session&&settling?[settling]:[])]);
+            }else if(acquisition)await acquisition.then(w=>w.dispose()).catch(()=>{});
           }
+          };
+          // Release local logout's browser barrier when presentation retires;
+          // the role owner still holds the actual signer until SDK work ends.
+          if(session)await untilAborted(execute(),signal);else await execute();
         });
       });
     }
   };
+}
+
+function retainedSigner(session:RoleWalletAccess,account:AccountSecret,provider:RestArkProvider,signal:AbortSignal,stop:AbortController):Promise<Wallet>{
+  let acquired!:(wallet:Wallet)=>void,failed!:(error:unknown)=>void;
+  const ready=new Promise<Wallet>((resolve,reject)=>{acquired=resolve;failed=reject;});
+  void session.sign(account,signal,{arkProvider:provider},async(wallet,active)=>{
+    let release!:()=>void;const released=new Promise<void>(resolve=>{release=resolve;});
+    const abort=()=>stop.abort();active.addEventListener('abort',abort,{once:true});if(active.aborted)abort();
+    const borrowed=new Proxy(wallet,{get(target,key){
+      if(key==='dispose')return async()=>release();
+      const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
+    }});
+    acquired(borrowed);
+    try{await released;}finally{active.removeEventListener('abort',abort);}
+  }).catch(error=>{stop.abort();failed(error);});
+  return ready;
+}
+async function untilAborted<T>(work:Promise<T>,signal:AbortSignal):Promise<T>{
+  let abort:()=>void=()=>{};
+  try{return await Promise.race([work,new Promise<never>((_,reject)=>{abort=()=>reject(Error('Onboarding session retired.'));if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});})]);}
+  finally{signal.removeEventListener('abort',abort);}
 }

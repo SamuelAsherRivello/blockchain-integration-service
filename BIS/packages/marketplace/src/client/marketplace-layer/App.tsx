@@ -57,7 +57,7 @@ function MarketplacePendingNotice({busy,label,error,dismiss,retry}: {busy:boolea
 function MarketplaceContent(){
   const gameWalletRef=useRef<ReturnType<typeof createBisGameWallet> | null>(null);
   const player=useMemo(()=>createBisContext({hasGameWallet:()=>!!gameWalletRef.current?.getState().profileId,resetGameWallet:async()=>await gameWalletRef.current?.reset() ?? false}),[]);
-  const gameWallet=useMemo(()=>createBisGameWallet({playerProfileId:()=>player.getState().profileId,playerNetwork:()=>player.getState().network,playerSubscribe:player.subscribe,playerSessionKey:()=>JSON.stringify([player.getState().profileId,player.getState().phase,player.getState().network])}),[player]);
+  const gameWallet=useMemo(()=>createBisGameWallet({playerProfileId:()=>player.getState().profileId,playerNetwork:()=>player.getState().network,playerSubscribe:player.subscribe,playerSessionKey:()=>JSON.stringify([player.getState().profileId,player.getState().network])}),[player]);
   gameWalletRef.current=gameWallet;
   const checkoutSession=useMemo(()=>createCheckoutSession(player,gameWallet,{begin:beginLocalMarketplaceCheckout,confirm:confirmLocalMarketplaceCheckoutLeg,read:readLocalMarketplaceCheckout}),[player,gameWallet]);
   useEffect(()=>()=>checkoutSession.dispose(),[checkoutSession]);

@@ -15,6 +15,7 @@ import type { RoleWalletAccess } from './adapter-session.ts';
 
 /** Binds the core's explicit wallet-operation contract to the existing Arkade adapters. */
 export function createArkadeContextDependencies(overrides: Partial<BisContextDependencies> = {},session?:RoleWalletAccess): BisContextDependencies {
+  const observe:BisContextDependencies['observeActivity']=(a,s,p)=>watchActivity(a,s,p,session);
   const defaults: BisContextDependencies = {
     create: createAccount,
     identifyAccount: identify,
@@ -24,18 +25,18 @@ export function createArkadeContextDependencies(overrides: Partial<BisContextDep
     readBalance: (account,signal)=>loadBalance(account,signal,session),
     fund: (account,signal,current)=>fundTestAccount(account,signal,current,session),
     readAddresses: (account,signal)=>loadAddresses(account,signal,session),
-    observeActivity: watchActivity,
-    transfers: { quote: quoteBoarding, submit: submitBoarding, reconcile: reconcileBoarding, availability: getBoardingAvailability },
-    assets: { list: (account,signal)=>listWalletAssets(account,signal,session), mint: mintWalletAsset },
-    deliverAsset: deliverWalletAsset,
-    reconcileAssetDelivery: reconcileWalletAssetDelivery,
-    loadMintAvailability,
-    sends: { funds: loadSendFunds, quote: quoteSend, submit: submitSend, reconcile: reconcileSend },
-    burn: burnWalletAsset,
-    continuation: { submit: submitContinuation, reconcile: reconcileContinuation },
-    observePayments: watchActivity,
-    observeAssets: watchAssetChanges,
-    onboardingFactory: createOnboardingAdapter,
+    observeActivity: observe,
+    transfers: { quote: (a,n,s,d)=>quoteBoarding(a,n,s,d,session), submit:(a,q,c)=>submitBoarding(a,q,c,session), reconcile:(a,s)=>reconcileBoarding(a,s,session), availability:(a,s,d)=>getBoardingAvailability(a,s,d,session) },
+    assets: { list: (account,signal)=>listWalletAssets(account,signal,session), mint:(a,r,s,c)=>mintWalletAsset(a,r,s,c,session) },
+    deliverAsset:(a,r,s,c)=>deliverWalletAsset(a,r,s,c,session),
+    reconcileAssetDelivery:(a,id,s)=>reconcileWalletAssetDelivery(a,id,s,session),
+    loadMintAvailability:(a,s)=>loadMintAvailability(a,s,session),
+    sends: { funds:(a,s,p)=>loadSendFunds(a,s,p,session), quote:(a,r,n,s,p,i)=>quoteSend(a,r,n,s,p,i,session), submit:(a,q,c,j,p,i)=>submitSend(a,q,c,j,p,i,session), reconcile:reconcileSend },
+    burn:(a,r,s,c)=>burnWalletAsset(a,r,s,c,session),
+    continuation: { submit:(a,r,s,c)=>submitContinuation(a,r,s,c,session), reconcile:reconcileContinuation },
+    observePayments:observe,
+    observeAssets:(a,s,c)=>watchAssetChanges(a,s,c,session),
+    onboardingFactory:(a,c)=>createOnboardingAdapter(a,c,undefined,session),
     onboardingScope,
     reconstructWalletReservations,
     validContinueRecipient,

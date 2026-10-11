@@ -33,10 +33,10 @@ export function GameCompletionView({context, onRestart, onBusy}: {context: BisCo
       <h2 id="completion-title">{final ? 'Game Completed' : 'Level Completed'}</h2>
       <p id="completion-body" aria-live="polite">{final ? 'Great jobs. You completed 2/2 levels. You collected 75/100 gold in the final level and reached the exit.' : 'Great jobs. You collected 25/100 gold and reached the exit.'}{message ? ` ${message}` : ''}</p>
       {state?.needsAcknowledgment ? <button autoFocus onClick={() => void controller?.acknowledge()}>OK</button> : <>
-        <button className="completion-collect" disabled={!state?.canCollect} onClick={() => void controller?.collect()}>Collect Level {level} Trophy</button>
+        <button className="completion-action completion-collect" disabled={!state?.canCollect} onClick={() => void controller?.collect()}>Collect Trophy</button>
         {state?.canCheck && <button className="completion-check" onClick={() => void controller?.check()}>{state.status === 'uncertain' ? 'Check Trophy Status' : 'Check Trophy Ownership'}</button>}
-        {!final && <button disabled={busy} onClick={() => act(() => setLevel(2))}>Continue To Next Level</button>}
-        <button disabled={busy} onClick={() => act(onRestart)}>Restart Game</button>
+        {!final && <button className="completion-action" disabled={busy} onClick={() => act(() => setLevel(2))}>Next Level</button>}
+        <button className="completion-action" disabled={busy} onClick={() => act(onRestart)}>Restart Game</button>
       </>}
     </section>
   </div>;

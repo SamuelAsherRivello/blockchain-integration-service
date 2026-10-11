@@ -5,6 +5,7 @@
 .completion-card p { font-size:14px; line-height:1.6; color:#c1ccde; margin:0 0 14px; }
 .completion-card button { display:block; width:100%; padding:12px 10px; margin:8px 0 0; border:1px solid #526078; border-radius:9px; background:#253247; color:#fff; font:600 13px system-ui; cursor:pointer; }
 .completion-card .completion-collect { border-color:#d7b968; background:#d7b968; color:#172030; }
+.completion-card .completion-action { width:92%; margin-left:auto; margin-right:auto; }
 .completion-card button:disabled { opacity:.4; cursor:default; filter:grayscale(1); }
 .completion-card button:focus-visible { outline:3px solid #adcfff; outline-offset:3px; }
 .completion-card .completion-check { font-size:12px; background:transparent; }

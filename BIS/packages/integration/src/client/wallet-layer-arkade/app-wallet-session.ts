@@ -1,4 +1,5 @@
-import { Wallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
+import { Wallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, EsploraProvider } from '@arkade-os/sdk';
+import {testNetwork} from '../state-layer-core/test-network.ts';
 import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
 
@@ -70,6 +71,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       const config: Configuration = {
         identity: MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }),
         arkProvider, indexerProvider: shareIndexerReads(new RestIndexerProvider(operator), operator),
+        onchainProvider:new EsploraProvider(testNetwork(network).explorerApiUrl,{forcePolling:true,pollingInterval:15000}),
         storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
         settlementConfig: false,
         watcherConfig: { failsafePollIntervalMs: 60000, reconnectDelayMs: 60000, maxReconnectAttempts: 1 },

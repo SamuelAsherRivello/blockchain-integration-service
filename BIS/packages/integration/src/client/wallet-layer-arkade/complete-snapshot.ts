@@ -35,11 +35,14 @@ export async function readCompleteContracts(
         if (response.vtxos.length >= 500) throw Error('Missing ownership pagination.');
         break;
       }
-      if (![page.current,page.next,page.total].every(Number.isSafeInteger) || page.current !== pageIndex ||
+      // Wire `current` is the one-based page number; request `pageIndex` and
+      // `next` are zero-based indexes (SDK RestIndexerProvider follows this).
+      if (![page.current,page.next,page.total].every(Number.isSafeInteger) || page.current !== pageIndex+1 ||
           page.total < 0 || (expectedTotal !== undefined && expectedTotal !== page.total)) throw Error('Inconsistent ownership pagination.');
       expectedTotal = page.total;
       if (page.total === 0) { if(response.vtxos.length)throw Error('Incomplete ownership pagination.'); break; }
-      if (pageIndex + 1 >= page.total) break;
+      if (page.current > page.total) throw Error('Inconsistent ownership pagination.');
+      if (page.current === page.total) break;
       if (page.next !== pageIndex + 1 || response.vtxos.length === 0) throw Error('Incomplete ownership pagination.');
       pageIndex = page.next;
     }
@@ -50,24 +53,21 @@ export async function readCompleteContracts(
   return contracts.map(contract => ({contract, vtxos:annotated.filter(coin => coin.script === contract.script).map(coin => ({...coin,contractScript:contract.script}))}));
 }
 
-/** Caller owns the short snapshot lane. SDK aggregation otherwise catches
- * retryable sync failures and returns its repository. Replace that public
- * snapshot seam only for this projection and always restore it. History and
- * metadata are not prerequisites; their failures cannot poison this attempt.
+/** SDK aggregation otherwise catches retryable sync failures and returns its
+ * repository. A per-attempt read view overrides the public snapshot seam,
+ * without mutating the retained manager or holding the submission lane.
+ * History, metadata and settlement are never prerequisites for fresh reads.
  */
 export async function withCompleteSnapshot<T>(wallet: ReadonlyWallet, signal: AbortSignal, use: (wallet: ReadonlyWallet) => Promise<T>) {
   const manager = await wallet.getContractManager();
   const snapshot = await readCompleteContracts(manager, wallet.indexerProvider, signal);
-  const descriptor = Object.getOwnPropertyDescriptor(manager,'getContractsWithVtxos');
-  manager.getContractsWithVtxos = async filter => snapshot.filter(({contract}) => !filter ||
+  const contracts=Object.create(manager) as typeof manager;
+  contracts.getContractsWithVtxos = async filter => snapshot.filter(({contract}) => !filter ||
     Object.entries(filter).every(([key,value]) => value === undefined ||
       (Array.isArray(value) ? value.includes(Reflect.get(contract,key)) : Reflect.get(contract,key) === value)));
-  try {
-    const result = await use(wallet);
-    signal.throwIfAborted();
-    return result;
-  } finally {
-    if (descriptor) Object.defineProperty(manager,'getContractsWithVtxos',descriptor);
-    else Reflect.deleteProperty(manager,'getContractsWithVtxos');
-  }
+  const view=Object.create(wallet) as ReadonlyWallet;
+  view.getContractManager=async()=>contracts;
+  const result = await use(view);
+  signal.throwIfAborted();
+  return result;
 }

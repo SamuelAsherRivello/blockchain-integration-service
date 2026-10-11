@@ -13,10 +13,17 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
   const session = createTestNetworkSession();
   const selected = () => session.getSelected();
   const stores = new Map<TestNetwork, AccountStorage>();
+  let context:BisContext;
+  const subscriptions=new Map<()=>void,Map<AccountStorage,()=>void>>();
   const currentStore = () => {
     const key = selected() ?? 'signet';
     let store = stores.get(key);
     if (!store) { store = createAccountStorage(key); stores.set(key, store); }
+    for(const [listener,attached] of subscriptions)if(!attached.has(store))attached.set(store,store.subscribe(()=>{
+      const phase=context?.getState().phase;
+      if(phase==='active'||phase==='logout-confirmation'||phase==='logout-error')void player.retire().catch(()=>{});
+      listener();
+    }));
     return store;
   };
   const storage: AccountStorage = {
@@ -27,8 +34,8 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
     reset: (...args) => currentStore().reset(...args),
     forceReset: (...args) => currentStore().forceReset?.(...args) ?? Promise.resolve(),
     subscribe: listener => {
-      const unsubscribers = [...stores.values()].map(store => store.subscribe(listener));
-      return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+      const attached=new Map<AccountStorage,()=>void>();subscriptions.set(listener,attached);currentStore();
+      return () => {for(const unsubscribe of attached.values())unsubscribe();subscriptions.delete(listener);};
     },
   };
   const dependencies = createArkadeContextDependencies({
@@ -52,8 +59,8 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
   };
   // Keep the host recipient live instead of snapshotting its initial value.
   Object.defineProperty(contextOptions, 'continueRecipient', { enumerable: true, get: () => options.continueRecipient });
-  const context=createContextWithDependencies(storage, dependencies, contextOptions);
-  registerAppWalletOwner(context.subscribe,owner);
+  context=createContextWithDependencies(storage, dependencies, contextOptions);
+  registerAppWalletOwner(context.subscribe,owner,()=>['active','logout-confirmation'].includes(context.getState().phase));
   context.subscribe(()=>{
     const state=context.getState();
     // Candidates already occupying the newly selected role are promoted intact.
