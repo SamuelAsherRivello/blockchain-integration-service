@@ -9,6 +9,7 @@ import {loadBalance} from '../../src/client/wallet-layer-arkade/balance.ts';
 import {loadAddresses} from '../../src/client/wallet-layer-arkade/addresses.ts';
 import {listWalletAssets,watchAssetChanges} from '../../src/client/wallet-layer-arkade/assets.ts';
 import {restoreAccount} from '../../src/client/wallet-layer-arkade/account.ts';
+import {projectConfiguredAddresses} from '../../src/client/wallet-layer-arkade/address-projection.ts';
 
 const phrase='abandon '.repeat(11)+'about',account={phrase,profileId:'public-fixture',network:'signet'};
 const signal=()=>new AbortController().signal;
@@ -17,7 +18,8 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});retur
 const assetId='a'.repeat(68);
 function setup(t){
   const state={created:0,disposed:0,metadata:0,subscriptions:0,stops:0,submits:0,failed:false,quantity:9007199254740993n,coins:[],notifications:[]};
-  t.mock.method(RestArkProvider.prototype,'getInfo',async function(){return {network:this.serverUrl.includes('mutinynet')?'mutinynet':'signet'};});
+  // Public SDK address inputs, not a real provider or signing configuration.
+  t.mock.method(RestArkProvider.prototype,'getInfo',async function(){return {network:this.serverUrl.includes('mutinynet')?'mutinynet':'signet',signerPubkey:'79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',unilateralExitDelay:144n,boardingExitDelay:144n};});
   t.mock.method(RestIndexerProvider.prototype,'getVtxos',async()=>{
     state.queries=(state.queries??0)+1;if(state.indexerGate)await state.indexerGate.promise;
     if(state.failed)throw Error('live read failed');
@@ -25,9 +27,11 @@ function setup(t){
   });
   const owner=createAppWalletSession({retirementMs:20,createWallet:async config=>{
     state.created++;
+    const info=await config.arkProvider.getInfo();
+    const addresses=await projectConfiguredAddresses(config.identity,info,info.network);
     const manager={getContracts:async()=>[{script:'script',address:'owned',state:'inactive'}],annotateVtxos:async coins=>coins,getContractsWithVtxos:async()=>{throw Error('repository fallback must never run');}};
     const wallet={...config,getContractManager:async()=>manager,
-      getAddress:async()=> 'tark1-fixture',getBoardingAddress:async()=> 'tb1p-fixture',
+      getAddress:async()=>addresses.arkadeAddress,getBoardingAddress:async()=>addresses.bitcoinAddress,
       getProviderConnectionState:()=>({mode:'online',source:'live'}),
       getBalance:async function(){
         const current=await (await this.getContractManager()).getContractsWithVtxos();
@@ -49,7 +53,7 @@ test('cross-feature warm reads, metadata reuse, observers, optional Game and ret
   assert.equal(bindRoleWallet(owner,'player'),player);assert.equal(bindRoleWallet(owner,'game'),game);
   assert.equal(state.created,0);
   const [balance,assets,addresses]=await Promise.all([loadBalance(account,signal(),player),listWalletAssets(account,signal(),player),loadAddresses(account,signal(),player)]);
-  assert.equal(balance.availableSats,100);assert.equal(assets[0].quantity,'9007199254740993');assert.equal(addresses.arkadeAddress,'tark1-fixture');assert.equal(state.created,1);
+  assert.equal(balance.availableSats,100);assert.equal(assets[0].quantity,'9007199254740993');assert.deepEqual(addresses,{arkadeAddress:await state.coins[0].getAddress(),bitcoinAddress:await state.coins[0].getBoardingAddress()});assert.equal(state.created,1);
   for(let i=0;i<10;i++)await Promise.all([loadBalance(account,signal(),player),listWalletAssets(account,signal(),player)]);
   assert.equal(state.created,1);assert.equal(state.disposed,0);assert.equal(state.metadata,1);
   const a=new AbortController(),b=new AbortController();let changes=0;
@@ -75,6 +79,9 @@ test('failed live read never returns previous holdings and recovery reuses the s
 });
 test('scoped signing hooks restore on failure; cancelled local presentation does not release an active signer',async t=>{
   const {state,owner,player}=setup(t);
+  // Address presentation may precede wallet initialization; these assertions
+  // deliberately inspect and mutate the completed retained test resource.
+  await player.read(account,signal(),async()=>{},false);
   await loadAddresses(account,signal(),player);
   const wallet=state.coins[0],original=wallet.getAddress,gate=deferred();
   const signing=player.sign(account,signal(),{},async(w,active)=>{
@@ -97,6 +104,7 @@ test('package exports keep session/provider resources private and context uses o
 
 test('fresh reads bypass long signing and history without observing scoped hooks or fallback',async t=>{
   const {state,player}=setup(t);
+  await player.read(account,signal(),async()=>{},false);
   await loadAddresses(account,signal(),player);
   const wallet=state.coins[0],signGate=deferred(),historyGate=deferred();
   state.history=async function(){
@@ -117,7 +125,7 @@ test('fresh reads bypass long signing and history without observing scoped hooks
 });
 
 test('history failure is attempt-local, even if SDK catches it, and later history and balance recover',async t=>{
-  const {state,player}=setup(t);await loadAddresses(account,signal(),player);
+  const {state,player}=setup(t);await player.read(account,signal(),async()=>{},false);await loadAddresses(account,signal(),player);
   const wallet=state.coins[0];
   let failHistory=true;
   state.history=async function(){state.failed=failHistory;try{await this.indexerProvider.getVtxos({scripts:['script']});}catch{}finally{state.failed=false;}return [];};
@@ -136,7 +144,7 @@ test('activation promotes the restored candidate and invalid restore does not re
 });
 
 test('retirement stops late SDK submission including settlement confirmation and forfeit methods',async t=>{
-  const {state,owner,player}=setup(t);await loadAddresses(account,signal(),player);
+  const {state,owner,player}=setup(t);await player.read(account,signal(),async()=>{},false);await loadAddresses(account,signal(),player);
   const wallet=state.coins[0],gate=deferred();
   for(const key of ['confirmRegistration','submitSignedForfeitTxs'])wallet.arkProvider[key]=async()=>{state.submits++;};
   const work=player.sign(account,signal(),{},async w=>{await gate.promise;await w.arkProvider.confirmRegistration();});

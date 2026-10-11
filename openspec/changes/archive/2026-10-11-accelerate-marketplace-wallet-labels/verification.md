@@ -24,6 +24,12 @@ Verified 2026-10-11 on main, coordinated after checkpoint d138e3a. Root runner-o
 
 The earlier controlled cold Player result of **1,044.2 ms** failed the criterion. Starting the single configuration request alongside key derivation removed the serial wait; the passing results above follow that change. No timing threshold was relaxed. These are observed local Chrome results with stated provider conditions, not an unconditional remote-network SLA or a measurement of the user's private wallets. Slow/failing operators retain Loading/Unavailable; labels do not establish transaction readiness.
 
+## Combined-gate fixture follow-up
+
+The coordinator's first full main suite reported **1,087 passed / 5 failed / 0 skipped** out of 1,092 tests. All five failures were in `BIS/packages/integration/tests/client/retained-wallet-adapters.test.mjs`: its configuration mock returned only a network and its fake wallet returned literal placeholder addresses. The new early-address path correctly rejected those insufficient address inputs. That fixture now supplies public SDK address configuration, derives matching test-wallet addresses, and explicitly acquires the completed resource before tests inspect signing hooks or providers. Construction, live-read, observer, retirement, and signing assertions remain intact; production code and validation were unchanged.
+
+The entire retained-adapter file plus all prior focused regression suites passed **117/117**, with no skips. Follow-up evidence is `output/logs/marketplace-wallet-labels/fixture-followup.txt`; the original failed combined run remains `output/logs/final-22-release/test-all-source-final.txt`. Root reruns the final combined gate against the follow-up commit before publication.
+
 Ignored evidence lives under `output/logs/marketplace-wallet-labels/`, `output/reports/marketplace-wallet-labels/`, and `output/playwright/marketplace-wallet-labels/`. The final self-hosted run updates `cold-label-timing.json`; live evidence is separate. No temporary evidence is committed.
 
 ## Stable handoff scope
@@ -42,6 +48,7 @@ Tests and fixtures:
 
 - `BIS/packages/integration/tests/client/addresses.test.mjs`
 - `BIS/packages/integration/tests/client/address-projection.test.mjs`
+- `BIS/packages/integration/tests/client/retained-wallet-adapters.test.mjs` (combined-gate fixture follow-up only)
 - `BIS/packages/marketplace/tests/client/catalog.test.mjs`
 - `BIS/packages/marketplace/tests/client/wallet-label.test.mjs`
 - `BIS/packages/marketplace/tests/client/wallet-label-browser.test.mjs`
