@@ -27,7 +27,7 @@ export async function readOnboardingFacts(wallet:ReadonlyWallet,provider:RestArk
   const {info,policy}=operatorPolicy;const live=wallet.getProviderConnectionState();if(live.mode!=='online'||live.source!=='live')throw Error('Live connection unavailable.');
   const txs=await bounded(wallet.onchainProvider.getTransactions(address),signal);
   const bitcoinScript=hex(wallet.boardingTapscript.pkScript),arkadeScript=hex(ArkAddress.decode(own).pkScript);
-  const allReservations=walletReservations(scope.profileId),other=allReservations.filter(v=>v.id!==`onboarding:${r?.id}`);
+  const allReservations=walletReservations(scope.profileId,scope.network),other=allReservations.filter(v=>v.id!==`onboarding:${r?.id}`);
   const allowed=new Set(eligibleUnreservedCoins([...coins,...receipts],other).map(point));
   const exit=CSVMultisigTapscript.decode(Uint8Array.from(wallet.boardingTapscript.exitScript.match(/.{2}/g)!,v=>parseInt(v,16)));
   const snapshot={...scope,complete:true,unresolvedOnboarding:false,bitcoinScript,arkadeScript,
@@ -92,6 +92,9 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
         return session.read(account,signal,async wallet=>{
           const borrowed=new Proxy(wallet,{get(target,key){
             if(key==='getSpendableVtxos')return (options:Parameters<ReadonlyWallet['getSpendableVtxos']>[0])=>session.read(account,signal,w=>w.getSpendableVtxos(options));
+            // readOnboardingFacts awaits live policy, boarding and strict
+            // spendability together; watcher history is not their freshness.
+            if(key==='getProviderConnectionState')return ()=>({mode:'online',source:'live',lastOnlineAt:Date.now()});
             const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
           }});
           return readOnboardingFacts(borrowed,provider,scope,record,signal);
@@ -149,7 +152,7 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
               throw Error('Onboarding terms changed.');
             }
             const candidates=which==='boarding'?await bounded(wallet.getBoardingUtxos(),active):await bounded(wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),active);
-            const eligible=new Set(eligibleUnreservedCoins(candidates,walletReservations(account.profileId).filter(o=>o.id!==`onboarding:${r.id}`)).map(point));
+            const eligible=new Set(eligibleUnreservedCoins(candidates,walletReservations(account.profileId,scope.network).filter(o=>o.id!==`onboarding:${r.id}`)).map(point));
             const selected=r[which].inputs.map(i=>candidates.find(c=>point(c)===point(i)&&c.value===i.value&&eligible.has(point(c))));
             if(selected.some(c=>!c)||which==='boarding'&&r.plan.inputs.some(i=>!facts.snapshot.boarding.some(c=>point(c)===point(i)&&c.confirmed&&!c.expired&&!c.reserved))){
               if(which==='boarding')await checkpoint(v=>v.plan&&v.boarding.phase==='prepared'?{...v,status:'not-submitted'}:v);

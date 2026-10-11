@@ -1,6 +1,6 @@
 import {eligibleUnreservedCoins, walletReservations, migrateWalletReservations} from '../state-layer-core/wallet-reservations.ts';
-import { ArkAddress, MnemonicIdentity, ReadonlyWallet, Wallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, Transaction, Extension, createAssetPacket, type ExtendedVirtualCoin } from '@arkade-os/sdk';
-import { operatorFor, requireNetwork, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { ArkAddress, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, Transaction, Extension, createAssetPacket, type ExtendedVirtualCoin } from '@arkade-os/sdk';
+import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
 import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
 import type {RoleWalletAccess} from './adapter-session.ts';
@@ -70,7 +70,7 @@ async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requ
  return {quote,coins,recipientScript:hex(address.pkScript),changeScript:hex(ArkAddress.decode(own).pkScript)};
 }
 async function read<T>(account:AccountSecret,signal:AbortSignal,work:(wallet:ReadonlyWallet)=>Promise<T>,session?:RoleWalletAccess):Promise<T> {
- const network=account.network ?? 'signet', c=config(signal,network),identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
+ const network=account.network ?? 'signet', c=config(signal,network);
  return useReadonlyWallet(account,signal,c.options,async wallet=>{const result=await work(wallet);c.assertFresh();return result;},session);
 }
 export const loadSendFunds=(account:AccountSecret,signal:AbortSignal,preserveAssets=false,session?:RoleWalletAccess)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId,undefined,account.network ?? 'signet')).total,session);
@@ -115,7 +115,7 @@ export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurr
    if(!record||record.transactionId!==transactionId)throw new SendError('Send result needs verification.');
    if(isCurrent()&&activeJournal.read(account.profileId))activeJournal.complete(record.id,transactionId,account.profileId);return activeJournal.read(account.profileId)??record;
   },session,30000);
- } catch(e) {if(record)return activeJournal.read(account.profileId)!;throw e instanceof SendError?e:new SendError('Send could not be prepared. Review again.');}
+ } catch(e) {if(record)return activeJournal.read(account.profileId)??record;throw e instanceof SendError?e:new SendError('Send could not be prepared. Review again.');}
  finally {open=false;}
 }
 export async function reconcileSend(account:AccountSecret,signal:AbortSignal,journal:SendJournal=defaultJournal):Promise<SendRecord|undefined> {

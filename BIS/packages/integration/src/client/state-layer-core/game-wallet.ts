@@ -215,7 +215,12 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
     }
       catch { if (currentRead(signal)) publish({status:'unavailable', message:'Game wallet storage unavailable. Use Details to retry.',readStatus:'storage'}); }
   }
-  const unsubscribe = storage.subscribe(() => { begin();refreshing=undefined;void refresh(false); });
+  const unsubscribe = storage.subscribe(() => {
+    // External replacement invalidates the signer before an asynchronous store
+    // reload. Our own candidate selection is promoted, not retired/recreated.
+    if(!importing)dependencies.retire?.();
+    begin();refreshing=undefined;void refresh(false);
+  });
   let observedPlayerScope=playerScope();
   const unsubscribePlayer=options.playerSubscribe?.(()=>{
     const next=playerScope();if(next===observedPlayerScope)return;

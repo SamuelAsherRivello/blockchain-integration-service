@@ -281,3 +281,24 @@ test('stream failure recovers through a fresh balance read',async()=>{
   const c=f.create();await tick();await c.importWallet('a');const initialReads=reads;fail(Error('offline'));await tick();await tick();
   assert.equal(c.getState().status,'ready');assert.equal(c.getState().balance.availableSats,initialReads+1);c.dispose();
 });
+
+test('unchanged Player publications do not refresh Game; identity changes refresh once',async()=>{
+  const f=fixture();let notify,player='player',reads=0;
+  f.dependencies.balance=async()=>{reads++;return {availableSats:1,totalSats:1,bitcoinSats:0,arkadeSats:1};};
+  const c=createLocalGameWallet({playerProfileId:()=>player,playerNetwork:()=> 'signet',
+    playerSubscribe:listener=>{notify=listener;return()=>{};},
+    playerSessionKey:()=>JSON.stringify([player,'signet']),
+  },f.dependencies);
+  await tick();await c.importWallet('game');const initial=reads;
+  for(let i=0;i<20;i++)notify();await tick();assert.equal(reads,initial);
+  player='other-player';notify();for(let i=0;i<20;i++)notify();await tick();assert.equal(reads,initial+1);
+  c.dispose();
+});
+
+test('external Game storage change retires immediately, but own candidate selection is retained',async()=>{
+  const f=fixture();let retired=0;f.dependencies.retire=()=>{retired++;};
+  const c=f.create();await tick();await c.importWallet('game');
+  assert.equal(retired,0);
+  for(const listener of f.listeners)listener();assert.equal(retired,1,'retirement precedes asynchronous reload');
+  await tick();c.dispose();
+});

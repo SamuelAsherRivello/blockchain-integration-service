@@ -60,14 +60,17 @@ export async function readCompleteContracts(
  */
 export async function withCompleteSnapshot<T>(wallet: ReadonlyWallet, signal: AbortSignal, use: (wallet: ReadonlyWallet) => Promise<T>) {
   const manager = await wallet.getContractManager();
-  const snapshot = await readCompleteContracts(manager, wallet.indexerProvider, signal);
+  const pending = readCompleteContracts(manager, wallet.indexerProvider, signal);
+  // Let SDK boarding reads run concurrently with ownership verification. The
+  // projection AND complete snapshot must succeed before anything is returned.
+  void pending.catch(()=>{});
   const contracts=Object.create(manager) as typeof manager;
-  contracts.getContractsWithVtxos = async filter => snapshot.filter(({contract}) => !filter ||
+  contracts.getContractsWithVtxos = async filter => (await pending).filter(({contract}) => !filter ||
     Object.entries(filter).every(([key,value]) => value === undefined ||
       (Array.isArray(value) ? value.includes(Reflect.get(contract,key)) : Reflect.get(contract,key) === value)));
   const view=Object.create(wallet) as ReadonlyWallet;
   view.getContractManager=async()=>contracts;
-  const result = await use(view);
+  const [result] = await Promise.all([use(view),pending]);
   signal.throwIfAborted();
   return result;
 }

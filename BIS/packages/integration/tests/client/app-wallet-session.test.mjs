@@ -95,3 +95,11 @@ test('uncertain cleanup quarantines replacement but retirement is bounded',async
   await assert.rejects(session.sign('player',account('b'),signal(),async()=>{}));
   assert.equal(calls,1);await session.dispose();
 });
+
+test('simultaneous two-role mutations always acquire Player then Game without deadlock',async()=>{
+  const {session,wallets}=fixture();let active=0,max=0;
+  await Promise.all(Array.from({length:5},()=>session.signBoth({player:account(),game:account('game')},signal(),async pair=>{
+    max=Math.max(max,++active);assert.notEqual(pair.player,pair.game);await tick();active--;
+  })));
+  assert.equal(max,1);assert.equal(wallets.length,2);await session.dispose();
+});

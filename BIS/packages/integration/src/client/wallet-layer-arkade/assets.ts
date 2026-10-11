@@ -15,7 +15,6 @@ export async function loadMintAvailability(account:AccountSecret,signal:AbortSig
   try {eligibleUnreservedCoins([],walletReservations(account.profileId,network));}
   catch {return {canMint:false,reason:'Pending operation inputs could not be verified. Open wallet recovery details before minting.'};}
   const p=providers(signal, undefined, undefined, network);
-  const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
   return useReadonlyWallet(account,signal,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()},async wallet=>{
     const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId,network));
     const connection=wallet.getProviderConnectionState();p.assertFresh();
@@ -272,7 +271,6 @@ export async function reconcileWalletAssetDelivery(account:AccountSecret,operati
     if(record.status==='succeeded')return deliveryResult(record);
     if(!record.transactionId)return {status:'error',code:'outcome-unknown',message:'Item delivery preparation is pending. Do not submit another delivery.',profileId:account.profileId,operationId};
     const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline,undefined,undefined,network);
-    const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
     return await useReadonlyWallet(account,deadline,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()},async wallet=>{
       const [source,{vtxos}]=await Promise.all([readFreshAssets(wallet),p.indexerProvider.getVtxos({scripts:[record.senderScript,record.recipientScript]})]);p.assertFresh();
       const sourceQuantity=source.filter(item=>item.asset.assetId===record.request.assetId).reduce((sum,item)=>sum+BigInt(item.asset.quantity),0n);

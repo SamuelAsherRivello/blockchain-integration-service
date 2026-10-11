@@ -4,14 +4,21 @@ import { requireNetwork, type AccountSecret } from './account.ts';
 import { withCompleteSnapshot,readCompleteContracts } from './complete-snapshot.ts';
 
 export type AppWalletSession = ReturnType<typeof createAppWalletSession<Wallet>>;
-export type RoleWalletAccess = ReturnType<typeof bindRoleWallet>;
+export type RoleWalletAccess = ReturnType<typeof createRoleWalletAccess>;
+const bindings=new WeakMap<AppWalletSession,Map<'player'|'game',RoleWalletAccess>>();
 
 /** Private adapter capability. It is never part of package exports. */
-export function bindRoleWallet(owner: AppWalletSession, role: 'player' | 'game') {
+export function bindRoleWallet(owner: AppWalletSession, role: 'player' | 'game'):RoleWalletAccess {
+  let roles=bindings.get(owner);if(!roles){roles=new Map();bindings.set(owner,roles);}
+  let access=roles.get(role);if(!access){access=createRoleWalletAccess(owner,role);roles.set(role,access);}
+  return access;
+}
+function createRoleWalletAccess(owner: AppWalletSession, role: 'player' | 'game') {
   const readViews=new WeakMap<Wallet,Wallet>();
   async function readonlyView(wallet:Wallet){
     const previous=readViews.get(wallet);if(previous)return previous;
     const manager=await wallet.getContractManager();
+    const acquired=readViews.get(wallet);if(acquired)return acquired;
     // Freeze method identity, not provider data. Operation interceptors must
     // never leak into concurrent reads, including a long settlement lease.
     const providerView=<T extends object>(provider:T):T=>{
@@ -27,6 +34,14 @@ export function bindRoleWallet(owner: AppWalletSession, role: 'player' | 'game')
       return view;
     };
     const view=Object.create(wallet) as Wallet;
+    let source:object|null=wallet;
+    while(source&&source!==Object.prototype){
+      for(const key of Object.getOwnPropertyNames(source)){
+        if(Object.hasOwn(view,key)||key==='constructor')continue;
+        const value=Reflect.get(wallet,key);if(typeof value==='function')Object.defineProperty(view,key,{value,configurable:true,writable:true});
+      }
+      source=Object.getPrototypeOf(source);
+    }
     Object.assign(view,{arkProvider:providerView(wallet.arkProvider),indexerProvider:providerView(wallet.indexerProvider),onchainProvider:providerView(wallet.onchainProvider)});
     const contracts=Object.create(manager) as typeof manager;
     contracts.getContractsWithVtxos=manager.getContractsWithVtxos.bind(manager);
@@ -48,11 +63,11 @@ export function bindRoleWallet(owner: AppWalletSession, role: 'player' | 'game')
           let unsubscribe:(()=>void)|undefined;
           const ended=new Promise<void>(resolve=>{if(active.aborted)resolve();else active.addEventListener('abort',()=>resolve(),{once:true});});
           try {
-            const subscribing=wallet.notifyIncomingFunds(()=>{if(!active.aborted)for(const callback of [...callbacks])callback();}).then(stop=>{
+            const subscribing=wallet.notifyIncomingFunds(()=>{if(!active.aborted)for(const callback of [...callbacks]){try{callback();}catch{/* One consumer cannot terminate shared observation. */}}}).then(stop=>{
               if(active.aborted)stop();else unsubscribe=stop;
             });
             await Promise.race([subscribing,ended]);
-            if(!active.aborted)for(const callback of [...callbacks])callback(); // Initial subscription gap closure.
+            if(!active.aborted)for(const callback of [...callbacks]){try{callback();}catch{/* Isolate consumers. */}} // Initial subscription gap closure.
             await ended;
           }finally{unsubscribe?.();stop.abort();callbacks.clear();}
         }).finally(()=>{stop.abort();if(events===entry)events=undefined;});
@@ -76,13 +91,17 @@ export function bindRoleWallet(owner: AppWalletSession, role: 'player' | 'game')
       const deadline = AbortSignal.any([signal,AbortSignal.timeout(30000)]);
       return owner.read(role, account, deadline, async (resource, active) => {
         const wallet=await readonlyView(resource as Wallet);
-        requireNetwork((await wallet.arkProvider.getInfo()).network, account.network ?? 'signet');
-        return withCompleteSnapshot(wallet, active, async current => {
+        const verified=wallet.arkProvider.getInfo().then(info=>requireNetwork(info.network, account.network ?? 'signet'));
+        const [,result]=await Promise.all([verified,withCompleteSnapshot(wallet, active, async current => {
+          // Ownership can start concurrently, but no caller projection (which
+          // may reconcile a receipt) runs before network validation succeeds.
+          await verified;active.throwIfAborted();
           // Live evidence belongs to this attempt, not an unrelated watcher's
           // historical connection status. Required projection calls still throw.
           const restore = replace(current,'getProviderConnectionState',() => ({mode:'online',source:'live'}));
           try { return await use(current); } finally { restore(); }
-        });
+        })]);
+        return result;
       });
     },
     history(account:AccountSecret,signal:AbortSignal) {
@@ -131,8 +150,15 @@ export function bindRoleWallet(owner: AppWalletSession, role: 'player' | 'game')
           copyMethods(providers.arkProvider, wallet.arkProvider);
           copyMethods(providers.indexerProvider, wallet.indexerProvider);
           requireNetwork((await wallet.arkProvider.getInfo()).network,account.network??'signet');
+          // Strict live ownership below and direct boarding reads still must
+          // succeed. A historical watcher disconnect is not this attempt's evidence.
+          replace(wallet,'getProviderConnectionState',()=>({mode:'online',source:'live',lastOnlineAt:Date.now()}));
           const manager=await wallet.getContractManager();
-          restoreSnapshot=replace(manager,'getContractsWithVtxos',()=>readCompleteContracts(manager,wallet.indexerProvider,active));
+          restoreSnapshot=replace(manager,'getContractsWithVtxos',async(filter?:Record<string,unknown>)=>{
+            const snapshot=await readCompleteContracts(manager,wallet.indexerProvider,active);
+            return snapshot.filter(({contract})=>!filter||Object.entries(filter).every(([key,value])=>value===undefined||
+              (Array.isArray(value)?value.includes(Reflect.get(contract,key)):Reflect.get(contract,key)===value)));
+          });
           for (const name of ['submitTx','finalizeTx','registerIntent','confirmRegistration','deleteIntent','submitTreeNonces','submitTreeSignatures','submitSignedForfeitTxs']) {
             const original = Reflect.get(wallet.arkProvider,name);
             if (typeof original === 'function') Reflect.set(wallet.arkProvider,name,(...args:unknown[]) => {
@@ -162,8 +188,8 @@ function copyMethods(source: object | undefined, target: object) {
 function methodCheckpoint(target: object) {
   const descriptors = Object.getOwnPropertyDescriptors(target);
   return () => {
-    for(const key of Object.keys(target)) {
-      if(typeof Reflect.get(target,key) !== 'function')continue;
+    for(const key of new Set([...Object.keys(target),...Object.keys(descriptors)])) {
+      if(typeof Reflect.get(target,key) !== 'function'&&typeof descriptors[key]?.value!=='function')continue;
       if(descriptors[key])Object.defineProperty(target,key,descriptors[key]);
       else Reflect.deleteProperty(target,key);
     }

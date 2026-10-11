@@ -8,6 +8,7 @@ import {createArkadeContextDependencies} from '../../src/client/wallet-layer-ark
 import {loadBalance} from '../../src/client/wallet-layer-arkade/balance.ts';
 import {loadAddresses} from '../../src/client/wallet-layer-arkade/addresses.ts';
 import {listWalletAssets,watchAssetChanges} from '../../src/client/wallet-layer-arkade/assets.ts';
+import {restoreAccount} from '../../src/client/wallet-layer-arkade/account.ts';
 
 const phrase='abandon '.repeat(11)+'about',account={phrase,profileId:'public-fixture',network:'signet'};
 const signal=()=>new AbortController().signal;
@@ -16,8 +17,9 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});retur
 const assetId='a'.repeat(68);
 function setup(t){
   const state={created:0,disposed:0,metadata:0,subscriptions:0,stops:0,submits:0,failed:false,quantity:9007199254740993n,coins:[],notifications:[]};
-  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'signet'}));
+  t.mock.method(RestArkProvider.prototype,'getInfo',async function(){return {network:this.serverUrl.includes('mutinynet')?'mutinynet':'signet'};});
   t.mock.method(RestIndexerProvider.prototype,'getVtxos',async()=>{
+    state.queries=(state.queries??0)+1;if(state.indexerGate)await state.indexerGate.promise;
     if(state.failed)throw Error('live read failed');
     return {vtxos:state.quantity?[{txid:'a'.repeat(64),vout:0,value:100,script:'script',assets:[{assetId,amount:state.quantity}]}]:[]};
   });
@@ -27,12 +29,13 @@ function setup(t){
     const wallet={...config,getContractManager:async()=>manager,
       getAddress:async()=> 'tark1-fixture',getBoardingAddress:async()=> 'tb1p-fixture',
       getProviderConnectionState:()=>({mode:'online',source:'live'}),
-      getBalance:async()=>{
-        const current=await manager.getContractsWithVtxos();
+      getBalance:async function(){
+        const current=await (await this.getContractManager()).getContractsWithVtxos();
         return {available:current.flatMap(c=>c.vtxos).reduce((n,c)=>n+c.value,0),total:100+current.flatMap(c=>c.vtxos).reduce((n,c)=>n+c.value,0),boarding:{confirmed:100,total:100}};
       },
-      getVtxos:async()=> (await manager.getContractsWithVtxos()).flatMap(c=>c.vtxos),
-      assetManager:{getAssetDetails:async id=>{state.metadata++;return {assetId:id,metadata:{name:'External asset'}};}},
+      getVtxos:async function(){return (await (await this.getContractManager()).getContractsWithVtxos()).flatMap(c=>c.vtxos);},
+      getTransactionHistory:async function(){return state.history?state.history.call(this):[];},
+      assetManager:{getAssetDetails:async id=>{state.metadata++;if(state.metadataFailed)throw Error('required metadata unavailable');return {assetId:id,metadata:{name:'External asset'}};}},
       notifyIncomingFunds:async callback=>{state.subscriptions++;state.notifications.push(callback);return ()=>{state.stops++;};},
       dispose:async()=>{state.disposed++;},
     };
@@ -43,6 +46,7 @@ function setup(t){
 }
 test('cross-feature warm reads, metadata reuse, observers, optional Game and retirement obey the construction budget',async t=>{
   const {state,owner,player,game}=setup(t);
+  assert.equal(bindRoleWallet(owner,'player'),player);assert.equal(bindRoleWallet(owner,'game'),game);
   assert.equal(state.created,0);
   const [balance,assets,addresses]=await Promise.all([loadBalance(account,signal(),player),listWalletAssets(account,signal(),player),loadAddresses(account,signal(),player)]);
   assert.equal(balance.availableSats,100);assert.equal(assets[0].quantity,'9007199254740993');assert.equal(addresses.arkadeAddress,'tark1-fixture');assert.equal(state.created,1);
@@ -57,7 +61,10 @@ test('cross-feature warm reads, metadata reuse, observers, optional Game and ret
   const c=new AbortController(),third=watchAssetChanges(account,c.signal,()=>{},player);await tick();assert.equal(state.subscriptions,1);
   await loadBalance({...account,profileId:'game'},signal(),game);assert.equal(state.created,2);
   state.quantity=2n;assert.equal((await listWalletAssets(account,signal(),player))[0].quantity,'2');assert.equal(state.metadata,1,'changed live quantities reuse metadata; Game balance does not hydrate it');
-  c.abort();await third;await owner.dispose();assert.equal(state.disposed,2);assert.equal(state.stops,1);assert.equal(state.submits,0);
+  c.abort();await third;
+  await loadBalance({...account,profileId:'replacement'},signal(),player);assert.equal(state.created,3);assert.equal(state.disposed,1);
+  await loadBalance({...account,profileId:'game'},signal(),game);assert.equal(state.created,3,'replacing Player leaves Game resource intact');
+  await owner.dispose();assert.equal(state.disposed,3);assert.equal(state.stops,1);assert.equal(state.submits,0);
 });
 test('failed live read never returns previous holdings and recovery reuses the same resource',async t=>{
   const {state,player}=setup(t);
@@ -86,4 +93,83 @@ test('package exports keep session/provider resources private and context uses o
   const deps=createArkadeContextDependencies();assert.equal(deps.observeActivity,deps.observePayments);
   const facade=readFileSync(new URL('../../src/client/integration-layer/bis-service.ts',import.meta.url),'utf8');
   assert.doesNotMatch(facade,/wallet\?\.refresh\(\)/);
+});
+
+test('fresh reads bypass long signing and history without observing scoped hooks or fallback',async t=>{
+  const {state,player}=setup(t);
+  await loadAddresses(account,signal(),player);
+  const wallet=state.coins[0],signGate=deferred(),historyGate=deferred();
+  state.history=async function(){
+    await historyGate.promise;
+    return (await (await this.getContractManager()).getContractsWithVtxos()).flatMap(row=>row.vtxos);
+  };
+  const history=player.history(account,signal());
+  const signing=player.sign(account,signal(),{},async w=>{
+    w.indexerProvider.getVtxos=async()=>{throw Error('operation-only interceptor');};
+    w.getBalance=async()=>{throw Error('operation-only wallet interceptor');};
+    await signGate.promise;
+  });
+  await tick();
+  assert.equal((await loadBalance(account,signal(),player)).availableSats,100);
+  assert.equal((await listWalletAssets(account,signal(),player))[0].quantity,'9007199254740993');
+  signGate.resolve();await signing;historyGate.resolve();assert.equal((await history).length,1);
+  assert.equal(state.created,1);
+});
+
+test('history failure is attempt-local, even if SDK catches it, and later history and balance recover',async t=>{
+  const {state,player}=setup(t);await loadAddresses(account,signal(),player);
+  const wallet=state.coins[0];
+  let failHistory=true;
+  state.history=async function(){state.failed=failHistory;try{await this.indexerProvider.getVtxos({scripts:['script']});}catch{}finally{state.failed=false;}return [];};
+  await assert.rejects(player.history(account,signal()));
+  failHistory=false;assert.equal((await loadBalance(account,signal(),player)).availableSats,100);
+  assert.deepEqual(await player.history(account,signal()),[]);assert.equal(state.created,1);
+});
+
+test('activation promotes the restored candidate and invalid restore does not retire saved identity',async t=>{
+  const {state,owner,player}=setup(t);
+  t.mock.method(globalThis,'fetch',async()=>new Response(JSON.stringify({network:'signet'})));
+  const restored=await restoreAccount(phrase,signal(),'signet',player);
+  owner.select('player',restored.profileId,'signet');await loadBalance(restored,signal(),player);
+  assert.equal(state.created,1);await assert.rejects(restoreAccount('invalid',signal(),'signet',player));
+  await loadBalance(restored,signal(),player);assert.equal(state.created,1);assert.equal(state.disposed,0);
+});
+
+test('retirement stops late SDK submission including settlement confirmation and forfeit methods',async t=>{
+  const {state,owner,player}=setup(t);await loadAddresses(account,signal(),player);
+  const wallet=state.coins[0],gate=deferred();
+  for(const key of ['confirmRegistration','submitSignedForfeitTxs'])wallet.arkProvider[key]=async()=>{state.submits++;};
+  const work=player.sign(account,signal(),{},async w=>{await gate.promise;await w.arkProvider.confirmRegistration();});
+  const rejected=assert.rejects(work);await tick();const retired=owner.retire('player');
+  gate.resolve();await rejected;await retired;assert.equal(state.submits,0);assert.equal(state.disposed,1);
+});
+
+test('immutable metadata keys include network and missing optional fields remain missing',async t=>{
+  const {state,player}=setup(t);
+  const first=(await listWalletAssets(account,signal(),player))[0];
+  assert.equal(first.decimals,undefined);assert.equal(first.iconUrl,undefined);
+  await listWalletAssets({...account,network:'mutinynet'},signal(),player);assert.equal(state.metadata,2);
+  await listWalletAssets(account,signal(),player);assert.equal(state.metadata,2,'same network/operator/asset can reuse immutable metadata after role replacement');
+  assert.equal(state.created,3);assert.equal(state.disposed,2);
+});
+
+test('uncached required metadata failure is not an empty or partial successful listing',async t=>{
+  const {state,player}=setup(t);state.metadataFailed=true;
+  await assert.rejects(listWalletAssets(account,signal(),player));
+  state.metadataFailed=false;assert.equal((await listWalletAssets(account,signal(),player)).length,1);assert.equal(state.created,1);assert.equal(state.metadata,2);
+});
+
+test('one cancelled live consumer detaches without cancelling compatible ownership work',async t=>{
+  const {state,player}=setup(t),gate=deferred(),cancel=new AbortController();state.indexerGate=gate;
+  const balance=loadBalance(account,cancel.signal,player),rejected=assert.rejects(balance);
+  const assets=listWalletAssets(account,signal(),player);await tick();
+  cancel.abort();await rejected;gate.resolve();assert.equal((await assets).length,1);
+  assert.equal(state.created,1);assert.equal(state.queries,1);assert.equal(state.disposed,0);
+});
+
+test('owner retirement stops attached observer callbacks and owns the only disposal',async t=>{
+  const {state,owner,player}=setup(t);let changed=0;
+  const observing=watchAssetChanges(account,signal(),()=>{changed++;},player);
+  const ended=observing.catch(()=>{});await tick();await owner.retire('player');await ended;
+  const prior=changed;state.notifications[0]();assert.equal(changed,prior);assert.equal(state.stops,1);assert.equal(state.disposed,1);
 });

@@ -27,7 +27,7 @@ test('attempt failure followed by success recovers; old repository outputs and w
   const wallet={getContractManager:async()=>m,indexerProvider:{getVtxos:async()=>{if(fail)throw Error('required failed');return {vtxos:[]};}}};
   await assert.rejects(withCompleteSnapshot(wallet,signal(),async()=> 'must not publish'));
   assert.equal(m.getContractsWithVtxos,old);fail=false;
-  const snapshot=await withCompleteSnapshot(wallet,signal(),async()=>m.getContractsWithVtxos());
+  const snapshot=await withCompleteSnapshot(wallet,signal(),async current=>(await current.getContractManager()).getContractsWithVtxos());
   assert.ok(snapshot.every(row=>row.vtxos.length===0));assert.equal(m.getContractsWithVtxos,old);
   await assert.rejects(withCompleteSnapshot(wallet,signal(),async()=>{throw Error('boarding failed');}));assert.equal(m.getContractsWithVtxos,old);
 });

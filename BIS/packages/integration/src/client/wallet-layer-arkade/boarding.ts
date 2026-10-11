@@ -3,10 +3,10 @@ import { verifiedBoardingCommitment } from '../state-layer-core/boarding-reconci
 import { hasLiveBoardingWait, liveBoardingState } from '../state-layer-core/live-boarding-wait.ts';
 import { settlementTimeoutMs, settlementDiagnostic } from '../state-layer-core/boarding-status.ts';
 import { readFreshBalance } from './balance.ts';
-import { sdkVersion, MnemonicIdentity, ReadonlyWallet, Wallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, CSVMultisigTapscript, hasBoardingTxExpired, Ramps, ArkAddress, Transaction, Extension, createAssetPacket, type IWallet, type SettleParams } from '@arkade-os/sdk';
+import { sdkVersion, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, CSVMultisigTapscript, hasBoardingTxExpired, Ramps, ArkAddress, Transaction, Extension, createAssetPacket, type IWallet, type SettleParams } from '@arkade-os/sdk';
 import { boardingAssets, type BoardingAssetChange } from '../state-layer-core/boarding-assets.ts';
 import type { ExtendedVirtualCoin } from '@arkade-os/sdk';
-import { operatorFor, requireNetwork, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
 import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
 import type {RoleWalletAccess} from './adapter-session.ts';
@@ -31,7 +31,6 @@ function config(network:TestNetwork='signet') {
 }
 async function readonly<T>(account:AccountSecret,signal:AbortSignal,read:(wallet:ReadonlyWallet)=>Promise<T>,session?:RoleWalletAccess):Promise<T> {
   const c=config(account.network ?? 'signet');
-  const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
   return useReadonlyWallet(account,signal,c.options,async wallet=>{
     const result=await read(wallet);
     const state=wallet.getProviderConnectionState();

@@ -132,6 +132,12 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     sign<T>(role: Role, account: AccountSecret, signal: AbortSignal, use: (wallet: W, signal: AbortSignal) => Promise<T>) {
       return borrow(role, account, signal, use, true);
     },
+    // Any operation needing simultaneous role leases uses this fixed order;
+    // ordinary payer/recipient operations borrow only the submitting role.
+    signBoth<T>(accounts:{player:AccountSecret;game:AccountSecret},signal:AbortSignal,use:(wallets:{player:W;game:W},signal:AbortSignal)=>Promise<T>){
+      return borrow('player',accounts.player,signal,(player,playerSignal)=>
+        borrow('game',accounts.game,playerSignal,(game,active)=>use({player,game},active),true),true);
+    },
     retire: invalidate,
     select(role: Role, profileId: string | undefined, network: string | undefined) {
       const slot=slots.get(role);
