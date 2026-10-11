@@ -362,8 +362,8 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     const retainReceivedAddressForOnboarding=state.accountOnboarding&&before.accountReceive&&before.addresses.status==='ready';
     if ((!balanceVisible(state) || entering) && !retainReceivedAddressForOnboarding) {
       cancelBalance();
-      const cachedBalance=entering ? reads.peek<BalanceAmounts>(readKey('balance')) : undefined;
-      const cachedAddresses=entering ? reads.peek<AccountAddresses>(readKey('addresses')) : undefined;
+      const cachedBalance=entering && !state.accountReceive ? reads.peek<BalanceAmounts>(readKey('balance')) : undefined;
+      const cachedAddresses=entering && (state.accountReceive || state.accountOnboarding || state.accountDetails) ? reads.peek<AccountAddresses>(readKey('addresses')) : undefined;
       state=Object.freeze({...state,
         balance:cachedBalance ? {status:'ready' as const,...cachedBalance.value} : idleBalance,
         addresses:cachedAddresses ? {status:'ready' as const,...cachedAddresses.value} : idleAddresses,
@@ -374,7 +374,9 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     syncOnboarding();
     syncWarmer();
     for(const listener of [...listeners]) if(listeners.has(listener)) listener();
-    if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state) && state.balance.status==='idle' && state.addresses.status==='idle') void refreshBalanceView();});
+    // A cached primitive must not suppress preparation of another dependency.
+    // refreshBalanceView adopts cached/pending reads without duplicating them.
+    if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state)) void refreshBalanceView();});
   };
   const invalidate = () => {warmer?.dispose();warmer=undefined;assetsInterest=false;reads.invalidate();invalidateSharedAssetInventory();issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};

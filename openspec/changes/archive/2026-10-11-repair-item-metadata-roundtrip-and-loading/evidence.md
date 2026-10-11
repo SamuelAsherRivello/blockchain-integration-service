@@ -198,3 +198,49 @@ All 1,132 game tests pass with zero failures/skips; BIS contract typecheck,
 production build and scoped diff checks pass. Build retains its existing
 large-chunk advisory. Task 4.4 is now complete; earlier pending notes above
 describe historical checkpoints, not the final outcome.
+
+## Navigation/cache verification repair (2026-10-11)
+
+The five remaining navigation/background-cache failures exposed a real partial
+cache bug, not assertions to relax. Account entry populated both cached fields
+regardless of the destination and started preparation only if both were idle.
+A cached address could therefore suppress a missing balance (and vice versa).
+Entry now projects only the destination's required primitives and always
+adopts their cached or pending preparation. The original 16 address/background
+unit checks and the deferred-warm-read browser check all pass unchanged.
+The production build, including typecheck, passes with existing chunk warnings.
+
+The subsequent full working-tree run completed 944 tests: 940 passed, four
+failed, none skipped. Remaining failures are continuation account-change
+handling, Marketplace pending-label source assertion, the interactive-docs
+favicon route, and the project-run route-label assertion. Concurrent wallet,
+prototype and launcher changes were preserved rather than swept into this
+repair. Full verification is not claimed green. An exported candidate run is
+not acceptance evidence: its nested path/dependency resolution introduced
+additional fixture failures. Finalization must not infer success from it.
+
+## Reconciled final verification (2026-10-11)
+
+The subsequent integrated suite completed 956 tests with 953 passing and only
+three initial browser-load timeouts (background cache, typography and Swap).
+All earlier navigation, continuation, Marketplace, route and launcher failures
+passed. The typography and Swap fixture repairs were independently committed
+by their owners. Background caching now uses a unique output cache directory,
+disables unrelated dependency discovery and explicitly prebundles React JSX
+runtimes as well as its SDK dependencies. Its behavior assertions are unchanged.
+Initialization errors include collected page errors instead of hiding module
+failures behind a timeout.
+
+A final current-source run passed all 34 selected checks with zero failures or
+skips: the three previously failing browser cases, address/background navigation,
+metadata transport, shared inventory, Marketplace cache and network selection.
+This clears every failure from that integrated run through explicit rechecks;
+it is not represented as a new 956-test full-suite pass. Current production
+build (including typecheck), release consistency and strict change validation
+pass. All 62 main specs pass strict validation. Existing large-chunk warnings
+remain non-blocking. Concurrent wallet-session, release and prototype work is
+excluded from this scoped finalization.
+
+Archived-task validation reports this change valid with no issues. Its bulk
+report also identifies twelve older, unrelated archives with incomplete tasks;
+those historical artifacts are unchanged and are not claimed valid here.
