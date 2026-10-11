@@ -15,7 +15,7 @@ test('Marketplace composes the shared BIS prompt for preparation and foreground 
   assert.match(integrationIndex, /export \{ PendingOperations, usePendingNotice \} from '\.\/client\/ui-layer-react\/PendingOperationDialog';/);
   assert.match(app, /PendingOperations/);
   assert.match(app, /usePendingNotice/);
-  assert.match(app, /return <PendingOperations className="marketplace-pending-runtime" loadingContext=\{player\}>/);
+  assert.match(app, /return <PendingOperations className="marketplace-pending-runtime" loadingContext=\{player\} hostContextNotices>/);
   assert.match(app, /function MarketplaceContent\(\)\{/);
   assert.match(app, /const \[operationLabel,setOperationLabel\]=useState<string>\(\);/);
   assert.match(app, /<MarketplacePendingNotice busy=\{loadingPromptVisible\} label=\{operationLabel\?\?'Loading \.\.\.'\} error=\{inventoryError\?\?operationError\}/);

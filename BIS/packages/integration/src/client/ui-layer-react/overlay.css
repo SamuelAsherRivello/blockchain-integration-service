@@ -270,6 +270,9 @@
 @media (prefers-reduced-motion: reduce) { .bis-view-transition-enter, .bis-view-transition-exit { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .bis-card-closing { animation: none; } }
 .bis-toast-viewport { position: absolute; inset: 0; z-index: 30; overflow: hidden; pointer-events: none; padding: 12.8px; display: flex; justify-content: center; align-items: flex-start; }
+/* Banner launchers have zero height; their notifications share the viewport
+   with the fixed Account dialog instead of being clipped to the anchor. */
+.bis-account-launcher-anchor .bis-toast-viewport { position: fixed; letter-spacing: normal; text-transform: none; }
 .bis-toast { box-sizing: border-box; width: min(100%, 288px); padding: 12.8px 16px; border: 1px solid #c8dcd5; border-top: 3px solid #487d66; border-radius: 10px; background: #f8fbfc; color: #182d39; box-shadow: 0 8px 24px #0003; font: 12.8px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; text-align: center; overflow-wrap: anywhere; white-space: pre-wrap; pointer-events: none; }
 .bis-toast[data-phase="entering"] { animation: bis-toast-enter var(--bis-toast-motion) ease-out both; }
 .bis-toast-with-image { display: flex; align-items: center; gap: 12px; text-align: left; }

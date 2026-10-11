@@ -15,6 +15,7 @@ const PendingContext = createContext<Register | undefined>(undefined);
 // Temporary bolt pivot preview: set false to restore normal loading behavior.
 const PREVIEW_LOADING_FOREVER = false;
 const PENDING_NOTICE_GAP_GRACE_MS = 250;
+const HOST_LOADING_NOTICE: Notice = {label:'Loading ...',host:true,dismiss:()=>{}};
 
 /** Child layout effects publish before paint, including the initial page render. */
 export function usePendingNotice(busy: boolean, label: string, error: string | undefined, dismiss: () => void, info?:NoticeInfo, errorAction?: {label:string;run:()=>void}, diagnostic?:BisPendingDiagnostic) {
@@ -32,21 +33,24 @@ export function usePendingNotice(busy: boolean, label: string, error: string | u
 }
 
 /** A host-local modal: document-level showModal would also disable the Admin panel. */
-export function PendingOperations({children, overlay, className, hostLoading, onBisVisibilityChange, loadingContext}: {children: ReactNode; overlay?: ReactNode; className?: string; hostLoading?: HostLoading; onBisVisibilityChange?(visible: boolean): void; loadingContext?: BisContext}) {
+export function PendingOperations({children, overlay, className, hostLoading, onBisVisibilityChange, loadingContext, hostContextNotices = false}: {children: ReactNode; overlay?: ReactNode; className?: string; hostLoading?: HostLoading; onBisVisibilityChange?(visible: boolean): void; loadingContext?: BisContext; hostContextNotices?: boolean}) {
   const runtime = useVisibleViewport();
   useFitTextButtons(runtime);
   const [notices,setNotices] = useState<Map<string,Notice>>(()=>new Map());
   const loadingState = useSyncExternalStore(loadingContext?.subscribe ?? (() => () => {}), loadingContext?.getState ?? (() => undefined), () => undefined);
   const loadingAllowed = !loadingState || accountLoadingModalAllowed(loadingState);
+  const accountOpen = loadingState?.view === 'account';
+  // Host work continues in the background while the user navigates BIS.
+  const noticeAllowed = (notice: Notice) => !accountOpen || !(notice.host || hostContextNotices);
   const hostPending = useSyncExternalStore(hostLoading?.subscribe ?? (() => () => {}), hostLoading?.getSnapshot ?? (() => false), () => false);
   const register = useCallback<Register>((id,notice)=>setNotices(previous=>{
     if(!notice && !previous.has(id))return previous;
     const next=new Map(previous);if(notice)next.set(id,notice);else next.delete(id);return next;
   }),[]);
-  const hostEntry: Notice | undefined = hostPending ? {label:'Loading ...',host:true,dismiss:()=>{}} : undefined;
+  const hostEntry: Notice | undefined = hostPending ? HOST_LOADING_NOTICE : undefined;
   const entries: Notice[]=PREVIEW_LOADING_FOREVER
     ? [{label:'Loading ...',dismiss:()=>{}}]
-    : [...notices.values(), ...(hostEntry ? [hostEntry] : [])];
+    : [...notices.values(), ...(hostEntry ? [hostEntry] : [])].filter(noticeAllowed);
   const waiting=entries.filter(entry=>loadingAllowed&&!entry.error&&!entry.info);
   const failure=waiting.length ? undefined : entries.find(entry=>entry.error);
   const pending=waiting.find(entry=>entry.label!=='Loading ...') ?? waiting[0];
@@ -60,9 +64,9 @@ export function PendingOperations({children, overlay, className, hostLoading, on
     const timeout=window.setTimeout(()=>setRetained(undefined),PENDING_NOTICE_GAP_GRACE_MS);
     return ()=>window.clearTimeout(timeout);
   },[active]);
-  // A retained spinner must not leak across navigation into a non-modal page.
+  // Never replay completed host work or carry its grace-period spinner into BIS.
   const retainedNotice=retained?.notice;
-  const current=active ?? (loadingAllowed || retainedNotice?.error || retainedNotice?.info ? retainedNotice : undefined);
+  const current=active ?? (retainedNotice && !retainedNotice.host && !hostContextNotices && (loadingAllowed || retainedNotice.error || retainedNotice.info) ? retainedNotice : undefined);
   const displayLabel=active ? label.current : retained?.label;
   useLayoutEffect(() => { onBisVisibilityChange?.(Boolean(current && !current.host)); }, [current, onBisVisibilityChange]);
   const content=useRef<HTMLDivElement>(null), dialog=useRef<HTMLDivElement>(null);

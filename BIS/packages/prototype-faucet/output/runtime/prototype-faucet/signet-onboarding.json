@@ -1,0 +1,32 @@
+{
+  "id": "onboarding:tark1qz9l2ctqalrkjyftxcw7gytm83cm3r9pdudmna4v0gncry56h30x58hxfvfy2saywy49ya68n3g94hme84cd3vdcm3az50wptlnzkfyw5dn56r:signet",
+  "scope": {
+    "walletId": "tark1qz9l2ctqalrkjyftxcw7gytm83cm3r9pdudmna4v0gncry56h30x58hxfvfy2saywy49ya68n3g94hme84cd3vdcm3az50wptlnzkfyw5dn56r",
+    "network": "signet",
+    "operator": "https://signet.arkade.sh",
+    "role": "faucet"
+  },
+  "status": "failed",
+  "stage": "failed",
+  "totalSats": 300000,
+  "inputs": [
+    {
+      "txid": "242fa3d2d262bc25c8578e16d66bb5554772a4c5143bea8cb69b3219ae9337fd",
+      "vout": 0,
+      "value": 100000
+    },
+    {
+      "txid": "4d7a6364f2b8892d7bfa6b6bf9b54264c33bdfe6aab980e343fd035135211642",
+      "vout": 0,
+      "value": 100000
+    },
+    {
+      "txid": "4d39ce24dabfd765e4498277659c38d17b85813891feb72b1f86b3c180e4082d",
+      "vout": 0,
+      "value": 100000
+    }
+  ],
+  "updatedAt": 1791659861552,
+  "failureCode": "operator-unavailable",
+  "failureMessage": "INTERNAL_ERROR (0): failed to create commitment tx: rpc error: code = Unknown desc = failed to estimate fee rate: HTTP 400: {\"httpCode\":400,\"code\":\"fee-estimation-unavailable\",\"message\":\"It is currently impossible to estimate fees, please try again later.\",\"reason\":null}"
+}

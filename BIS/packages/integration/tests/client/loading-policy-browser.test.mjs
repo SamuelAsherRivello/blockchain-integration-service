@@ -13,10 +13,10 @@ test('account page policy blocks active, host, and retained spinners at both ove
     let state={view:'account',phase:'active',accountAssets:true};
     const listeners=new Set();
     const context={subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);},getState:()=>state};
-    let busy=true,host=true,error;
+    let busy=true,host=true,error,hostMode=false,internalBusy=false;
     const hostLoading={subscribe:context.subscribe,getSnapshot:()=>host};
-    function Notice(){usePendingNotice(busy,'Loading ...',error,()=>{});return <button>Account controls</button>;}
-    function Screen(){return <PendingOperations loadingContext={context}><Notice/><PendingOperations loadingContext={context} hostLoading={hostLoading}><Notice/></PendingOperations></PendingOperations>;}
+    function Notice({internal=false}){usePendingNotice(hostMode&&internal?internalBusy:busy,'Loading ...',error,()=>{});return <button>Account controls</button>;}
+    function Screen(){return <PendingOperations loadingContext={context} hostContextNotices={hostMode}><Notice/><PendingOperations loadingContext={context} hostLoading={hostLoading}><Notice internal/></PendingOperations></PendingOperations>;}
     const root=createRoot(document.getElementById('root'));
     window.update=(page,options={})=>flushSync(()=>{
       state={view:'account',phase:'active',[page]:true};
@@ -27,6 +27,13 @@ test('account page policy blocks active, host, and retained spinners at both ove
       root.render(<Screen/>);
     });
     window.nonModalPages=Object.entries(viewLoadingPolicies).filter(([,policy])=>!policy.isLoadingModal).map(([key])=>key);
+    window.hostScenario=(view,options={})=>flushSync(()=>{
+      hostMode=true;
+      state={view,phase:'active',accountAssets:true};
+      busy=options.busy??true;host=options.host??true;internalBusy=options.internalBusy??false;error=undefined;
+      for(const listener of listeners)listener();
+      root.render(<Screen/>);
+    });
     flushSync(()=>root.render(<Screen/>));
   `;
   const server=await createServer({configFile:false,root:process.cwd(),cacheDir:`output/tests/loading-policy-${process.pid}`,optimizeDeps:{noDiscovery:true,include:['react','react-dom','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime']},esbuild:{jsx:'automatic'},plugins:[{
@@ -68,5 +75,28 @@ test('account page policy blocks active, host, and retained spinners at both ove
   assert.equal(await dialogs.count(),0,'onboarding also forbids loading modals');
   await page.evaluate(()=>window.update('accountDetails',{busy:false,host:false,error:'Read failed'}));
   assert.equal(await page.getByRole('alertdialog',{includeHidden:true}).count(),2,'errors remain available');
+  await page.evaluate(()=>window.update('accountDetails',{busy:false,host:false}));
+  await page.waitForTimeout(300);
+  await page.evaluate(()=>window.hostScenario('account-button'));
+  assert.equal(await dialogs.count(),2,'host API and Marketplace notices show when BIS is closed');
+  await page.evaluate(()=>window.hostScenario('account'));
+  assert.equal(await dialogs.count(),0,'opening BIS immediately suppresses active and retained host notices');
+  assert.equal(await page.locator('[inert]').count(),0,'host work must not disable BIS controls');
+  await page.evaluate(()=>window.hostScenario('account',{internalBusy:true}));
+  assert.equal(await dialogs.count(),1,'BIS own loading remains visible while host work is deferred');
+  await page.evaluate(()=>window.hostScenario('account',{internalBusy:false}));
+  await page.waitForTimeout(300);
+  await page.evaluate(()=>window.hostScenario('account-button'));
+  assert.equal(await dialogs.count(),2,'closing BIS immediately reveals unfinished host work');
+  await page.evaluate(()=>window.hostScenario('account'));
+  await page.evaluate(()=>window.hostScenario('account',{busy:false,host:false}));
+  await page.evaluate(()=>window.hostScenario('account-button',{busy:false,host:false}));
+  assert.equal(await dialogs.count(),0,'host work completed while BIS was open must never replay');
+  await page.evaluate(()=>window.hostScenario('account',{busy:true,host:true}));
+  assert.equal(await dialogs.count(),0,'host requests started while BIS is open stay deferred');
+  await page.evaluate(()=>window.hostScenario('account-button'));
+  assert.equal(await dialogs.count(),2);
+  await page.evaluate(()=>window.hostScenario('account-button',{busy:false,host:false}));
+  assert.equal(await dialogs.count(),0,'completed host work clears immediately');
   assert.deepEqual(errors,[]);
 });

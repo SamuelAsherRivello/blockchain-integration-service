@@ -188,3 +188,26 @@ test('changed pending operations do not block backup-acknowledged logout', async
     assert.equal(c.getState().hasProfile,false);
   } finally {c.dispose();if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
 });
+
+test('unreadable pending journal does not report an error or disable logout acknowledgements', async () => {
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  const f=fixture();
+  const c=createContext(f.storage,async()=>identity,async()=>identity.profileId,
+    undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,
+    {hasGameWallet:()=>true});
+  try {
+    await c.readyAsync();
+    Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{length:1,key:()=> 'bis-signet-mints-v1:profile-a',getItem:()=>'{invalid'}});
+    c.openAccountDialog();c.openLogoutConfirmation();
+    assert.equal(c.getState().logoutPendingCount,null);
+    assert.equal(c.getState().error,undefined);
+    c.setLogoutBackupAcknowledged(true);c.setLogoutGameWalletAcknowledged(true);
+    assert.equal(c.getState().logoutBackupAcknowledged,true);
+    assert.equal(c.getState().logoutGameWalletAcknowledged,true);
+    c.setLogoutBackupAcknowledged(false);c.setLogoutGameWalletAcknowledged(false);
+    assert.equal(c.getState().logoutBackupAcknowledged,false);
+    assert.equal(c.getState().logoutGameWalletAcknowledged,false);
+    await c.confirmLogout();
+    assert.equal(f.clears(),1);assert.equal(c.getState().hasProfile,false);
+  } finally {c.dispose();if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
+});

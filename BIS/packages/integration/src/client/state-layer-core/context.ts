@@ -1065,7 +1065,9 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:logoutOperations.count,error:undefined});
       } catch {
         logoutOperations=undefined;
-        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:null,error:'Pending transactions could not be counted. You can still log out; locally saved transaction records will be removed.'});
+        // Counting is advisory. A malformed journal must not open an error
+        // modal and make the logout controls inert.
+        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:null,error:undefined});
       }
     },
     setLogoutBackupAcknowledged(acknowledged) {

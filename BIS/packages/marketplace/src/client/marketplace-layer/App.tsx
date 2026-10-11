@@ -309,7 +309,7 @@ function MarketplaceContent(){
   },[checkoutSession,pendingCheckout?.request.id,pendingCheckout?.phase,checkoutHasBeenSubmitted,playerState.profileId,playerState.phase,network,gameState.profileId,gameState.selectionVersion]);
   useEffect(()=>{setOperationLabel(undefined);setOperationError(undefined);},[playerState.profileId,playerState.phase,network,gameState.profileId,gameState.selectionVersion]);
 
-  return <PendingOperations className="marketplace-pending-runtime" loadingContext={player}>
+  return <PendingOperations className="marketplace-pending-runtime" loadingContext={player} hostContextNotices>
     <MarketplacePendingNotice busy={loadingPromptVisible} label={operationLabel??'Loading ...'} error={inventoryError??operationError} dismiss={()=>setOperationError(undefined)} retry={inventoryError?retrySelectedInventory:undefined}/>
     <div className="marketplace-page">
     <div className="network-banner">

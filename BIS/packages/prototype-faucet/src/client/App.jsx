@@ -12,6 +12,26 @@ function shortAddress(value) {
   return text.length > 20 ? `${text.slice(0, 9)}…${text.slice(-8)}` : text;
 }
 
+function shortIdentifier(value) {
+  const text = String(value ?? '');
+  return text.length > 24 ? `${text.slice(0, 10)}…${text.slice(-10)}` : text;
+}
+
+function publicHistoryRows(history) {
+  return (Array.isArray(history) ? history : []).slice(0, 4).map((entry, index) => {
+    const key = entry?.key ?? {};
+    return {
+      id: `${entry?.type ?? 'transaction'}-${key.arkTxid ?? key.commitmentTxid ?? key.boardingTxid ?? index}`,
+      type: String(entry?.type ?? 'TRANSACTION'),
+      amount: Number(entry?.amount ?? 0),
+      settled: entry?.settled === true,
+      arkTxid: key.arkTxid,
+      commitmentTxid: key.commitmentTxid,
+      boardingTxid: key.boardingTxid,
+    };
+  });
+}
+
 export function App({ request = defaultRequest } = {}) {
   const [network, setNetwork] = useState('mutinynet');
   const [address, setAddress] = useState('');
@@ -28,6 +48,7 @@ export function App({ request = defaultRequest } = {}) {
   const busy = ['submitting', 'onboarding'].includes(state.status);
   const ready = validFormat && validAmount && balance.status === 'ready' && balance.available >= amountValue;
   const needsOnboarding = balance.status === 'ready' && Number(balance.total ?? 0) > Number(balance.available ?? 0);
+  const historyRows = publicHistoryRows(balance.history);
   useEffect(() => {
     const controller = new AbortController();
     setBalance({ status: 'loading', message: 'Checking faucet balance…' });
@@ -94,9 +115,9 @@ export function App({ request = defaultRequest } = {}) {
     <main className="faucet-main"><section className="faucet-flow">
       <section className="panel faucet-overview" aria-label="Faucet overview">
         <div className="overview-controls"><label>Network<select value={network} onChange={event => { setNetwork(event.target.value); setState({ status: 'checking', message: 'Checking faucet availability…' }); }} disabled={busy}>{NETWORK_IDS.map(id => <option key={id} value={id}>{NETWORKS[id].label}</option>)}</select></label><button type="button" onClick={refreshFaucet} disabled={busy}>Refresh</button></div>
-        <section className={`overview-status status status-${statusKind}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">STATUS</span><strong>Status: {statusLabel}</strong></div><p>{statusMessage}</p>{state.network && <p>Requested {Number(state.amountSats).toLocaleString()} sats on {NETWORKS[state.network]?.label ?? state.network}.</p>}{state.address && <p className="operation-id">Destination: {state.address}</p>}{state.operationId && <p className="operation-id">Operation: {state.operationId}</p>}</section>
+        <section className={`overview-status status status-${statusKind}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">STATUS</span><strong>Status: {statusLabel}</strong></div><p>{statusMessage}</p>{state.network && <p>Requested {Number(state.amountSats).toLocaleString()} sats on {NETWORKS[state.network]?.label ?? state.network}.</p>}{state.address && <p className="operation-id">Destination: {state.address}</p>}{state.operationId && <p className="operation-id">Operation: {state.operationId}</p>}{state.transactionId && <p className="operation-id">Transaction: {state.transactionId}</p>}</section>
         <div className="overview-details"><section className="overview-addresses" aria-label="Faucet addresses"><div className="status-heading"><span className="panel-kicker">FAUCET ADDRESSES</span><span className="address-network">{NETWORKS[network].label}</span></div>{addresses.status === 'ready' ? <><div className="faucet-address-row"><span className="faucet-address-label">BTC</span><code className="faucet-address-value" title={addresses.bitcoinAddress}>{shortAddress(addresses.bitcoinAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('bitcoin', addresses.bitcoinAddress)}>{copiedAddress === 'bitcoin' ? 'Copied' : 'Copy'}</button></div><div className="faucet-address-row"><span className="faucet-address-label">ARKADE</span><code className="faucet-address-value" title={addresses.arkadeAddress}>{shortAddress(addresses.arkadeAddress)}</code><button className="copy-button" type="button" onClick={() => copyAddress('arkade', addresses.arkadeAddress)}>{copiedAddress === 'arkade' ? 'Copied' : 'Copy'}</button></div></> : <p className="address-message">{addresses.status === 'loading' ? 'Loading…' : addresses.message}</p>}</section>
-        <section className={`overview-balance faucet-balance-${balance.status}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">FAUCET BALANCE</span><strong>{balance.status === 'ready' ? `${Number(balance.available ?? 0).toLocaleString()} sats available` : balance.status === 'loading' ? 'Checking…' : 'Unavailable'}</strong></div>{balance.status === 'ready' ? <><p>Total: {Number(balance.total ?? 0).toLocaleString()} sats · Available: {Number(balance.available ?? 0).toLocaleString()} sats</p>{needsOnboarding && <button type="button" onClick={onboardFaucet} disabled={busy}>{state.status === 'onboarding' ? 'Onboarding…' : 'Onboard BTC to Arkade'}</button>}</> : <p>{balance.message}</p>}</section></div>
+        <section className={`overview-balance faucet-balance-${balance.status}`} aria-live="polite"><div className="status-heading"><span className="panel-kicker">FAUCET BALANCE</span><strong>{balance.status === 'ready' ? `${Number(balance.available ?? 0).toLocaleString()} sats available` : balance.status === 'loading' ? 'Checking…' : 'Unavailable'}</strong></div>{balance.status === 'ready' ? <><p>Total: {Number(balance.total ?? 0).toLocaleString()} sats · Available: {Number(balance.available ?? 0).toLocaleString()} sats</p>{needsOnboarding && <button type="button" onClick={onboardFaucet} disabled={busy}>{state.status === 'onboarding' ? 'Onboarding…' : 'Onboard BTC to Arkade'}</button>}<section className="faucet-history" aria-label="Recent transaction evidence"><div className="panel-kicker">RECENT TRANSACTION EVIDENCE</div>{historyRows.length ? historyRows.map(row => <div className="faucet-history-row" key={row.id}><div><strong>{row.type}</strong><span>{row.amount.toLocaleString()} sats{row.settled ? ' · settled' : ' · pending'}</span></div><div className="faucet-history-identifiers">{row.arkTxid && <span>Arkade <code title={row.arkTxid}>{shortIdentifier(row.arkTxid)}</code></span>}{row.commitmentTxid && <span>Commitment <code title={row.commitmentTxid}>{shortIdentifier(row.commitmentTxid)}</code></span>}{row.boardingTxid && <span>Boarding <code title={row.boardingTxid}>{shortIdentifier(row.boardingTxid)}</code></span>}</div></div>) : <p>No public transaction evidence yet.</p>}</section></> : <p>{balance.message}</p>}</section></div>
       </section>
       <section className="panel faucet-panel"><div className="panel-heading"><div><span className="panel-kicker">FAUCET REQUEST</span><h3>Choose destination and amount</h3></div><span className="prototype-badge">Experimental</span></div>
         <form onSubmit={submit}>

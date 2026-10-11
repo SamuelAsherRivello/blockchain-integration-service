@@ -26,7 +26,7 @@ export const viewLoadingPolicies: Readonly<Record<string, ViewLoadingPolicy>> = 
   marketplace: Object.freeze({ isLoadingAuto: true, isLoadingModal: true, isLoadingCached: false }),
 });
 
-/** The visible account page governs every loading overlay, including host overlays. */
+/** The visible account page governs BIS loading overlays; host notices defer while BIS is open. */
 export function accountLoadingModalAllowed(state: BisState): boolean {
   if (state.view !== 'account' || state.phase !== 'active') return true;
   const key = state.accountOnboarding ? 'onboarding' : state.accountDetails ? 'details'

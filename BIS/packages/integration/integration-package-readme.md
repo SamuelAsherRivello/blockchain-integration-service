@@ -8,7 +8,7 @@
 
 Start with `src/index.ts`: `IBis` defines commands, `BisService` coordinates services, and `IBisGame` supplies five callbacks including `onBisEvent`. Import `@bis/integration/style.css`. Wallet creation, restoration, and selection remain explicit.
 
-Game commands expose copied, readonly `BisSnapshot` projections and named payloads, not controllers or wallet internals. Game payloads use `BisGame` names; system payloads use `Bis` names. The [typechecked boundary example](tests/fixtures/game-contract-types.ts) rejects missing callbacks, private members, and mutable snapshots. Admin and Marketplace retain supported lower-level exports without creating alternative game channels.
+Game commands expose readonly `BisSnapshot` copies. Games use `BisGame` names; system payloads use `Bis`. The [boundary example](tests/fixtures/game-contract-types.ts) rejects missing callbacks, private access, and mutable snapshots. Admin and Marketplace retain supported lower-level exports.
 
 `state-layer-core` owns lifecycle, persistence, and operations; `ui-layer-react` owns components; `wallet-layer-arkade` adapts providers. Demo composition belongs in consuming packages.
 
@@ -28,13 +28,13 @@ After activation and initial rendering, BIS warms balance and addresses, then Tr
 
 One speculative job runs at a time; foreground work takes priority. Page entry joins compatible reads without restarting deadlines or retries. Leaving detaches presentation. Balance and addresses settle independently; Details requires both. History reuses the observer without awaiting its lifetime.
 
-Successful complete snapshots, including empty collections, stay fresh for five minutes. Lifecycle changes and new evidence invalidate them; identical observations never renew timestamps. Refresh bypasses completed values but may join live work. Failed, partial, and obsolete results are excluded. No TTL refill, snapshot persistence, or cross-context sharing occurs.
+Successful snapshots, including empty collections, stay fresh for five minutes. Lifecycle changes and new evidence invalidate them; identical observations never renew timestamps. Refresh bypasses completed values but may join live work. Failed, partial, and obsolete results are excluded. No TTL refill, snapshot persistence, or cross-context sharing occurs.
 
 Mint readiness requires fresh provider evidence, eligible unreserved inputs, valid metadata, and durable recovery storage. Pre-submission failures expose retryable reasons such as `reserved-inputs`. Uncertain submissions retain their operation ID as `outcome-unknown` for reconciliation. Diagnostics exclude SDK errors, keys, recovery phrases, and private transaction payloads.
 
-Continue hosts await `controller.readyAsync()` before checking `canPay`; it joins current eligibility work, including superseding balance evidence. Preparing is distinct from verified unavailable and submitted pending. Account, network, recipient, or session replacement abandons an unsubmitted gesture. Game Wallet refreshes publish only current reads, including conflict diagnostics; obsolete completions cannot overwrite a newer selection.
+Continue hosts await `controller.readyAsync()` before checking `canPay`; it joins current eligibility work, including superseding evidence. Preparing is distinct from verified unavailable and submitted pending. Account, network, recipient, or session replacement abandons an unsubmitted gesture. Game Wallet refreshes publish only current reads, including conflict diagnostics; obsolete completions cannot overwrite a newer selection.
 
-Modal pages retain their first-frame construction gate. Details stays interactive with placeholders and spinning Refresh while dependencies are pending. Background failures are silent. Quotes, spending, equipment selection, contract actions, recovery, and reconciliation retain their authoritative checks and explicit boundaries.
+Modal pages retain first-frame construction gates. Details shows placeholders and spinning Refresh while pending. Background failures stay silent. Mutations, recovery, and reconciliation retain authoritative checks.
 
 ## Development and verification
 

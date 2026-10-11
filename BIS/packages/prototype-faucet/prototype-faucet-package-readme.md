@@ -40,6 +40,6 @@ The helper accepts only 50,000, 100,000, or 200,000 sats, starts the local serve
 
 ## Verification
 
-Run `npm run test --workspace @spike/prototype-faucet` for deterministic address, network, amount, idempotency, rate-limit, and service tests. Run `npm run build --workspace @spike/prototype-faucet` for the browser build and `npm run typecheck` for the repository type check. These checks use mock wallets and do not prove live funding. A live test must use a disposable development wallet, the exact selected network, and privacy-safe evidence under the repository `output/` directory.
+Run `npm run test --workspace @spike/prototype-faucet` for deterministic address, network, amount, idempotency, rate-limit, and service tests. Run `npm run build --workspace @spike/prototype-faucet` for the browser build and `npm run typecheck` for the repository type check. These checks use mock wallets and do not prove live funding. To run the guarded healthy-operator acceptance test against a real local API, set `FAUCET_LIVE_TEST_URL` and `FAUCET_LIVE_TEST_NETWORK` before running the same test command; it requires a positive available balance, real 64-hex transaction evidence, and no recovery material in the response. A live test must use a disposable development wallet, the exact selected network, and privacy-safe evidence under the repository `output/` directory.
 
 Testnet and signet sats have no monetary value. Do not paste a recovery phrase or private key into this page, its issue tracker, logs, or chat.

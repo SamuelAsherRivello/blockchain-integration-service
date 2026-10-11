@@ -5,9 +5,28 @@ import {advanceLocalMarketplaceCheckout,beginLocalMarketplaceCheckout,confirmLoc
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 const intent={direction:'buy',assetId:'a'.repeat(68),quantity:'1',priceSats:1000};
+
+test('unavailable spendability creates no checkout and releases its preparation guard',async()=>{
+ const f=fixture(),scope=f.session.capture();f.player.getSendSpendable=async()=>undefined;
+ await assert.rejects(f.session.prepare(intent,scope),/could not be verified/);
+ assert.equal(readLocalMarketplaceCheckouts().length,0);
+ f.player.getSendSpendable=async()=>2000;assert.equal((await f.session.prepare(intent,scope)).phase,'payment');f.session.dispose();
+});
+
+test('delivery recovery requires the exact operation and sender before resuming original work',async()=>{
+ const f=fixture(),scope=f.session.capture(),record=await f.session.prepare({...intent,direction:'sell'},scope);
+ const pending=await advanceLocalMarketplaceCheckout(record,{deliver:async()=>({status:'pending'}),pay:async()=>assert.fail()});
+ const evidence={status:'delivered',transactionId:'d'.repeat(64),profileId:'player',operationId:record.request.id};
+ assert.equal(await f.session.recover(pending,scope,async()=>({...evidence,operationId:'other'})),undefined);
+ assert.equal(await f.session.recover(pending,scope,async()=>({...evidence,profileId:'other'})),undefined);
+ assert.equal(readLocalMarketplaceCheckout(record.request.id).phase,'delivery-submitted');
+ const resumed=await f.session.recover(pending,scope,async()=>evidence);assert.equal(resumed.phase,'payment');
+ let payments=0;const completed=await advanceLocalMarketplaceCheckout(resumed,{isCurrent:()=>f.session.current(scope),deliver:async()=>assert.fail('must not redeliver'),pay:async()=>{payments++;return {status:'succeeded',transactionId:'e'.repeat(64)};}});
+ assert.equal(completed.status,'completed');assert.equal(payments,1);f.session.dispose();
+});
 function fixture(){
  const data=new Map();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return data.size;},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)}});
- let p={profileId:'player',phase:'active',network:'signet'},g={profileId:'game',network:'signet',selectionVersion:1,addresses:{arkadeAddress:'tark1gamedestination'}};
+ let p={profileId:'player',phase:'active',network:'signet',addresses:{status:'ready',arkadeAddress:'tark1playerdestination'}},g={profileId:'game',network:'signet',selectionVersion:1,addresses:{arkadeAddress:'tark1gamedestination'}};
  const listeners=new Set(),notify=()=>{for(const l of listeners)l();},subscribe=l=>{listeners.add(l);return()=>listeners.delete(l);};
  const player={getState:()=>p,subscribe,getSendSpendable:async()=>2000,getPaymentRecipient:async()=>({profileId:p.profileId,address:'tark1playerdestination'})};
  const game={getState:()=>g,subscribe,getPlayerPaymentBalance:()=>2000};
@@ -16,13 +35,14 @@ function fixture(){
   if(kind==='player')p={...p,profileId:'other'};
   if(kind==='game')g={...g,profileId:'other',selectionVersion:2};
   if(kind==='network')p={...p,network:'mutinynet'};
+  if(kind==='recipient')p={...p,addresses:{status:'ready',arkadeAddress:'tark1otherdestination'}};
   if(kind==='relogin'){p={...p,phase:'idle'};notify();p={...p,phase:'active'};}
   if(kind==='dispose')session.dispose();
   notify();
  };
  return {session,player,game,change,data,listeners};
 }
-for(const at of ['balance','recipient'])for(const kind of ['player','game','network','relogin','dispose'])test(`checkout ${at} completion cannot cross ${kind}`,async()=>{
+for(const at of ['balance','recipient'])for(const kind of ['player','game','network','recipient','relogin','dispose'])test(`checkout ${at} completion cannot cross ${kind}`,async()=>{
  const f=fixture(),gate=deferred(),scope=f.session.capture();
  if(at==='balance')f.player.getSendSpendable=()=>gate.promise;
  else f.player.getPaymentRecipient=()=>gate.promise;

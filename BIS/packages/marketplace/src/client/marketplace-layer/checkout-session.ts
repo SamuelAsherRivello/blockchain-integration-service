@@ -2,13 +2,14 @@ import type {BisMarketplaceCheckoutRecord,BisContext,createBisGameWallet,beginLo
 type Player=Pick<BisContext,'getState'|'subscribe'|'getPaymentRecipient'|'getSendSpendable'>;
 type Game=Pick<ReturnType<typeof createBisGameWallet>,'getState'|'subscribe'|'getPlayerPaymentBalance'>;
 export type CheckoutIntent=Readonly<{direction:'buy'|'sell';assetId:string;quantity:string;priceSats:number}>;
-export type CheckoutScope=Readonly<{key:string;generation:number;playerId:string;gameId:string;gameAddress:string;network:string}>;
+export type CheckoutScope=Readonly<{key:string;generation:number;playerId:string;playerAddress?:string;gameId:string;gameAddress:string;network:string}>;
 type Evidence=Readonly<{status:string;transactionId?:string;recipient?:string;amountSats?:number;operationId?:string;profileId?:string}>;
 
 /** Owns preparation only. Submitted operations stay in the integration journal. */
 type Journal={begin:typeof beginLocalMarketplaceCheckout;confirm:typeof confirmLocalMarketplaceCheckoutLeg;read:typeof readLocalMarketplaceCheckout};
 export function createCheckoutSession(player:Player,game:Game,journal:Journal){
- const key=()=>{const p=player.getState(),g=game.getState();return JSON.stringify([p.profileId,p.phase,p.network,g.profileId,g.selectionVersion,g.addresses?.arkadeAddress]);};
+ const playerAddress=()=>{const p=player.getState();return p.addresses?.status==='ready'?p.addresses.arkadeAddress:undefined;};
+ const key=()=>{const p=player.getState(),g=game.getState();return JSON.stringify([p.profileId,p.phase,p.network,playerAddress(),g.profileId,g.selectionVersion,g.addresses?.arkadeAddress]);};
  let generation=0,last=key(),disposed=false;
  const changed=()=>{const next=key();if(next!==last){last=next;generation++;}};
  const offPlayer=player.subscribe(changed),offGame=game.subscribe(changed);
@@ -16,7 +17,7 @@ export function createCheckoutSession(player:Player,game:Game,journal:Journal){
  function capture():CheckoutScope{
   changed();const p=player.getState(),g=game.getState();
   if(disposed||p.phase!=='active'||!p.profileId||!p.network||!g.profileId||g.profileId===p.profileId||!g.addresses?.arkadeAddress||g.network!==p.network)throw Error('Connect distinct wallets on the same network before trading.');
-  return Object.freeze({key:last,generation,playerId:p.profileId,gameId:g.profileId,gameAddress:g.addresses.arkadeAddress,network:p.network});
+  return Object.freeze({key:last,generation,playerId:p.profileId,playerAddress:playerAddress(),gameId:g.profileId,gameAddress:g.addresses.arkadeAddress,network:p.network});
  }
  const current=(scope:CheckoutScope)=>{changed();return !disposed&&scope.generation===generation&&scope.key===last;};
  const assertCurrent=(scope:CheckoutScope)=>{if(!current(scope))throw Error('The wallet session changed. Start this checkout again.');};
@@ -38,7 +39,7 @@ export function createCheckoutSession(player:Player,game:Game,journal:Journal){
    if(funds===undefined)throw Error('Checkout spendable balance could not be verified.');
    if(funds<intent.priceSats)throw Error(`Insufficient ${intent.direction==='buy'?'Player Wallet':'Game Wallet'} balance. ${funds} sats available; ${intent.priceSats} sats required.`);
    const recipient=await player.getPaymentRecipient?.();assertCurrent(scope);
-   if(!recipient||recipient.profileId!==scope.playerId)throw Error('The player recipient could not be verified.');
+   if(!recipient||recipient.profileId!==scope.playerId||(scope.playerAddress!==undefined&&recipient.address!==scope.playerAddress))throw Error('The player recipient could not be verified.');
    return journal.begin({id:crypto.randomUUID(),...intent,player:recipient,game:{profileId:scope.gameId,address:scope.gameAddress}});
   }finally{preparing.delete(itemKey);}
  }

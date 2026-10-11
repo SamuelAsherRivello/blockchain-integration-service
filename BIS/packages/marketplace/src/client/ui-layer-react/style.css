@@ -10,7 +10,9 @@
 html, body, #root { height: 100%; }
 body { margin: 0; overflow: hidden; }
 
+/* Keep Account notifications above the page-level pending veil (z-index 60). */
 .marketplace-bis-host { --bis-launcher-offset: clamp(8px, 1vw, 14px); --bis-launcher-inline: clamp(12px, 2vw, 18px); }
+.marketplace-bis-host.bis-account-launcher-anchor { z-index: 70; }
 .marketplace-bis-host .bis-runtime { pointer-events: none; }
 
 .network-banner { display: flex; justify-content: center; border-bottom: .8px solid #e5b536; background: #fff0b8; color: #785317; font: 750 9px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }

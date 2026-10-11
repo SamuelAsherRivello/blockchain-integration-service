@@ -57,6 +57,12 @@ button.primary:hover:not(:disabled) { background: #c5ead9; }
 .overview-addresses { display: grid; gap: 4px; }
 .overview-balance { display: grid; align-content: start; gap: 8px; }
 .overview-balance p { margin: 0; color: #a9b6c7; font-size: 12px; line-height: 1.5; }
+.faucet-history { display: grid; gap: 7px; margin-top: 5px; padding-top: 10px; border-top: 1px solid #2c3947; }
+.faucet-history-row { display: grid; gap: 3px; padding: 7px 0; border-top: 1px solid #2c3947; color: #dce5ef; font-size: 11px; }
+.faucet-history-row > div:first-child { display: flex; justify-content: space-between; gap: 8px; }
+.faucet-history-row span { color: #9fb2c5; }
+.faucet-history-identifiers { display: grid; gap: 2px; color: #9fb2c5; font-size: 10px; }
+.faucet-history-identifiers code { color: #dce5ef; font: inherit; }
 .faucet-addresses { display: grid; gap: 4px; padding-top: 14px; padding-bottom: 14px; }
 .address-network { color: #8795a8; font-size: 10px; }
 .faucet-address-row { min-height: 30px; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-top: 1px solid #2c3947; }

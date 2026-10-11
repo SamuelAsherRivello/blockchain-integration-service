@@ -44,6 +44,7 @@ test('server service validates, idempotently sends, and returns pending status',
   const input = { network: 'signet', address, amount: 100_000, idempotencyKey: 'same-request' };
   assert.equal((await service.request(input)).status, 'pending');
   assert.equal((await service.request(input)).operationId, 'ark-tx-1');
+  assert.equal((await service.request(input)).transactionId, 'ark-tx-1');
   assert.equal(sends, 1);
   await assert.rejects(() => service.request({ ...input, amount: 50_000 }), /already used/);
 });

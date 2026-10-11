@@ -79,7 +79,8 @@ export function createFaucetService({ wallets, infos, limits = {}, limiter = cre
       const wallet = wallets[network];
       if (!wallet) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
       const sent = await wallet.send({ address: destination.address, amount: amountSats });
-      const operation = Object.freeze({ operationId: String(sent?.operationId ?? sent?.txid ?? crypto.randomUUID()), network, address: destination.address, amountSats, status: sent?.status === 'success' ? 'success' : 'pending', createdAt: now(), ...(sent?.txid ? { transactionId: String(sent.txid) } : {}) });
+      const transactionId = sent?.transactionId ?? sent?.txid ?? sent?.operationId;
+      const operation = Object.freeze({ operationId: String(sent?.operationId ?? sent?.txid ?? crypto.randomUUID()), network, address: destination.address, amountSats, status: sent?.status === 'success' ? 'success' : 'pending', createdAt: now(), ...(transactionId ? { transactionId: String(transactionId) } : {}) });
       operations.set(idempotencyKey, operation);
       return operation;
     },
