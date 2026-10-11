@@ -46,7 +46,7 @@ export function Navigation({ activeDemo, setupActive = false, onNavigate }) {
   const subjects = [...new Set(DEMOS.map(demo => demo.subject))];
   const variants = activeRecord ? DEMOS.filter(demo => demo.subject === activeRecord.subject) : [];
   return <nav className="sandbox-navigation prototype-section" aria-label="Prototype Interactive Docs navigation">
-    <div className="prototype-title-bar"><h2>Navigation</h2></div>
+    <div className="prototype-title-bar"><h2>Demos</h2></div>
     <div className="sandbox-navigation-list">
       {setupActive
         ? <button type="button" disabled aria-current="page">Setup</button>
@@ -59,7 +59,8 @@ export function Navigation({ activeDemo, setupActive = false, onNavigate }) {
           : <a key={subject} href={firstDemo.path} onClick={event => { event.preventDefault(); onNavigate(firstDemo.path); }}>{subject}</a>;
       })}
     </div>
-    {variants.length > 1 && <div className="sandbox-navigation-sublist" aria-label={`${activeRecord.subject} options`}>
+    {variants.length > 1 && <div className="sandbox-navigation-sublist" aria-label={`${activeRecord.subject} variants`}>
+      <h3>Variants</h3>
       {variants.map(demo => demo.number === activeDemo
         ? <button key={demo.number} type="button" disabled aria-current="page">{demo.title}</button>
         : <a key={demo.number} href={demo.path} onClick={event => { event.preventDefault(); onNavigate(demo.path); }}>{demo.title}</a>)}
@@ -125,6 +126,7 @@ const allResponse = await fetch(getBaseURL(network, address1))
 const availableResponse = await fetch(getBaseURL(network, address1) + '&spendableOnly=true')
 const { vtxos: allVtxos } = await allResponse.json()
 const { vtxos: availableVtxos } = await availableResponse.json()
+if (!allResponse.ok || !availableResponse.ok) throw new Error('The balance request failed.')
 
 // Assert
 const total = allVtxos.reduce((sum, vtxo) => sum + Number(vtxo.amount), 0)
@@ -148,6 +150,7 @@ const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
+  settlementConfig: false,
 })
 
 // Act
@@ -169,6 +172,7 @@ const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
+  settlementConfig: false,
 })
 
 // Act
@@ -195,6 +199,7 @@ const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
+  settlementConfig: false,
 })
 await wallet.getVtxos()
 
@@ -222,6 +227,7 @@ const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/in
 // Act
 const response = await fetch(getBaseURL(network, script) + '&spendableOnly=true')
 const { vtxos } = await response.json()
+if (!response.ok) throw new Error('The receive payment request failed.')
 
 // Assert
 const total = vtxos.reduce((sum, vtxo) => sum + Number(vtxo.amount), 0)
@@ -243,6 +249,7 @@ const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
+  settlementConfig: false,
 })
 await wallet.getVtxos()
 
@@ -266,6 +273,7 @@ const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
+  settlementConfig: false,
 })
 await wallet.getVtxos()
 
@@ -295,6 +303,7 @@ const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
+  settlementConfig: false,
 })
 await wallet.getVtxos()
 
@@ -325,6 +334,7 @@ const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/in
 // Act
 const response = await fetch(getBaseURL(network, script) + '&spendableOnly=true')
 const { vtxos } = await response.json()
+if (!response.ok) throw new Error('The receive asset request failed.')
 
 // Assert
 const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === assetId)
@@ -348,6 +358,7 @@ const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
+  settlementConfig: false,
 })
 await wallet.getVtxos()
 
@@ -377,6 +388,7 @@ const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/in
 // Act
 const response = await fetch(getBaseURL(network, script) + '&spendableOnly=true')
 const { vtxos } = await response.json()
+if (!response.ok) throw new Error('The asset history request failed.')
 
 // Assert
 const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === assetId)
@@ -925,5 +937,6 @@ export function App({ pathname = window.location.pathname }) {
         {!setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
       </main>
     </div>
+    <footer className="spike-footer" aria-label="Footer" />
   </div>;
 }
