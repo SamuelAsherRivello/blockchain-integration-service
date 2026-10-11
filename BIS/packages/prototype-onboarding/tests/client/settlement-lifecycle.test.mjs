@@ -10,7 +10,7 @@ import {WorkCoordinator,staleError,withDeadline} from '../../src/client/operatio
 import {classifyFailure,nextRetry,recoveryMessage,batchFailure} from '../../src/client/operation-layer/recovery.js';
 
 // Exercise the application's actual startup and provider wrapper without keys or network calls.
-async function app(operation, registrationError, activeSigner=false, startupError) {
+async function app(operation, registrationError, activeSigner=false, startupError, clockDate=Date) {
  const saved={identity:{id:'test-account',kind:'mnemonic'},operation:structuredClone(operation)};
  const elements=new Map();
  const element=()=>({value:'50',style:{},classList:{toggle(){}},setAttribute(){},
@@ -32,7 +32,7 @@ async function app(operation, registrationError, activeSigner=false, startupErro
  }
  const locks=queuedLocks(),held=locks.held;
  if(activeSigner)held.set('standalone-settlement',{});
- const context=vm.createContext({console,Date,Error,Number,Math:Object.assign(Object.create(Math),{random:()=>0}),Uint8Array,Promise,AbortController,
+ const context=vm.createContext({console,Date:clockDate,Error,Number,Math:Object.assign(Object.create(Math),{random:()=>0}),Uint8Array,Promise,AbortController,
   WorkCoordinator,staleError,withDeadline,classifyFailure,batchFailure,nextRetry:(previous,error,options)=>nextRetry(previous,error,{...options,random:()=>0}),recoveryMessage,
   crypto:{randomUUID:()=> 'attempt'},navigator:{locks},
   document:{getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},
@@ -91,7 +91,10 @@ test('CPU onboarding waits for fresh confirmed funding then submits once without
 });
 
 test('startup outage schedules same-account automatic reconnect',async()=>{
- const {elements,timeouts}=await app({phase:'idle'},undefined,false,Object.assign(new Error('network'),{name:'FetchError'}));
+ // The production timer uses nextAt - Date.now(); keep both reads on one
+ // clock instant so elapsed test execution cannot shorten the recorded delay.
+ const now=Date.now(),clockDate=class extends Date{static now(){return now;}};
+ const {elements,timeouts}=await app({phase:'idle'},undefined,false,Object.assign(new Error('network'),{name:'FetchError'}),clockDate);
  assert.match(elements.get('account-status').textContent,/retry|recover/i);
  assert.ok([...timeouts.values()].some(t=>t.ms>=5000&&t.ms<=60000),'startup must schedule recovery without a reload');
 });
