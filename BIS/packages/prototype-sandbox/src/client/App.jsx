@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.mjs';
 import { decodeArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.mjs';
-import { DEMOS, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues } from './navigation.mjs';
+import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues } from './navigation.mjs';
 import './style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
 
@@ -41,13 +41,37 @@ function DocsSection({ href, topic, description, subheading, mainLink = false, l
   </section>;
 }
 
-export function Navigation({ activeDemo, setupActive = false, onNavigate }) {
+function HomeSection() {
+  return <section className="sandbox-home prototype-section" aria-label="Docs">
+    <div className="prototype-title-bar"><h2>Docs</h2></div>
+    <div className="sandbox-home-body">
+      <p>This interactive guide is here to help you learn how to use the Arkade protocol with a working wallet and real examples.</p>
+      <p>Each demo focuses on one practical operation, so you can inspect the source, run it, and see the result.</p>
+      <p>Start with Get Wallet, then move through the demos as you become familiar with the flow.</p>
+      <ul className="sandbox-home-list">
+        <li>Learn how wallets, addresses, payments, and assets fit together.</li>
+        <li>Run the same Arkade SDK operations used by the examples.</li>
+        <li>Compare private-wallet and public-address workflows.</li>
+      </ul>
+      <h3 className="sandbox-home-subheading">Resources</h3>
+      <ul className="sandbox-home-list sandbox-home-resources">
+        <li><a href={DOCS_URLS.main} target="_blank" rel="noreferrer">Arkade documentation</a></li>
+        <li><a href={DOCS_URLS.wallet} target="_blank" rel="noreferrer">Create or restore an Arkade wallet</a></li>
+      </ul>
+    </div>
+  </section>;
+}
+
+export function Navigation({ activeDemo, homeActive = false, setupActive = false, onNavigate }) {
   const activeRecord = DEMOS.find(demo => demo.number === activeDemo);
   const subjects = [...new Set(DEMOS.map(demo => demo.subject))];
   const variants = activeRecord ? DEMOS.filter(demo => demo.subject === activeRecord.subject) : [];
   return <nav className="sandbox-navigation prototype-section" aria-label="Prototype Interactive Docs navigation">
     <div className="prototype-title-bar"><h2>Demos</h2></div>
     <div className="sandbox-navigation-list">
+      {homeActive
+        ? <button type="button" disabled aria-current="page">Home</button>
+        : <a href={HOME_PATH} onClick={event => { event.preventDefault(); onNavigate(HOME_PATH); }}>Home</a>}
       {setupActive
         ? <button type="button" disabled aria-current="page">Setup</button>
         : <a href={SETUP_PATH} onClick={event => { event.preventDefault(); onNavigate(SETUP_PATH); }}>Setup</a>}
@@ -885,7 +909,18 @@ function DemoAssetHistoryPublic({ network }) {
 }
 
 export function App({ pathname = window.location.pathname }) {
-  const [currentPathname, setCurrentPathname] = useState(pathname);
+  const [currentPathname, setCurrentPathname] = useState(() => {
+    if (isHomePath(pathname)) {
+      const firstVisit = !window.localStorage.getItem(LANDING_VISITED_STORAGE_KEY);
+      window.localStorage.setItem(LANDING_VISITED_STORAGE_KEY, 'true');
+      return firstVisit ? DEMOS[0].path : HOME_PATH;
+    }
+    window.localStorage.setItem(LANDING_VISITED_STORAGE_KEY, 'true');
+    return pathname;
+  });
+  useEffect(() => {
+    if (isHomePath(pathname) && currentPathname !== pathname) window.history.replaceState({}, '', currentPathname);
+  }, []);
   useEffect(() => {
     const handlePopState = () => setCurrentPathname(window.location.pathname);
     window.addEventListener('popstate', handlePopState);
@@ -893,13 +928,15 @@ export function App({ pathname = window.location.pathname }) {
   }, []);
   function navigate(nextPathname) {
     if (nextPathname === currentPathname) return;
+    window.localStorage.setItem(LANDING_VISITED_STORAGE_KEY, 'true');
     window.history.pushState({}, '', nextPathname);
     setCurrentPathname(nextPathname);
   }
+  const homeActive = isHomePath(currentPathname);
   const activeDemo = getActiveDemo(currentPathname);
   const setupActive = isSetupPath(currentPathname);
   const activeRecord = DEMOS.find(demo => demo.number === activeDemo);
-  const activeTitle = setupActive ? 'Setup' : activeRecord ? (activeRecord.subject === activeRecord.title ? activeRecord.title : `${activeRecord.subject} - ${activeRecord.title}`) : null;
+  const activeTitle = homeActive ? 'Home' : setupActive ? 'Setup' : activeRecord ? (activeRecord.subject === activeRecord.title ? activeRecord.title : `${activeRecord.subject} - ${activeRecord.title}`) : null;
   useEffect(() => {
     document.title = `BIS - Prototype Interactive Docs${activeTitle ? ` - ${activeTitle}` : ''}`;
   }, [activeTitle]);
@@ -921,20 +958,21 @@ export function App({ pathname = window.location.pathname }) {
       </div>
     </header>
     <div className="sandbox-workspace">
-      <Navigation activeDemo={setupActive ? null : activeDemo} setupActive={setupActive} onNavigate={navigate} />
+      <Navigation activeDemo={homeActive || setupActive ? null : activeDemo} homeActive={homeActive} setupActive={setupActive} onNavigate={navigate} />
       <main className="sandbox-main-content">
+        {homeActive && <HomeSection />}
         {setupActive && <SetupSection network={network} />}
-        {!setupActive && activeDemo === 1 && <DemoCreateWallet network={network} />}
-        {!setupActive && activeDemo === 2 && <DemoGetBalancePrivate network={network} />}
-        {!setupActive && activeDemo === 3 && <DemoGetBalancePublic network={network} />}
-        {!setupActive && activeDemo === 4 && <DemoSendPayment network={network} />}
-        {!setupActive && activeDemo === 5 && <DemoReceivePayment network={network} />}
-        {!setupActive && activeDemo === 6 && <DemoPaymentHistory network={network} />}
-        {!setupActive && activeDemo === 7 && <DemoMintAsset network={network} />}
-        {!setupActive && activeDemo === 8 && <DemoSendAsset network={network} />}
-        {!setupActive && activeDemo === 9 && <DemoReceiveAsset network={network} />}
-        {!setupActive && activeDemo === 10 && <DemoAssetHistory network={network} />}
-        {!setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
+        {!homeActive && !setupActive && activeDemo === 1 && <DemoCreateWallet network={network} />}
+        {!homeActive && !setupActive && activeDemo === 2 && <DemoGetBalancePrivate network={network} />}
+        {!homeActive && !setupActive && activeDemo === 3 && <DemoGetBalancePublic network={network} />}
+        {!homeActive && !setupActive && activeDemo === 4 && <DemoSendPayment network={network} />}
+        {!homeActive && !setupActive && activeDemo === 5 && <DemoReceivePayment network={network} />}
+        {!homeActive && !setupActive && activeDemo === 6 && <DemoPaymentHistory network={network} />}
+        {!homeActive && !setupActive && activeDemo === 7 && <DemoMintAsset network={network} />}
+        {!homeActive && !setupActive && activeDemo === 8 && <DemoSendAsset network={network} />}
+        {!homeActive && !setupActive && activeDemo === 9 && <DemoReceiveAsset network={network} />}
+        {!homeActive && !setupActive && activeDemo === 10 && <DemoAssetHistory network={network} />}
+        {!homeActive && !setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
       </main>
     </div>
     <footer className="spike-footer" aria-label="Footer" />

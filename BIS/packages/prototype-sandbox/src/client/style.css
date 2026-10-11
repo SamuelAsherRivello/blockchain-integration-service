@@ -38,6 +38,14 @@ button, input, select { font: inherit; }
 .sandbox-setup { width: min(100%, 760px); margin: 0; display: flex; flex-direction: column; gap: 20px; }
 .sandbox-docs, .sandbox-demo, .sandbox-output, .sandbox-demo-input { width: min(100%, 760px); margin: 0; }
 .sandbox-docs-body { min-height: 42px; padding: 10px 16px; color: #bec9d7; font-size: 12px; line-height: 22px; }
+.sandbox-home { width: min(100%, 760px); margin: 0; }
+.sandbox-home-body { padding: 20px 16px 22px; color: #bec9d7; font-size: 13px; line-height: 1.65; }
+.sandbox-home-body p { max-width: 68ch; margin: 0 0 12px; }
+.sandbox-home-list { margin: 0 0 18px; padding-left: 20px; }
+.sandbox-home-subheading { margin: 22px 0 8px; color: #dce5ef; font-size: 13px; font-weight: 650; }
+.sandbox-home-resources { margin-bottom: 0; }
+.sandbox-home-body a { color: #dce5ef; text-underline-offset: 3px; }
+.sandbox-home-body a:hover, .sandbox-home-body a:focus-visible { color: #ffffff; }
 .sandbox-docs-description { margin: 0 0 8px; }
 .sandbox-docs-subheading { margin: 0 0 4px; color: #dce5ef; font-size: 12px; font-weight: 650; }
 .sandbox-docs-list { margin: 0; padding-left: 16px; }

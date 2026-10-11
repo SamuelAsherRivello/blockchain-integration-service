@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_ADDRESS, DEFAULT_NETWORK, DEMOS, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues } from '../src/client/navigation.mjs';
+import { DEFAULT_ADDRESS, DEFAULT_NETWORK, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues } from '../src/client/navigation.mjs';
 
 test('defines eleven labeled demo routes', () => {
   assert.equal(DEMOS.length, 11);
@@ -21,6 +21,13 @@ test('derives active demo from direct paths and defaults safely', () => {
   assert.equal(getActiveDemo('/prototype-interactive-docs/demo-10/'), 10);
   assert.equal(getActiveDemo('/prototype-interactive-docs/'), 1);
   assert.equal(getActiveDemo('/prototype-interactive-docs/demo-11/'), 11);
+});
+
+test('recognizes the home route separately from setup', () => {
+  assert.equal(HOME_PATH, '/prototype-interactive-docs/');
+  assert.equal(isHomePath('/prototype-interactive-docs/'), true);
+  assert.equal(isHomePath('/prototype-interactive-docs'), true);
+  assert.equal(isHomePath(SETUP_PATH), false);
 });
 
 test('each setup and demo route resolves without throwing', () => {

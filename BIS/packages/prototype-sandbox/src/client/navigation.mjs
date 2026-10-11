@@ -13,6 +13,8 @@ export const DEMOS = Object.freeze([
 ]);
 
 export const SETUP_PATH = '/prototype-interactive-docs/setup/';
+export const HOME_PATH = '/prototype-interactive-docs/';
+export const LANDING_VISITED_STORAGE_KEY = 'prototype-interactive-docs-visited';
 export const DEFAULT_ADDRESS = 'tark1qz9l2ctqalrkjyftxcw7gytm83cm3r9pdudmna4v0gncry56h30x4yp2v8xdrmv5xwjpk25whlrlrqj8fsv360vezp9jz3ufyzldv4an4md0qf';
 export const NETWORK_STORAGE_KEY = 'network';
 export const DEFAULT_NETWORK = 'signet';
@@ -51,4 +53,8 @@ export function getActiveDemo(pathname = '') {
 
 export function isSetupPath(pathname = '') {
   return String(pathname).replace(/\/+$/, '/') === SETUP_PATH;
+}
+
+export function isHomePath(pathname = '') {
+  return `${String(pathname).replace(/\/+$/, '')}/` === HOME_PATH;
 }
