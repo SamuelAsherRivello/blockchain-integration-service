@@ -903,21 +903,27 @@ export function App({ pathname = window.location.pathname }) {
   }
   return <div className="prototype-page sandbox-shell">
     <header className="spike-header">
-      <div className="spike-identity"><PrototypeMark /><h1>BIS - Prototype Interactive Docs{activeTitle ? ` - ${activeTitle}` : ''}</h1></div>
-      <label className="network-picker" htmlFor="network"><span>Network</span><select id="network" value={network} onChange={event => changeNetwork(event.target.value)}>{NETWORK_IDS.map(id => <option key={id} value={id}>{NETWORKS[id].label}</option>)}</select></label>
+      <div className="spike-header-inner">
+        <div className="spike-identity"><PrototypeMark /><h1>BIS - Prototype Interactive Docs{activeTitle ? ` - ${activeTitle}` : ''}</h1></div>
+        <label className="network-picker" htmlFor="network"><span>Network</span><select id="network" value={network} onChange={event => changeNetwork(event.target.value)}>{NETWORK_IDS.map(id => <option key={id} value={id}>{NETWORKS[id].label}</option>)}</select></label>
+      </div>
     </header>
-    <Navigation activeDemo={setupActive ? null : activeDemo} setupActive={setupActive} onNavigate={navigate} />
-    {setupActive && <SetupSection network={network} />}
-    {!setupActive && activeDemo === 1 && <DemoCreateWallet network={network} />}
-    {!setupActive && activeDemo === 2 && <DemoGetBalancePrivate network={network} />}
-    {!setupActive && activeDemo === 3 && <DemoGetBalancePublic network={network} />}
-    {!setupActive && activeDemo === 4 && <DemoSendPayment network={network} />}
-    {!setupActive && activeDemo === 5 && <DemoReceivePayment network={network} />}
-    {!setupActive && activeDemo === 6 && <DemoPaymentHistory network={network} />}
-    {!setupActive && activeDemo === 7 && <DemoMintAsset network={network} />}
-    {!setupActive && activeDemo === 8 && <DemoSendAsset network={network} />}
-    {!setupActive && activeDemo === 9 && <DemoReceiveAsset network={network} />}
-    {!setupActive && activeDemo === 10 && <DemoAssetHistory network={network} />}
-    {!setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
+    <div className="sandbox-workspace">
+      <Navigation activeDemo={setupActive ? null : activeDemo} setupActive={setupActive} onNavigate={navigate} />
+      <main className="sandbox-main-content">
+        {setupActive && <SetupSection network={network} />}
+        {!setupActive && activeDemo === 1 && <DemoCreateWallet network={network} />}
+        {!setupActive && activeDemo === 2 && <DemoGetBalancePrivate network={network} />}
+        {!setupActive && activeDemo === 3 && <DemoGetBalancePublic network={network} />}
+        {!setupActive && activeDemo === 4 && <DemoSendPayment network={network} />}
+        {!setupActive && activeDemo === 5 && <DemoReceivePayment network={network} />}
+        {!setupActive && activeDemo === 6 && <DemoPaymentHistory network={network} />}
+        {!setupActive && activeDemo === 7 && <DemoMintAsset network={network} />}
+        {!setupActive && activeDemo === 8 && <DemoSendAsset network={network} />}
+        {!setupActive && activeDemo === 9 && <DemoReceiveAsset network={network} />}
+        {!setupActive && activeDemo === 10 && <DemoAssetHistory network={network} />}
+        {!setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
+      </main>
+    </div>
   </div>;
 }
