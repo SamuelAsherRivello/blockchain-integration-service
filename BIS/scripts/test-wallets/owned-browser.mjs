@@ -277,23 +277,24 @@ export class OwnedBrowser {
       if ([player, game].some(previous => state.accounts.find(account => account.label === previous.label)?.reportedPending?.[pair.network]))
         fail('external-onboarding-unreconciled');
     });
-    const pending = (await new Operations(this.vault).list()).some(row => row.intent.network === pair.network &&
-      [player.profileId, game.profileId].includes(row.intent.profileId) && !['settled', 'failed', 'cancelled'].includes(row.state));
-    if (pending) fail('logout-operation-unresolved');
+    const hasPending = async () => (await new Operations(this.vault).list()).some(row => row.intent.network === pair.network &&
+      [row.intent.profileId, row.intent.target?.profileId].some(profileId => [player.profileId, game.profileId].includes(profileId)) &&
+      !['settled', 'failed', 'cancelled'].includes(row.state));
+    if (await hasPending()) fail('logout-operation-unresolved');
     if (await readLogoutCount(this.page) !== 0)
       fail('logout-operation-unresolved');
     await this.accountMenu();
     await this.page.getByRole('button', { name: 'Log Out', exact: true }).click();
     await this.page.getByRole('heading', { name: 'Account Log Out', exact: true }).waitFor();
-    // Do not acknowledge destruction of pending work, even if the product
-    // intentionally allows it. Recheck immediately before its normal boundary.
-    if (await readLogoutCount(this.page) !== 0) {
-      await this.page.locator('.bis-card').last().getByRole('button', { name: 'Back', exact: true }).click();
-      fail('logout-operation-unresolved');
-    }
     await this.page.getByRole('checkbox', { name: 'I have backed up my wallet', exact: true }).check();
     const gameNotice = this.page.getByRole('checkbox', { name: 'I understand the separate Game Wallet remains saved in this browser.', exact: true });
     if (await gameNotice.count()) await gameNotice.check();
+    // Include incoming reservations created while the normal warning was open.
+    // Recheck both ledgers immediately before the local cleanup boundary.
+    if (await hasPending() || await readLogoutCount(this.page) !== 0) {
+      await this.page.locator('.bis-card').last().getByRole('button', { name: 'Back', exact: true }).click();
+      fail('logout-operation-unresolved');
+    }
     // Backup is the encrypted fixture vault; never reveal/copy from the app.
     this.loggedOut = true; this.restored = false;
     try {

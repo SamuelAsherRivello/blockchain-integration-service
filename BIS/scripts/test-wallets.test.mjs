@@ -247,6 +247,34 @@ test('owned logged-out reload never restores and rejects payment/navigation', as
   assert.equal(restored, 1);
 });
 
+function logoutFixture() {
+ const owner=new OwnedBrowser({transaction:async work=>work({accounts:[]})},{});
+ owner.registration={player:{label:'player',profileId:'player-id'},game:{label:'game',profileId:'game-id'},pair:{network:'mutinynet'}};
+ let menus=0,clicks=0,backs=0;const hooks={checked:()=>{}};
+ owner.inspect=async()=>({mode:'owned'});owner.inspectLoggedOut=async()=>({player:{state:'logged-out'}});
+ owner.accountMenu=async()=>{menus++;};
+ const control=name=>({waitFor:async()=>{},count:async()=>1,check:async()=>{hooks.checked();},click:async()=>{if(name==='Log Out')clicks++;if(name==='Back')backs++;}});
+ owner.page={evaluate:async()=>0,getByRole:(_role,{name})=>control(name),locator:()=>({last:()=>({getByRole:(_role,{name})=>control(name)})})};
+ return {owner,hooks,menus:()=>menus,clicks:()=>clicks,backs:()=>backs};
+}
+for(const role of ['player-id','game-id'])for(const state of ['prepared','submitting','pending','unknown'])test(`owned logout refuses incoming ${role} reservation ${state} before opening controls`,async t=>{
+ const f=logoutFixture();t.mock.method(Operations.prototype,'list',async()=>[{state,intent:{network:'mutinynet',profileId:'other-id',target:{profileId:role}}}]);
+ await assert.rejects(f.owner.logout({command:'run',scenario:'logout'}),/logout-operation-unresolved/);
+ assert.equal(f.menus(),0);assert.equal(f.clicks(),0);assert.equal(f.owner.loggedOut,undefined);
+});
+for(const variant of ['settled','failed','cancelled','other-network','unrelated'])test(`owned logout allows ${variant} incoming operation without blocking unrelated cleanup`,async t=>{
+ const f=logoutFixture();const row={state:['settled','failed','cancelled'].includes(variant)?variant:'pending',intent:{network:variant==='other-network'?'signet':'mutinynet',profileId:'other-id',target:{profileId:variant==='unrelated'?'unrelated-id':'player-id'}}};
+ t.mock.method(Operations.prototype,'list',async()=>[row]);
+ assert.equal((await f.owner.logout({command:'run',scenario:'logout'})).player.state,'logged-out');assert.equal(f.clicks(),2);assert.equal(f.backs(),0);
+});
+test('owned logout rechecks incoming reservations after acknowledgement before final confirmation',async t=>{
+ const f=logoutFixture();let pending=false,reads=0;
+ t.mock.method(Operations.prototype,'list',async()=>{reads++;return pending?[{state:'pending',intent:{network:'mutinynet',profileId:'other-id',target:{profileId:'game-id'}}}]:[];});
+ f.hooks.checked=()=>{pending=true;};
+ await assert.rejects(f.owner.logout({command:'run',scenario:'logout'}),/logout-operation-unresolved/);
+ assert.equal(reads,2);assert.equal(f.clicks(),1,'only opens the warning; never confirms cleanup');assert.equal(f.backs(),1);assert.equal(f.owner.loggedOut,undefined);
+});
+
 test('owned explicit restore failure closes without erasing or retrying the profile', async () => {
   const owner = new OwnedBrowser({}, {});
   owner.loggedOut = true;
