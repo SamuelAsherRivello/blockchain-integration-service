@@ -23,7 +23,7 @@ document.getElementById('read')!.onclick=()=>{
 };
 check.onclick=async()=>{
   if(!record)return;check.disabled=true;
-  result.textContent='Reading public evidence...';
+  result.textContent='Reading public evidence ...';
   try {
     const ark=new RestArkProvider('https://signet.arkade.sh');
     const info=await ark.getInfo();if(info.network!=='signet')throw Error();

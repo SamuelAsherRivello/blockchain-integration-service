@@ -22,7 +22,7 @@ export function createPaymentNotifications(show: (message: string, messageType: 
       seen.set(key, stage);
       if (!baseline) continue;
       if (!previous && ark && !row.bitcoin && !transfer) newArkadeReceipt = true;
-      const id = sender(row), short = id && id.length > 9 ? `${id.slice(0,4)}....${id.slice(-5)}` : id;
+      const id = sender(row), short = id && id.length > 9 ? `${id.slice(0,4)} ....${id.slice(-5)}` : id;
       const senderLabel = id && id === gameWalletProfileId() ? 'Game Wallet' : short ? `User ${short}` : 'Unknown user';
       const message = transfer
         ? `Transferred ${row.amountSats} sats from ${transfer.direction === 'to-arkade' ? 'Bitcoin to Arkade' : 'Arkade to Bitcoin'}`

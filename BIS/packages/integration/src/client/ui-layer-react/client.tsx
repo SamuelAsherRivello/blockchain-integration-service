@@ -195,7 +195,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   // existing pending surface visible while that bounded read is in flight rather
   // than briefly presenting the default funding stage for a funded account.
   const data = assets ? state.assets : activity ? state.activity : receive ? state.addresses : details || transfer || onboarding ? state.balance : undefined;
-  const phaseLabels: Record<string,string> = {loading:'Loading ...',creating:'Creating...',saving:'Saving...',resetting:'Resetting...', 'logging-out':'Logging out...', restoring:'Restoring...', 'restore-saving':'Saving...'};
+  const phaseLabels: Record<string,string> = {loading:'Loading ...',creating:'Creating ...',saving:'Saving ...',resetting:'Resetting ...', 'logging-out':'Logging out ...', restoring:'Restoring ...', 'restore-saving':'Saving ...'};
   const pageLoading = !!data && (data.status === 'idle' || data.status === 'loading');
   const recoveryLoading = savedRecovery && (state.recoveryStatus === 'hidden' || state.recoveryStatus === 'loading');
   const failure = state.error || (details && state.addresses.status==='unavailable' ? 'Receiving addresses could not be loaded.' : undefined) || (!onboarding && !assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);

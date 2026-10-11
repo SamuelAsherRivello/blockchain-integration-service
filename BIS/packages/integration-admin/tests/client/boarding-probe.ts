@@ -6,7 +6,7 @@ import { RestIndexerProvider } from '@arkade-os/sdk';
 
 const result=document.getElementById('result')!;
 document.getElementById('run')!.onclick=async()=>{
-  result.textContent='Checking without signing or submitting...';
+  result.textContent='Checking without signing or submitting ...';
   try {
     const {account}=await createAccountStorage().load();
     if(!account){result.textContent='No saved account.';return;}

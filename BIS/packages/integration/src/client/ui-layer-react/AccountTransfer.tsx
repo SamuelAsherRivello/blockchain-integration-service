@@ -125,7 +125,7 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
     setWarning(undefined);void loadQuote();
   }
   async function loadQuote(max=false) {
-    const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Preparing...');setError('');setQuote(undefined);
+    const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Preparing ...');setError('');setQuote(undefined);
     try {
       const next=await readWithRetry(()=>context.quoteAccountTransfer(max?undefined:numeric,direction),readController.current.signal);
       if(!alive.current||current!==request.current)return;
@@ -135,7 +135,7 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   }
   async function confirm() {
     if(!boardingSubmissionEnabled||!quote||busy||blocked||expired)return;
-    const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Transferring...');setSubmitting(true);setStatusChecked(false);setError('');
+    const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Transferring ...');setSubmitting(true);setStatusChecked(false);setError('');
     try {
       const next=await context.confirmAccountTransfer(quote,acknowledged.current);
       if(!alive.current||current!==request.current)return;

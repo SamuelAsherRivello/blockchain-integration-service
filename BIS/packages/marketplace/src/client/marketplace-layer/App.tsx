@@ -274,7 +274,7 @@ function MarketplaceContent(){
     });
     if(!current())return;
     setCheckout(next);
-    if(next.status==='completed') {await Promise.all([gameWallet.refresh(),inventory.refresh(inventorySources)]);}
+    if(next.status==='completed') {await Promise.all([gameWallet.refresh(),inventory.refresh(inventorySources,true)]);}
   }
   async function beginCheckout(direction:'buy'|'sell') {
     if(!selected||!salesEnabled||!gameState.profileId||!sessionGameAddress) return;

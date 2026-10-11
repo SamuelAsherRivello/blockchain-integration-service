@@ -50,13 +50,13 @@ export function AccountSendView({context}:{context:BisContext}) {
  function edit(value:string,field:'recipient'|'amount'){revision.current++;setQuote(undefined);setError('');if(field==='recipient')setRecipient(value);else setAmount(value);}
  async function paste(){setClipboardError('');const current=revision.current;try {const text=await navigator.clipboard.readText();if(alive.current&&current===revision.current&&!working.current)edit(text.trim(),'recipient');}catch {if(alive.current&&current===revision.current)setClipboardError('Clipboard unavailable. Enter the address manually.');}}
  async function review(max=false){
-  if(working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel('Preparing...');setError('');setQuote(undefined);
+  if(working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel('Preparing ...');setError('');setQuote(undefined);
   try {const q=await readWithRetry(()=>context.quoteAccountSend(recipient,max?undefined:Number(amount)),readController.current.signal);if(alive.current&&request===revision.current){setAmount(String(q.amountSats));if(!max)setQuote(q);}}
   catch(e){if(alive.current&&request===revision.current)setError(fail(e));}
   finally{if(alive.current&&request===revision.current){working.current=false;setBusy(false);}}
  }
  async function confirm(){
-  if(!quote||expired||working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel('Sending...');setError('');
+  if(!quote||expired||working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel('Sending ...');setError('');
   let refresh=false;
   try{const next=await context.confirmAccountSend(quote);if(alive.current&&request===revision.current){setRecipient('');setAmount('');setQuote(undefined);setFunds(undefined);refresh=next.status==='succeeded'||next.status==='pending';}}
   catch(e){if(alive.current&&request===revision.current){setQuote(undefined);setError(fail(e));setFunds(undefined);}}

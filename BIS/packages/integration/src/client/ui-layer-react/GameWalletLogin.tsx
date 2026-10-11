@@ -18,7 +18,7 @@ export function GameWalletLoginView({ wallet, onBack }: { wallet: GameWallet; on
   const [loggingOut, setLoggingOut] = useState(false);
   const [message, setMessage] = useState('');
   const recoverySession = useMemo(() => ({}), [candidate?.profileId]);
-  usePendingNotice(busy, loggingOut ? 'Logging out...' : 'Logging in...', message || undefined, () => setMessage(''));
+  usePendingNotice(busy, loggingOut ? 'Logging out ...' : 'Logging in ...', message || undefined, () => setMessage(''));
 
   async function create() {
     if (busy) return;

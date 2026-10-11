@@ -4,7 +4,7 @@ import {readContinuations} from '../../../integration/src/client/state-layer-cor
 import {SIGNET_OPERATOR,requireSignet,withTemporaryWallet} from '../../../integration/src/client/wallet-layer-arkade/account';
 const button=document.getElementById('inspect') as HTMLButtonElement;
 button.onclick=async()=>{
- button.disabled=true;document.getElementById('result')!.textContent='Reading live wallet...';
+ button.disabled=true;document.getElementById('result')!.textContent='Reading live wallet ...';
  try {
   const {account}=await createAccountStorage().load();if(!account)throw Error('No saved player account.');
   const signal=AbortSignal.timeout(45000),provider=new RestArkProvider(SIGNET_OPERATOR);

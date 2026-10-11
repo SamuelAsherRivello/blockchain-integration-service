@@ -100,13 +100,13 @@ document.getElementById('lifecycle')!.onclick=async()=>{
   function release(){const done=gate;gate=undefined;done?.();}
   try {
     await expectLabel('Loading ...');release();await c.readyAsync();await wait(()=>!dialog());
-    c.openAccountDialog();void c.createAccount();await expectLabel('Creating...');release();await wait(()=>!dialog()&&c.getState().phase==='recovery');
-    void c.continueAccount();await expectLabel('Saving...');release();await wait(()=>!dialog()&&c.getState().phase==='active');
-    c.openLogoutConfirmation();c.setLogoutBackupAcknowledged(true);void c.confirmLogout();await expectLabel('Logging out...');release();await wait(()=>!dialog()&&!c.getState().hasProfile);
+    c.openAccountDialog();void c.createAccount();await expectLabel('Creating ...');release();await wait(()=>!dialog()&&c.getState().phase==='recovery');
+    void c.continueAccount();await expectLabel('Saving ...');release();await wait(()=>!dialog()&&c.getState().phase==='active');
+    c.openLogoutConfirmation();c.setLogoutBackupAcknowledged(true);void c.confirmLogout();await expectLabel('Logging out ...');release();await wait(()=>!dialog()&&!c.getState().hasProfile);
     c.openRestoreAccount();
     // Public BIP39 test vector, consumed only by a fixture adapter; never a real wallet.
-    void getControls(c).restore('abandon '.repeat(11)+'about');await expectLabel('Restoring...');release();await expectLabel('Saving...');release();await wait(()=>!dialog()&&c.getState().phase==='active');
-    void getControls(c).reset();await expectLabel('Resetting...');release();await wait(()=>!dialog()&&c.getState().view==='empty');
+    void getControls(c).restore('abandon '.repeat(11)+'about');await expectLabel('Restoring ...');release();await expectLabel('Saving ...');release();await wait(()=>!dialog()&&c.getState().phase==='active');
+    void getControls(c).reset();await expectLabel('Resetting ...');release();await wait(()=>!dialog()&&c.getState().view==='empty');
     result.textContent='PASS: delayed hydration, creation, saving, logout, restoration, restore-saving and visible Reset all stay covered. In-memory fixture only; no real wallet or browser storage cleanup.';
   }catch(error){result.textContent='FAIL: '+(error instanceof Error?error.message:String(error));}
 };

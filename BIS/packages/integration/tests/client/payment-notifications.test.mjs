@@ -14,7 +14,7 @@ test('A.G.3 settled receipt has an explicit confirmation and reports a new recei
  assert.equal(n.observe([row('f3','Pending offchain')]).newArkadeReceipt,true);
  assert.equal(n.observe([row('f3','Pending offchain')]).newArkadeReceipt,false);
  assert.equal(n.observe([row('changed','Settled offchain',{identifier:'ark:f3 commitment:extra'})]).newArkadeReceipt,false);
- assert.deepEqual(messages,['User ABCD....56789 sent you 1000 sats (Pending)','User ABCD....56789 sent you 1000 sats (Confirmed)']);
+ assert.deepEqual(messages,['User ABCD ....56789 sent you 1000 sats (Pending)','User ABCD ....56789 sent you 1000 sats (Confirmed)']);
 });
 test('Arkade final toast explicitly says Confirmed',()=>{
  const messages=[],n=createPaymentNotifications(m=>messages.push(m));
@@ -40,7 +40,7 @@ test('silent baseline, pending and final once, no downgrade replay',()=>{
 test('known sender, final-only arrival, change and asset-only excluded',()=>{
  const messages=[],n=createPaymentNotifications(m=>messages.push(m),()=> 'ABCD0123456789');
  n.observe([]);n.observe([row('new','Settled offchain'),row('out','Confirmed',{direction:'Outgoing'}),row('asset','Confirmed',{amountSats:0})]);
- assert.deepEqual(messages,['User ABCD....56789 sent you 1000 sats (Confirmed)']);
+ assert.deepEqual(messages,['User ABCD ....56789 sent you 1000 sats (Confirmed)']);
 });
 test('a receipt from the selected Game Wallet uses its role label',()=>{
  const messages=[],n=createPaymentNotifications(m=>messages.push(m),()=> 'game-wallet',()=> 'game-wallet');
