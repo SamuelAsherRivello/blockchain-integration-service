@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { configureApplications, ownedProfileKey, ownedLaunchOptions, OwnedBrowser } from './test-wallets/owned-browser.mjs';
-import { assertGameProvenance, gameAdapter, gameUrl, verifyGameProvenance } from './test-wallets/game-adapter.mjs';
+import { assertGameProvenance, gameAdapter, gameUrl, verifyGameProvenance, reconcileGameRegistration } from './test-wallets/game-adapter.mjs';
 
 function vaultState() {
   const state = {};
@@ -59,4 +59,49 @@ test('game owned sessions enter Account through the game Settings gear', async (
   };
   await owner.accountDialog();
   assert.deepEqual(clicked, ['settings', 'account']);
+});
+
+const predecessor = {packageName:'@bis/integration',version:'0.0.21',artifactSha256:'7418bdb7f0c6b51774d950a08c3613df296217957347829426e361f1c18e90b6',evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md'};
+const synthetic22 = {...gameAdapter,provenance:{...predecessor,version:'0.0.22',artifactSha256:'a'.repeat(64)}};
+const registeredGame = provenance => ({app:'game',origin:'http://127.0.0.1:5175',path:gameAdapter.path,search:gameAdapter.search,provenance:{...provenance}});
+
+test('exact trusted21 upgrades to current pinned22 only, preserving origin/path/query/profile key and original input',()=>{
+ const original=registeredGame(predecessor),before=structuredClone(original);
+ const updated=reconcileGameRegistration(original,original.origin,synthetic22);
+ assert.deepEqual(updated,{...original,provenance:synthetic22.provenance});assert.deepEqual(original,before);
+ assert.equal(ownedProfileKey('pair','mutinynet',updated.origin,updated.app),ownedProfileKey('pair','mutinynet',original.origin,original.app));
+ assert.equal(reconcileGameRegistration(updated,updated.origin,synthetic22),updated,'current descriptor is a no-op');
+ assert.equal(reconcileGameRegistration(original,original.origin,{...gameAdapter,provenance:predecessor}),original,'21 stays21 until real pin advances');
+});
+
+test('registration upgrade rejects unknown predecessors, changed hashes/routes/query, duplicates and rollback',async()=>{
+ const original=registeredGame(predecessor);
+ for(const change of [{provenance:{...predecessor,version:'0.0.20'}},{provenance:{...predecessor,artifactSha256:'b'.repeat(64)}},
+   {provenance:{...predecessor,extra:'unrecognized'}},{path:'/other/'},{search:'?muteMusic=false'},{origin:'http://127.0.0.1:5176'},{app:'marketplace'}]) {
+  assert.throws(()=>reconcileGameRegistration({...original,...change},original.origin,synthetic22),/game-registration-upgrade-refused/);
+ }
+ const newer=registeredGame(synthetic22.provenance);
+ assert.throws(()=>reconcileGameRegistration(newer,newer.origin,{...gameAdapter,provenance:predecessor}),/game-registration-upgrade-refused/);
+ assert.throws(()=>reconcileGameRegistration(original,original.origin,{...synthetic22,provenance:{...synthetic22.provenance,version:'0.0.23'}}),/game-registration-upgrade-refused/);
+ const vault=vaultState();vault.state.applications=[original,structuredClone(original)];const before=structuredClone(vault.state);
+ await assert.rejects(configureApplications(vault,original.origin),/application-registry-invalid/);assert.deepEqual(vault.state,before);
+});
+
+test('configuration is idempotent and preserves all nonregistration state and unrelated applications',async()=>{
+ const vault=vaultState();
+ Object.assign(vault.state,{accounts:[{label:'synthetic',generation:7,reportedPending:{signet:{kind:'onboard',source:'user-reported'}}}],pairs:[{label:'original-pair'}],operations:[{state:'unknown',intent:{id:'held-signet',network:'signet'}}],archivedAccounts:[{generation:6}]});
+ await configureApplications(vault,'http://127.0.0.1:5174');
+ const unrelated=structuredClone(vault.state.applications),originalState=structuredClone(vault.state);
+ await configureApplications(vault,'http://127.0.0.1:5175');
+ assert.deepEqual(vault.state.applications.filter(row=>row.origin==='http://127.0.0.1:5174'),unrelated);
+ for(const key of ['accounts','pairs','operations','archivedAccounts'])assert.deepEqual(vault.state[key],originalState[key]);
+ const registered=vault.state.applications,before=structuredClone(vault.state);
+ await configureApplications(vault,'http://127.0.0.1:5175');assert.equal(vault.state.applications,registered);assert.deepEqual(vault.state,before);
+});
+
+test('incompatible existing game registration refuses before adding other rows or touching held operations',async()=>{
+ const vault=vaultState();Object.assign(vault.state,{applications:[registeredGame({...predecessor,artifactSha256:'b'.repeat(64)})],operations:[{state:'unknown',intent:{id:'held-signet',network:'signet'}}]});
+ const before=structuredClone(vault.state);
+ await assert.rejects(configureApplications(vault,'http://127.0.0.1:5175'),/game-registration-upgrade-refused/);
+ assert.deepEqual(vault.state,before);
 });

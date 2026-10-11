@@ -75,6 +75,8 @@ The role is bound to this registered pair and network; requests cannot override 
 
 Register an exact loopback origin with `init --origin` before login. Changing the port requires explicit registration, not storage migration. Owned adapters currently support Marketplace and Admin:
 
+After a verified game package upgrade and matching checked-in runner pin, repeat `init --origin` for the same game origin. It upgrades only the exact trusted BIS21 registration to pinned BIS22, retaining the path, muted query, profile, identities and operation journals. Current provenance is unchanged; unknown hashes, incompatible rows, duplicates and rollback refuse. This command accepts no caller-supplied version/hash override and does not clear pending work or reconcile the held Signet operation.
+
 ```powershell
 node BIS/scripts/test-wallets/cli.mjs open --pair example-signet --origin http://127.0.0.1:5174 --app marketplace
 node BIS/scripts/test-wallets/cli.mjs open --pair example-signet --origin http://127.0.0.1:5174 --app admin

@@ -11,7 +11,7 @@ import { observeReceipt } from './funding.mjs';
 import { runSwap, readSwapState } from './swap.mjs';
 import { publicScreens, browserEnvironment, validatePayment, publicSends, matchingSend, readPaymentReview, assertPaymentReview,
   validateLifecycle, readLogoutCount } from './browser-public.mjs';
-import { gameAdapter, gameUrl } from './game-adapter.mjs';
+import { gameAdapter, gameUrl, reconcileGameRegistration } from './game-adapter.mjs';
 
 const paths = { admin: '/admin/', marketplace: '/marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/', game: gameAdapter.path };
 export function ownedLaunchOptions(app, platform = process.platform) {
@@ -31,12 +31,25 @@ export function ownedProfileKey(pairLabel, network, selectedOrigin, app) {
 export async function configureApplications(vault, selectedOrigin) {
   const base = origin(selectedOrigin);
   return vault.transaction(state => {
-    state.applications ??= [];
+    const existing = state.applications ?? [];
+    if (!Array.isArray(existing)) fail('application-registry-invalid');
+    const keys = new Set();
+    for (const row of existing) {
+      if (!row || typeof row.app !== 'string' || typeof row.origin !== 'string') fail('application-registry-invalid');
+      const key = JSON.stringify([row.app,row.origin]);
+      if (keys.has(key)) fail('application-registry-invalid');
+      keys.add(key);
+    }
+    // Construct the complete result before mutating protected state, so an
+    // incompatible game row cannot leave other registrations partly changed.
+    const applications = existing.map(row => row.app === 'game' && row.origin === base
+      ? reconcileGameRegistration(row,base) : row);
     for (const [app, path] of Object.entries(paths)) {
-      if (!state.applications.some(x => x.app === app && x.origin === base)) {
-        state.applications.push({ app, origin: base, path, ...(app === 'game' ? { search: gameAdapter.search, provenance: { ...gameAdapter.provenance } } : {}) });
+      if (!applications.some(x => x.app === app && x.origin === base)) {
+        applications.push({ app, origin: base, path, ...(app === 'game' ? { search: gameAdapter.search, provenance: { ...gameAdapter.provenance } } : {}) });
       }
     }
+    if (JSON.stringify(applications) !== JSON.stringify(existing) || state.applications === undefined) state.applications = applications;
   });
 }
 
