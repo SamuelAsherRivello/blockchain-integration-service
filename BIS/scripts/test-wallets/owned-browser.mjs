@@ -11,8 +11,9 @@ import { observeReceipt } from './funding.mjs';
 import { runSwap, readSwapState } from './swap.mjs';
 import { publicScreens, browserEnvironment, validatePayment, publicSends, matchingSend, readPaymentReview, assertPaymentReview,
   validateLifecycle, readLogoutCount } from './browser-public.mjs';
+import { gameAdapter, gameUrl } from './game-adapter.mjs';
 
-const paths = { admin: '/admin/', marketplace: '/marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/' };
+const paths = { admin: '/admin/', marketplace: '/marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/', game: gameAdapter.path };
 export function ownedProfileKey(pairLabel, network, selectedOrigin, app) {
   // Keep established Marketplace recovery paths; other apps own independent
   // browser storage even when hosted on the same loopback origin.
@@ -24,7 +25,9 @@ export async function configureApplications(vault, selectedOrigin) {
   return vault.transaction(state => {
     state.applications ??= [];
     for (const [app, path] of Object.entries(paths)) {
-      if (!state.applications.some(x => x.app === app && x.origin === base)) state.applications.push({ app, origin: base, path });
+      if (!state.applications.some(x => x.app === app && x.origin === base)) {
+        state.applications.push({ app, origin: base, path, ...(app === 'game' ? { search: gameAdapter.search, provenance: { ...gameAdapter.provenance } } : {}) });
+      }
     }
   });
 }
@@ -35,10 +38,11 @@ export class OwnedBrowser {
     const { pair: pairLabel, origin: inputOrigin, app } = this.options;
     const selectedOrigin = origin(inputOrigin);
     // An unsupported adapter must never receive decrypted fixture material.
-    if (!['marketplace', 'admin'].includes(app)) fail('app-adapter-not-yet-implemented');
+    if (!['marketplace', 'admin', 'game'].includes(app)) fail('app-adapter-not-yet-implemented');
     this.registration = await this.vault.transaction(async state => {
       await verifiedInventory(state);
-      const application = state.applications?.find(x => x.app === app && x.origin === selectedOrigin && x.path === paths[app]);
+      const application = state.applications?.find(x => x.app === app && x.origin === selectedOrigin && x.path === paths[app] &&
+        (app !== 'game' || x.search === gameAdapter.search && JSON.stringify(x.provenance) === JSON.stringify(gameAdapter.provenance)));
       if (!application) fail('origin-not-registered');
       const pair = state.pairs.find(x => x.label === pairLabel);
       if (!pair) fail('pair-not-registered');
@@ -74,7 +78,10 @@ export class OwnedBrowser {
       this.context.on('page', page => { if (page !== this.page) void page.close().catch(() => {}); });
       await this.context.route('**/*', async route => {
         const request = route.request();
-        if (request.isNavigationRequest() && request.frame() === this.page.mainFrame() && new URL(request.url()).origin !== selectedOrigin) await route.abort();
+        const requestUrl = new URL(request.url());
+        const expectedUrl = new URL(application.search ? `${selectedOrigin}${application.path}${application.search}` : `${selectedOrigin}${application.path}`);
+        if (request.isNavigationRequest() && request.frame() === this.page.mainFrame() &&
+            (requestUrl.origin !== expectedUrl.origin || requestUrl.pathname !== expectedUrl.pathname || requestUrl.search !== expectedUrl.search)) await route.abort();
         else await route.continue();
       });
       const deadline = AbortSignal.timeout(30000);
@@ -84,7 +91,7 @@ export class OwnedBrowser {
         game: await loadAddresses({ ...game, network: pair.network }, deadline),
       };
       stage = 'navigate';
-      await this.page.goto(`${selectedOrigin}${application.path}`, { waitUntil: 'domcontentloaded' });
+      await this.page.goto(application.app === 'game' ? gameUrl(application) : `${selectedOrigin}${application.path}`, { waitUntil: 'domcontentloaded' });
       stage = 'restore';
       await this.restorePair();
       return this.inspect();
@@ -183,6 +190,7 @@ export class OwnedBrowser {
     if (await label.count() && await label.textContent() !== `Network: ${expected}`) fail('browser-network-mismatch');
     if (new URL(this.page.url()).origin !== this.registration.application.origin) fail('browser-origin-mismatch');
     if (new URL(this.page.url()).pathname !== this.registration.application.path) fail('browser-application-mismatch');
+    if (this.registration.application.app === 'game' && new URL(this.page.url()).search !== this.registration.application.search) fail('browser-application-mismatch');
   }
   async inspect() {
     if (this.loggedOut) return this.inspectLoggedOut();

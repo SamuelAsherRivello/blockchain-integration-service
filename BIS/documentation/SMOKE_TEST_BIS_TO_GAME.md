@@ -27,3 +27,19 @@ Record commands, browser origin, observed UI behavior, package provenance, and a
 Offline lifecycle tests must cover stale/replaced sessions and hosts, duplicate operation IDs, rejected effects, asset-versus-sats payloads, unavailable-versus-empty snapshots and local reset/disposal. A financial confirmation is independent of `applied`, `already-applied` or `not-applicable` gameplay receipts. A failed effect does not authorize resubmission, and local cleanup does not cancel a remote transaction. Record these fixture results separately from browser and live checks.
 
 Current remote preview and Windows tunnel guidance belongs in the root [README](../../README.md) and `AGENTS.md`. This guide deliberately avoids duplicating environment-specific commands that can drift.
+
+## BIS-owned game runner seam
+
+The private `test-wallets` runner registers the companion game as the exact
+path `/blockchain-stealth-and-steel-game/` with the muted query
+`?muteMusic=true&muteSFX=true`. The registry accepts the operator-selected
+exact loopback origin, but it does not accept arbitrary paths, query strings,
+or package versions. The public provenance record is `@bis/integration` 0.0.20
+with SHA-256
+`4de67c29df5ebdd25e8f47b30eac9c7ad5f0d602e3f4b94f57f18989672e6329`, as
+documented by `stealth-steel/vendor/BIS_PROVENANCE.md` in the companion game.
+
+This is a registration and validation prerequisite for owned acceptance. It
+does not prove live game restoration, copy browser storage, export recovery
+phrases, or initiate wallet operations; those remain explicit acceptance cases
+in the test-wallet workflow.

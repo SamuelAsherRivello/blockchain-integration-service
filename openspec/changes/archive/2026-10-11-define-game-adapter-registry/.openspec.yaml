@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-11
+goal: Unblock the game cell in complete-agent-test-wallet-acceptance without
+  weakening origin, recovery, or profile isolation checks.
