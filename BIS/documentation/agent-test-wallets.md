@@ -6,7 +6,7 @@
 
 The user authorizes supplied and agent-created disposable test identities throughout the BIS ecosystem on Signet and Mutinynet. No renewed spending approval, mandatory budget or expiry is needed for these registered identities. Existing application guards still apply. The grant does not include mainnet, personal browser profiles, unrelated projects or the faucet's signer credentials.
 
-The current implementation provides encrypted inventory, private import, account creation, role assignment, origin registration, owned Marketplace/Admin login/navigation/reload/logout/restore, durable Player-to-Game and registered-recipient Arkade payments, separate Arkade faucet requests and limited joined Marketplace attachment. BTC preparation, onboarding, arbitrary UI actions, other named financial scenarios, game adapters and rotation remain implementation work. An accepted command or account label is not evidence that those workflows have passed.
+The implementation provides encrypted inventory, private import, account creation, role assignment, origin registration, owned Marketplace/Admin lifecycle and scoped collection interactions, readiness targets, existing-funds-first faucet preparation, read-only faucet reconciliation, durable Player-to-Game and registered-recipient Arkade payments, and limited joined Marketplace attachment. The game package handoff verifies version 0.0.21 independently; its live lifecycle acceptance remains separate. Onboarding, guarded asset/contract scenarios and conservative rotation are integrated with isolated coverage; live acceptance remains separate. An accepted command or account label is not evidence that those workflows have passed.
 
 ## Private storage
 
@@ -50,6 +50,28 @@ npm run test-wallets -- import --input C:\private\bis-supplied-accounts.json
 This example is a user-provided source location, not an instruction to create a plaintext temporary export. Import retains each completed identity across interruption, accepts repeated registration of the same label/identity, and rejects identity replacement and duplicate signers. It does not delete or modify the source. Do not erase the user's original backup. Player and Game must be distinct registered identities; changing an established pair requires reconciliation rather than silent reassignment.
 
 ## Owned browser transport
+
+### Readiness targets
+
+Live status can check an explicit target rather than guessing from an account label:
+
+```powershell
+npm run test-wallets -- status --account empty-player --network signet --live --expect empty
+npm run test-wallets -- status --account funded-player --network mutinynet --live --expect funded --arkade 1000 --bitcoin 1000
+```
+
+Targets are observation requirements, not spending budgets or funding requests. `funded` defaults to one spendable Arkade sat; specifying only `--bitcoin` instead defaults to no Arkade requirement. Both thresholds may be specified, but at least one must be positive. `empty` accepts no thresholds. Creation remains separate and never funds the account automatically. Previously used supplied accounts are valid inventory; positive BTC/Arkade or asset holdings make an empty target `dirty`, without draining or altering it.
+
+Readiness is network-specific: `empty` means verified zero balances/assets and no pending work in the checked application; `ready` means the spendable target is met with no pending work there; `dirty` means an empty target has holdings; `pending` retains unresolved runner, reported onboarding or application work; `incomplete` means a target or journal proof is missing, or spendable funds are insufficient; `unavailable` means a required read failed or was invalid. Reads are bounded and failed reads never become zero. Sender and registered recipient reservations both prevent readiness. Acknowledged funding is not settlement proof.
+
+Standalone status does not attach to profiles or claim to inspect application journals: a zero balance or sufficient funds alone stays `incomplete`. Inside an already owned session, use:
+
+```json
+{"command":"status","live":true,"role":"player","expect":"empty"}
+{"command":"status","live":true,"role":"game","expect":"funded","arkade":1000}
+```
+
+The role is bound to this registered pair and network; requests cannot override identity, origin or network. Context is checked before and after fresh observations. Only the production pending-operation count leaves the browser. Its conservative classifier includes all retained wallets/networks in the selected application's profile, so unrelated pending work there may block readiness rather than be discarded. The returned `journalScope` makes that limitation explicit: this is not verification of every independent application, and is insufficient alone to authorize global rotation. Joined sessions reject these commands. Unreadable journals stay unavailable; no profile/database/journal copying or cleanup occurs.
 
 Register an exact loopback origin with `init --origin` before login. Changing the port requires explicit registration, not storage migration. Owned adapters currently support Marketplace and Admin:
 
@@ -123,9 +145,68 @@ These checks are local orchestration, not a replacement for product input reserv
 
 ## Intended full workflow and verification
 
+### Existing-funds-first preparation and read-only recovery
+
+`prepare` observes a registered account on one explicit network; it does not create an identity, erase history or alter assets:
+
+```powershell
+npm run test-wallets -- prepare --account empty-player --network signet --expect empty
+npm run test-wallets -- prepare --account funded-player --network mutinynet --expect funded --arkade 1000
+```
+
+An empty target with funds or assets stays dirty. Funded targets use existing spendable balances first; if funds already suffice, no faucet call occurs even when a source was supplied. Standalone preparation still lacks application journal proof and does not claim ready solely from a balance. Missing sources, read failures, known pending work and unsupported BTC funding are explicit results, not fabricated success.
+
+Faucet funding is opt-in with a separate exact amount and original operation ID:
+
+```powershell
+npm run test-wallets -- prepare --account funded-player --network signet --expect funded --arkade 1000 --source faucet --amount 50000 --operation example-prepare-1
+npm run test-wallets -- reconcile --operation example-prepare-1
+```
+
+An existing submitted/pending/unknown operation is checked before making another funding decision. Repeating preparation cannot replace its source, account, network or amount; it invokes read-only reconciliation, never another funding POST. Exact fresh receipt evidence is separate from the new balance read. Unrelated assets are neither burned nor transferred. Sample-asset preparation is a separate explicit owned Admin scenario, rather than an automatic side effect of a balance target.
+
+### Explicit asset and contract scenarios
+
+An owned session accepts the following public requests; use a unique operation label for each intentional action, and the **same** label when reconciling it:
+
+```json
+{"command":"run","scenario":"mint-delivery","operation":"sample-asset-1","destination":"player"}
+{"command":"run","scenario":"burn","operation":"sample-burn-1","assetId":"<68-hex-asset-id>","quantity":"1"}
+{"command":"run","scenario":"contract-claim","operation":"claim-1","contractId":"<existing-contract-id>"}
+{"command":"run","scenario":"contract-refund","operation":"refund-1","contractId":"<existing-contract-id>"}
+```
+
+Mint/delivery requires the Admin application and uses its normal sample mint form. It creates one `BISTEST` unit, directed to the selected Player or Game, and retains the original mint/delivery identifiers. Player delivery reserves both registered identities. Burn deliberately targets the supplied asset ID and exact currently owned quantity; it never chooses arbitrary holdings. Claim/refund targets an existing contract, matching its network, role and amount, and uses the production eligibility controls. A disabled control refuses the action; the runner does not manufacture a contract or bypass an expired offer.
+
+These scenarios intentionally alter registered disposable test holdings, including supplied test accounts, under the standing grant. Preparation never burns or transfers unrelated holdings to achieve an empty label. Durable reservations commit before confirmation; lost acknowledgements retain unknown state, and repeated requests reconcile original product IDs without repeating signing. A mint acknowledgement alone does not prove Player delivery, and contract completion requires the production verified-receipt status. Unreadable or ambiguous evidence remains pending. Scenario tests use isolated synthetic wallets; live acceptance across applications and both networks remains separate.
+
+`reconcile` is read-only and currently supports faucet operations. It uses the original saved source origin and request ID, not a caller-supplied substitute. If acknowledgement was lost, the existing faucet status endpoint can look up the original idempotency key with `?by=request`; this returns pending acknowledgement evidence only. A separate exact verified recipient receipt is still required for settlement. Revoked grants do not prevent recovery of submitted work. The runner never starts a faucet server, issues a POST or replays funding during reconciliation. The lookup currently uses the faucet process's request cache: a restart, older API or cache loss can leave the original outcome unknown. That retains the reservation; it is not permission to send again or manually clear the operation.
+
+The supplied-account Signet onboarding warnings cannot be cleared by this faucet command. They require evidence for the original conversion and both settlement legs. Existing pending onboarding windows must not be switched or restarted.
+
+### Conservative rotation and recovery
+
+```powershell
+npm run test-wallets -- rotate --account empty-player --network signet
+```
+
+Rotation checks fresh Bitcoin, Arkade and asset holdings on **both** networks, regardless of the creation network selected above. Any holding, unresolved operation, reported onboarding, unavailable read or active owned profile lock refuses replacement. The ordinary CLI proves application journals empty only for never-exposed agent-created identities: no retained pair assignment or historical operation may involve that account. Supplied, paired or previously used identities require an independently verified journal adapter; the CLI refuses them rather than treating missing evidence as zero. No human browser session is attached.
+
+The old recovery identity, grant, generation and zero-holdings evidence remain encrypted in `archivedAccounts` inside the existing external vault. Replacement and archive commit atomically; an interrupted write leaves the old current generation recoverable. The new generation is agent-created and inherits the existing standing grant. Existing profiles, pairs and operation journals remain intact. Rotation neither drains funds nor erases history. There is no automatic restore-old-generation or force-clear command: preserve the vault and original browser profiles for explicit recovery, and never manually delete their locks to bypass an uncertain operation. Seven isolated tests cover refusal, generation continuity, encrypted archives and interrupted commit/restart; they do not claim live network acceptance.
+
 The remaining workflow is create → fund → onboard → use. Prefer existing funds; funding must separately verify the exact recipient/network and retain operation IDs. `/onboarding/` converts existing BTC, normally 50%, and is not a funding source. Partial onboarding must verify both settlement legs, not just its intermediate Arkade balance. Preserve pending windows and reconcile before retrying. Do not drain supplied wallets to manufacture empty-state fixtures.
 
-The onboarding adapter currently has an internal, fresh-window-only private restoration seam, not an available CLI scenario. Its durable intent captures original Bitcoin outpoints/values and the exact rounded-down 50% target. Before recovery entry it checks the explicit network URL, displayed network, enabled 50% slider, hidden recovery surface, no existing account and no submitted transfer. Unexpected prompts are dismissed; network switching and restarting existing accounts are not supported by this seam. The ledger commits before the native prompt is answered. Registration remains pending; an unidentified result remains unknown and cannot cause a repeat restoration. Native dialogs are exercised on isolated synthetic pages for both network URLs, not treated as live operator evidence. Production input eligibility, persistent window recovery, both settlement legs and independent BIS receipt verification still need integration and live acceptance before `onboard-half` is exposed.
+From an owned session, request conversion separately from funding:
+
+```json
+{"command":"run","scenario":"onboard-half","operation":"onboard-example-1"}
+```
+
+The runner captures eligible original Bitcoin outpoints/values before exposing the identity to the separately delivered production onboarding route. It retains the exact rounded-down 50% target, verifies the operator/network and supported fee policy, and rechecks the original inputs immediately before private restoration. Before recovery entry it checks the explicit network URL, displayed network, enabled 50% slider, hidden recovery surface, no existing account and no submitted transfer. Unexpected prompts are dismissed. The durable reservation commits before the native prompt is answered.
+
+Each operation owns a separate restricted persistent profile and the production `window` identifier, bound to its origin, identity/generation and network. Repeated requests reuse that original window and reconcile; they do not repeat restoration, switch networks, reset its state or copy databases. Closing preserves the profile and journals; failed browser cleanup preserves its ownership lock. Keep the existing window/profile while either settlement leg remains unresolved.
+
+Completion requires the original-input Bitcoin-to-Arkade commitment and Bitcoin remainder-return transaction, exact 50% amounts, confirmed independent provider receipts and a fresh independent BIS balance read. An intermediate whole-input Arkade receipt is insufficient. Unavailable funding, fee policies, operators, windows or receipts stay unavailable/pending. Fifteen isolated runner/browser tests and four existing foundation tests pass for both network configurations; real Signet and Mutinynet settlement acceptance remains unperformed until separately evidenced. This depends on the user's delivered onboarding network behavior and is not a faucet or BTC funding source.
 
 ## Join an existing Marketplace session
 
@@ -151,3 +232,5 @@ Allowed destinations are Account, Accounts Details, Receive, Assets and Transact
 Creation/import, network/account changes, recovery access, settings, Send, Swap, Contracts, Developer, Game Wallet, onboarding, reload, signing, submission and arbitrary selectors/evaluation are denied. No vault or fixture-grant lookup is performed: a matching registered test identity still remains joined-only. The installed CDP connection uses `noDefaults` to avoid changing downloads/focus/media settings. `detach` disconnects this transport without logout, closing the tab/browser or clearing storage; it ends the CLI session. `close` is not a joined command. Existing application background work can continue independently; the runner does not freeze it. Isolated real-Chromium/CDP and CLI tests verify these behaviors with synthetic non-wallet data. Acceptance against an actual user-selected human session remains unperformed.
 
 Run `node --test BIS/scripts/test-wallets.test.mjs` for focused tests. Windows ACL/DPAPI tests need normal host access; a sandbox denial is not a reason to weaken the ACL. Test evidence is isolated unless specifically identified as live. Store sanitized reports under `output/reports/agent-test-wallets/`, never wallet material. Full completion also requires the application's typecheck/tests/build and live two-network funding, onboarding, app and game acceptance listed in the plan.
+
+After building the normal applications and `npm run build --workspace @spike/prototype-onboarding`, run `node BIS/scripts/verify-test-wallet-build.mjs`. It requires all five build directories and rejects known fixture secret-slot names, runner/control code and private environment/vault/profile files without reading actual secrets. This is a structural exclusion check, not a guarantee that arbitrary secrets cannot appear in a bundle. Its isolated regression uses synthetic bytes only. A passing build scan does not prove wallet settlement or game acceptance.

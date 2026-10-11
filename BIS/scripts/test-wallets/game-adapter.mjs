@@ -6,8 +6,8 @@ export const gameAdapter = Object.freeze({
   search: '?muteMusic=true&muteSFX=true',
   provenance: Object.freeze({
     packageName: '@bis/integration',
-    version: '0.0.20',
-    artifactSha256: '4de67c29df5ebdd25e8f47b30eac9c7ad5f0d602e3f4b94f57f18989672e6329',
+    version: '0.0.21',
+    artifactSha256: '7418bdb7f0c6b51774d950a08c3613df296217957347829426e361f1c18e90b6',
     evidencePath: 'stealth-steel/vendor/BIS_PROVENANCE.md',
   }),
 });

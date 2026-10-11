@@ -1,6 +1,10 @@
 export { createBisAdminContext } from './client/state-layer-core/context';
 export { createBisContext } from './client/wallet-layer-arkade/context-composition';
 export { BisService } from './client/integration-layer/bis-service';
+// Read-only production recovery classification for consumers; never clears or
+// returns journals, signing material, or browser account storage.
+export { pendingLogoutOperations } from './client/state-layer-core/logout-cleanup';
+export type { LogoutOperations } from './client/state-layer-core/logout-cleanup';
 export type {
   IBis, BisOptions, BisDisposeOptions, BisNetwork, BisWalletReference,
   BisError, BisOperationResult, BisResetResult, BisCapabilities, BisSnapshot, BisEvent,

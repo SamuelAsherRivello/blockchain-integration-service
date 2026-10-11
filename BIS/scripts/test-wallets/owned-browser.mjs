@@ -62,6 +62,7 @@ export class OwnedBrowser {
     try {
       await this.lock.writeFile(JSON.stringify({ pid: process.pid, sessionId: this.sessionId }));
       await this.lock.sync();
+      await this.validateRegistration();
       await mkdir(profile, { recursive: true, mode: 0o700 });
       await this.vault.protector.check(profile);
       // Disable runner-side Playwright debugging as well as filtering browser env.
@@ -131,14 +132,14 @@ export class OwnedBrowser {
     fail('account-menu-unavailable');
   }
   async navigate(screen) {
-    if (!['Account', 'Accounts Details', 'Developer', 'Game Wallet', 'Send', 'Swap', 'Receive', 'Assets', 'Transactions'].includes(screen)) fail('unsupported-navigation');
+    if (!['Account', 'Accounts Details', 'Developer', 'Game Wallet', 'Send', 'Swap', 'Receive', 'Assets', 'Transactions', 'Contracts'].includes(screen)) fail('unsupported-navigation');
     if (this.loggedOut && screen !== 'Account') fail('owned-session-logged-out');
     await this.inspect();
     await this.accountMenu();
-    if (['Accounts Details', 'Developer', 'Game Wallet', 'Assets', 'Transactions'].includes(screen))
+    if (['Accounts Details', 'Developer', 'Game Wallet', 'Assets', 'Transactions', 'Contracts'].includes(screen))
       await this.page.getByRole('button', { name: 'Accounts Details', exact: true }).click();
     if (['Developer', 'Game Wallet'].includes(screen)) await this.page.getByRole('button', { name: 'Developer', exact: true }).click();
-    const button = { 'Game Wallet': 'Game Wallet Login', Send: '⚡ Send', Swap: '⚡ Swap', Receive: '⚡ Receive', Assets: 'Assets', Transactions: 'Transactions' }[screen];
+    const button = { 'Game Wallet': 'Game Wallet Login', Send: '⚡ Send', Swap: '⚡ Swap', Receive: '⚡ Receive', Assets: 'Assets', Transactions: 'Transactions', Contracts: 'Contracts' }[screen];
     if (button) await this.page.getByRole('button', { name: button, exact: true }).click();
     await this.page.waitForFunction(expected => [...document.querySelectorAll('.bis-card h2')].at(-1)?.textContent === expected, screen);
     return this.inspect();
@@ -382,8 +383,13 @@ export class OwnedBrowser {
     return { operation, readiness: operation.state === 'settled' ? request.scenario === 'funding' ? 'funding-verified' : 'payment-verified' : 'pending' };
   }
   async swap(request) { return runSwap(this, request); }
+  async onboardingPage(operation) {
+    this.onboardingWindows = true;
+    return (await import('./onboarding-browser.mjs')).onboardingPage(this, operation);
+  }
   async close() {
     this.closed = true;
+    if (this.onboardingWindows) await (await import('./onboarding-browser.mjs')).closeOnboardingPages(this);
     await this.context?.close().catch(() => {});
     if (this.lock) { await this.lock.close(); await unlink(this.lockPath); this.lock = undefined; }
     this.registration = undefined; this.expected = undefined;

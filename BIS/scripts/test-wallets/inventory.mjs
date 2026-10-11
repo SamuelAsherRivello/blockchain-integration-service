@@ -73,14 +73,14 @@ export async function importSharedAccounts(vault, read) {
   if (!records.length) fail('shared-test-accounts-not-configured');
   return register(vault, records, 'supplied');
 }
-export async function create(vault, accountLabel, selectedNetwork) {
+export async function create(vault, accountLabel, selectedNetwork, { makeAccount = createAccount } = {}) {
   label(accountLabel); network(selectedNetwork);
   // Check for conflicts before invoking the production account creation/validation flow.
   await vault.transaction(async state => {
     await verifiedInventory(state);
     if (state.accounts.some(x => x.label === accountLabel)) fail('registered-identity-conflict');
   });
-  const account = await createAccount(AbortSignal.timeout(30000), selectedNetwork);
+  const account = await makeAccount(AbortSignal.timeout(30000), selectedNetwork);
   return register(vault, [{ label: accountLabel, phrase: account.phrase }], 'agent-created');
 }
 export async function status(vault, { network: selectedNetwork, account: accountLabel } = {}) {

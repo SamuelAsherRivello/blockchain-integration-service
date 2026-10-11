@@ -84,8 +84,10 @@ export function createFaucetService({ wallets, infos, limits = {}, limiter = cre
       operations.set(idempotencyKey, operation);
       return operation;
     },
-    async status(operationId) {
-      const operation = [...operations.values()].find(value => value.operationId === operationId);
+    async status(operationId, { byRequest = false } = {}) {
+      // Lost acknowledgements can be inspected by their original idempotency
+      // key without replaying POST /request. This never sends or creates work.
+      const operation = byRequest ? operations.get(operationId) : [...operations.values()].find(value => value.operationId === operationId);
       return operation ?? { operationId, status: 'unavailable' };
     },
   });

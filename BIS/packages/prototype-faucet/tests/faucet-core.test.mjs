@@ -46,6 +46,10 @@ test('server service validates, idempotently sends, and returns pending status',
   assert.equal((await service.request(input)).operationId, 'ark-tx-1');
   assert.equal((await service.request(input)).transactionId, 'ark-tx-1');
   assert.equal(sends, 1);
+  assert.equal((await service.status('same-request', { byRequest: true })).operationId, 'ark-tx-1');
+  assert.equal((await service.status('ark-tx-1')).operationId, 'ark-tx-1');
+  assert.equal((await service.status('missing-request', { byRequest: true })).status, 'unavailable');
+  assert.equal(sends, 1);
   await assert.rejects(() => service.request({ ...input, amount: 50_000 }), /already used/);
 });
 

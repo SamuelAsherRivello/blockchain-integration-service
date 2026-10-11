@@ -23,10 +23,11 @@ test('game adapter is a fixed muted public registry entry', async () => {
 });
 
 test('game provenance accepts the recorded public snapshot and rejects substitutions', () => {
-  const evidence = `Package: @bis/integration 0.0.20\nSHA-256: ${gameAdapter.provenance.artifactSha256}`;
+  const evidence = `Package: @bis/integration ${gameAdapter.provenance.version}\nSHA-256: ${gameAdapter.provenance.artifactSha256}`;
   assert.equal(verifyGameProvenance(evidence), true);
   assert.deepEqual(assertGameProvenance(evidence), gameAdapter.provenance);
   assert.equal(verifyGameProvenance(evidence.replace(gameAdapter.provenance.artifactSha256, 'wrong')), false);
+  assert.equal(verifyGameProvenance(evidence.replace(gameAdapter.provenance.version, '0.0.20')), false);
   assert.throws(() => assertGameProvenance('Package: @bis/integration 0.0.20'), /game-provenance-unavailable/);
 });
 

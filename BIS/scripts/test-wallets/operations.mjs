@@ -51,7 +51,7 @@ function canonicalIntent(input) {
   let target;
   if (input.target !== undefined) {
     const value = input.target;
-    if (input.kind !== 'arkade-send' || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation'].includes(key)) ||
+    if (!['arkade-send', 'mint'].includes(input.kind) || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation'].includes(key)) ||
         !/^[a-f0-9]{64}$/.test(value.profileId ?? '') || !Number.isSafeInteger(value.generation) || value.generation < 1)
       fail('invalid-operation-target');
     label(value.account);

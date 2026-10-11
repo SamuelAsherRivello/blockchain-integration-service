@@ -1,6 +1,6 @@
 import { fail } from './errors.mjs';
 
-export const publicScreens = ['Account', 'Accounts Details', 'Developer', 'Game Wallet', 'Send', 'Swap', 'Receive', 'Assets', 'Asset Detail', 'Transactions', 'Transaction Detail'];
+export const publicScreens = ['Account', 'Accounts Details', 'Developer', 'Game Wallet', 'Send', 'Swap', 'Receive', 'Assets', 'Asset Detail', 'Transactions', 'Transaction Detail', 'Contracts', 'Contract Details'];
 export function browserEnvironment(env = process.env) {
   const keys = new Set(['SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'TEMP', 'TMP', 'PATH', 'PATHEXT',
     'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'PROGRAMFILES', 'PROGRAMFILES(X86)', 'PROGRAMDATA',
@@ -27,7 +27,20 @@ export async function readLogoutCount(page) {
     // Use the production cleanup classifier, returning only its public count.
     // Do not export journals or reimplement its changing recovery semantics.
     const count = await page.evaluate(async () => {
-      const { pendingLogoutOperations } = await import('/BIS/packages/integration/src/client/state-layer-core/logout-cleanup.ts');
+      let pendingLogoutOperations;
+      if (location.pathname === '/blockchain-stealth-and-steel-game/') {
+        // Reuse the already loaded public package entry, not BIS repository
+        // source paths or a second context that could restore signing state.
+        const entries = [...new Set(performance.getEntriesByType('resource').map(entry => entry.name))]
+          .map(name => new URL(name)).filter(url => url.origin === location.origin &&
+            (/\/node_modules\/\.vite\/deps\/@bis_integration\.js$/.test(url.pathname) ||
+             /\/node_modules\/@bis\/integration\/src\/index\.ts$/.test(url.pathname)));
+        if (entries.length !== 1) throw Error('Public package entry unavailable.');
+        ({ pendingLogoutOperations } = await import(entries[0].href));
+        if (typeof pendingLogoutOperations !== 'function') throw Error('Public classifier unavailable.');
+      } else {
+        ({ pendingLogoutOperations } = await import('/BIS/packages/integration/src/client/state-layer-core/logout-cleanup.ts'));
+      }
       // Player logout clears all retained Game identities. Include those
       // journals in the classifier using a read-only view, without changing
       // any ownership marker or exposing stored values to the runner.

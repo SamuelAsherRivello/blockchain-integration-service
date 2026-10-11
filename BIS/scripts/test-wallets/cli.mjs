@@ -6,19 +6,23 @@ import { publicFailure, fail } from './errors.mjs';
 const help = {
   command: 'test-wallets',
   available: ['init [--origin <exact-loopback-origin>]', 'import --shared | --input <private-absolute-path>', 'create --account <label> --network signet|mutinynet',
-    'status [--account <label>] [--network signet|mutinynet] [--live]',
+    'status [--account <label>] [--network signet|mutinynet] [--live [--expect empty|funded] [--bitcoin <sats>] [--arkade <sats>]]',
     'assign --pair <label> --player <label> --game <label> --network signet|mutinynet',
     'open --pair <label> --origin <registered-origin> --app marketplace|admin',
     'join --origin <exact-loopback-origin> --app marketplace --api <supplied-loopback-CDP-origin> --page <explicit-target-id>',
-    'fund --account <label> --network signet|mutinynet --source faucet --amount 50000|100000|200000 --operation <unique-label> [--api <loopback-origin>]'],
-  pending: ['standalone inspect', 'action', 'run', 'standalone wallet funding', 'direct test-wallet BTC sends', 'prepare', 'rotate'],
+    'fund --account <label> --network signet|mutinynet --source faucet --amount 50000|100000|200000 --operation <unique-label> [--api <loopback-origin>]',
+    'reconcile --operation <original-faucet-operation-label>',
+    'prepare --account <label> --network signet|mutinynet --expect empty|funded [--bitcoin <sats>] [--arkade <sats>] [--source faucet --amount 50000|100000|200000 --operation <unique-label> [--api <loopback-origin>]]',
+    'rotate --account <label> --network signet|mutinynet',
+    'owned session run: payment | funding | swap-to-bitcoin | onboard-half | mint-delivery | burn | contract-claim | contract-refund'],
+  pending: ['standalone inspect/action/run', 'standalone wallet funding', 'direct test-wallet BTC sends'],
   note: 'Recovery input is private local input only. Creation does not establish funding or readiness.',
 };
 export async function execute(argv, { makeVault, inventory } = {}) {
   const { command, values } = argumentsFor(argv); // Validate before loading any wallet material.
   if (command === 'help') return { ok: true, ...help };
   if (command === 'join') fail('join-requires-session-transport');
-  if (!['init', 'import', 'create', 'status', 'assign', 'open', 'fund'].includes(command)) fail('command-not-yet-implemented');
+  if (!['init', 'import', 'create', 'status', 'assign', 'open', 'fund', 'reconcile', 'prepare', 'rotate'].includes(command)) fail('command-not-yet-implemented');
   const { Vault } = await import('./vault.mjs');
   const vault = makeVault ? makeVault() : new Vault();
   if (command === 'init') {
@@ -28,6 +32,9 @@ export async function execute(argv, { makeVault, inventory } = {}) {
   }
   if (command === 'open') fail('open-requires-session-transport');
   if (command === 'fund') return { ok: true, ...await (await import('./funding.mjs')).fund(vault, values) };
+  if (command === 'reconcile') return { ok: true, ...await (await import('./reconcile.mjs')).reconcileFaucet(vault, values.operation) };
+  if (command === 'prepare') return { ok: true, ...await (await import('./prepare.mjs')).prepare(vault, values) };
+  if (command === 'rotate') return { ok: true, ...await (await import('./rotation.mjs')).rotate(vault, values) };
   const api = inventory ?? await import('./inventory.mjs');
   let result;
   if (command === 'import') result = values.shared ? await api.importSharedAccounts(vault) : await api.importAccounts(vault, values.input);
@@ -77,6 +84,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
             }
             let result;
             if (request.command === 'inspect') result = await owner.inspect();
+            else if (request.command === 'status') result = await (await import('./owned-readiness.mjs')).ownedReadiness(owner, request);
             else if (request.command === 'run' && request.scenario === 'reload') result = await owner.reload(request);
             else if (request.command === 'run' && request.scenario === 'logout') result = await owner.logout(request);
             else if (request.command === 'run' && request.scenario === 'restore') result = await owner.restore(request);
@@ -87,6 +95,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
             else if (request.command === 'action') result = await (await import('./owned-actions.mjs')).ownedAction(owner, request);
             else if (request.command === 'run' && ['payment', 'funding'].includes(request.scenario)) result = await owner.payment(request);
             else if (request.command === 'run' && request.scenario === 'swap-to-bitcoin') result = await owner.swap(request);
+            else if (request.command === 'run' && request.scenario === 'onboard-half') result = await (await import('./onboarding.mjs')).runOnboard(owner, request);
+            else if (request.command === 'run' && ['mint-delivery', 'burn', 'contract-claim', 'contract-refund'].includes(request.scenario)) result = await (await import('./guarded-scenarios.mjs')).runGuardedScenario(owner, request);
             else fail('command-not-yet-implemented');
             process.stdout.write(`${JSON.stringify({ ok: true, ...result })}\n`);
           } catch (error) { process.stdout.write(`${JSON.stringify(publicFailure(error))}\n`); }

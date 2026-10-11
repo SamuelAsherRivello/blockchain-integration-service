@@ -165,7 +165,7 @@ const server = createServer(async (request, response) => {
       return json(response, 503, safeError(error));
     }
   }
-  if (request.method === 'GET' && url.pathname.startsWith('/api/faucet/status/')) return json(response, 200, await service.status(decodeURIComponent(url.pathname.slice('/api/faucet/status/'.length))));
+  if (request.method === 'GET' && url.pathname.startsWith('/api/faucet/status/')) return json(response, 200, await service.status(decodeURIComponent(url.pathname.slice('/api/faucet/status/'.length)), { byRequest: url.searchParams.get('by') === 'request' }));
   if (request.method !== 'POST' || url.pathname !== '/api/faucet/request') return json(response, 404, { code: 'NOT_FOUND', message: 'Faucet endpoint not found.' });
   try {
     const body = await readJson(request);
