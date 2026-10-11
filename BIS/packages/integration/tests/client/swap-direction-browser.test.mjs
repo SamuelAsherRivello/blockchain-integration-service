@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { browserEnvironment } from '../../../../scripts/test-wallets/browser-public.mjs';
@@ -35,15 +36,17 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
     };
     window.mountSwap();
   `;
-  const server=await createServer({configFile:false,root:process.cwd(),cacheDir:`output/tests/swap-direction-${process.pid}`,
+  const cacheDir = `output/tests/swap-direction/vite-${process.pid}`;
+  await mkdir(cacheDir, { recursive: true });
+  const server=await createServer({configFile:false,root:process.cwd(),cacheDir,
     resolve:{dedupe:['react','react-dom']},optimizeDeps:{noDiscovery:true,include:['react','react-dom','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime','@arkade-os/sdk','@scure/bip39','@scure/bip39/wordlists/english.js']},
     esbuild:{jsx:'automatic'},plugins:[{
       name:'swap-direction-fixture',resolveId:id=>id==='/swap-direction-fixture.tsx'?id:undefined,
       load:id=>id==='/swap-direction-fixture.tsx'?fixture:undefined,
       configureServer(server){server.middlewares.use('/swap-direction-fixture.html',(_req,res)=>{
-        res.setHeader('Content-Type','text/html');res.end('<div id="host"></div><script type="module" src="/swap-direction-fixture.tsx"></script>');
+        res.setHeader('Content-Type','text/html');res.end('<link rel="icon" href="data:,"><div id="host"></div><script type="module" src="/swap-direction-fixture.tsx"></script>');
       });},
-    }],server:{host:'127.0.0.1',port:6106,strictPort:true,watch:{ignored:['**/output/**']}}});
+    }],server:{host:'127.0.0.1',port:0,hmr:false,watch:{ignored:['**/output/**']}}});
   await server.listen();t.after(()=>server.close());
   const browser=await chromium.launch({headless:true,env:browserEnvironment(),...(process.env.BIS_PLAYWRIGHT_CHANNEL?{channel:process.env.BIS_PLAYWRIGHT_CHANNEL}:{})});
   t.after(()=>browser.close());const page=await browser.newPage();
