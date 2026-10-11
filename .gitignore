@@ -10,3 +10,4 @@ output/playwright/
 /.cache
 /output
 /.playwright-mcp
+/BIS/packages/prototype-sandbox/output
