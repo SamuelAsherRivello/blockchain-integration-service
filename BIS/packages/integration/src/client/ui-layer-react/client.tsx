@@ -26,6 +26,7 @@ import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupp
 import { FormRowBoolean } from './FormRowBoolean';
 import { ViewTransition } from './ViewTransition';
 import { defaultViewLoadingPolicy, useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
+import { BackDismissalLayer, type BackAction } from './BackDismissalLayer';
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 const emptySubscribe = () => () => {};
 const emptySnapshot = () => undefined;
@@ -151,6 +152,8 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const contracts = state.phase === 'active' && !!state.accountContracts;
   const [contractOpen,setContractOpen]=useState(false);
   const [closingAccount,setClosingAccount]=useState(false);
+  const collectionBackAction = useRef<BackAction | undefined>(undefined);
+  const backDismissalEnabled = state.view === 'account' && !busy && !closingAccount;
   const receive = state.phase === 'active' && state.accountReceive;
   const send = state.phase === 'active' && state.accountSend;
   const developer = state.view === 'account' && developerOpen && !onboarding;
@@ -235,16 +238,16 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   // Collection views own their selection and list/detail navigation. Changing
   // this transition key for a detail page remounts them and loses that state.
   const collectionKey = assets ? 'assets' : contracts ? 'contracts' : activity ? 'activity' : undefined;
-  if (state.view === 'account' && (assets || contracts || activity)) return <div {...publicScope} className="bis-layer bis-layer-open bis-layer-collection">
+  if (state.view === 'account' && (assets || contracts || activity)) return <BackDismissalLayer enabled={backDismissalEnabled} onBack={()=>collectionBackAction.current?.()} className="bis-layer bis-layer-open bis-layer-collection" {...publicScope}>
     <ViewTransition viewKey={collectionKey ?? 'collection'}>
-      {assets && state.network && <AccountAssetsView key={state.profileId} assets={state.assets} network={state.network} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBack={()=>context.closeAccount()} />}
-      {contracts && <AccountContractsView key={state.profileId} context={context} onDetailChange={setContractOpen} />}
-      {activity && <AccountActivityView key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} />}
+      {assets && state.network && <AccountAssetsView key={state.profileId} assets={state.assets} network={state.network} onBurn={context.burnAsset} onToast={context.showToast} onRefresh={context.refreshAssets} onBusyChange={setAssetBusy} onDetailChange={setAssetOpen} onBackDismissalChange={action=>{collectionBackAction.current=action;}} onBack={()=>context.closeAccount()} />}
+      {contracts && <AccountContractsView key={state.profileId} context={context} onDetailChange={setContractOpen} onBackDismissalChange={action=>{collectionBackAction.current=action;}} />}
+      {activity && <AccountActivityView key={state.profileId} activity={state.activity} context={context} onDetailChange={setTransactionOpen} onBackDismissalChange={action=>{collectionBackAction.current=action;}} />}
     </ViewTransition>
-  </div>;
+  </BackDismissalLayer>;
   const title = gameWalletLogin ? 'Game Wallet' : developer ? 'Developer' : onboarding ? 'Onboarding' : assets ? (assetOpen ? 'Asset Detail' : 'Assets') : transfer ? 'Swap' : send ? 'Send' : receive ? 'Receive' : savedRecovery ? 'Get Recovery Phrase' : activity ? 'Transactions' : details ? 'Accounts Details' : restoring ? 'Restore Account' : logout ? 'Account Log Out' : recovery ? 'Set Recovery Phrase' : state.phase === 'creating' ? 'Create Account' : 'Account';
   const viewKey = state.view === 'account-button' ? 'account-button' : gameWalletLogin ? 'game-wallet' : developer ? 'developer' : onboarding ? 'onboarding' : restoring ? 'restore-account' : recovery ? 'set-recovery-phrase' : savedRecovery ? 'get-recovery-phrase' : logout ? 'logout-confirmation' : state.phase === 'creating' ? 'create-account' : details ? 'account-details' : transfer ? 'swap' : send ? 'send' : receive ? 'receive' : 'account-menu';
-  return <div {...publicScope} className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`}>
+  return <BackDismissalLayer enabled={backDismissalEnabled} onBack={handleBack} className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`} {...publicScope}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
       <ViewTransition viewKey={viewKey}><AccountDialogShell network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={`${onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}${closingAccount ? ' bis-card-closing' : ''}`}
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
@@ -301,7 +304,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
           {!(activity && transactionOpen) && <button ref={close} className="bis-button bis-back" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={handleBack}>Back</button>}
         </div>}
       </AccountDialogShell></ViewTransition>}
-  </div>;
+  </BackDismissalLayer>;
 }
 
 export function createBisUi(context: BisContext, options: { gameWallet?: GameWallet; hasItemSupport?: () => boolean; hasAssetMintingSupport?: () => boolean; hasContractSupport?: () => boolean; hasPaymentSupport?: () => boolean } = {}) {

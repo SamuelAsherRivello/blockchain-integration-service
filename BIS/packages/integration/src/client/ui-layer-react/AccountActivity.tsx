@@ -12,7 +12,7 @@ import { CompactItemRow, StatusTypeIcon, type StatusType } from './StatusTypeIco
 import { networkLabel } from '../state-layer-core/test-network';
 import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
-export function AccountActivityView({ activity, onDetailChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContractsAsync'>> }) {
+export function AccountActivityView({ activity, onDetailChange, onBackDismissalChange, context }: { activity: BisActivity; onDetailChange: (open: boolean) => void; onBackDismissalChange?: (action: (()=>void)|undefined) => void; context?: Pick<BisContext, 'checkAccountTransfer' | 'closeAccount' | 'refreshActivity' | 'getState'> & Partial<RecoveryContext & Pick<BisContext,'checkContractsAsync'>> }) {
   const [recoveryDialog, setRecoveryDialog] = useState<{ report: string; trigger: HTMLButtonElement }>();
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
@@ -53,6 +53,9 @@ export function AccountActivityView({ activity, onDetailChange, context }: { act
   useLayoutEffect(() => { if (activity.status==='ready' && !selected) { setSelectedId(undefined); setDetailOpen(false); } }, [selected?.id,activity.status]);
   useEffect(() => () => onDetailChange(false), [onDetailChange]);
   const loading = activity.status === 'idle' || activity.status === 'loading';
+  const backDismissalEnabled = !loading && !recoveryDialog;
+  const back = () => { if(opened){const previous=opened.id;setDetailOpen(false);onDetailChange(false);requestAnimationFrame(()=>buttons.current.get(previous)?.focus());}else context?.closeAccount(); };
+  useEffect(()=>{onBackDismissalChange?.(backDismissalEnabled ? back : undefined);return()=>onBackDismissalChange?.(undefined);},[backDismissalEnabled,opened?.id,onBackDismissalChange]);
   useEffect(()=>{if (activity.status === 'ready' || activity.status === 'unavailable') initialLoading.current = false;},[activity.status]);
   const foreground=useRef(true);
   if(loading)foreground.current=true;
@@ -81,7 +84,7 @@ export function AccountActivityView({ activity, onDetailChange, context }: { act
         <button type="button" className="bis-button" disabled={!recoveryText} onClick={event => setRecoveryDialog({ report: recoveryText, trigger: event.currentTarget })}>View Recovery Info</button>
         <button type="button" className="bis-button" disabled={!explorerUrl} title={!explorerUrl ? 'Explorer unavailable: no supported transaction ID has been reported yet.' : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>
       </>}
-    onBack={()=>{if(opened){const previous=opened.id;setDetailOpen(false);onDetailChange(false);requestAnimationFrame(()=>buttons.current.get(previous)?.focus());}else context?.closeAccount();}}
+    onBack={back}
     overlay={recoveryDialog&&<RecoveryInfoDialog {...recoveryDialog} onBack={()=>setRecoveryDialog(undefined)}/>}
   />;
 }

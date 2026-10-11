@@ -46,6 +46,17 @@ test('unreadable transaction journal leaves logout checkboxes interactive withou
   const publicScope=page.locator('.bis-layer[data-bis-player-id]').last();
   assert.equal(await publicScope.getAttribute('data-bis-player-id'),'logout-browser');
   assert.equal(await publicScope.getAttribute('data-bis-game-address'),'tark1public-test-address');
+  assert.equal(await page.locator('.bis-layer-open').count(),1,'Account view is open for back-dismissal checks');
+  await page.locator('.bis-card h2').click();
+  assert.equal(await page.locator('.bis-layer-open').count(),1,'Clicking inside the card does not dismiss the view');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(()=>document.querySelectorAll('.bis-layer-open').length===0);
+  await page.evaluate(()=>window.context.openAccountDialog());
+  await page.waitForFunction(()=>document.querySelectorAll('.bis-layer-open').length===1);
+  await page.locator('.bis-layer-open').dispatchEvent('click');
+  await page.waitForFunction(()=>document.querySelectorAll('.bis-layer-open').length===0);
+  await page.evaluate(()=>window.context.openAccountDialog());
+  await page.waitForFunction(()=>document.querySelectorAll('.bis-layer-open').length===1);
   await page.getByRole('button',{name:'Log Out',exact:true}).click();
   const backup=page.getByRole('checkbox',{name:'I have backed up my wallet',exact:true});
   const game=page.getByRole('checkbox',{name:'I understand the separate Game Wallet remains saved in this browser.',exact:true});

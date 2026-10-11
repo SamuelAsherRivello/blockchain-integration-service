@@ -34,7 +34,7 @@ function AssetIcon({url, background = false, fallback}: {url?:string; background
   return <span className="bis-asset-icon" aria-hidden="true">{source&&failed!==source?<img ref={image} onLoad={()=>void loaded()} src={source} alt="" referrerPolicy="no-referrer" onError={()=>setFailed(source)} />:(fallback??<svg width="19.2" height="19.2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z M3 7l9 5 9-5 M12 12v10" /></svg>)}</span>;
 }
 
-export function AccountAssetsView({assets, network, onDetailChange, onBack, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; network:TestNetwork; onDetailChange: (open: boolean) => void; onBack: () => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
+export function AccountAssetsView({assets, network, onDetailChange, onBack, onBackDismissalChange, onBurn, onRefresh, onBusyChange, onToast}: {assets: BisAssets; network:TestNetwork; onDetailChange: (open: boolean) => void; onBack: () => void; onBackDismissalChange?: (action: (()=>void)|undefined) => void; onBurn:(request:BisBurnAssetRequest)=>Promise<BisBurnAssetResult>; onRefresh:()=>Promise<void>; onBusyChange:(busy:boolean)=>void; onToast:(message:string, options?:BisToastOptions)=>void}) {
   const [selectedId, setSelectedId] = useState<string>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [notice, setNotice] = useState('');
@@ -93,6 +93,9 @@ export function AccountAssetsView({assets, network, onDetailChange, onBack, onBu
     return () => cancelAnimationFrame(frame);
   }, [detailOpen, assets, selectedId]);
   const loading = assets.status === 'idle' || assets.status === 'loading';
+  const backDismissalEnabled = !loading && !burning && !confirmation;
+  const back = () => { if(detailOpen){restoreFocus.current=true;setDetailOpen(false);}else onBack(); };
+  useEffect(()=>{onBackDismissalChange?.(backDismissalEnabled ? back : undefined);return()=>onBackDismissalChange?.(undefined);},[backDismissalEnabled,detailOpen,onBack,onBackDismissalChange]);
   useEffect(()=>{if (assets.status === 'ready' || assets.status === 'unavailable') initialLoading.current = false;},[assets.status]);
   useLayoutEffect(()=>{if(!burning && !burnError && assets.status==='ready')burnOrigin.current=false;},[burning,burnError,assets.status]);
   useEffect(()=>{if(loading && !burning)setBackgroundImages(false);},[loading,burning]);
@@ -119,7 +122,7 @@ export function AccountAssetsView({assets, network, onDetailChange, onBack, onBu
     actions={<>
       {detailOpen && selected && <><button type="button" className="bis-button" disabled={burning || !explorerUrl} aria-describedby={!explorerUrl?'asset-explorer-unavailable':undefined} title={!explorerUrl ? explorerUnavailableReason : undefined} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open On Explorer</button>{!explorerUrl&&<span id="asset-explorer-unavailable" className="bis-sr-only">{explorerUnavailableReason}</span>}</>}
       {detailOpen && selected && <button className="bis-button bis-danger" disabled={burning} onClick={()=>setConfirmation(selected)}>Burn</button>}
-    </>} backDisabled={burning} onBack={()=>{if(detailOpen){restoreFocus.current=true;setDetailOpen(false);}else onBack();}}
+    </>} backDisabled={burning} onBack={back}
     overlay={confirmation&&<ConfirmationDialog onCancel={()=>setConfirmation(undefined)} onConfirm={()=>void burn(confirmation)}/>}
   />;
 }

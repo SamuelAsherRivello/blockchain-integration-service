@@ -10,7 +10,7 @@ import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
 const contractNetworkLabel = (network:string) => network==='signet'||network==='mutinynet' ? networkLabel(network as TestNetwork) : 'Unavailable';
 
-export function AccountContractsView({context,onDetailChange}: {context:BisContext;onDetailChange:(open:boolean)=>void}) {
+export function AccountContractsView({context,onDetailChange,onBackDismissalChange}: {context:BisContext;onDetailChange:(open:boolean)=>void;onBackDismissalChange?: (action: (()=>void)|undefined) => void}) {
   const [contracts,setContracts]=useState<readonly BisContract[]>([]),[selected,setSelected]=useState<string>(),[status,setStatus]=useState('loading'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const generation=useRef(0),acting=useRef(false),refreshing=useRef(false);
   const initialLoading=useRef(true);
@@ -34,6 +34,9 @@ export function AccountContractsView({context,onDetailChange}: {context:BisConte
     return()=>{generation.current++;clearInterval(timer);};
   },[refresh]);
   const loading=status==='loading';
+  const backDismissalEnabled = !loading && !busy;
+  const back = () => { if(detail){const previous=detail.id;setSelected(undefined);setMessage('');requestAnimationFrame(()=>buttons.current.get(previous)?.focus());}else context.closeAccount(); };
+  useEffect(()=>{onBackDismissalChange?.(backDismissalEnabled ? back : undefined);return()=>onBackDismissalChange?.(undefined);},[backDismissalEnabled,detail?.id,onBackDismissalChange]);
   useEffect(()=>{if (status === 'ready' || status === 'unavailable') initialLoading.current = false;},[status]);
   const loadingNotice=useEntryLoadingGate(loading,initialLoading.current,viewLoadingPolicies.contracts);
   usePendingNotice(loadingNotice,'Loading ...',undefined,()=>context.closeAccount());
@@ -70,6 +73,6 @@ export function AccountContractsView({context,onDetailChange}: {context:BisConte
         {detail.role==='game'&&<button className="bis-button" disabled={!available||busy||!detail.canRefund} onClick={()=>void act('refund')}>Refund to game</button>}
     </>}
     notice={<>{detailNotice}{status==='unavailable'?<p role="status">Contracts are unavailable. Recovery records have been retained.</p>:status==='ready'&&!detail&&contracts.length===0?<p>No contracts.</p>:null}{detail&&detail.scope.network!==context.getState().network?<p role="status">Switch to {contractNetworkLabel(detail.scope.network)} to manage this contract.</p>:null}{message&&<p role="status">{message}</p>}</>}
-    onBack={()=>{if(detail){const previous=detail.id;setSelected(undefined);setMessage('');requestAnimationFrame(()=>buttons.current.get(previous)?.focus());}else context.closeAccount();}}
+    onBack={back}
   />;
 }
