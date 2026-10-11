@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
@@ -24,8 +24,13 @@ test('BIS style boundary owns protected typography and Marketplace does not over
 });
 
 test('BIS protected typography is equal in Admin-like, game-like, and Marketplace-like hosts', async t => {
+  const cacheRoot = new URL('../../../../../output/tests/bis-ui-style-isolation/', import.meta.url);
+  await mkdir(cacheRoot, { recursive: true });
+  const cacheDir = await mkdtemp(new URL('vite-', cacheRoot));
   const server = await createServer({
     configFile: false,
+    cacheDir,
+    optimizeDeps: { noDiscovery: true, include: [] },
     server: { host: '127.0.0.1', port: 0, hmr: false, watch: { ignored: ['**/output/**'] } },
     appType: 'spa',
   });
