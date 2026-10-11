@@ -654,7 +654,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     getContinueRecipient: () => validContinueRecipient(options.continueRecipient) ? options.continueRecipient!.trim() : undefined,
     async getPaymentRecipient() {
       const account = await activeTransferAccount(), current = version;
-      const addresses = await readAddresses(account, operation.signal);
+      const addresses = (await prepareAddresses()).value;
       if (disposed || current !== version || state.phase !== 'active' || state.profileId !== account.profileId) throw Error('The player changed.');
       return {profileId:account.profileId, address:addresses.arkadeAddress};
     },

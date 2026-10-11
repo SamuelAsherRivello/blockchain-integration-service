@@ -197,7 +197,7 @@ test('an unconfigured game cannot expose another game wallet inventory', async (
   assert.match(app, /const publicGameAddress=registeredGameAddress\?marketplaceGameInventoryAddress/);
   assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
   assert.match(app, /owned item\(s\) have legacy metadata/);
-  assert.match(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);
+  assert.doesNotMatch(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);
   assert.match(app, /const selectedGameIsEmpty=game!== 'all'&&game!== 'stealth-and-steel'/);
 });
 

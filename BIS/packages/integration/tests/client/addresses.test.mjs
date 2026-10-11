@@ -6,6 +6,18 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 globalThis.requestIdleCallback=()=>1;globalThis.cancelIdleCallback=()=>{};
 test.after(()=>{delete globalThis.requestIdleCallback;delete globalThis.cancelIdleCallback;});
 const addresses={arkadeAddress:'tark1-test-address',bitcoinAddress:'tb1p-test-address'};
+test('Marketplace recipient joins prepared Receive addresses and retains active-account checks',async()=>{
+  let calls=0,finish;
+  const context=setup(async()=>{calls++;return new Promise(resolve=>{finish=resolve;});});
+  await context.readyAsync();
+  const first=context.getPaymentRecipient(),second=context.getPaymentRecipient();
+  await tick();assert.equal(calls,1);
+  finish(addresses);
+  assert.deepEqual(await first,{profileId:'test-profile',address:addresses.arkadeAddress});
+  assert.deepEqual(await second,await first);
+  context.openAccountDialog();context.openAccountReceive();await tick();assert.equal(calls,1);
+  context.dispose();await assert.rejects(context.getPaymentRecipient());
+});
 function setup(readAddresses) {
   const account={phrase:'test-placeholder',profileId:'test-profile'};
   return createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected write');},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,async()=>{throw Error('Balance unavailable');},undefined,readAddresses);

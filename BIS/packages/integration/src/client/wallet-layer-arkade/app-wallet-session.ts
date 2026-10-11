@@ -2,6 +2,8 @@ import { Wallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, InMemor
 import {testNetwork} from '../state-layer-core/test-network.ts';
 import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
+import { projectConfiguredAddresses } from './address-projection.ts';
+import type { AccountAddresses } from './addresses.ts';
 
 type Role = 'player' | 'game';
 type Disposable = { dispose(): Promise<void> };
@@ -10,6 +12,8 @@ type ReadWallet = Pick<Wallet, 'getAddress' | 'getBoardingAddress' | 'getBalance
 type Slot<W> = {
   generation: number; account: AccountSecret; operator: string;
   controller: AbortController; pending: Promise<W>; wallet?: W;
+  addresses: Promise<AccountAddresses>;
+  startAddresses(): void;
   cleanup?: Promise<void>; lane: Promise<void>; users: number; drained?: () => void;
 };
 
@@ -52,7 +56,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     // waits on this promise; replacement acquisition has its own bounded wait.
     return bounded(done, options.retirementMs ?? 20000);
   }
-  async function acquire(role: Role, account: AccountSecret, signal: AbortSignal) {
+  async function acquireSlot(role: Role, account: AccountSecret, signal: AbortSignal, earlyAddresses=false): Promise<Slot<W>> {
     signal.throwIfAborted();
     if (closed) throw Error('Wallet session closed.');
     let slot = slots.get(role);
@@ -60,16 +64,38 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       if (!slot.controller.signal.aborted) void invalidate(role).catch(() => {});
       await detached(bounded(cleanup(slot), options.retirementMs ?? 20000), signal);
       if (slots.get(role) === slot) slots.delete(role);
-      return acquire(role, account, signal);
+      return acquireSlot(role, account, signal,earlyAddresses);
     }
     if (!slot) {
       const controller = new AbortController();
       const network = account.network ?? 'signet', operator = operatorFor(network);
       const arkProvider = new RestArkProvider(operator);
+      const identity = MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false });
+      let resolveAddresses!: (value:AccountAddresses) => void;
+      let rejectAddresses!: (reason:unknown) => void;
+      const addresses = new Promise<AccountAddresses>((resolve,reject)=>{resolveAddresses=resolve;rejectAddresses=reject;});
+      // A role may be acquired for balance only; rejection is still observed.
+      void addresses.catch(()=>{});
       const getInfo = arkProvider.getInfo.bind(arkProvider);
-      arkProvider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network, network); return info; };
+      const loadInfo = async () => {
+        try {
+          const info = await getInfo(); requireNetwork(info.network, network);
+          void projectConfiguredAddresses(identity,info,network).then(resolveAddresses,rejectAddresses);
+          return info;
+        } catch(error) {rejectAddresses(error);throw error;}
+      };
+      // Start the one bootstrap configuration read alongside mnemonic key
+      // derivation. SDK setup consumes this exact promise once; subsequent
+      // provider reads still fetch live configuration normally.
+      let bootstrapInfo:ReturnType<typeof loadInfo>|undefined;
+      const startInfo=()=>{if(!bootstrapInfo){bootstrapInfo=loadInfo();void bootstrapInfo.catch(()=>{});}return bootstrapInfo;};
+      let bootstrapConsumed=false;
+      arkProvider.getInfo=()=>{
+        if(!bootstrapConsumed){bootstrapConsumed=true;return startInfo();}
+        return loadInfo();
+      };
       const config: Configuration = {
-        identity: MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }),
+        identity,
         arkProvider, indexerProvider: shareIndexerReads(new RestIndexerProvider(operator), operator),
         onchainProvider:new EsploraProvider(testNetwork(network).explorerApiUrl,{forcePolling:true,pollingInterval:15000}),
         storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
@@ -77,7 +103,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
         watcherConfig: { failsafePollIntervalMs: 60000, reconnectDelayMs: 60000, maxReconnectAttempts: 1 },
       };
       slot = { generation: ++generations[role], account: { ...account }, operator, controller,
-        pending: Promise.resolve().then(() => factory(config)), lane: Promise.resolve(), users: 0 };
+        pending: Promise.resolve().then(() => factory(config)), addresses, startAddresses:()=>{void startInfo();}, lane: Promise.resolve(), users: 0 };
       slots.set(role, slot);
       const created = slot;
       const timer = setTimeout(() => {
@@ -93,6 +119,11 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
         created.controller.abort(new Error('Wallet acquisition failed.'));
       });
     }
+    if(earlyAddresses&&!slot.wallet)slot.startAddresses();
+    return slot;
+  }
+  async function acquire(role:Role, account:AccountSecret, signal:AbortSignal) {
+    const slot=await acquireSlot(role,account,signal);
     const selected = slot;
     const wallet = await detached(selected.pending, AbortSignal.any([signal, selected.controller.signal]));
     if (!current(role, selected)) throw Error('Wallet session retired.');
@@ -125,6 +156,20 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     return detached(execution,leaseSignal);
   }
   return {
+    async addresses(role:Role,account:AccountSecret,signal:AbortSignal):Promise<AccountAddresses> {
+      const slot=await acquireSlot(role,account,signal,true);
+      const active=AbortSignal.any([signal,slot.controller.signal,AbortSignal.timeout(options.acquisitionMs ?? 20000)]);
+      // A completed wallet remains authoritative if its receive address changes.
+      const fromWallet=async (resource:W)=>{
+        const wallet=resource as unknown as Pick<Wallet,'getAddress'|'getBoardingAddress'>;
+        const [arkadeAddress,bitcoinAddress]=await Promise.all([wallet.getAddress(),wallet.getBoardingAddress()]);
+        return Object.freeze({arkadeAddress,bitcoinAddress});
+      };
+      const result=await (slot.wallet ? borrow(role,account,active,fromWallet) : detached(slot.addresses,active));
+      active.throwIfAborted();
+      if(!current(role,slot)||!same(slot,account))throw Error('Wallet session retired.');
+      return result;
+    },
     // Read capability has no submission methods; both capabilities use one SDK object.
     read<T>(role: Role, account: AccountSecret, signal: AbortSignal, use: (wallet: W extends Wallet ? ReadWallet : W, signal: AbortSignal) => Promise<T>) {
       return borrow(role, account, signal, use as (wallet: W, signal: AbortSignal) => Promise<T>);

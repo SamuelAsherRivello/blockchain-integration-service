@@ -51,6 +51,7 @@ function createRoleWalletAccess(owner: AppWalletSession, role: 'player' | 'game'
   type Events={key:string;stop:AbortController;callbacks:Set<()=>void>;pending:Promise<void>};
   let events:Events|undefined;
   return {
+    addresses(account:AccountSecret,signal:AbortSignal) {return owner.addresses(role,account,signal);},
     async observe(account:AccountSecret,signal:AbortSignal,changed:()=>void):Promise<void>{
       signal.throwIfAborted();
       const key=JSON.stringify([account.profileId,account.network??'signet']);
