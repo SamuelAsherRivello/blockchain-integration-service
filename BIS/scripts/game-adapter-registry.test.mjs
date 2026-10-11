@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { configureApplications, ownedProfileKey } from './test-wallets/owned-browser.mjs';
+import { configureApplications, ownedProfileKey, OwnedBrowser } from './test-wallets/owned-browser.mjs';
 import { assertGameProvenance, gameAdapter, gameUrl, verifyGameProvenance } from './test-wallets/game-adapter.mjs';
 
 function vaultState() {
@@ -33,4 +33,20 @@ test('game provenance accepts the recorded public snapshot and rejects substitut
 test('game URL validation rejects changed path or query', () => {
   assert.throws(() => gameUrl({ ...gameAdapter, origin: 'http://127.0.0.1:5173', path: '/other/' }), /game-adapter-invalid/);
   assert.throws(() => gameUrl({ ...gameAdapter, origin: 'http://127.0.0.1:5173', search: '?muteMusic=false' }), /game-adapter-invalid/);
+});
+
+test('game owned sessions enter Account through the game Settings gear', async () => {
+  const clicked = [];
+  const controls = new Map([
+    ['⚡ Account', { count: async () => 1, isVisible: async () => false, click: async () => clicked.push('account') }],
+    ['Open settings', { click: async () => clicked.push('settings') }],
+  ]);
+  const owner = Object.create(OwnedBrowser.prototype);
+  owner.registration = { application: { app: 'game' } };
+  owner.page = {
+    locator: () => ({ last: () => ({ isVisible: async () => false, waitFor: async () => {} }) }),
+    getByRole: (_role, { name }) => controls.get(name),
+  };
+  await owner.accountDialog();
+  assert.deepEqual(clicked, ['settings', 'account']);
 });

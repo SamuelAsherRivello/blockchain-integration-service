@@ -104,6 +104,14 @@ export class OwnedBrowser {
     if (!await this.page.locator('.bis-card').last().isVisible()) {
       if (this.registration.application.app === 'admin')
         await this.page.getByRole('button', { name: 'A.P.4. Account Dialog', exact: true }).click();
+      else if (this.registration.application.app === 'game') {
+        const account = this.page.getByRole('button', { name: '⚡ Account', exact: true });
+        if (await account.count() && await account.isVisible()) await account.click();
+        else {
+          await this.page.getByRole('button', { name: 'Open settings', exact: true }).click();
+          await this.page.getByRole('button', { name: '⚡ Account', exact: true }).click();
+        }
+      }
       else await this.page.getByRole('button', { name: 'Account', exact: true }).click();
     }
     await this.page.locator('.bis-card').last().waitFor({ state: 'visible' });
