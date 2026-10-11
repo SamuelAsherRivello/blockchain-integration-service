@@ -66,3 +66,6 @@ export { BIS_STEALTH_AND_STEEL_GAME_ID, bisMarketplaceItems, classifyBisEquipmen
 export type { BisEquipmentClassificationStatus, BisEquipmentDefinition, BisEquipmentFamily, BisEquipmentItem, BisEquipmentTier } from './client/state-layer-core/equipment';
 export { createBisEquipment } from './client/state-layer-core/equipment-loadout';
 export type { BisEquipmentSlots, BisEquipmentState } from './client/state-layer-core/equipment-loadout';
+export { preparePublicAssetInventory, invalidatePublicAssetInventory } from './client/state-layer-core/public-asset-inventory';
+export type { BisPublicAssetInventoryRequest } from './client/state-layer-core/public-asset-inventory';
+export type { BoardingQuote, BitcoinFundingDestination } from './client/state-layer-core/boarding-quote';

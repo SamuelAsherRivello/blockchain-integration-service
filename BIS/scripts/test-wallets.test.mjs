@@ -20,7 +20,7 @@ import { browserEnvironment, validatePayment, matchingSend, publicSends, assertP
 import { OwnedBrowser, ownedProfileKey, configureApplications } from './test-wallets/owned-browser.mjs';
 import { assertFreshOnboarding, restoreOnboardingUI } from './test-wallets/onboarding-ui.mjs';
 import { JoinedBrowser, joinedRequest } from './test-wallets/joined-browser.mjs';
-import { runSwap, validateSwap, assertSwapReview, matchingSwap, publicBoardings, observeSwapReceipt } from './test-wallets/swap.mjs';
+import { runSwap, validateSwap, validateBitcoinFunding, assertSwapReview, matchingSwap, publicBoardings, observeSwapReceipt, observeBitcoinFundingReceipt } from './test-wallets/swap.mjs';
 import { ReadonlyWallet, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk';
 
 // Isolated tests encrypt even disposable sentinel data; never use a plaintext fake vault.
@@ -47,28 +47,76 @@ test('swap requests and review require exact amount, net output, fingerprint and
   assert.throws(()=>assertSwapReview({...review,...change},review,1000),/swap-review-mismatch/);
 });
 
-async function isolatedSwap(t, network='mutinynet') {
+async function isolatedSwap(t, network='mutinynet',funding=false) {
  const {vault}=await fixture(t);
  await register(vault,[{label:'player',phrase:generateMnemonic(wordlist)}],'agent-created');
+ if(funding)await register(vault,[{label:'recipient',phrase:generateMnemonic(wordlist)}],'agent-created');
  const player=await vault.transaction(state=>state.accounts[0]), ledger=new Operations(vault);
  const recipient='tb1p'+'q'.repeat(58),fingerprint='a'.repeat(64),expires=Date.now()+60000;
  const review={direction:'to-bitcoin',amountSats:10000,feeSats:0,netSats:10000,quoteFingerprint:fingerprint,quoteExpiresAt:expires};
+ if(funding)Object.assign(review,{recipient,source:'Arkade balance',network:network==='signet'?'Signet':'Mutinynet'});
  let confirms=0,reads=0,failRead=false;
  const record={version:1,id:'11111111-1111-4111-8111-111111111111',profileId:player.profileId,network,status:'pending',phase:'registered',bitcoinAddress:recipient,
   inputs:[{txid:'c'.repeat(64),vout:0}],quote:{profileId:player.profileId,direction:'to-bitcoin',amountSats:10000,feeSats:0,netSats:10000,maxSats:20000,inputSats:20000,
    bitcoinAfterSats:10000,arkadeAfterSats:10000,totalAfterSats:20000,expiresAt:expires,fingerprint}};
+ if(funding)Object.assign(record.quote,{destination:{purpose:'bitcoin-funding',bitcoinAddress:recipient,network},bitcoinAfterSats:0,totalAfterSats:10000});
  const owner={vault,registration:{player,pair:{network},application:{origin:'http://127.0.0.1:5174'}},expected:{player:{bitcoinAddress:recipient}},
   inspect:async()=>({mode:'owned'}),navigate:async screen=>assert.equal(screen,'Swap'),page:{
-   getByRole:(_role,{name})=>({isVisible:async()=>true,waitFor:async()=>{},click:async()=>{
+   getByRole:(_role,{name})=>({isVisible:async()=>true,waitFor:async()=>{},check:async()=>{},click:async()=>{
     if(name==='Confirm Transfer'){
      assert.equal((await ledger.list())[0].state,'submitting','commit must precede normal UI confirmation');confirms++;
     }
    }}),getByLabel:()=>({fill:async()=>{}}),waitForTimeout:async()=>{},
   }};
  const adapters={review:async()=>review,records:async()=>{reads++;if(failRead)throw Error('private-sentinel');return confirms?[structuredClone(record)]:[];},receipt:async()=>undefined};
- return {owner,adapters,record,review,ledger,request:{command:'run',scenario:'swap-to-bitcoin',operation:'swap-one',amountSats:10000},
+ if(funding)adapters.addresses=async()=>({bitcoinAddress:recipient});
+ return {owner,adapters,record,review,ledger,request:{command:'run',scenario:funding?'funding-bitcoin':'swap-to-bitcoin',operation:'swap-one',amountSats:10000,...(funding?{recipientAccount:'recipient'}:{})},
   confirms:()=>confirms,reads:()=>reads,failReads:()=>{failRead=true;}};
 }
+
+for(const network of ['signet','mutinynet'])test(`${network}: Bitcoin funding binds and reserves both registered generations before normal confirmation`,async t=>{
+ const f=await isolatedSwap(t,network,true);
+ validateBitcoinFunding(f.request);
+ for(const change of [{recipientAccount:'../human'},{recipient:'tb1p'+'q'.repeat(58)},{amountSats:0},{scenario:'funding'}])assert.throws(()=>validateBitcoinFunding({...f.request,...change}));
+ await assert.rejects(runSwap(f.owner,{...f.request,recipientAccount:'absent'},f.adapters),/recipient-not-registered/);
+ await assert.rejects(runSwap(f.owner,{...f.request,recipientAccount:'player'},f.adapters),/self-funding/);
+ const pending=await runSwap(f.owner,f.request,f.adapters),intent=pending.operation.intent;
+ assert.equal(intent.kind,'arkade-to-bitcoin-funding');assert.equal(intent.target.account,'recipient');assert.equal(intent.target.generation,1);
+ assert.equal(pending.operation.state,'pending');assert.equal(f.confirms(),1);
+ const recipient=await f.owner.vault.transaction(state=>state.accounts.find(a=>a.label==='recipient'));
+ await assert.rejects(f.ledger.prepare({id:'competing',account:recipient.label,profileId:recipient.profileId,generation:1,network,kind:'faucet',recipient:intent.recipient,amountSats:50000,feeSats:null}),/scope-pending/);
+ await runSwap(f.owner,f.request,f.adapters);assert.equal(f.confirms(),1);
+ assert.equal(matchingSwap([{...f.record,quote:{...f.record.quote,destination:undefined}}],pending.operation),undefined,'own-wallet journal cannot prove recipient funding');
+ assert.equal(matchingSwap([{...f.record,quote:{...f.record.quote,destination:{...f.record.quote.destination,network:network==='signet'?'mutinynet':'signet'}}}],pending.operation),undefined);
+ f.adapters.receipt=async(_account,operation)=>({id:intent.id,fingerprint:operation.fingerprint,providerId:f.record.id,outcome:'settled',verified:true});
+ assert.equal((await runSwap(f.owner,f.request,f.adapters)).readiness,'bitcoin-funding-verified');assert.equal(f.confirms(),1);
+});
+
+test('Bitcoin funding rejects edited public review and retains unknown without resending',async t=>{
+ const f=await isolatedSwap(t,'mutinynet',true),original=f.review.recipient;
+ f.review.recipient='tb1p'+'p'.repeat(58);
+ await assert.rejects(runSwap(f.owner,f.request,f.adapters),/funding-review-mismatch/);assert.equal(f.confirms(),0);
+ f.review.recipient=original;f.review.network='Signet';
+ await assert.rejects(runSwap(f.owner,f.request,f.adapters),/funding-review-mismatch/);assert.equal(f.confirms(),0);
+ f.review.network='Mutinynet';
+ const get=f.owner.page.getByRole;
+ f.owner.page.getByRole=(role,options)=>{const control=get(role,options);return {...control,click:async()=>{await control.click();if(options.name==='Confirm Transfer'){f.failReads();throw Error('synthetic lost acknowledgement');}}};};
+ assert.equal((await runSwap(f.owner,f.request,f.adapters)).operation.state,'unknown');
+ assert.equal((await runSwap(f.owner,f.request,f.adapters)).operation.state,'unknown');assert.equal(f.confirms(),1);
+});
+
+for(const variant of ['valid','unconfirmed','wrong-bitcoin','wrong-change','wrong-consumed','recipient-not-ready','wrong-recipient'])test(`Bitcoin funding independent exact receipt: ${variant}`,async t=>{
+ const f=await isolatedSwap(t,'mutinynet',true),operation=(await runSwap(f.owner,f.request,f.adapters)).operation,row=f.record,txid='d'.repeat(64);
+ const recipient=await f.owner.vault.transaction(state=>state.accounts.find(a=>a.label==='recipient'));
+ t.mock.method(globalThis,'fetch',async()=>{throw Error('No live requests in synthetic fixture');});
+ t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'mutinynet'}));
+ t.mock.method(RestIndexerProvider.prototype,'getVtxos',async()=>({vtxos:row.inputs.map(coin=>({...coin,isSpent:true,settledBy:variant==='wrong-consumed'?'e'.repeat(64):txid}))}));
+ t.mock.method(ReadonlyWallet,'create',async options=>{await options.arkProvider.getInfo();return {dispose:async()=>{},getBoardingAddress:async()=>{throw Error('must not demand source owns recipient');},getProviderConnectionState:()=>({mode:'online',source:'live'}),
+  getVtxos:async()=>[{value:variant==='wrong-change'?9999:10000,commitmentTxIds:[txid]}],onchainProvider:{getTransactions:async address=>{assert.equal(address,row.bitcoinAddress);return [{txid,status:{confirmed:variant!=='unconfirmed'},vout:[{scriptpubkey_address:row.bitcoinAddress,value:variant==='wrong-bitcoin'?9999:10000}]}];}}};});
+ const adapters={addresses:async()=>({bitcoinAddress:variant==='wrong-recipient'?'tb1p'+'p'.repeat(58):row.bitcoinAddress}),balance:async()=>({availableBitcoinSats:variant==='recipient-not-ready'?9999:10000})};
+ if(variant==='wrong-recipient')await assert.rejects(observeBitcoinFundingReceipt(f.owner.registration.player,operation,[row],recipient,adapters),/recipient-mismatch/);
+ else assert.equal((await observeBitcoinFundingReceipt(f.owner.registration.player,operation,[row],recipient,adapters))?.outcome,variant==='valid'?'settled':undefined);
+});
 
 for(const network of ['signet','mutinynet'])test(`${network}: owned swap commits before Confirm and retries reconcile only the same operation`,async t=>{
  const f=await isolatedSwap(t,network);

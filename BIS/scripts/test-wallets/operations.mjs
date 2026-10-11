@@ -3,7 +3,7 @@ import { label, network, origin } from './arguments.mjs';
 import { verifiedInventory } from './inventory.mjs';
 import { fail } from './errors.mjs';
 
-const kinds = new Set(['faucet', 'btc-send', 'arkade-send', 'swap-to-bitcoin', 'onboard', 'mint', 'burn', 'claim', 'refund']);
+const kinds = new Set(['faucet', 'btc-send', 'arkade-send', 'swap-to-bitcoin', 'arkade-to-bitcoin-funding', 'onboard', 'mint', 'burn', 'claim', 'refund']);
 const terminal = new Set(['settled', 'failed', 'cancelled']);
 const token = value => typeof value === 'string' && /^[A-Za-z0-9:_-]{1,300}$/.test(value);
 const sats = value => Number.isSafeInteger(value) && value >= 0;
@@ -21,7 +21,7 @@ function canonicalIntent(input) {
   if (input.priorProviderIds !== undefined && (!Array.isArray(input.priorProviderIds) || input.priorProviderIds.length > 1000 ||
       input.priorProviderIds.some(id => !/^[a-f0-9]{64}$/.test(id)) || new Set(input.priorProviderIds).size !== input.priorProviderIds.length)) fail('invalid-operation-intent');
   let swap;
-  if (input.kind === 'swap-to-bitcoin') {
+  if (['swap-to-bitcoin','arkade-to-bitcoin-funding'].includes(input.kind)) {
     if (!sats(input.netSats) || input.netSats === 0 || !sats(input.feeSats) || input.netSats + input.feeSats !== input.amountSats ||
         !/^[a-f0-9]{64}$/.test(input.quoteFingerprint ?? '') || !sats(input.quoteExpiresAt) || input.quoteExpiresAt === 0 ||
         !Array.isArray(input.priorOperationIds) || input.priorOperationIds.length > 1000 ||
@@ -51,12 +51,13 @@ function canonicalIntent(input) {
   let target;
   if (input.target !== undefined) {
     const value = input.target;
-    if (!['arkade-send', 'mint'].includes(input.kind) || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation'].includes(key)) ||
+    if (!['arkade-send', 'mint','arkade-to-bitcoin-funding'].includes(input.kind) || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation'].includes(key)) ||
         !/^[a-f0-9]{64}$/.test(value.profileId ?? '') || !Number.isSafeInteger(value.generation) || value.generation < 1)
       fail('invalid-operation-target');
     label(value.account);
     target = { account: value.account, profileId: value.profileId, generation: value.generation };
   }
+  if(input.kind==='arkade-to-bitcoin-funding'&&(!target||target.profileId===input.profileId))fail('invalid-operation-target');
   return { id: input.id, account: input.account, profileId: input.profileId,
     generation: input.generation, network: input.network, kind: input.kind,
     recipient: input.recipient, amountSats: input.amountSats, feeSats: input.feeSats, sourceOrigin,

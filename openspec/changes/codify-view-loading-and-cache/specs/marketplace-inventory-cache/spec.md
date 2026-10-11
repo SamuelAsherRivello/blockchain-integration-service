@@ -14,7 +14,7 @@ Marketplace SHALL request Player Wallet and Game Wallet inventory through public
 #### Scenario: Game Wallet preparation uses BIS lifecycle
 
 - **WHEN** Marketplace needs Game Wallet inventory
-- **THEN** it SHALL ask the BIS Game Wallet object to prepare public inventory
+- **THEN** it SHALL ask a public BIS preparation API to read the selected public address, retaining guest catalog browsing without requiring a signer
 - **AND** the Game Wallet preparation SHALL use BIS-owned cache and in-flight coordination rather than a Marketplace-local provider read
 
 ### Requirement: Marketplace loads wallet inventories independently
@@ -50,7 +50,7 @@ Marketplace SHALL determine loading, empty, and unavailable presentation from th
 
 ### Requirement: Shared wallet-scoped cache and in-flight work
 
-Marketplace SHALL reuse the shared BIS asset preparation/cache lifecycle for Player Wallet and Game Wallet public inventory. Complete successful results SHALL be cached only in BIS memory for the configured freshness window and scoped by wallet profile, network, role, and data type. Pending compatible work SHALL be joined rather than duplicated. Failed, partial, obsolete, or cross-account results SHALL NOT be cached. Marketplace local storage SHALL NOT be a second source of truth.
+Marketplace SHALL reuse the shared BIS asset preparation/cache lifecycle for Player Wallet and Game Wallet public inventory. Complete successful results SHALL be cached only in BIS memory for the configured freshness window and scoped by wallet profile, network, role, data type, and exact address for public-address queries. Pending compatible work SHALL be joined rather than duplicated. Failed, partial, obsolete, or cross-account results SHALL NOT be cached. Marketplace local storage SHALL NOT be a second source of truth.
 
 #### Scenario: Cache reuse across Account Assets and Marketplace
 
@@ -72,3 +72,30 @@ Selecting an Owner tab SHALL select that wallet's existing record. It SHALL NOT 
 - **WHEN** the user switches repeatedly between Game Wallet and Player Wallet while reads are pending or cached
 - **THEN** each tab SHALL show its own loading, ready, empty, or unavailable state
 - **AND** no duplicate provider read SHALL start within the active in-flight or freshness window
+
+## RENAMED Requirements
+
+- FROM: `### Requirement: Use a wallet-scoped thirty-second cache`
+- TO: `### Requirement: Use a wallet-scoped ephemeral cache`
+
+## MODIFIED Requirements
+
+### Requirement: Use a wallet-scoped ephemeral cache
+
+BIS SHALL retain only complete successful public inventory in memory for five minutes, scoped by role, profile identity, network, data type and exact public address when queried. Marketplace SHALL NOT persist inventory in browser storage. Explicit Refresh SHALL bypass completed data and join compatible live work; lifecycle or relevant evidence changes SHALL invalidate obsolete work. A newer Account Assets read SHALL supersede prior empty Player inventory.
+
+#### Scenario: Refresh within the freshness window
+- **WHEN** a wallet has a complete successful inventory less than five minutes old
+- **THEN** BIS SHALL reuse it without another provider request unless explicitly refreshed or invalidated
+
+#### Scenario: Page refresh and new tab
+- **WHEN** Marketplace reloads or opens in another document
+- **THEN** it SHALL perform or join fresh preparation in that document rather than restore persisted inventory
+
+#### Scenario: Cache expires
+- **WHEN** a successful entry is five minutes old or older
+- **THEN** the next consumer SHALL obtain fresh inventory for that wallet without disturbing the other role
+
+#### Scenario: Fresh BIS Assets read supersedes empty cache
+- **WHEN** Account Assets completes with positive holdings for the same Player Wallet and network
+- **THEN** Marketplace SHALL use that current shared ownership evidence rather than a prior empty result

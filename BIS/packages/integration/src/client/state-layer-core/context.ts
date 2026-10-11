@@ -19,7 +19,7 @@ import { AssetError, assetError, validateMint, readAssetRecords, type BisMintAss
 import { diagnoseAssetFailure } from './asset-operation-diagnostics.ts';
 import type { WalletOperationAvailability } from './wallet-network-policy.ts';
 import { assertNoPendingBoarding, assertPendingTransfersAcknowledged, withWalletMutation, BoardingBlockedError, readBoardingRecord, readBoardingRecords } from './boarding-record.ts';
-import { boardingSubmissionEnabled, type BoardingQuote } from './boarding-quote.ts';
+import { boardingSubmissionEnabled, type BoardingQuote, type BitcoinFundingDestination } from './boarding-quote.ts';
 import { transferStatus } from './boarding-status.ts';
 import type { BoardingRecord } from './boarding-record.ts';
 export type BisTransferStatus = Readonly<{status:'idle'|'pending'|'succeeded'|'not-submitted'; amountSats?:number; commitmentTxid?:string; operationId?:string; intentId?:string; direction?:BoardingQuote['direction']; phase?:BoardingRecord['phase']; diagnostic?:BoardingRecord['diagnostic'];failure?:BoardingRecord['failure']; verification?:'live'|'unavailable';stage?:NonNullable<BoardingRecord['progress']>['stage'];execution?:'running'|'awaiting-confirmation'|'interrupted'|'unknown'|'complete';observedAt?:number;action?:NonNullable<BoardingRecord['progress']>['action']} >;
@@ -112,7 +112,7 @@ export interface BisContext {
   checkAccountSend(): Promise<BisSendStatus>;
   openAccountDetails(): void;
   openAccountTransfer(): void;
-  quoteAccountTransfer(amountSats?: number, direction?: BoardingQuote['direction']): Promise<BoardingQuote>;
+  quoteAccountTransfer(amountSats?: number, direction?: BoardingQuote['direction'], destination?: BitcoinFundingDestination): Promise<BoardingQuote>;
   getAccountTransferAvailability(direction?: BoardingQuote['direction']): Promise<WalletOperationAvailability>;
   confirmAccountTransfer(quote: BoardingQuote, acknowledgedPendingIds?: readonly string[]): Promise<BisTransferStatus>;
   getPendingAccountTransfers(): readonly BisTransferStatus[];
@@ -567,10 +567,9 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   const prepareAddresses=(force=false,foreground=false)=>reads.read(readKey('addresses'),async signal=>readAddresses(await presentationAccount(signal),signal),{force,foreground,timeout:10000});
   const prepareAssets=(force=false,foreground=false)=> {
     assetsInterest=true;
-    if(force&&!reads.isPending(readKey('assets')))invalidateSharedAssetInventory(state.profileId,state.network,'player');
     return reads.read(readKey('assets'),async signal=>{
       const account=await presentationAccount(signal);
-      const result=await prepareSharedAssetInventory({role:'player',profileId:account.profileId,network:account.network ?? state.network ?? 'signet',load:sharedSignal=>readAssetSnapshot(sharedSignal).then(snapshot=>snapshot.assets)});
+      const result=await prepareSharedAssetInventory({role:'player',profileId:account.profileId,network:account.network ?? state.network ?? 'signet',force,load:sharedSignal=>readAssetSnapshot(sharedSignal).then(snapshot=>snapshot.assets)});
       signal.throwIfAborted();
       if(result.status!=='success')throw Error('Assets are unavailable. Try again.');
       return {profileId:result.profileId!,assets:result.assets};
@@ -864,8 +863,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     async prepareAssetInventory(force = false) {
       const profileId=state.profileId;
       if(!state.hasProfile || state.phase!=='active')return assetError('account-required');
-      if(force)invalidateSharedAssetInventory(profileId,state.network ?? 'signet','player');
-      try { return await prepareSharedAssetInventory({role:'player',profileId:profileId!,network:state.network ?? 'signet',load:signal=>readAssetSnapshot(signal).then(result=>result.assets)}); }
+      try { return await prepareSharedAssetInventory({role:'player',profileId:profileId!,network:state.network ?? 'signet',force,load:signal=>readAssetSnapshot(signal).then(result=>result.assets)}); }
       catch {return assetError('unavailable',profileId);}
     },
     async getPendingAssetMint() {
@@ -891,11 +889,11 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       assertAlive();
       if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountSend) update({accountSend:true,accountReceive:false,accountTransfer:false,accountDetails:false,accountActivity:false,accountRecovery:false});
     },
-    async quoteAccountTransfer(amountSats, direction='to-arkade') {
+    async quoteAccountTransfer(amountSats, direction='to-arkade', destination) {
       guardIndependentSpend();
       const account=await activeTransferAccount();
       const accountVersion=version;
-      const quote=await transfers.quote(account,amountSats,operation.signal,direction);
+      const quote=await transfers.quote(account,amountSats,operation.signal,direction,undefined,destination);
       if(disposed||accountVersion!==version||account.profileId!==state.profileId)throw Error('The account changed.');
       return quote;
     },

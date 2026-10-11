@@ -1,25 +1,8 @@
-import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk';
-import { normalizeAssetMetadata, testNetwork, type BisAsset, type TestNetwork } from '@bis/integration';
-const hex = (bytes: Uint8Array) => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+import { preparePublicAssetInventory, type BisAsset, type BisPublicAssetInventoryRequest } from '@bis/integration';
 
-/** Reads public inventory only from the currently selected test network. It creates no wallet and cannot sign. */
-export async function readPublicInventory(address: string, signal: AbortSignal, network: TestNetwork): Promise<readonly BisAsset[]> {
-  const script = hex(ArkAddress.decode(address).pkScript);
-  const indexer=new RestIndexerProvider(testNetwork(network).operator);
-  const result = await indexer.getVtxos({scripts:[script]});
-  signal.throwIfAborted();
-  const totals = new Map<string, bigint>();
-  for (const coin of result.vtxos) {
-    if (coin.isSpent || coin.isSwept || coin.isUnrolled) continue;
-    for (const asset of coin.assets ?? []) totals.set(asset.assetId, (totals.get(asset.assetId) ?? 0n) + BigInt(asset.amount));
-  }
-  // Asset details are independent requests. Fetch them together so inventory
-  // latency is bounded by the slowest asset rather than the sum of all assets.
-  const assets=await Promise.all([...totals].map(async ([assetId,amount])=>{
-    const details=await indexer.getAssetDetails(assetId);signal.throwIfAborted();
-    if(details.assetId!==assetId)throw Error('Asset details mismatch.');
-    const metadata=normalizeAssetMetadata(details.metadata,'list'),m=details.metadata;
-    return {assetId,quantity:amount.toString(),...(typeof m?.name==='string'?{name:m.name}:{}),...(typeof m?.ticker==='string'?{ticker:m.ticker}:{}),...(typeof m?.icon==='string'?{iconUrl:m.icon}:{}),...(Number.isInteger(m?.decimals)&&Number(m?.decimals)>=0?{decimals:Number(m?.decimals)}:{}),...(metadata?{metadata}:{})};
-  }));
-  return Object.freeze(assets.sort((a,b)=>a.assetId.localeCompare(b.assetId)));
+/** Marketplace consumes BIS presentation reads; provider/cache ownership stays in BIS. */
+export async function readPublicInventory(request: BisPublicAssetInventoryRequest, force = false): Promise<readonly BisAsset[]> {
+  const result=await preparePublicAssetInventory(request,force);
+  if(result.status!=='success' || result.profileId!==request.profileId)throw Error('Public inventory unavailable.');
+  return result.assets;
 }

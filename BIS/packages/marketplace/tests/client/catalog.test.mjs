@@ -27,7 +27,8 @@ test('public Marketplace uses a read-only address query and live local-sales act
   assert.match(app, /className="trade-action trade-action-buy" disabled=\{!canBuy\}/);
   assert.match(app, /className="trade-action trade-action-sell" disabled=\{!canSell\}/);
   assert.doesNotMatch(app,/getBisMarketplaceTradingAvailability/);
-  assert.match(inventory, /new RestIndexerProvider/);
+  assert.match(inventory, /preparePublicAssetInventory\(request,force\)/);
+  assert.doesNotMatch(inventory, /@arkade-os\/sdk|RestIndexerProvider/);
   assert.doesNotMatch(inventory, /MnemonicIdentity|Wallet\.create|mint|send/i);
 });
 
@@ -35,7 +36,7 @@ test('Marketplace never treats the published Game Wallet as active without a Pla
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /const activeGameWallet=Boolean\(playerState\.profileId&&gameState\.profileId&&gameState\.network===network&&gameState\.addresses\?\.arkadeAddress\)/);
   assert.match(app, /const inventoryAddress=isCatalogLoading\?undefined:publicGameAddress/);
-  assert.match(app, /if\(publicGameAddress\)sources\.push\(\{role:'game'/);
+  assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
   assert.match(app, /const gameItemsForSession=previousGameItems/);
   assert.match(app, /if\(event\.type==='accountDisconnected'\)void gameWallet\.logout\(\)\.catch\(\(\)=>\{\}\)/);
 });
@@ -43,9 +44,10 @@ test('Marketplace never treats the published Game Wallet as active without a Pla
 test('Marketplace reads Game Wallet display inventory from the published public address', async () => {
   const [app, inventory] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/inventory-layer/inventory.ts')]);
   assert.match(app, /readPublicInventory/);
-  assert.match(app, /const publicGameAddress=game==='all'\?defaultGame\?\.gameWalletAddress:selectedGame\?\.gameWalletAddress/);
-  assert.match(app, /readPublicInventory\(publicGameAddress/);
-  assert.match(inventory, /It creates no wallet and cannot sign/);
+  assert.match(app, /marketplaceGameInventoryAddress\(\{registeredAddress:registeredGameAddress/);
+  assert.match(app, /readPublicInventory\(publicInventoryRequest,force\)/);
+  assert.match(inventory, /preparePublicAssetInventory/);
+  assert.doesNotMatch(inventory, /@arkade-os\/sdk|RestIndexerProvider/);
 });
 
 test('Marketplace enables exactly the action offered by the selected owner only after both local wallet sessions are active', async () => {
@@ -191,8 +193,9 @@ test('Marketplace opens with the Game Wallet, Stealth & Steel, and all item type
 test('an unconfigured game cannot expose another game wallet inventory', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
-  assert.match(app, /const publicGameAddress=game==='all'\?defaultGame\?\.gameWalletAddress:selectedGame\?\.gameWalletAddress/);
-  assert.match(app, /if\(publicGameAddress\)sources\.push\(\{role:'game'/);
+  assert.match(app, /const registeredGameAddress=game==='all'\?defaultGame\?\.gameWalletAddress:selectedGame\?\.gameWalletAddress/);
+  assert.match(app, /const publicGameAddress=registeredGameAddress\?marketplaceGameInventoryAddress/);
+  assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
   assert.match(app, /owned item\(s\) have legacy metadata/);
   assert.match(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);
   assert.match(app, /const selectedGameIsEmpty=game!== 'all'&&game!== 'stealth-and-steel'/);
@@ -201,7 +204,7 @@ test('an unconfigured game cannot expose another game wallet inventory', async (
 
 test('Marketplace derives item identity, price, and artwork from fresh chain asset metadata',async()=>{
   const [app,inventory]=await Promise.all([text('src/client/marketplace-layer/App.tsx'),text('src/client/inventory-layer/inventory.ts')]);
-  assert.match(inventory,/getAssetDetails\(assetId\)/);assert.match(app,/classifyBisEquipmentAsset/);
+  assert.match(inventory,/preparePublicAssetInventory/);assert.match(app,/classifyBisEquipmentAsset/);
   assert.match(app,/src=\{item\.iconUrl\}/);assert.match(app,/item\.priceSats\.toLocaleString\(\)/);
   assert.doesNotMatch(app,/artworkFor|assets\/equipment|item\.artwork/);
   assert.match(app,/Image unavailable/);

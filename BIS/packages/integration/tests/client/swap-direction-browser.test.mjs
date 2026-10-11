@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { browserEnvironment } from '../../../../scripts/test-wallets/browser-public.mjs';
-import { readSwapReview, publicBoardings, readSwapState } from '../../../../scripts/test-wallets/swap.mjs';
+import { readSwapReview, readBitcoinFundingReview, publicBoardings, readSwapState } from '../../../../scripts/test-wallets/swap.mjs';
 
 test('an Arkade-only wallet can select Bitcoin without bypassing availability, amount or review guards', {timeout:60000}, async t => {
   const fixture = `
@@ -13,9 +13,10 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
     import {AccountTransferView} from '/BIS/packages/integration/src/client/ui-layer-react/AccountTransfer.tsx';
     const root=createRoot(document.getElementById('host'));
     let generation=0;
-    window.mountSwap=(blocked=false)=>{
+    window.mountSwap=(blocked=false,network='signet')=>{
       window.calls={quotes:0,confirmations:0,directions:[]};
       const context={
+        getState:()=>({network}),
         getPendingAccountTransfers:()=>[],checkAccountTransfer:async()=>({status:'idle'}),
         getAccountTransferAvailability:direction=>{
           window.calls.directions.push(direction);
@@ -23,10 +24,11 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
           return new Promise(resolve=>{window.finishAvailability=()=>resolve(blocked
             ?{available:false,reason:'policy-unavailable',message:'Policy unavailable.'}:{available:true});});
         },
-        quoteAccountTransfer:async(amountSats,direction)=>{
+        quoteAccountTransfer:async(amountSats,direction,destination)=>{
           window.calls.quotes++;
+          window.calls.destination=destination;
           return {profileId:'synthetic',direction,amountSats,feeSats:0,netSats:amountSats,maxSats:20000,
-            bitcoinAfterSats:amountSats,arkadeAfterSats:20000-amountSats,totalAfterSats:20000,
+            bitcoinAfterSats:destination?0:amountSats,arkadeAfterSats:20000-amountSats,totalAfterSats:destination?20000-amountSats:20000,...(destination?{destination}:{}),
             expiresAt:Date.now()+60000,fingerprint:'a'.repeat(64)};
         },
         confirmAccountTransfer:async()=>{window.calls.confirmations++;throw Error('No live submissions in this fixture.');},
@@ -125,4 +127,22 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
   const state=await readSwapState(page);
   assert.equal(state.direction,'to-bitcoin');assert.equal(state.reviewEnabled,true);
   assert.equal(state.availability,'policy-unavailable');assert.equal(JSON.stringify(state).includes('private-synthetic-sentinel'),false);
+  for(const network of ['signet','mutinynet']) {
+    await page.evaluate(network=>window.mountSwap(false,network),network);
+    await page.getByText('No eligible Bitcoin.',{exact:true}).waitFor();await toggle.click();
+    await page.waitForFunction(()=>window.calls.directions.includes('to-bitcoin'));await page.evaluate(()=>window.finishAvailability());
+    await page.getByRole('checkbox',{name:'Fund another Bitcoin account',exact:true}).check();
+    await amount.fill('10000');assert.equal(await review.isDisabled(),true,'recipient is required');
+    const recipient=page.getByLabel('Bitcoin recipient address',{exact:true}),first='tb1p'+'q'.repeat(58),second='tb1p'+'p'.repeat(58);
+    await recipient.fill(first);await review.click();await page.getByRole('heading',{name:'Review: Bitcoin funding',exact:true}).waitFor();
+    const funding=await readBitcoinFundingReview(page);
+    assert.equal(funding.recipient,first);assert.equal(funding.network,network==='signet'?'Signet':'Mutinynet');assert.equal(funding.source,'Arkade balance');
+    assert.deepEqual(await page.evaluate(()=>window.calls.destination),{purpose:'bitcoin-funding',bitcoinAddress:first,network});
+    assert.equal(await page.locator('.bis-review').getByText('0 sats',{exact:true}).count(),2,'source Bitcoin remains zero and fee is zero');
+    await page.getByRole('button',{name:'Back',exact:true}).click();await recipient.fill(second);
+    assert.equal(await page.getByRole('button',{name:'Confirm Transfer',exact:true}).count(),0,'destination edit invalidates reviewed quote');
+    await review.click();await page.getByRole('heading',{name:'Review: Bitcoin funding',exact:true}).waitFor();
+    assert.equal((await readBitcoinFundingReview(page)).recipient,second);
+    assert.deepEqual(await page.evaluate(()=>[window.calls.quotes,window.calls.confirmations]),[2,0]);
+  }
 });

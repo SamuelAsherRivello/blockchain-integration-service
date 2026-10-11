@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, FormValue, createBisContext, createBisGameWallet, createBisUi, inspectBisEquipmentAsset, networkLabel, PendingOperations, readLocalMarketplaceCheckout, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord } from '@bis/integration';
+import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, FormValue, createBisContext, createBisGameWallet, createBisUi, inspectBisEquipmentAsset, invalidatePublicAssetInventory, networkLabel, PendingOperations, readLocalMarketplaceCheckout, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord, type BisPublicAssetInventoryRequest } from '@bis/integration';
 import '@bis/integration/style.css';
 import { fallbackCatalog, type MarketplaceCatalog } from './catalog';
 import { readPublicInventory } from '../inventory-layer/inventory';
@@ -114,6 +114,16 @@ function MarketplaceContent(){
   const inventoryAddress=isCatalogLoading?undefined:publicGameAddress;
   const salesEnabled=Boolean(playerState.profileId&&gameState.profileId&&playerState.profileId!==gameState.profileId&&(game==='all'||game==='stealth-and-steel'));
   const gameListingEnabled=Boolean(playerState.profileId&&gameState.profileId&&inventoryAddress);
+  const publicInventoryRequest=useMemo<BisPublicAssetInventoryRequest|undefined>(()=>publicGameAddress && network ? {
+    role:'game',profileId:activeGameWallet && publicGameAddress===sessionGameAddress ? gameState.profileId! : publicGameAddress,
+    address:publicGameAddress,network,
+  }:undefined,[activeGameWallet,gameState.profileId,network,publicGameAddress,sessionGameAddress]);
+  const previousPublicInventoryRequest=useRef(publicInventoryRequest);
+  useEffect(()=>{
+    const previous=previousPublicInventoryRequest.current;
+    if(previous && previous!==publicInventoryRequest)invalidatePublicAssetInventory(previous);
+    previousPublicInventoryRequest.current=publicInventoryRequest;
+  },[publicInventoryRequest]);
   const inventorySources=useMemo<readonly MarketplaceInventorySource[]>(()=>{
     if(isCatalogLoading||!network)return [];
     const sources: MarketplaceInventorySource[]=[];
@@ -127,20 +137,23 @@ function MarketplaceContent(){
       const classified=result.assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));
       return {items:classified.map(row=>row.item).filter((item):item is BisEquipmentItem=>item!==null),invalidMetadataCount:classified.filter(row=>row.status==='invalid-metadata').length,migrationRequiredCount:classified.filter(row=>row.status==='migration-required').length};
     }});
-    if(publicGameAddress)sources.push({role:'game',walletId:publicGameAddress,network,read:async()=>{
+    if(publicInventoryRequest)sources.push({role:'game',walletId:publicInventoryRequest.address,network,read:async(force=false)=>{
       // Marketplace browsing only needs the published public address. A
       // mnemonic-backed Game Wallet remains necessary for minting and trades.
-      const assets=await readPublicInventory(publicGameAddress,new AbortController().signal,network);
+      const assets=await readPublicInventory(publicInventoryRequest,force);
       const classified=assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));
       return {items:classified.map(row=>row.item).filter((item):item is BisEquipmentItem=>item!==null),invalidMetadataCount:classified.filter(row=>row.status==='invalid-metadata').length,migrationRequiredCount:classified.filter(row=>row.status==='migration-required').length};
     }});
     return sources;
-  },[game,network,isCatalogLoading,player,playerState.profileId,publicGameAddress]);
+  },[game,network,isCatalogLoading,player,playerState.profileId,publicInventoryRequest]);
   const inventorySourcesRef=useRef<readonly MarketplaceInventorySource[]>([]);
   inventorySourcesRef.current=inventorySources;
+  const publicInventoryRequestRef=useRef(publicInventoryRequest);
+  publicInventoryRequestRef.current=publicInventoryRequest;
   const invalidateInventory=()=>{
+    if(publicInventoryRequestRef.current)invalidatePublicAssetInventory(publicInventoryRequestRef.current);
     const sources=inventorySourcesRef.current;
-    if(sources.length)void inventory.refresh(sources);
+    if(sources.length)void inventory.invalidate(sources);
   };
   useEffect(()=>{
     const unsubscribePlayerEvents=player.onEvent(event=>{

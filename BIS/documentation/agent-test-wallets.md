@@ -117,7 +117,7 @@ The owned `funding` scenario uses the selected Player's normal Arkade Send UI to
 
 Live Mutinynet acceptance on 2026-10-11 created `agent-onboard-1`, verified zero holdings, and funded it with 20,000 Arkade sats from `agent-player-1` at a zero-sat Send fee. Repeating the intent returned the same settled operation; changing it to 20,001 sats was rejected. An independent live read found 20,000 available Arkade sats, zero BTC and zero assets. The separate `agent-onboarding-mutinynet` pair prepares that account as Player with `agent-game-1` as Game; no swap or onboarding has run yet. The supplied accounts were untouched.
 
-The existing BIS Send UI accepts Arkade addresses only. Direct BTC-to-another-account sending is not implemented by this runner or that UI. An existing-product alternative is Arkade funding followed by the recipient's own normal Arkade → Bitcoin swap, then its deliberate 50% onboarding flow; that multi-leg orchestration and settlement verification remain implementation/acceptance work. Funding alone must not be reported as completed BTC preparation or onboarding.
+The BIS Send UI accepts Arkade addresses. Registered-wallet Bitcoin funding is available separately through the guarded source Arkade → distinct recipient Bitcoin Swap workflow documented below; direct Bitcoin UTXO spending is not implemented. Recipient funding and deliberate 50% onboarding remain separate operations with separate settlement evidence. Funding alone must not be reported as completed onboarding.
 
 Swap preparation exposed production prerequisites repaired on 2026-10-11: insufficient funds in the default Bitcoin direction no longer disable choosing the reverse direction, and transfer registration/progress/recovery/acknowledgement/discard reads and record locks use the selected network. Independent availability-read generations also prevent amount edits from discarding a pending availability result. Busy/review controls and transfer availability, amount, quote and settlement safeguards remain effective. Synthetic rendered UI checks and both-network SDK postcommit recovery checks passed, including absent/wrong/unconfirmed receipt evidence. The runner described below now exists, but these isolated checks do not establish live BTC/onboarding acceptance; no swap has been submitted for `agent-onboard-1`.
 
@@ -154,7 +154,7 @@ npm run test-wallets -- prepare --account empty-player --network signet --expect
 npm run test-wallets -- prepare --account funded-player --network mutinynet --expect funded --arkade 1000
 ```
 
-An empty target with funds or assets stays dirty. Funded targets use existing spendable balances first; if funds already suffice, no faucet call occurs even when a source was supplied. Standalone preparation still lacks application journal proof and does not claim ready solely from a balance. Missing sources, read failures, known pending work and unsupported BTC funding are explicit results, not fabricated success.
+An empty target with funds or assets stays dirty. Funded targets use existing spendable balances first; if funds already suffice, no faucet call occurs even when a source was supplied. Standalone preparation still lacks application journal proof and does not claim ready solely from a balance. Missing sources, read failures and known pending work are explicit results, not fabricated success. Its faucet option cannot supply Bitcoin; registered-wallet Bitcoin funding uses the explicit owned workflow below.
 
 Faucet funding is opt-in with a separate exact amount and original operation ID:
 
@@ -195,6 +195,22 @@ Rotation checks fresh Bitcoin, Arkade and asset holdings on **both** networks, r
 The old recovery identity, grant, generation and zero-holdings evidence remain encrypted in `archivedAccounts` inside the existing external vault. Replacement and archive commit atomically; an interrupted write leaves the old current generation recoverable. The new generation is agent-created and inherits the existing standing grant. Existing profiles, pairs and operation journals remain intact. Rotation neither drains funds nor erases history. There is no automatic restore-old-generation or force-clear command: preserve the vault and original browser profiles for explicit recovery, and never manually delete their locks to bypass an uncertain operation. Seven isolated tests cover refusal, generation continuity, encrypted archives and interrupted commit/restart; they do not claim live network acceptance.
 
 The remaining workflow is create → fund → onboard → use. Prefer existing funds; funding must separately verify the exact recipient/network and retain operation IDs. `/onboarding/` converts existing BTC, normally 50%, and is not a funding source. Partial onboarding must verify both settlement legs, not just its intermediate Arkade balance. Preserve pending windows and reconcile before retrying. Do not drain supplied wallets to manufacture empty-state fixtures.
+
+### Registered-wallet Bitcoin funding
+
+Use fresh per-network recipient readiness first. If existing spendable Bitcoin already meets the scenario target, proceed without funding. When a distinct registered recipient needs Bitcoin, an owned BIS session whose Player has spendable Arkade funds accepts:
+
+```json
+{"command":"run","scenario":"funding-bitcoin","operation":"recipient-btc-1","recipientAccount":"new-player","amountSats":10000}
+```
+
+This withdraws **source Arkade funds to recipient Bitcoin** using normal Swap controls. It does not spend existing source Bitcoin UTXOs or convert back into the source's own Bitcoin balance. `recipientAccount` is an exact private-inventory label, not an arbitrary address; the runner derives and binds its registered identity/generation and selected network before review. Both identities require active standing grants. Self-funding, unregistered recipients, reported pending onboarding, unavailable policy and conflicting reservations refuse the action.
+
+The product offers **Fund another Bitcoin account** within Arkade → Bitcoin Swap. Its public review shows the recipient address, network, amount, fee and net Bitcoin output. Source Bitcoin stays unchanged; source Arkade and total decrease. Changing the destination discards review. Confirmation rechecks the current account, fresh input/output fingerprint, fee policy, expiry, unreserved inputs and source asset-preserving change through the existing signing worker. Ordinary own-account Swap retains its default destination and estimates; existing version1 journals remain recoverable.
+
+The encrypted runner intent reserves source and recipient generations before Confirm and binds the quote and original operation ID. Acknowledgement stays pending. Completion requires the exact confirmed recipient output, source inputs consumed by that commitment, exact source Arkade/asset change and a fresh independent recipient Bitcoin balance. Repeat the same request and operation label for read-only recovery; unknown acknowledgement never causes another confirmation or replacement funding. Preserve the original browser profile and journal while pending. Separate faucet requests remain their existing workflow; interactive external Bitcoin faucets are prerequisites, not implemented autonomous sources.
+
+For create → fund → onboard → use: create/register the recipient, verify current readiness, fund only a missing target through the authorized source session, reconcile that same ID until recipient Bitcoin is usable, then assign the recipient to its intended role and run `onboard-half` separately. Keep original conversion inputs/window and verify both 50% settlement legs before normal app use. This code and synthetic coverage do not establish either network's live acceptance.
 
 From an owned session, request conversion separately from funding:
 

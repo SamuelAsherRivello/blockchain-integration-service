@@ -109,7 +109,7 @@ async function stage(owner, request) {
     await owner.page.getByRole('dialog', { name: 'Confirmation', exact: true }).waitFor();
   } else await selectContract(owner, request);
 }
-async function confirm(owner, request) {
+async function confirm(owner, request, recovery = false) {
   // Account layers can be temporarily absent while Admin's mint dialog is open.
   await owner.validateRegistration();
   const url = new URL(owner.page.url()), app = owner.registration.application;
@@ -128,12 +128,37 @@ async function confirm(owner, request) {
       !text.split('\n').includes(`Owned quantity (base units): ${request.quantity}`) :
       !text.split('\n').includes(`Contract ID: ${request.contractId}`)) fail('scenario-draft-mismatch');
   }
-  const name = request.scenario === 'mint-delivery' ? 'Mint' : request.scenario === 'burn' ? 'OK' :
+  const name = request.scenario === 'mint-delivery' ? recovery ? 'Check mint status' : 'Mint' : request.scenario === 'burn' ? 'OK' :
     request.scenario === 'contract-claim' ? 'Claim' : 'Refund to game';
   const button = request.scenario === 'burn' ? owner.page.getByRole('dialog', { name: 'Confirmation', exact: true }).getByRole('button', { name, exact: true }) :
     owner.page.getByRole('button', { name, exact: true });
   if (!await button.isEnabled()) fail('scenario-product-guard-refused');
   await button.click();
+}
+
+export async function recoverMintDelivery(owner, request, original, verifyOriginal) {
+  // Reopen only the original persisted delivery's normal recovery surface. No
+  // draft fields, new Mint control or replacement delivery may be activated.
+  const heading = owner.page.getByRole('heading', {name:'Mint Asset',exact:true});
+  if (!await heading.isVisible()) {
+    await owner.accountMenu();
+    await owner.page.locator('.bis-card').last().getByRole('button',{name:'Back',exact:true}).click();
+    await owner.page.getByRole('button',{name:/^C\.G\.1\. Mint Asset & Send$/}).click();
+    await heading.waitFor();
+    await owner.page.getByLabel('Destination',{exact:true}).selectOption('player');
+  }
+  await owner.page.waitForFunction(()=>{
+    const output=document.querySelector('#mint-console');
+    return output && output.textContent!=='Checking destination…';
+  },undefined,{timeout:20000});
+  const resume=owner.page.getByRole('button',{name:'Resume pending mint',exact:true});
+  if (await resume.isVisible()) await resume.click();
+  const fresh = await verifyOriginal();
+  if (fresh?.id !== original.id || fresh.status !== 'succeeded' || fresh.assetId !== original.assetId ||
+      fresh.delivery?.id !== original.delivery.id || fresh.delivery.status !== 'pending' ||
+      fresh.delivery.assetId !== original.assetId || fresh.delivery.quantity !== '1' ||
+      fresh.delivery.recipient !== owner.expected.player.arkadeAddress) fail('scenario-recovery-changed');
+  await confirm(owner,request,true);
 }
 
 export async function runGuardedScenario(owner, request, adapters = {}) {
@@ -212,7 +237,14 @@ export async function runGuardedScenario(owner, request, adapters = {}) {
     });
   }
   try {
-    const row = match(await read());
+    let row = match(await read());
+    if (kind === 'mint' && request.destination === 'player' && operation.providerId === row?.id &&
+        row.status === 'succeeded' && /^[a-f0-9]{68}$/.test(row.assetId ?? '') && row.quantity === '1' &&
+        row.delivery?.id === `${row.id}-delivery` && row.delivery.assetId === row.assetId &&
+        row.delivery.quantity === '1' && row.delivery.recipient === owner.expected.player.arkadeAddress && row.delivery.status === 'pending') {
+      await (adapters.recover ?? recoverMintDelivery)(owner,request,row,async()=>match(await read()));
+      row = match(await read());
+    }
     if (row) {
       let settled = false;
       if (kind === 'burn') settled = row.status === 'succeeded' && /^[a-f0-9]{64}$/.test(row.transactionId ?? '');

@@ -1,6 +1,6 @@
 import {readWalletRecord, walletRecordKey} from './wallet-record.ts';
 import { withBrowserMutation } from './logout-cleanup.ts';
-import type { BoardingQuote } from './boarding-quote.ts';
+import {validateBitcoinFundingDestination,type BoardingQuote} from './boarding-quote.ts';
 import { validBoardingAssetChange, type BoardingAssetChange } from './boarding-assets.ts';
 import type { TestNetwork } from './test-network.ts';
 
@@ -70,6 +70,11 @@ export function assertPendingTransfersAcknowledged(profileId:string|undefined, a
 }
 function validate(r: BoardingRecord): BoardingRecord {
   const q=r?.quote;
+  if(q?.destination!==undefined) {
+    try {validateBitcoinFundingDestination(q.destination,q.direction,r.network??'signet');}
+    catch {throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.');}
+    if(q.destination.bitcoinAddress!==r.bitcoinAddress)throw new BoardingBlockedError('Transfer state needs recovery. Account clearing and transfers are blocked.');
+  }
   const amounts=q && [q.amountSats,q.feeSats,q.netSats,q.maxSats,q.bitcoinAfterSats,q.arkadeAfterSats,q.totalAfterSats,q.expiresAt];
   if (!r || r.version!==1 || typeof r.id!=='string' || !r.id || typeof r.profileId!=='string' || !r.profileId ||
       !['pending','succeeded','not-submitted'].includes(r.status) ||

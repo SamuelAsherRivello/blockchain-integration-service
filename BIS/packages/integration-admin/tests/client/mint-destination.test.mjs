@@ -136,3 +136,56 @@ test('thrown submission remains unknown instead of permitting edited replay',asy
   const target=await prepareMintDestination('game',selected,()=>true,()=>{});
   assert.equal((await target.mint(request)).code,'outcome-unknown');
 });
+
+for(const network of ['signet','mutinynet'])test(`${network}: completed mint resumes only its original pending delivery across dialog restart`,async()=>{
+ const source=gameWallet('game'),recipient=wallet('player');
+ source.getState=()=>({profileId:'game',network});recipient.getState=()=>({profileId:'player',network,addresses:{status:'ready',arkadeAddress:'tark1original'}});
+ const delivery={operationId:`${request.operationId}-delivery`,assetId:'a'.repeat(68),quantity:'1',recipient:'tark1original'};
+ let completed=false,mints=0,sends=0,checks=[];
+ source.getPendingAssetDelivery=async()=>({status:'success',profileId:'game',request:completed?null:delivery,...(!completed?{mintRequest:request}:{})});
+ source.mintAsset=async input=>{assert.deepEqual(input,request);return {status:'already-minted',profileId:'game',operationId:request.operationId,asset:{assetId:delivery.assetId,quantity:'1'}};};
+ source.deliverAsset=async()=>{sends++;throw Error('must never replace saved delivery');};
+ source.checkAssetDelivery=async id=>{checks.push(id);return completed?{status:'already-delivered',profileId:'game',...delivery,transactionId:'b'.repeat(64)}:{status:'error',code:'outcome-unknown',message:'Receipt not confirmed.'};};
+ const first=await prepareMintDestination('player',source,recipient,()=>true,()=>{});
+ assert.deepEqual(first.request,request);assert.equal((await first.mint(first.request)).code,'outcome-unknown');
+ const restarted=await prepareMintDestination('player',source,recipient,()=>true,()=>{});
+ assert.deepEqual(restarted.request,request);
+ assert.equal((await restarted.mint({...request,operationId:'replacement'})).code,'outcome-unknown');
+ completed=true;assert.equal((await restarted.mint(restarted.request)).status,'already-minted');
+ assert.deepEqual(checks,[delivery.operationId,delivery.operationId]);assert.equal(mints,0);assert.equal(sends,0);
+});
+
+test('lost delivery acknowledgement in the same dialog checks the saved delivery instead of resending',async()=>{
+ const source=gameWallet('game'),recipient=wallet('player');
+ recipient.getState=()=>({profileId:'player',addresses:{status:'ready',arkadeAddress:'tark1original'}});
+ let saved,issued=0,checks=0,minted=false;
+ source.getPendingAssetDelivery=async()=>({status:'success',profileId:'game',request:saved??null,...(saved?{mintRequest:request}:{})});
+ source.mintAsset=async input=>{if(!minted){issued++;minted=true;}assert.deepEqual(input,request);return {status:'already-minted',profileId:'game',operationId:input.operationId,asset:{assetId:'a'.repeat(68),quantity:'1'}};};
+ source.deliverAsset=async input=>{assert.equal(saved,undefined);saved=input;throw Error('synthetic acknowledgement lost');};
+ source.checkAssetDelivery=async id=>{checks++;assert.equal(id,`${request.operationId}-delivery`);return {status:'error',code:'outcome-unknown',message:'Original outcome unknown.'};};
+ const target=await prepareMintDestination('player',source,recipient,()=>true,()=>{});
+ assert.equal((await target.mint(request)).code,'outcome-unknown');
+ assert.equal((await target.mint(request)).code,'outcome-unknown');
+ assert.equal(issued,1);assert.equal(checks,1);assert.equal(saved.operationId,`${request.operationId}-delivery`);
+});
+
+test('delivery recovery rejects missing mint provenance, changed original ID, recipient and source identity',async()=>{
+ const source=gameWallet('game'),recipient=wallet('player');
+ recipient.getState=()=>({profileId:'player',addresses:{status:'ready',arkadeAddress:'tark1original'}});
+ const delivery={operationId:`${request.operationId}-delivery`,assetId:'a'.repeat(68),quantity:'1',recipient:'tark1original'};
+ for(const change of [{mintRequest:undefined},{request:{...delivery,operationId:'replacement-delivery'}},{request:{...delivery,recipient:'tark1other'}},{profileId:'other'}]) {
+  source.getPendingAssetDelivery=async()=>({status:'success',profileId:'game',request:delivery,mintRequest:request,...change});
+  await assert.rejects(prepareMintDestination('player',source,recipient,()=>true,()=>{}),/recovery|changed/);
+ }
+ assert.equal(source.calls.length,0);assert.equal(source.deliveries.length,0);
+});
+
+test('unavailable delivery checker preserves original unknown outcome without another delivery',async()=>{
+ const source=gameWallet('game'),recipient=wallet('player');
+ recipient.getState=()=>({profileId:'player',addresses:{status:'ready',arkadeAddress:'tark1original'}});
+ const delivery={operationId:`${request.operationId}-delivery`,assetId:'a'.repeat(68),quantity:'1',recipient:'tark1original'};
+ source.getPendingAssetDelivery=async()=>({status:'success',profileId:'game',request:delivery,mintRequest:request});
+ source.mintAsset=async()=>({status:'already-minted',profileId:'game',operationId:request.operationId,asset:{assetId:delivery.assetId,quantity:'1'}});
+ const target=await prepareMintDestination('player',source,recipient,()=>true,()=>{});
+ assert.equal((await target.mint(target.request)).code,'outcome-unknown');assert.equal(source.deliveries.length,0);
+});

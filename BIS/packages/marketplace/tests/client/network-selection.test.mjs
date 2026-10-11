@@ -16,8 +16,10 @@ test('Marketplace derives every visible network route from the selected Player W
   assert.match(app, /hasGameWallet:\(\)=>!!gameWalletRef\.current\?\.getState\(\)\.profileId,resetGameWallet:async\(\)=>await gameWalletRef\.current\?\.reset\(\) \?\? false/);
   assert.match(app, /if\(isCatalogLoading\|\|!network\)return \[\];/);
   assert.match(app, /prepareAssetInventory\?await player\.prepareAssetInventory\(force\):await player\.listAssets\(\)/);
-  assert.match(app, /readPublicInventory\(publicGameAddress,new AbortController\(\)\.signal,network\)/);
-  assert.match(inventory, /new RestIndexerProvider\(testNetwork\(network\)\.operator\)/);
+  assert.match(app, /readPublicInventory\(publicInventoryRequest,force\)/);
+  assert.match(app, /address:publicGameAddress,network/);
+  assert.match(inventory, /preparePublicAssetInventory\(request,force\)/);
+  assert.doesNotMatch(inventory, /@arkade-os\/sdk|RestIndexerProvider/);
   assert.match(app, /Network: \{networkLabel\(network\)\}/);
   assert.match(app, /arkExplorerAssetUrl\(network,selected\.assetId\)/);
   assert.doesNotMatch(app, /Network: Signet/);

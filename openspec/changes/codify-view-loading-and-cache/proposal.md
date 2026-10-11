@@ -8,8 +8,8 @@ BIS currently decides loading behavior through scattered component conditions, s
 
 - Introduce a shared per-view loading policy with `isLoadingAuto`, `isLoadingModal`, and `isLoadingCached` settings.
 - Make automatic loading on first entry the default, while making modal coverage opt-in and preserving each existing view's intentional modal behavior.
-- Keep Account Details non-modal during balance reads, showing its existing placeholders while the read completes.
-- Add a global 15-second in-memory freshness window for successful view data by default.
+- Keep Account Details non-modal during balance reads, showing its existing placeholders while the read completes. Preserve the later construction gate for modal-policy entry, including cache hits, and immediate explicit-refresh presentation.
+- Add a global five-minute in-memory freshness window for successful view data by default.
 - Reuse a fresh account-, network-, and data-type-scoped result when returning to a view within that window.
 - Make explicit Refresh bypass the cache and request fresh data.
 - Invalidate cached data on account or network changes, logout/reset, relevant wallet events, failed or partial reads, and other transitions that can change the underlying facts.
@@ -23,9 +23,12 @@ BIS currently decides loading behavior through scattered component conditions, s
 
 ### New Capabilities
 
-- `view-loading-policy`: Shared loading, modal-coverage, freshness-cache, and invalidation rules for BIS views.
+- None. The original loading capability was delivered by later changes; this continuation preserves its canonical requirements.
 
 ### Modified Capabilities
+
+- `view-loading-policy`: Preserve the later five-minute, construction-gated, shared-work policy.
+- `marketplace-inventory-cache`: Finish BIS-owned public-address reads and replace obsolete thirty-second browser-storage wording with the shared memory lifecycle.
 
 - `account-balance`: Account Details balance reads become non-modal by default, may reuse a fresh in-memory result, and still bypass the cache on explicit Refresh.
 - `account-activity`: Transactions loading retains its existing modal behavior while adopting the shared auto-load and freshness policy.
@@ -40,5 +43,9 @@ BIS currently decides loading behavior through scattered component conditions, s
 - Affected balance, activity, asset, address, and contract presentation lifecycles in `BIS/packages/integration/src/client/state-layer-core`.
 - Affected refresh-icon styling and loading-state tests.
 - Affected Marketplace inventory orchestration, selected-owner loading presentation, BIS wallet-inventory preparation, removal of Marketplace-owned provider/cache responsibilities, and Edge browser acceptance coverage.
-- No public wallet-operation API or persisted storage schema change is intended.
+- Adds provider-neutral public-address inventory preparation and invalidation APIs; no signing, wallet-operation or persisted storage schema changes.
 - The Arkade SDK remains the source of fresh network data; the shared cache only suppresses redundant reads during the configured in-memory freshness window.
+
+## Reconciled continuation — 2026-10-11
+
+The archived update-caching and background-caching changes supersede this plan's original 15-second, cache-hit-without-modal and blanket cancel-on-exit choices. Preserve five-minute freshness, first-frame construction gates, immediate data work, compatible in-flight joining and presentation detachment from valid account-owned work. The remaining implementation is the BIS public-address inventory boundary; public guest catalog browsing and the connected Game Wallet address selection remain supported. No new provider capability or live financial operation is claimed.

@@ -442,7 +442,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
       } catch(error) {return assetError(error instanceof AssetError?error.code:'unavailable',state.profileId);}
     },
     async prepareAssetInventory(force = false):Promise<BisListAssetsResult> {
-      try { const account=await selectedAccount(), network=account.network ?? selectedNetwork(); if(force)invalidateSharedAssetInventory(account.profileId,network,'game'); return await prepareSharedAssetInventory({role:'game',profileId:account.profileId,network,load:signal=>minting.list ? minting.list(account,signal) : Promise.reject(Error('Game Wallet asset listing unavailable.'))}); }
+      try { const account=await selectedAccount(), network=account.network ?? selectedNetwork(); return await prepareSharedAssetInventory({role:'game',profileId:account.profileId,network,force,load:signal=>minting.list ? minting.list(account,signal) : Promise.reject(Error('Game Wallet asset listing unavailable.'))}); }
       catch { return assetError('unavailable',state.profileId); }
     },
     async createWallet() {

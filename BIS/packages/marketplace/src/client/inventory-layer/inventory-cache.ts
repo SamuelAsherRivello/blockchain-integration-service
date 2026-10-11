@@ -53,5 +53,12 @@ export function createMarketplaceInventoryCoordinator(options: Readonly<{ readTi
     return request.work;
   }
   function clearMissing(sources: readonly MarketplaceInventorySource[]) { for (const role of ['player', 'game'] as const) if (!sources.some(source => source.role === role)) { sequence[role]++; inFlight.delete(role); publish(role, emptyRecord(role)); } }
-  return { getState: () => state, subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); }, refresh(sources: readonly MarketplaceInventorySource[], force = false) { clearMissing(sources); return Promise.all(sources.map(source => refresh(source,force))); }, retry(source: MarketplaceInventorySource) { return refresh(source,true); }, dispose() { disposed = true; sequence = { player: sequence.player + 1, game: sequence.game + 1 }; listeners.clear(); } };
+  function invalidate(sources: readonly MarketplaceInventorySource[]) {
+    clearMissing(sources);
+    // Actual wallet evidence supersedes even a forced attempt. Ordinary refresh
+    // and Retry callers may still join compatible work that remains valid.
+    for (const source of sources) { sequence[source.role]++; inFlight.delete(source.role); }
+    return Promise.all(sources.map(source => refresh(source, true)));
+  }
+  return { getState: () => state, subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); }, refresh(sources: readonly MarketplaceInventorySource[], force = false) { clearMissing(sources); return Promise.all(sources.map(source => refresh(source,force))); }, invalidate, retry(source: MarketplaceInventorySource) { return refresh(source,true); }, dispose() { disposed = true; sequence = { player: sequence.player + 1, game: sequence.game + 1 }; listeners.clear(); } };
 }

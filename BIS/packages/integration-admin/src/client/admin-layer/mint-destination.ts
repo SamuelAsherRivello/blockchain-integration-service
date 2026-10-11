@@ -9,6 +9,7 @@ export type MintWallet = {
   getPendingAssetDelivery?(): Promise<BisPendingAssetDeliveryResult>;
   mintAsset(request: BisMintAssetRequest): Promise<BisMintAssetResult>;
   deliverAsset?(request: BisAssetDeliveryRequest): Promise<BisAssetDeliveryResult>;
+  checkAssetDelivery?(operationId: string): Promise<BisAssetDeliveryResult>;
 };
 export type PreparedMintDestination = {
   destination: MintDestination;
@@ -48,6 +49,7 @@ export async function prepareMintDestination(destination: MintDestination, sourc
   if (pending.profileId !== sourceProfileId) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
   const pendingDelivery = source.getPendingAssetDelivery ? await source.getPendingAssetDelivery() : undefined;
   if (pendingDelivery?.status === 'error') throw Error(pendingDelivery.message);
+  if (!isCurrent() || pendingDelivery && pendingDelivery.profileId !== sourceProfileId) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
   let destinationAddress: string | undefined;
   if (destination === 'player' && !legacy) {
     try {
@@ -66,13 +68,20 @@ export async function prepareMintDestination(destination: MintDestination, sourc
     }
     if (!isCurrent()) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
   }
-  const recoveryRequest = pending.request ?? null;
+  const recoveryDelivery = destination === 'player' && !legacy && pendingDelivery?.request ? pendingDelivery : undefined;
+  if (recoveryDelivery && (!recoveryDelivery.mintRequest ||
+      recoveryDelivery.request!.operationId !== `${recoveryDelivery.mintRequest.operationId}-delivery` ||
+      recoveryDelivery.request!.recipient !== destinationAddress ||
+      pending.request && JSON.stringify(pending.request) !== JSON.stringify(recoveryDelivery.mintRequest)))
+    throw Error('The original item delivery needs recovery. Keep its recipient and operation unchanged.');
+  const recoveryRequest = pending.request ?? recoveryDelivery?.mintRequest ?? null;
   let busy = false;
   return {
     destination, sourceProfileId, destinationProfileId, request: recoveryRequest, canMint:true, reason:undefined as string | undefined, isCurrent,
     subscribe(listener: () => void) { const offSource = source.subscribe(listener); const offDestination = destinationWallet === source ? () => {} : destinationWallet.subscribe(listener); return () => { offSource(); offDestination(); }; },
     async mint(request: BisMintAssetRequest): Promise<BisMintAssetResult> {
       if (!isCurrent()) return {status: 'error', code: 'account-changed', message: 'The selected wallet changed. Close and reopen Mint Asset.'};
+      if (recoveryRequest && JSON.stringify(request) !== JSON.stringify(recoveryRequest)) return {status:'error',code:'outcome-unknown',message:'Resume the original mint and item delivery without changing its request.'};
       if (busy) return {status: 'error', code: 'busy', message: 'Mint already in progress.'};
       busy = true;
       const report = (result: unknown) => { if (isCurrent()) log({source:'game', destination, profileId:legacy ? destinationProfileId : sourceProfileId, sourceProfileId, destinationProfileId, operationId: request.operationId, result}); };
@@ -86,7 +95,21 @@ export async function prepareMintDestination(destination: MintDestination, sourc
           report(unavailable); return unavailable;
         }
         const delivery: BisAssetDeliveryRequest = {operationId:`${request.operationId}-delivery`,assetId:result.asset.assetId,quantity:result.asset.quantity,recipient:destinationAddress};
-        const delivered = await source.deliverAsset(delivery);
+        // A completed mint can outlive its unresolved delivery. Recover that
+        // exact journal with the read-only checker, including in the same dialog
+        // after an acknowledgement was lost; never send a replacement delivery.
+        const latest = source.getPendingAssetDelivery ? await source.getPendingAssetDelivery() : undefined;
+        if (!isCurrent()) return {status:'error',code:'account-changed',message:'The selected wallet changed. Close and reopen Mint Asset.'};
+        if (latest?.status === 'error') {report(latest);return {status:'error',code:'outcome-unknown',message:latest.message};}
+        if (latest && latest.profileId !== sourceProfileId) return {status:'error',code:'account-changed',message:'The selected wallet changed. Close and reopen Mint Asset.'};
+        const saved = recoveryDelivery?.request ?? latest?.request;
+        if (saved && (saved.operationId !== delivery.operationId || saved.assetId !== delivery.assetId || saved.quantity !== delivery.quantity || saved.recipient !== delivery.recipient)) {
+          const error={status:'error',code:'outcome-unknown',message:'The original item delivery needs recovery. Keep its recipient and operation unchanged.'} as const;report(error);return error;
+        }
+        const delivered = saved
+          ? source.checkAssetDelivery ? await source.checkAssetDelivery(saved.operationId) : {status:'error',code:'outcome-unknown',message:'Item delivery status is unavailable. Do not submit another delivery.'} as const
+          : await source.deliverAsset(delivery);
+        if (!isCurrent()) return {status:'error',code:'account-changed',message:'The selected wallet changed. Close and reopen Mint Asset.'};
         if (delivered.status === 'error') {
           const error = {status:'error',code:delivered.code === 'outcome-unknown' ? 'outcome-unknown' : 'unavailable',message:delivered.message} as const;
           report({mint:result,delivery:error}); return error;

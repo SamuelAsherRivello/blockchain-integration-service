@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import { bech32m } from '@scure/base';
 import { ArkAddress, ReadonlyWallet, RestArkProvider, CSVMultisigTapscript, Wallet, Intent, networks, Transaction, Extension, Batch } from '@arkade-os/sdk';
+import { assertQuoteUnchanged } from '../../src/client/state-layer-core/boarding-quote.ts';
 import { quoteBoarding, submitBoarding, inspectBoardingAssets } from '../../src/client/wallet-layer-arkade/boarding.ts';
 import { verifiedBoardingCommitment } from '../../src/client/state-layer-core/boarding-reconciliation.ts';
 import { writeBoardingRecord, readBoardingRecord } from '../../src/client/state-layer-core/boarding-record.ts';
@@ -71,6 +72,35 @@ test('withdraw sats from an asset-bearing output and reserve asset change for Ma
  assert.equal(max.inputSats,280715);assert.equal(max.arkadeAfterSats,330);
  await assert.rejects(f.quote(280715),/preserve your assets/);
 });
+
+for(const network of ['signet','mutinynet'])test(`${network}: recipient funding binds destination and reduces only the source Arkade balance`,async t=>{
+ const f=fixture(t);
+ t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network,sessionDuration:60n,fees:{txFeeRate:'0',intentFee:{}},utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n}));
+ const recipient=bech32m.encode('tb',[1,...bech32m.toWords(point)]);
+ const destination={purpose:'bitcoin-funding',bitcoinAddress:recipient,network};
+ const scope={...account,network};
+ const quote=await quoteBoarding(scope,1000,AbortSignal.timeout(5000),'to-bitcoin',undefined,destination);
+ assert.deepEqual(quote.destination,destination);assert.equal(quote.bitcoinAfterSats,0);
+ assert.equal(quote.arkadeAfterSats,279715);assert.equal(quote.totalAfterSats,279715);
+ assert.equal(quote.amountSats,1000);assert.equal(quote.feeSats,0);assert.equal(quote.netSats,1000);
+ const ownQuote=await quoteBoarding(scope,1000,AbortSignal.timeout(5000),'to-bitcoin');
+ assert.equal(ownQuote.destination,undefined);assert.equal(ownQuote.bitcoinAfterSats,1000);assert.equal(ownQuote.totalAfterSats,280715);
+ assert.notEqual(ownQuote.fingerprint,quote.fingerprint);
+ assert.throws(()=>assertQuoteUnchanged(quote,{...quote,destination:{...destination,bitcoinAddress}}),/changed/);
+ assert.throws(()=>assertQuoteUnchanged(quote,{...quote,destination:undefined}),/changed/);
+ await assert.rejects(quoteBoarding(scope,1000,AbortSignal.timeout(5000),'to-bitcoin',undefined,{...destination,network:network==='signet'?'mutinynet':'signet'}),/destination changed/);
+ await assert.rejects(quoteBoarding(scope,1000,AbortSignal.timeout(5000),'to-arkade',undefined,destination),/destination changed/);
+ await assert.rejects(quoteBoarding(scope,1000,AbortSignal.timeout(5000),'to-bitcoin',undefined,{...destination,bitcoinAddress}),/different Bitcoin/);
+ const max=await quoteBoarding(scope,undefined,AbortSignal.timeout(5000),'to-bitcoin',undefined,destination);
+ assert.equal(max.amountSats,280385);assert.equal(max.arkadeAfterSats,330);assert.equal(max.totalAfterSats,330,'asset-bearing change remains in source');
+ await assert.rejects(quoteBoarding(scope,280715,AbortSignal.timeout(5000),'to-bitcoin',undefined,destination),/preserve your assets/);
+ let signing=0;t.mock.method(Wallet,'create',async()=>{signing++;throw Error('must not sign');});
+ await assert.rejects(submitBoarding(scope,{...quote,destination:{...destination,network:'mainnet'}}),/destination changed/);
+ assert.equal(signing,0);
+ const legacyRecord={version:1,id:'legacy-own',profileId:'test',network,status:'pending',phase:'registered',bitcoinAddress,inputs:[{txid:f.coin.txid,vout:0}],quote:ownQuote,
+  assetChange:{script:Buffer.from(own.pkScript).toString('hex'),sats:279715,assets:assets.map(a=>({...a,amount:String(a.amount)}))}};
+ writeBoardingRecord(legacyRecord);assert.equal(readBoardingRecord('test','legacy-own',network).quote.destination,undefined);
+});
 test('asset inventory changes invalidate the quote even when sats and outpoints are unchanged',async t=>{
  const f=fixture(t),before=await f.quote(1000);
  f.coin.assets=[{...assets[0],amount:assets[0].amount+1n}];
@@ -96,7 +126,7 @@ async function sdkOutputs(params) {
  const facade={getAddress:async()=>own.encode(),logUngatedInputs:async()=>{},network:networks.signet,
   recipientAddressContext:()=>({hrp:'tark',signerSet:{active:Buffer.from(point).toString('hex'),deprecated:[]}}),
   identity:{signerSession:()=>({getPublicKey:async()=>point})},
-  makeRegisterIntentSignature:async(_coins,outputs,onchainIndexes)=>{assert.deepEqual(onchainIndexes,params.outputs.flatMap((o,i)=>o.address===bitcoinAddress?[i]:[]));captured=outputs;throw stop;},makeDeleteIntentSignature:async()=>{}};
+  makeRegisterIntentSignature:async(_coins,outputs,onchainIndexes)=>{assert.deepEqual(onchainIndexes,params.outputs.flatMap((o,i)=>o.address.startsWith('tb1')?[i]:[]));captured=outputs;throw stop;},makeDeleteIntentSignature:async()=>{}};
  await assert.rejects(Wallet.prototype._settleImpl.call(facade,params),error=>error===stop);
  return captured;
 }
@@ -195,6 +225,26 @@ test('submission binds and journals asset change before registration; ambiguous 
  const roundtrip=readBoardingRecord('test');assert.deepEqual(roundtrip.assetChange,result.assetChange);
  assert.throws(()=>writeBoardingRecord({...roundtrip,assetChange:undefined}));
  assert.throws(()=>writeBoardingRecord({...roundtrip,assetChange:{...roundtrip.assetChange,assets:[{...roundtrip.assetChange.assets[0],amount:'1.5'}]}}));
+});
+
+for(const network of ['signet','mutinynet'])test(`${network}: recipient funding uses guarded settlement and persists destination with asset change before registration`,async t=>{
+ const f=fixture(t);let registrations=0;
+ const destination={purpose:'bitcoin-funding',bitcoinAddress:bech32m.encode('tb',[1,...bech32m.toWords(point)]),network};
+ t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network,fees:{txFeeRate:'0',intentFee:{}},sessionDuration:60n,utxoMinAmount:330n,utxoMaxAmount:0n,vtxoMinAmount:330n,vtxoMaxAmount:0n}));
+ t.mock.method(RestArkProvider.prototype,'registerIntent',async()=>{
+  registrations++;const record=readBoardingRecord('test',undefined,network);
+  assert.equal(record.phase,'submitting');assert.deepEqual(record.quote.destination,destination);assert.equal(record.bitcoinAddress,destination.bitcoinAddress);
+  assert.equal(record.assetChange.sats,330);assert.equal(record.assetChange.assets[0].amount,String(assets[0].amount));return 'synthetic-funding-intent';
+ });
+ t.mock.method(Wallet,'create',async options=>({...f.wallet,settle:async params=>{
+  assert.equal(params.outputs[0].address,own.encode());assert.equal(params.outputs[1].address,destination.bitcoinAddress);assert.equal(params.outputs[1].amount,280385n);
+  await options.arkProvider.registerIntent({proof:intentProof(params.inputs,await sdkOutputs(params))});throw Error('synthetic lost stream');
+ }}));
+ const scope={...account,network},quote=await quoteBoarding(scope,undefined,AbortSignal.timeout(5000),'to-bitcoin',undefined,destination);
+ const result=await submitBoarding(scope,quote);assert.equal(registrations,1);assert.equal(result.status,'pending');assert.equal(result.phase,'registered');
+ const record=readBoardingRecord('test',undefined,network);assert.deepEqual(record.quote.destination,destination);
+ assert.throws(()=>writeBoardingRecord({...record,bitcoinAddress}),/needs recovery/);
+ assert.throws(()=>writeBoardingRecord({...record,quote:{...record.quote,destination:null}}),/needs recovery/);
 });
 test('changed asset inventory at confirmation cannot register an intent',async t=>{
  const f=fixture(t);storage(t);let registrations=0;

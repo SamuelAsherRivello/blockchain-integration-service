@@ -155,3 +155,68 @@ test('busy mint dialog recovery revalidates origin and only reconciles an existi
   await assert.rejects(runGuardedScenario(f.owner, { ...f.request, operation: 'brand-new' }, f.adapters), /scenario-context-unavailable/);
   assert.equal(f.confirms(), 1);
 });
+
+for(const network of ['signet','mutinynet'])test(`${network}: completed mint delivery restart recovers the original IDs without another mint confirmation`,async t=>{
+ const f=await fixture(t,network);await runGuardedScenario(f.owner,f.request,f.adapters);
+ f.product.status='succeeded';f.product.delivery.id=`${f.product.id}-delivery`;
+ let checks=0;
+ f.adapters.recover=async(_owner,_request,row,verify)=>{
+  checks++;assert.equal(row.id,'product-one');assert.equal(row.delivery.id,'product-one-delivery');
+  assert.equal((await verify()).delivery.id,row.delivery.id);
+  assert.equal((await f.ledger.list())[0].providerId,row.id);
+  if(checks>1)f.product.delivery.status='succeeded';
+ };
+ assert.equal((await runGuardedScenario(f.owner,f.request,f.adapters)).readiness,'pending');
+ assert.equal((await runGuardedScenario(f.owner,f.request,f.adapters)).readiness,'scenario-verified');
+ assert.equal(checks,2);assert.equal(f.confirms(),1);
+ await runGuardedScenario(f.owner,f.request,f.adapters);assert.equal(checks,2);assert.equal(f.confirms(),1);
+});
+
+test('unknown mint acknowledgement binds the journal before recovering pending delivery and never remints',async t=>{
+ const f=await fixture(t);
+ f.adapters.confirm=async()=>{f.rows([f.product]);throw Error('synthetic lost acknowledgement');};
+ await runGuardedScenario(f.owner,f.request,f.adapters);
+ f.product.status='succeeded';f.product.delivery.id=`${f.product.id}-delivery`;delete f.product.delivery.transactionId;
+ let checks=0;
+ f.adapters.confirm=()=>assert.fail('no replacement mint');
+ f.adapters.recover=async(_owner,_request,row)=>{checks++;assert.equal(row.delivery.id,'product-one-delivery');};
+ const before=(await f.ledger.list())[0];
+ const pending=await runGuardedScenario(f.owner,f.request,f.adapters);
+ assert.equal(pending.readiness,'pending');assert.equal(checks,1);assert.equal(pending.operation.fingerprint,before.fingerprint);
+ assert.equal((await runGuardedScenario(f.owner,f.request,f.adapters)).readiness,'pending');assert.equal(checks,2);
+});
+
+test('unrelated or unavailable delivery evidence cannot activate recovery controls',async t=>{
+ for(const variant of ['missing','id','recipient','asset','read-error']) {
+  const f=await fixture(t);await runGuardedScenario(f.owner,f.request,f.adapters);
+  f.product.status='succeeded';f.product.delivery.id=`${f.product.id}-delivery`;
+  if(variant==='missing')delete f.product.delivery;
+  if(variant==='id')f.product.delivery.id='replacement-delivery';
+  if(variant==='recipient')f.product.delivery.recipient='tark1other';
+  if(variant==='asset')f.product.delivery.assetId='b'.repeat(68);
+  if(variant==='read-error')f.adapters.records=async()=>{throw Error('synthetic unreadable journal');};
+  f.adapters.recover=()=>assert.fail('must not activate recovery');
+  assert.equal((await runGuardedScenario(f.owner,f.request,f.adapters)).readiness,'pending');assert.equal(f.confirms(),1);
+ }
+});
+
+test('normal Admin recovery selects the saved draft and Check mint status, never Mint or editable draft fields',async t=>{
+ const f=await fixture(t);await runGuardedScenario(f.owner,f.request,f.adapters);
+ f.product.status='succeeded';f.product.delivery.id=`${f.product.id}-delivery`;
+ let opened=false,checks=0,resumes=0;
+ const values=new Map([['Destination','player']]);
+ f.owner.accountMenu=async()=>{};f.owner.validateRegistration=async()=>{};
+ const control=name=>({isVisible:async()=>name==='Mint Asset'?opened:name==='Resume pending mint',waitFor:async()=>{opened=true;},count:async()=>0,isEnabled:async()=>true,
+  click:async()=>{
+   if(name==='Mint')assert.fail('must not mint again');
+   if(name==='Resume pending mint'){
+    resumes++;for(const [label,value] of [['Name *','BIS test sample-one'],['Ticker *','BISTEST'],['Amount *','1'],['Decimals','0'],['Icon URL','']])values.set(label,value);
+   }
+   if(name==='Check mint status'){checks++;f.product.delivery.status='succeeded';}
+  }});
+ f.owner.page={url:()=> 'http://127.0.0.1:5174/admin/',waitForFunction:async()=>{},
+  locator:()=>({last:()=>({getByRole:(_role,{name})=>control(name)})}),getByRole:(_role,{name})=>control(name),
+  getByLabel:name=>({selectOption:async value=>values.set(name,value),inputValue:async()=>values.get(name),fill:()=>assert.fail('recovery may not edit a draft')})};
+ const result=await runGuardedScenario(f.owner,f.request,f.adapters);
+ assert.equal(result.readiness,'scenario-verified');assert.equal(checks,1);assert.equal(resumes,1);assert.equal(f.confirms(),1);
+});

@@ -14,7 +14,8 @@ const help = {
     'reconcile --operation <original-faucet-operation-label>',
     'prepare --account <label> --network signet|mutinynet --expect empty|funded [--bitcoin <sats>] [--arkade <sats>] [--source faucet --amount 50000|100000|200000 --operation <unique-label> [--api <loopback-origin>]]',
     'rotate --account <label> --network signet|mutinynet',
-    'owned session run: payment | funding | swap-to-bitcoin | onboard-half | mint-delivery | burn | contract-claim | contract-refund'],
+    'owned session run: payment | funding | funding-bitcoin | swap-to-bitcoin | onboard-half | mint-delivery | burn | contract-claim | contract-refund',
+    'funding-bitcoin: source Arkade funds to a distinct registered recipient Bitcoin address; not a direct Bitcoin UTXO send'],
   pending: ['standalone inspect/action/run', 'standalone wallet funding', 'direct test-wallet BTC sends'],
   note: 'Recovery input is private local input only. Creation does not establish funding or readiness.',
 };
@@ -94,7 +95,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
             }
             else if (request.command === 'action') result = await (await import('./owned-actions.mjs')).ownedAction(owner, request);
             else if (request.command === 'run' && ['payment', 'funding'].includes(request.scenario)) result = await owner.payment(request);
-            else if (request.command === 'run' && request.scenario === 'swap-to-bitcoin') result = await owner.swap(request);
+            else if (request.command === 'run' && ['swap-to-bitcoin', 'funding-bitcoin'].includes(request.scenario)) result = await owner.swap(request);
             else if (request.command === 'run' && request.scenario === 'onboard-half') result = await (await import('./onboarding.mjs')).runOnboard(owner, request);
             else if (request.command === 'run' && ['mint-delivery', 'burn', 'contract-claim', 'contract-refund'].includes(request.scenario)) result = await (await import('./guarded-scenarios.mjs')).runGuardedScenario(owner, request);
             else fail('command-not-yet-implemented');

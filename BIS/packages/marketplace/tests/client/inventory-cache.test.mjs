@@ -1,7 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMarketplaceInventoryCoordinator } from '../../src/client/inventory-layer/inventory-cache.ts';
+import { createPublicAssetInventory, invalidatePublicAssetInventory } from '../../../integration/src/client/state-layer-core/public-asset-inventory.ts';
 const item = (assetId='asset-1') => ({catalogId:'stealth-steel-shoes-1',name:'Shoes I',ticker:'SHO1',family:'Shoes',tier:1,priceSats:1000,description:'Increases movement speed by 10%.',attributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:10}],iconUrl:'https://example.com/shoes-1.png',assetId,quantity:'1'});
+
+test('wallet evidence during an active forced public read starts replacement work and rejects late publication',async()=>{
+ const coordinator=createMarketplaceInventoryCoordinator();const scope={role:'game',profileId:'invalidation-race',address:'public-address',network:'mutinynet'};
+ const releases=[];let calls=0;
+ const prepare=createPublicAssetInventory(async()=>{calls++;return new Promise(resolve=>releases.push(resolve));});
+ const source={role:'game',walletId:scope.address,network:scope.network,read:async force=>{
+  const result=await prepare(scope,force);if(result.status!=='success')throw Error('Unavailable');return result.assets.map(asset=>item(asset.assetId));
+ }};
+ const original=coordinator.refresh([source],true);await new Promise(resolve=>setImmediate(resolve));
+ invalidatePublicAssetInventory(scope);const replacement=coordinator.invalidate([source]);await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls,2);assert.equal(coordinator.getState().game.status,'loading');
+ releases[1]([{assetId:'replacement',quantity:'1'}]);await replacement;
+ releases[0]([{assetId:'obsolete',quantity:'1'}]);await original;await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(coordinator.getState().game.status,'ready');assert.equal(coordinator.getState().game.items[0].assetId,'replacement');
+ invalidatePublicAssetInventory(scope);coordinator.dispose();
+});
 
 test('overlapping refreshes share a deadline and Retry clears the failed attempt', async()=>{
   const coordinator=createMarketplaceInventoryCoordinator({readTimeoutMs:5}); let calls=0;

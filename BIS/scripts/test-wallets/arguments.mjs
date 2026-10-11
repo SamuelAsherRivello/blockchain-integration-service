@@ -3,7 +3,7 @@ import { fail } from './errors.mjs';
 import { readinessTarget } from './readiness.mjs';
 
 export const commands = ['init', 'import', 'create', 'status', 'assign', 'open', 'inspect', 'action', 'run', 'fund', 'reconcile', 'prepare', 'join', 'detach', 'rotate'];
-export const scenarios = ['reload', 'logout', 'restore', 'payment', 'funding', 'swap-to-bitcoin', 'mint-delivery', 'burn', 'onboard-half', 'contract-claim', 'contract-refund'];
+export const scenarios = ['reload', 'logout', 'restore', 'payment', 'funding', 'funding-bitcoin', 'swap-to-bitcoin', 'mint-delivery', 'burn', 'onboard-half', 'contract-claim', 'contract-refund'];
 export function label(value) {
   if (typeof value !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(value)) fail('invalid-account-label');
   return value;
