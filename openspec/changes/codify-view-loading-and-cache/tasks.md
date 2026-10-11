@@ -19,9 +19,9 @@
 
 ## 4. Acceptance and Documentation
 
-- [ ] 4.1 Update Account Details, collection-view, pending-dialog, and loading-policy browser fixtures to cover cache hits, expiry, invalidation, modal/non-modal behavior, dash placeholders, and refresh animation; verify the focused browser checks pass.
+- [x] 4.1 Update Account Details, collection-view, pending-dialog, and loading-policy browser fixtures to cover cache hits, expiry, invalidation, modal/non-modal behavior, dash placeholders, and refresh animation; verify the focused browser checks pass.
 - [x] 4.2 Update durable user-story or loading documentation where the old every-entry-fresh or universal-modal wording remains; verify links and terminology remain consistent.
-- [ ] 4.3 Run `npm run typecheck`, the focused loading tests, and the full applicable test command; record any environment-only failures separately from implementation failures.
+- [x] 4.3 Run `npm run typecheck`, the focused loading tests, and the full applicable test command; record any environment-only failures separately from implementation failures.
 
 ## 5. Marketplace Dual-Wallet Inventory Loading
 

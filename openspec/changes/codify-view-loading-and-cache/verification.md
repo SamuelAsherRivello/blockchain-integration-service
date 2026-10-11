@@ -76,10 +76,40 @@ The browser closed and the exclusive vault slot was released.
 Task 5.5 remains unchecked: the required live two classified Marketplace item
 cards were not established. No classification was changed to manufacture
 equipment, and no mint, burn, transfer or other financial mutation was run.
-The coordinator retains the integrated browser/typecheck/test/build gates;
-tasks 4.1 and 4.3 remain unchecked pending the applicable final evidence.
+Tasks 4.1 and 4.3 are now verified at the committed checkpoint below.
 This change is **open**, its deltas are not synced, and it is not archived.
 
 The durable User Story Diagrams loading guidance now distinguishes nonmodal
 Account Details, construction-gated modal views, five-minute shared reads,
 public address scope and the remaining live acceptance gap.
+
+## Final integrated verification checkpoint
+
+The coordinator reported the coherent `npm run test:all` process completed
+with exit zero, and the exact retained log was inspected:
+output/logs/final-22-release/test-all-final.txt. Main tests passed **1045/1045**
+with zero skips; onboarding passed **91/91** with zero skips; faucet passed
+**16 tests**, with one optional live test skipped and zero failures. The skip
+is not claimed as live acceptance.
+
+The successful main run includes the actual browser tests `deferred warm
+reads are adopted by Details, Receive, Send and Swap with normal loading`
+and `account page policy blocks active, host, and retained spinners at both
+overlay boundaries`. These complement the collection/view policy tests,
+cache expiry/invalidation and late-result tests, archived update/background
+browser acceptance and the three fresh Marketplace Edge fixture cases above.
+Expiry and invalidation assertions include state-layer tests; the synthetic
+Marketplace screenshots alone do not prove every Account destination.
+
+Explicit `npm run typecheck` also completed with exit zero; retained log:
+output/logs/final-22-release/typecheck-final.txt. The verified implementation
+checkpoint is commit `d138e3a746aa97ec70c8f36852bf30768b7cfcb5`.
+Earlier sandbox/browser-environment failures and the superseded onboarding
+test-clock failure are separate attempts, not the result of this coherent
+run. Their logs remain under output/logs/final-22-release/; the coordinator
+corrected the test clock before the successful final run.
+
+This closes tasks 4.1/4.3 and leaves **15/16** tasks checked. It does not close
+the live requirement in 5.5. A separately assigned Marketplace address-label
+optimization follows this checkpoint and remains subject to the coordinator's
+subsequent release gates; this note does not pre-verify that later work.
