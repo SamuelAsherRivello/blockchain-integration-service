@@ -3,6 +3,7 @@ import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { phraseWords, validRecovery } from '../state-layer-core/recovery-validation.ts';
 import { testNetwork, type TestNetwork } from '../state-layer-core/test-network.ts';
+import type { RoleWalletAccess } from './adapter-session.ts';
 
 export const SIGNET_OPERATOR = 'https://signet.arkade.sh';
 export type AccountSecret = { phrase: string; profileId: string; network?: TestNetwork };
@@ -19,16 +20,21 @@ export function requireNetwork(network: string, expected: TestNetwork) {
   if (network !== expected) throw new Error(`Operator network mismatch: expected ${testNetwork(expected).label}.`);
 }
 export function operatorFor(network: TestNetwork = 'signet') { return testNetwork(network).operator; }
-export async function createAccount(signal: AbortSignal, network: TestNetwork = 'signet'): Promise<AccountSecret> {
-  return restoreAccount(generateMnemonic(wordlist), signal, network);
+export async function createAccount(signal: AbortSignal, network: TestNetwork = 'signet', session?:RoleWalletAccess): Promise<AccountSecret> {
+  return restoreAccount(generateMnemonic(wordlist), signal, network,session);
 }
-export async function restoreAccount(input: string, signal: AbortSignal, network: TestNetwork = 'signet'): Promise<AccountSecret> {
+export async function restoreAccount(input: string, signal: AbortSignal, network: TestNetwork = 'signet', session?:RoleWalletAccess): Promise<AccountSecret> {
   if (!validRecovery(input)) throw new Error('Invalid recovery phrase.');
   const phrase = phraseWords(input).join(' ');
   const operator = operatorFor(network);
   const response = await fetch(`${operator}/v1/info`, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) });
   if (!response.ok) throw new Error('Test service unavailable.');
   requireNetwork((await response.json()).network, network);
+  if(session) {
+    const account={phrase,profileId:await identify(phrase),network};
+    try {await session.read(account,signal,wallet=>wallet.getAddress(),false);return account;}
+    catch(error){void session.retire().catch(()=>{});throw error;}
+  }
   const provider = new RestArkProvider(operator);
   // Validate the SDK's own configuration read as well as the initial fetch.
   const getInfo = provider.getInfo.bind(provider);

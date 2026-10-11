@@ -2,6 +2,7 @@ import { ReadonlyWallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider,
 import { requireNetwork, operatorFor, type AccountSecret } from './account.ts';
 import { testNetwork } from '../state-layer-core/test-network.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
+import { shareIndexerReads } from './indexer-reads.ts';
 import type { BisTransaction } from '../state-layer-core/activity.ts';
 
 type Coin = { txid: string; vout: number; value: number; status: { confirmed: boolean; block_height?: number } };
@@ -106,7 +107,7 @@ export async function watchActivity(account: AccountSecret, signal: AbortSignal,
   const arkProvider = new RestArkProvider(operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);
   arkProvider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
-  const indexerProvider = new RestIndexerProvider(operator);
+  const indexerProvider = shareIndexerReads(new RestIndexerProvider(operator),operator);
   const onchainProvider = new EsploraProvider(testNetwork(network).explorerApiUrl, { forcePolling: true, pollingInterval: 15000 });
   let failed = false;
   const getVtxos = indexerProvider.getVtxos.bind(indexerProvider);

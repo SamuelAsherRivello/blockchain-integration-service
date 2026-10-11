@@ -1,6 +1,8 @@
 import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
 import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
+import { shareIndexerReads } from './indexer-reads.ts';
+import type { RoleWalletAccess } from './adapter-session.ts';
 
 export type BalanceAmounts = Readonly<{
   /** Available off-chain sats retained for existing payment capability checks. */
@@ -39,8 +41,9 @@ export async function readFreshBalance(wallet: BalanceWallet): Promise<BalanceAm
   });
 }
 
-export async function loadBalance(account: AccountSecret, signal: AbortSignal): Promise<BalanceAmounts> {
+export async function loadBalance(account: AccountSecret, signal: AbortSignal, session?: RoleWalletAccess): Promise<BalanceAmounts> {
   if (!validRecovery(account.phrase)) throw new Error('Invalid account.');
+  if (session) return session.read(account,signal,readFreshBalance);
   const network=account.network ?? 'signet', operator=operatorFor(network);
   const response = await fetch(`${operator}/v1/info`, {
     cache: 'no-store', signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
@@ -51,7 +54,7 @@ export async function loadBalance(account: AccountSecret, signal: AbortSignal): 
   const arkProvider = new RestArkProvider(operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);
   arkProvider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
-  const indexerProvider = new RestIndexerProvider(operator);
+  const indexerProvider = shareIndexerReads(new RestIndexerProvider(operator),operator);
   // SDK synchronization can catch provider errors and return its repository.
   // Latch failures so a concurrent watcher success cannot erase that evidence.
   let indexerFailed = false;

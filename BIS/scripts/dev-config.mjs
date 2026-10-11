@@ -12,7 +12,7 @@ export const packageRoutes = [
   { label: 'BIS - Marketplace', route: '/marketplace/', directory: 'marketplace' },
   { label: 'BIS - Prototype Onboarding', route: '/onboarding/', directory: 'prototype-onboarding' },
   { label: 'BIS - Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
-  { label: 'BIS - Prototype Sandbox', route: '/prototype-sandbox/', directory: 'prototype-sandbox' },
+  { label: 'BIS - Prototype Interactive Docs', route: '/prototype-sandbox/', directory: 'prototype-sandbox' },
   { label: 'BIS - Integration', route: '/integration/', directory: 'integration', readme: true },
   { label: 'BIS - Shared', route: '/shared/', directory: 'shared', readme: true },
 ];

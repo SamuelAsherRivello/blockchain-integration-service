@@ -1,6 +1,7 @@
 import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
 import type { BisAssets } from './asset-presentation.ts';
 import type { BisAsset } from './assets.ts';
+import type { TestNetwork } from './test-network.ts';
 
 type AssetState = Readonly<{ profileId?: string; network?: string; assets: BisAssets }>;
 type AssetIdentity = Readonly<{ version: number; profileId?: string }>;
@@ -66,11 +67,13 @@ export function createAssetViewLifecycle(options: AssetViewLifecycleOptions) {
     if (!options.observeAssets) return;
     const signal = watch.signal;
     const profile = options.getState().profileId;
+    const network = options.getState().network ?? 'signet';
+    if (network !== 'signet' && network !== 'mutinynet') return;
     void (async () => {
       const saved = await options.loadAccount();
-      if (signal.aborted || options.isDisposed() || !saved.account || saved.account.profileId !== profile) return;
-      await options.observeAssets!(saved.account, signal, () => {
-        if (!signal.aborted && !options.isDisposed() && options.getState().profileId === profile && options.isVisible()) { options.invalidate?.(); void refresh(true); }
+      if (signal.aborted || options.isDisposed() || !saved.account || saved.account.profileId !== profile || (options.getState().network ?? 'signet') !== network || (saved.account.network !== undefined && saved.account.network !== network)) return;
+      await options.observeAssets!({...saved.account, network: network as TestNetwork}, signal, () => {
+        if (!signal.aborted && !options.isDisposed() && options.getState().profileId === profile && (options.getState().network ?? 'signet') === network && options.isVisible()) { options.invalidate?.(); void refresh(true); }
       });
     })().catch(() => { /* Manual refresh remains available if streaming is unavailable. */ });
   }

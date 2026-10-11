@@ -154,6 +154,14 @@ A.G.3 SHALL distinguish a ready wallet, known zero, loading state, insufficient 
 - **THEN** A.G.3 reports wallet-read unavailability and retains the selected identity without showing the failed balance as zero
 - **AND** a later explicit Details action re-evaluates current state
 
+### Requirement: Game Wallet title refresh is skipped by sequential tab navigation
+The Game Wallet refresh utility SHALL remain available and correctly labeled while being excluded from the browser's sequential tab order.
+
+#### Scenario: Keyboard traversal in Game Wallet
+- **WHEN** a player tabs through the configured Game Wallet view
+- **THEN** focus does not stop on the circular refresh icon beside the title
+- **AND** wallet values and the existing logout and Back actions remain reachable according to their existing contracts
+
 #### Scenario: Ready distinct wallets with eligible funds
 - **WHEN** the Player Wallet and distinct Game Wallet are ready on the active network, fresh evidence is available, and no durable operation blocks the requested action
 - **THEN** the relevant A.G.3 action is enabled and its Details output identifies the current public wallet scope and payment-usable balance

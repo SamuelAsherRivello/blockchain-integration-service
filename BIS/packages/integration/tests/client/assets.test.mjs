@@ -1,9 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assetBaseUnits,validateMint,normalizeAssetMetadata,checkMintRecord,writeAssetRecord,readAssetRecords} from '../../src/client/state-layer-core/assets.ts';
-import {readFreshAssets} from '../../src/client/wallet-layer-arkade/assets.ts';
+import {readFreshAssets,readAssetHoldings} from '../../src/client/wallet-layer-arkade/assets.ts';
 import {createContext} from '../../src/client/state-layer-core/context.ts';
 const request={operationId:'op-1',name:'An asset',ticker:'AST',amount:'1',decimals:0};
+test('inventory totals all owned SDK outputs without Bitcoin balance probes and excludes terminal spends',async()=>{
+  let options;
+  const coin=patch=>({txid:'a'.repeat(64),vout:0,value:330,assets:[{assetId:'item',amount:9007199254740993n}],...patch});
+  const result=await readAssetHoldings({getVtxos:async filter=>{options=filter;return [coin({}),coin({isUnrolled:true}),coin({spentBy:'b'.repeat(64)}),coin({settledBy:'c'.repeat(64)}),coin({isSpent:true})];}});
+  assert.deepEqual(options,{withRecoverable:true,withUnrolled:true});assert.deepEqual(result,{assets:[{assetId:'item',amount:18014398509481986n}]});
+});
+test('metadata hydration runs at most four parallel reads and preserves sorted exact holdings',async()=>{
+  let active=0,max=0;
+  const wallet={getBalance:async()=>({assets:Array.from({length:9},(_,i)=>({assetId:String(8-i),amount:1n}))}),getProviderConnectionState:()=>({mode:'online',source:'live'}),assetManager:{getAssetDetails:async assetId=>{
+    active++;max=Math.max(max,active);await new Promise(resolve=>setImmediate(resolve));active--;return {assetId};
+  }}};
+  const result=await readFreshAssets(wallet);
+  assert.equal(max,4);assert.equal(active,0);assert.deepEqual(result.map(row=>row.asset.assetId),['0','1','2','3','4','5','6','7','8']);
+});
 const records=new Map();
 Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:k=>records.get(k)??null,setItem:(k,v)=>records.set(k,v)}});
 Object.defineProperty(globalThis.navigator,'locks',{configurable:true,value:{request:async(_name,_options,fn)=>fn({})}});

@@ -16,7 +16,7 @@ export function AdminMarketplaceView({ controller, onLog, children }: {controlle
       const targetProfile = controller.getState().profileId;
       if (!targetProfile) throw Error();
       const target = await prepareMintDestination('game', controller, controller, () => controller.getState().profileId === targetProfile, result => onLog({operation:'C.G.2. Marketplace mint', result}));
-      const batch = await mintAndVerifyMarketplaceCatalog({mint:target.mint,listAssets:()=>controller.listAssets()}, target.isCurrent, progress => {
+      const batch = await mintAndVerifyMarketplaceCatalog({mint:target.mint,listAssets:()=>controller.listAssets(),pendingMintRequest:target.request}, target.isCurrent, progress => {
         const message = progress.stage === 'minting' ? `Minting ${progress.itemName} (attempt ${progress.attempt})…`
           : progress.stage === 'retrying' ? `${progress.itemName} unavailable; retrying after ${progress.delayMs / 1000}s.`
           : progress.stage === 'minted' ? `${progress.itemName} minted; continuing catalog.`

@@ -33,11 +33,19 @@ test('public Marketplace uses a read-only address query and live local-sales act
 
 test('Marketplace never treats the published Game Wallet as active without a Player Wallet', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
-  assert.match(app, /const activeGameWallet=Boolean\(playerState\.profileId&&gameState\.profileId&&gameState\.addresses\?\.arkadeAddress\)/);
-  assert.match(app, /const inventoryAddress=!activeGameWallet\|\|isCatalogLoading/);
-  assert.match(app, /if\(activeGameWallet&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)&&inventoryAddress\)/);
-  assert.match(app, /const gameItemsForSession=activeGameWallet\?previousGameItems:\[\]/);
+  assert.match(app, /const activeGameWallet=Boolean\(playerState\.profileId&&gameState\.profileId&&gameState\.network===network&&gameState\.addresses\?\.arkadeAddress\)/);
+  assert.match(app, /const inventoryAddress=isCatalogLoading\?undefined:publicGameAddress/);
+  assert.match(app, /if\(publicGameAddress\)sources\.push\(\{role:'game'/);
+  assert.match(app, /const gameItemsForSession=previousGameItems/);
   assert.match(app, /if\(event\.type==='accountDisconnected'\)void gameWallet\.logout\(\)\.catch\(\(\)=>\{\}\)/);
+});
+
+test('Marketplace reads Game Wallet display inventory from the published public address', async () => {
+  const [app, inventory] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/inventory-layer/inventory.ts')]);
+  assert.match(app, /readPublicInventory/);
+  assert.match(app, /const publicGameAddress=game==='all'\?defaultGame\?\.gameWalletAddress:selectedGame\?\.gameWalletAddress/);
+  assert.match(app, /readPublicInventory\(publicGameAddress/);
+  assert.match(inventory, /It creates no wallet and cannot sign/);
 });
 
 test('Marketplace enables exactly the action offered by the selected owner only after both local wallet sessions are active', async () => {
@@ -158,12 +166,12 @@ test('item detail gives every metadata value the shared labeled, copyable field 
   assert.match(polish, /\.marketplace-gameplay-fields input \{ text-align: left;/);
 });
 
-test('catalog filters game and nonzero gameplay metadata independently', async () => {
+test('inventory scopes the selected game and nonzero gameplay metadata independently', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
-  assert.match(app, /aria-label="Game"/);
-  assert.match(app, /Stealth &amp; Steel/);
+  assert.match(app, /catalog\.games\.find\(entry=>entry\.gameId===game\)/);
+  assert.match(app, /const source=game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
+  assert.match(app, /source\.filter\(item=>\(game==='all'\|\|game==='stealth-and-steel'\)\&\&\(type==='all'\|\|gameplayMetadata\(item\)/);
   assert.match(app, /Rogue's Dungeon/);
-  assert.match(app, /catalog\.games\.map/);
   assert.match(app, /aria-label="Type"/);
   assert.match(app, />Speed<\/button>/);
   assert.match(app, />Offense<\/button>/);
@@ -173,18 +181,21 @@ test('catalog filters game and nonzero gameplay metadata independently', async (
 
 test('Marketplace opens with the Game Wallet, Stealth & Steel, and all item types selected', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /aria-label="Game"/);
+  assert.match(app, /catalog\.games\.map\(entry=>/);
   assert.match(app, /const \[owner,setOwner\]=useState<'all'\|'game'\|'player'>\('game'\)/);
   assert.match(app, /\[game,setGame\]=useState<string>\('stealth-and-steel'\)/);
   assert.match(app, /\[type,setType\]=useState<'all'\|'speed'\|'offense'\|'defense'>\('all'\)/);
 });
 
-test('Rogue\'s Dungeon is browseable without a wallet or inventory source', async () => {
+test('an unconfigured game cannot expose another game wallet inventory', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
-  assert.match(app, /game!=='all'&&!selectedGame\?\.gameWalletAddress/);
-  assert.match(app, /const emptyMessage='No items found\.'/);
+  assert.match(app, /const publicGameAddress=game==='all'\?defaultGame\?\.gameWalletAddress:selectedGame\?\.gameWalletAddress/);
+  assert.match(app, /if\(publicGameAddress\)sources\.push\(\{role:'game'/);
+  assert.match(app, /owned item\(s\) have legacy metadata/);
   assert.match(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);
-  assert.match(app, /catalog\.games\.map/);
+  assert.match(app, /const selectedGameIsEmpty=game!== 'all'&&game!== 'stealth-and-steel'/);
 });
 
 
@@ -198,8 +209,8 @@ test('Marketplace derives item identity, price, and artwork from fresh chain ass
 
 test('Player Wallet inventory reuses the shared BIS Assets read without retrying when selected', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
-  assert.match(app, /const prepared=player\.prepareAssetInventory\?await player\.prepareAssetInventory\(\):undefined/);
-  assert.match(app, /prepared\?\.status==='success'\?prepared:await player\.listAssets\(\)/);
+  assert.match(app, /const result=player\.prepareAssetInventory\?await player\.prepareAssetInventory\(force\):await player\.listAssets\(\)/);
+  assert.doesNotMatch(app, /prepared\?\.status==='success'\?prepared:await player\.listAssets\(\)/);
   assert.match(app, /const chooseOwner=\(next:'all'\|'game'\|'player'\)=>/);
   assert.doesNotMatch(app, /if\(next==='player'\)/);
   assert.doesNotMatch(app, /const source=inventorySources\.find\(candidate=>candidate\.role==='player'\)/);
@@ -209,7 +220,7 @@ test('Marketplace refreshes Game Wallet inventory after a completed checkout wit
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
   assert.match(app, /inventory\.retry\(source\)/);
-  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources\)\]\)/);
+  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources,true\)\]\)/);
 });
 
 test('Marketplace delegates visible Marketplace loading to the shared pending prompt', async () => {
@@ -221,10 +232,10 @@ test('Marketplace delegates visible Marketplace loading to the shared pending pr
   assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|selectedInventoryLoading/);
   assert.match(app, /const promptBusy=isMarketplaceLoading\|\|!!operationLabel/);
   assert.match(app, /const MARKETPLACE_LOADING_SETTLE_MS=1000/);
-  assert.match(app, /inventoryError=owner==='all'/);
+  assert.match(app, /rawInventoryError=owner==='all'/);
   assert.match(app, /<MarketplacePendingNotice busy=\{loadingPromptVisible\} label=\{operationLabel\?\?'Loading \.\.\.'\}/);
   assert.doesNotMatch(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.'/);
-  assert.match(app, /const emptyMessage='No items found\.'/);
+    assert.match(app, /Item inventory is unavailable/);
 });
 
 test('Marketplace renders its Wallets and Instructions as left-aligned lists in one panel',async()=>{

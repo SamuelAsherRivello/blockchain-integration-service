@@ -1,6 +1,7 @@
 import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
 import { operatorFor, requireNetwork, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { testNetwork, type TestNetwork } from '../state-layer-core/test-network.ts';
+import type { RoleWalletAccess } from './adapter-session.ts';
 
 export const SIGNET_FAUCET = 'https://faucet.signet.arkade.sh/faucet';
 // An acknowledgement is not confirmation of receipt. Never automatically retry.
@@ -14,7 +15,12 @@ export async function requestTestSats(address: string, signal: AbortSignal, send
   });
   if (!response.ok) throw new Error('Funding request was not acknowledged.');
 }
-export async function fundTestAccount(account: AccountSecret, signal: AbortSignal, isCurrent: () => boolean): Promise<void> {
+export async function fundTestAccount(account: AccountSecret, signal: AbortSignal, isCurrent: () => boolean, session?: RoleWalletAccess): Promise<void> {
+  if(session) {
+    const address=await session.read(account,signal,wallet=>wallet.getAddress(),false);
+    signal.throwIfAborted();if(!isCurrent())throw Error('Account changed.');
+    return requestTestSats(address,signal,fetch,account.network??'signet');
+  }
   const network=account.network ?? 'signet', provider = new RestArkProvider(operatorFor(network));
   const getInfo = provider.getInfo.bind(provider);
   provider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };

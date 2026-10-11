@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readWithRetry } from '../../src/client/state-layer-core/pending-read.ts';
+test('inventory can request one attempt and leave retry to the user',async()=>{
+  let calls=0;
+  await assert.rejects(readWithRetry(async()=>{calls++;throw Error('offline');},undefined,100,1),/offline/);
+  assert.equal(calls,1);
+});
 
 test('retries one failed read and returns the second result', async () => {
   let calls=0;

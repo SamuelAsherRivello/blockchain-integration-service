@@ -14,7 +14,10 @@ function setup() {
   const account={profileId:'background-fixture',phrase:'isolated-placeholder'};
   const context=createContext({load:async()=>({account,generation:1}),subscribe:()=>()=>{},save:async()=>{},reset:async()=>{}},undefined,async()=>account.profileId,undefined,
     async()=>{balances++;return new Promise(resolve=>{finishBalance=resolve;});},undefined,
-    async()=>{addresses++;return new Promise(resolve=>{finishAddresses=resolve;});});
+    async()=>{addresses++;return new Promise(resolve=>{finishAddresses=resolve;});},undefined,
+    // Swap now verifies transfer recovery on entry. This presentation-only
+    // fixture has no submitted operations and must not call a real adapter.
+    {quote:async()=>{throw Error('Fixture never submits transfers.');},submit:async()=>{throw Error('Fixture never submits transfers.');},reconcile:async()=>undefined});
   const ui=createBisUi(context);ui.mount(document.getElementById('host')!);
   cleanup=()=>{ui.unmount();context.dispose();};
   return {

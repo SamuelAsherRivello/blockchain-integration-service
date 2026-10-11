@@ -14,6 +14,11 @@ function chainAssets() {
     },
   }));
 }
+test('an owned but uncertain catalog mint reconciles its original request before skipping or minting',async()=>{
+  const pending=marketplaceMintRequest(marketplaceCatalogItems[5],'v3'),calls=[];
+  const result=await mintAndVerifyMarketplaceCatalog({pendingMintRequest:pending,mint:async request=>{calls.push(request);return {status:'already-minted',profileId:'game',operationId:request.operationId,asset:chainAssets()[5]};},listAssets:async()=>({status:'success',profileId:'game',assets:chainAssets()})},()=>true,undefined,'v3');
+  assert.equal(result.status,'verified');assert.deepEqual(calls,[pending]);
+});
 
 test('a repeated batch uses the same v2 IDs and publishes only after a fresh complete read', async () => {
   const calls = [], issued = new Map();

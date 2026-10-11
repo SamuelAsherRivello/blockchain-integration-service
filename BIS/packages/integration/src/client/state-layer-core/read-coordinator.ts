@@ -33,7 +33,7 @@ export function createReadCoordinator(options: { now?: () => number; ttlMs?: num
     if (entry && now()-entry.fetchedAt >= ttl) { completed.delete(token); return; }
     return entry;
   }
-  function read<T>(key: ReadKey, loader: (signal: AbortSignal) => Promise<T>, config: { force?: boolean; foreground?: boolean; timeout?: number; timestamp?: (value: T) => number; complete?: (value: T) => boolean } = {}): Promise<ViewCacheEntry<T>> {
+  function read<T>(key: ReadKey, loader: (signal: AbortSignal) => Promise<T>, config: { force?: boolean; foreground?: boolean; timeout?: number; attempts?: number; timestamp?: (value: T) => number; complete?: (value: T) => boolean } = {}): Promise<ViewCacheEntry<T>> {
     const token=id(key);
     if (config.force) completed.delete(token);
     else { const cached=peek<T>(key); if (cached) return Promise.resolve(cached); }
@@ -42,7 +42,7 @@ export function createReadCoordinator(options: { now?: () => number; ttlMs?: num
     attempted.add(token);
     const controller=new AbortController();
     const record: Pending={key,controller,foreground:!!config.foreground,promise:Promise.resolve(undefined as never)};
-    const work=Promise.resolve().then(() => readWithRetry(loader,controller.signal,config.timeout ?? 30000)).then(value => {
+    const work=Promise.resolve().then(() => readWithRetry(loader,controller.signal,config.timeout ?? 30000,config.attempts ?? 2)).then(value => {
       controller.signal.throwIfAborted();
       if (pending.get(token)!==record || token!==id(key)) throw new Error('Read invalidated.');
       if (config.complete && !config.complete(value)) throw new Error('Incomplete read.');

@@ -17,7 +17,7 @@ test('transfer navigation reads fresh, returns to Details and is cleared by acco
   let account = {phrase:'isolated-placeholder',profileId:'profile-a'}, notify;
   let reads = 0;
   const c = createContext({load:async()=>({account,generation:0}),save:async()=>{throw Error('Unexpected save');},reset:async()=>{},subscribe:fn=>{notify=fn;return()=>{};}}, undefined, async()=>account?.profileId, undefined,
-    async()=>{reads++;return {availableSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000};});
+    async()=>{reads++;return {availableSats:800,availableBitcoinSats:500,availableArkadeSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000};});
   const tick = () => new Promise(resolve=>setImmediate(resolve));
   await c.readyAsync();c.openAccountDialog();c.openAccountDetails();await tick();
   c.openAccountTransfer();await tick();
@@ -25,5 +25,24 @@ test('transfer navigation reads fresh, returns to Details and is cleared by acco
   c.closeAccount();await tick();assert.equal(c.getState().accountDetails,true);assert.equal(c.getState().accountTransfer,false);assert.equal(reads,1);
   c.openAccountTransfer();await tick();account={phrase:'other-placeholder',profileId:'profile-b'};notify();await c.readyAsync();await tick();
   assert.equal(c.getState().accountTransfer,false);
+  c.dispose();
+});
+
+test('transfer availability is cached per direction and exposes a synchronous peek', async () => {
+  let availabilityReads = 0;
+  const transfers = {
+    quote: async()=>{throw Error('unused');},
+    submit: async()=>{throw Error('unused');},
+    reconcile: async()=>undefined,
+    availability: async()=>{availabilityReads++;return {available:true};},
+  };
+  const account={phrase:'isolated-placeholder',profileId:'profile-cache'};
+  const c=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>account.profileId,undefined,
+    async()=>({availableSats:800,availableBitcoinSats:500,availableArkadeSats:800,totalSats:1500,bitcoinSats:500,arkadeSats:1000}),undefined,undefined,undefined,transfers);
+  await c.readyAsync();
+  await c.getAccountTransferAvailability('to-arkade');
+  await c.getAccountTransferAvailability('to-arkade');
+  assert.equal(availabilityReads,1);
+  assert.deepEqual(c.peekAccountTransferAvailability?.('to-arkade'),{available:true});
   c.dispose();
 });

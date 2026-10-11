@@ -13,8 +13,8 @@ test('Marketplace derives every visible network route from the selected Player W
   assert.match(app, /playerSessionKey:\(\)=>JSON\.stringify\(\[player\.getState\(\)\.profileId,player\.getState\(\)\.phase,player\.getState\(\)\.network\]\)/);
   assert.match(app, /hasGameWallet:\(\)=>!!gameWalletRef\.current\?\.getState\(\)\.profileId,resetGameWallet:async\(\)=>await gameWalletRef\.current\?\.reset\(\) \?\? false/);
   assert.match(app, /if\(isCatalogLoading\|\|!network\)return \[\];/);
-  assert.match(app, /prepareAssetInventory\?await player\.prepareAssetInventory\(\):undefined/);
-  assert.match(app, /gameWallet\.prepareAssetInventory\?\.\(\)/);
+  assert.match(app, /prepareAssetInventory\?await player\.prepareAssetInventory\(force\):await player\.listAssets\(\)/);
+  assert.match(app, /gameWallet\.prepareAssetInventory\?await gameWallet\.prepareAssetInventory\(force\):await gameWallet\.listAssets\(\)/);
   assert.match(app, /Network: \{networkLabel\(network\)\}/);
   assert.match(app, /arkExplorerAssetUrl\(network,selected\.assetId\)/);
   assert.doesNotMatch(app, /Network: Signet/);

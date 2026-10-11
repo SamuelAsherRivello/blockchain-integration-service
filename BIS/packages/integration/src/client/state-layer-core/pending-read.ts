@@ -1,5 +1,5 @@
 /** Read-only work. Never wrap a mutation or submission in this helper. */
-export async function readWithRetry<T>(read: (signal: AbortSignal) => Promise<T>, parent?: AbortSignal, timeout = 30000): Promise<T> {
+export async function readWithRetry<T>(read: (signal: AbortSignal) => Promise<T>, parent?: AbortSignal, timeout = 30000, attempts = 2): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     parent?.throwIfAborted();
     const controller = new AbortController();
@@ -17,7 +17,7 @@ export async function readWithRetry<T>(read: (signal: AbortSignal) => Promise<T>
       controller.signal.throwIfAborted();
       return value;
     } catch (error) {
-      if (parent?.aborted || attempt === 1) throw error;
+      if (parent?.aborted || attempt + 1 >= attempts) throw error;
     } finally {
       clearTimeout(timer);
       controller.signal.removeEventListener('abort', onAbort);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestNetworkSession, isTestNetwork, testNetwork } from '../../src/client/state-layer-core/test-network.ts';
+import { createTestNetworkSession, isTestNetwork, networkLabel, testNetwork } from '../../src/client/state-layer-core/test-network.ts';
 import { formatTransactionDetail, transactionExplorerUrl } from '../../src/client/state-layer-core/activity.ts';
 import { formatTransferRecoveryReport } from '../../src/client/state-layer-core/boarding-status.ts';
 import { operatorFor, requireNetwork } from '../../src/client/wallet-layer-arkade/account.ts';
@@ -38,6 +38,11 @@ test('corrupted browser preference is ignored rather than routed to an operator'
   const storage = localStorageFixture();
   storage.setItem('bis:test-network:v1', 'mainnet');
   assert.equal(createTestNetworkSession(storage).getSelected(), undefined);
+});
+
+test('unselected network is displayed as unavailable', () => {
+  assert.equal(networkLabel(undefined), 'N/A');
+  assert.equal(networkLabel('signet'), 'Signet');
 });
 
 test('operator configuration is selected exactly and rejects a cross-network result', () => {

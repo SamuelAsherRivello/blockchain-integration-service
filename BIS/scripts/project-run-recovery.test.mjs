@@ -2,15 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { developmentConfig } from './dev-config.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const helperPath = fileURLToPath(new URL('../../.agents/skills/ai-skills-project-run-start/run-project.ps1', import.meta.url));
-const skillPath = fileURLToPath(new URL('../../.agents/skills/ai-skills-project-run-start/SKILL.md', import.meta.url));
+// Skills may be installed project-locally or relocated to the agent's global
+// library. They are optional developer tooling, not a shipped app dependency.
+const skillRoot = [
+  join(root,'.agents','skills','ai-skills-project-run-start'),
+  join(root,'.agents','skills','ai-skills-run','ai-skills-project-run-start'),
+  join(homedir(),'.agents','skills','ai-skills-project-run-start'),
+].find(directory=>existsSync(join(directory,'run-project.ps1'))&&existsSync(join(directory,'SKILL.md')));
 
-test('run helper contains the recovery contract', async () => {
-  const helper = await readFile(helperPath, 'utf8');
-  const skill = await readFile(skillPath, 'utf8');
+test('installed run helper contains the recovery contract', {skip:!skillRoot && 'Optional project-run skill is not installed on this host.'}, async () => {
+  const helper = await readFile(join(skillRoot,'run-project.ps1'), 'utf8');
+  const skill = await readFile(join(skillRoot,'SKILL.md'), 'utf8');
   assert.match(helper, /npm run dev -- --host 127\.0\.0\.1 --port \$candidate/);
   assert.match(helper, /Get-ListeningPids/);
   assert.match(helper, /netstat\.exe/);

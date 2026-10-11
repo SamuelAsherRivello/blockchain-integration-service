@@ -3,9 +3,13 @@ import { createAccountStorage, type AccountStorage } from '../state-layer-core/a
 import { createContextWithDependencies, type BisContext, type BisContextOptions } from '../state-layer-core/context.ts';
 import { createTestNetworkSession, type TestNetwork } from '../state-layer-core/test-network.ts';
 import { createArkadeContextDependencies } from './context-dependencies.ts';
+import { createAppWalletSession } from './app-wallet-session.ts';
+import { bindRoleWallet } from './adapter-session.ts';
+import { registerAppWalletOwner } from './app-wallet-composition.ts';
 
 /** Public compatibility façade; concrete Arkade wiring lives outside state core. */
 export function createBisContext(options: BisContextOptions = {}): BisContext {
+  const owner=createAppWalletSession(),player=bindRoleWallet(owner,'player');
   const session = createTestNetworkSession();
   const selected = () => session.getSelected();
   const stores = new Map<TestNetwork, AccountStorage>();
@@ -28,17 +32,18 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
     },
   };
   const dependencies = createArkadeContextDependencies({
+    disposeWallets:()=>{void owner.dispose();},
     create: signal => {
       const network = selected();
       if (!network) throw Error('Choose a test network first.');
-      return createAccount(signal, network);
+      return createAccount(signal, network,player);
     },
     restore: (phrase, signal) => {
       const network = selected();
       if (!network) throw Error('Choose a test network first.');
-      return restoreAccount(phrase, signal, network);
+      return restoreAccount(phrase, signal, network,player);
     },
-  });
+  },player);
   const contextOptions: BisContextOptions = {
     ...options,
     requireNetworkSelection: true,
@@ -47,5 +52,12 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
   };
   // Keep the host recipient live instead of snapshotting its initial value.
   Object.defineProperty(contextOptions, 'continueRecipient', { enumerable: true, get: () => options.continueRecipient });
-  return createContextWithDependencies(storage, dependencies, contextOptions);
+  const context=createContextWithDependencies(storage, dependencies, contextOptions);
+  registerAppWalletOwner(context.subscribe,owner);
+  context.subscribe(()=>{
+    const state=context.getState();
+    // Candidates already occupying the newly selected role are promoted intact.
+    if(state.phase==='active'||state.phase==='idle')owner.select('player',state.profileId,state.network);
+  });
+  return context;
 }

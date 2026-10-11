@@ -26,7 +26,7 @@ function CollectionViewFrame({title,body,fieldLabel,report,items,notice,actions,
   const heading=useRef<HTMLHeadingElement>(null);
   const copy=useClipboardCopy(()=>report,report);
   useLayoutEffect(()=>{heading.current?.focus();},[title]);
-  return <AccountDialogShell network={network} title={title} description={body} headingRef={heading} headingActions={<IconButton className="bis-title-icon" label={`Refresh ${title}`} disabled={loading||refreshDisabled} onClick={()=>void onRefresh()}><span className="bis-refresh-image" aria-hidden="true" /></IconButton>} className={` bis-card-collection ${mode==='list'?'bis-item-list':'bis-item-list-detail'}`}>
+  return <AccountDialogShell network={network} title={title} description={body} headingRef={heading} headingActions={<IconButton className="bis-title-icon" label={`Refresh ${title}`} tabIndex={-1} disabled={loading||refreshDisabled} onClick={()=>void onRefresh()}><span className="bis-refresh-image" aria-hidden="true" /></IconButton>} className={` bis-card-collection ${mode==='list'?'bis-item-list':'bis-item-list-detail'}`}>
     <div className="bis-collection" aria-busy={loading}>
       {mode==='detail' ? <div className="bis-collection-detail">
         <FormValue label={title} aria-label={fieldLabel} value={report} copyable copy={copy} multiline rows={12} />

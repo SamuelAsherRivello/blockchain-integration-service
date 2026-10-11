@@ -4,6 +4,7 @@ import { marketplaceCatalogItems, marketplaceMintRequest, verifiedMarketplaceRec
 export type MarketplaceMintBatchWallet = Readonly<{
   mint(request: BisMintAssetRequest): Promise<BisMintAssetResult>;
   listAssets(): Promise<BisListAssetsResult>;
+  pendingMintRequest?: BisMintAssetRequest | null;
 }>;
 
 export type MarketplaceMintBatchResult =
@@ -19,6 +20,17 @@ const transientRetryDelayMs = 1000;
 const pause = (milliseconds: number) => new Promise<void>(resolve => setTimeout(resolve, milliseconds));
 
 export async function mintAndVerifyMarketplaceCatalog(wallet: MarketplaceMintBatchWallet, isCurrent: () => boolean, onProgress: (progress: MarketplaceMintProgress) => void = () => {}, operationVersion = 'v2'): Promise<MarketplaceMintBatchResult> {
+  // An owned item can appear before final acknowledgement. Reconcile its
+  // original intent before skipping completed items or minting the next one.
+  const recovery=wallet.pendingMintRequest;
+  if(recovery){
+    const item=marketplaceCatalogItems.find(item=>marketplaceMintRequest(item,operationVersion).operationId===recovery.operationId);
+    if(!item)return {status:'error',code:'outcome-unknown',operationId:recovery.operationId,submissionBoundary:'unknown'};
+    if(!isCurrent())return {status:'error',code:'account-changed'};
+    const result=await wallet.mint(recovery);
+    if(result.status==='error')return {status:'error',itemName:item.name,operationId:recovery.operationId,code:result.code,submissionBoundary:'unknown'};
+    if(!isCurrent())return {status:'error',code:'account-changed'};
+  }
   const completedCatalogIds = new Set<string>();
   try {
     const existing = await wallet.listAssets();

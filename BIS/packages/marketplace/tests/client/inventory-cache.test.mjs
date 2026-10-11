@@ -2,6 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMarketplaceInventoryCoordinator } from '../../src/client/inventory-layer/inventory-cache.ts';
 const item = (assetId='asset-1') => ({catalogId:'stealth-steel-shoes-1',name:'Shoes I',ticker:'SHO1',family:'Shoes',tier:1,priceSats:1000,description:'Increases movement speed by 10%.',attributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:10}],iconUrl:'https://example.com/shoes-1.png',assetId,quantity:'1'});
+
+test('overlapping refreshes share a deadline and Retry clears the failed attempt', async()=>{
+  const coordinator=createMarketplaceInventoryCoordinator({readTimeoutMs:5}); let calls=0;
+  const source={role:'game',walletId:'one',network:'mutinynet',read:()=>{calls++;return new Promise(()=>{});}};
+  await Promise.all([coordinator.refresh([source]),coordinator.refresh([source])]);
+  assert.equal(calls,1);assert.equal(coordinator.getState().game.status,'unavailable');
+  let release;
+  const retry=coordinator.retry({...source,read:()=>{calls++;return new Promise(resolve=>{release=resolve;});}});
+  assert.equal(coordinator.getState().game.error,undefined);assert.equal(coordinator.getState().game.status,'loading');
+  release([item()]);await retry;assert.equal(calls,2);assert.equal(coordinator.getState().game.status,'ready');
+});
+test('post-trade refresh forces both sources, replaces older pending work, and deduplicates forced callers',async()=>{
+ const c=createMarketplaceInventoryCoordinator();let releaseOld,releaseFresh;const calls=[];
+ const source={role:'player',walletId:'player',network:'mutinynet',read:force=>{calls.push(force);return new Promise(resolve=>{if(force)releaseFresh=resolve;else releaseOld=resolve;});}};
+ const old=c.refresh([source]);const fresh=c.refresh([source],true),joined=c.refresh([source],true);
+ assert.deepEqual(calls,[false,true]);releaseFresh([item('purchased')]);await Promise.all([fresh,joined]);
+ releaseOld([]);await old;assert.equal(c.getState().player.items[0].assetId,'purchased');
+ const roles=[];await c.refresh(['player','game'].map(role=>({role,walletId:role,network:'mutinynet',read:async force=>{roles.push([role,force]);return [];}})),true);
+ assert.deepEqual(roles,[['player',true],['game',true]]);c.dispose();
+});
+
 test('coordinator resolves both wallets independently', async() => {
   const coordinator = createMarketplaceInventoryCoordinator(); let releasePlayer, releaseGame;
   const playerRead = new Promise(resolve => { releasePlayer = resolve; }), gameRead = new Promise(resolve => { releaseGame = resolve; });

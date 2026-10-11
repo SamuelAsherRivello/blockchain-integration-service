@@ -43,3 +43,11 @@ Back SHALL return to Account without clearing saved account material. Re-enterin
 #### Scenario: Keyboard and portrait use
 - **WHEN** the player navigates Receive by keyboard in the 9:16 preview
 - **THEN** enabled controls have visible focus and readable labels, disabled invoice controls cannot activate, and Back is reachable without horizontal scrolling
+
+### Requirement: Receive title refresh is skipped by sequential tab navigation
+The Receive title refresh utility SHALL remain available and correctly labeled while being excluded from the browser's sequential tab order.
+
+#### Scenario: Keyboard traversal in Receive
+- **WHEN** a player tabs through the Receive view
+- **THEN** focus does not stop on the circular refresh icon beside the title
+- **AND** address fields, copyable values, and Back remain reachable according to their existing contracts

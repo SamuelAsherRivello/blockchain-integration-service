@@ -4,6 +4,17 @@ import {prepareMintDestination} from '../../src/client/admin-layer/mint-destinat
 import {createBisAssetCollection} from '../../../integration/src/client/state-layer-core/asset-collection.ts';
 
 const request = {operationId:'mint-one', name:'an asset', ticker:'ASSET', amount:'1', decimals:0};
+test('mint destination rejects network mismatch and suppresses a same-profile network switch',async()=>{
+  const source=wallet('game'),recipient=wallet('player');
+  source.state.network='mutinynet';recipient.state.network='signet';
+  await assert.rejects(prepareMintDestination('player',source,recipient,()=>true,()=>{}),/must match/);
+  recipient.state.network='mutinynet';
+  const target=await prepareMintDestination('game',source,source,()=>true,()=>{});
+  source.state.network='signet';
+  assert.equal(target.isCurrent(),false);
+  assert.equal((await target.mint(request)).code,'account-changed');
+  assert.equal(source.calls.length,0);
+});
 function wallet(profileId) {
   const calls = [];
   const state = {profileId};

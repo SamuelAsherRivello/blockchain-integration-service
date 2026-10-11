@@ -4,7 +4,7 @@ export function batchFailure(error){
  if(/invalid|expired|dust|insufficient|fee|banned|verification/.test(reason))return Object.assign(new Error('Batch validation failed.'),{name:'ValidationError'});
  return Object.assign(new Error('The settlement batch failed; original inputs require reconciliation.'),{name:'BatchFailedError'});
 }
-const invalid=/^(The operator|SDK outputs|The selected|Captured|Invalid funding|Funding amount|Transfer percentage|Network mismatch|Signet required|Unexpected address|Account changed|Registration is not authorized|Repeat registration blocked)/;
+const invalid=/^(The operator|SDK outputs|The selected|Captured|Invalid funding|Funding amount|Transfer percentage|Network mismatch|(?:Signet|Mutinynet) required|Unexpected address|Account changed|Registration is not authorized|Repeat registration blocked)/;
 export function classifyFailure(error,{mutation=false}={}){
  const name=error?.name;
  if(name==='StaleOperationError')return 'stale';

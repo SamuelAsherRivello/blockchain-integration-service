@@ -59,7 +59,7 @@ export function testNetwork(network: TestNetwork): TestNetworkDefinition {
 }
 
 export function networkLabel(network: TestNetwork | undefined): string {
-  return network ? testNetwork(network).label : 'Choose a test network';
+  return network ? testNetwork(network).label : 'N/A';
 }
 
 /** Returns no link rather than a link to the wrong network when no asset explorer is configured. */

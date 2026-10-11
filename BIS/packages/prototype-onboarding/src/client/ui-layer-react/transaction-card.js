@@ -4,7 +4,7 @@ export function statusBadge(label,tone){
 export function incomingCard(row,address,isChange=false){
  const card=document.createElement('article');card.className='transaction-card';
  const header=document.createElement('div');header.className='transaction-header';
- const link=document.createElement('a');link.textContent=row.txid;link.href=`https://mempool.signet.arkade.sh/tx/${row.txid}`;link.target='_blank';link.rel='noopener noreferrer';link.className='transaction-id';
+ const explorer=window.__onboardingNetwork==='mutinynet'?'https://mempool.mutinynet.arkade.sh':'https://mempool.signet.arkade.sh'; const link=document.createElement('a');link.textContent=row.txid;link.href=`${explorer}/tx/${row.txid}`;link.target='_blank';link.rel='noopener noreferrer';link.className='transaction-id';
  const when=document.createElement('span');when.className='transaction-time';
  when.textContent=row.confirmed&&Number.isFinite(row.time)?`Confirmed ${new Date(row.time*1000).toLocaleString()}`:row.confirmed?'Included in a Bitcoin block':'Awaiting a Bitcoin block';
  header.append(link,when);
@@ -32,6 +32,6 @@ export function settlementCard(txid,label,confirmed){
  const header=document.createElement('div');header.className='transaction-header';
  const name=document.createElement('strong');name.textContent=label;
  header.append(name,statusBadge(confirmed===true?'Confirmed':confirmed===false?'Unconfirmed':'Checking confirmation',confirmed===true?'confirmed':confirmed===false?'unconfirmed':'unknown'));
- const link=document.createElement('a');link.className='transaction-id';link.href=`https://mempool.signet.arkade.sh/tx/${txid}`;link.textContent=txid;link.target='_blank';link.rel='noopener noreferrer';
+ const explorer=window.__onboardingNetwork==='mutinynet'?'https://mempool.mutinynet.arkade.sh':'https://mempool.signet.arkade.sh'; const link=document.createElement('a');link.className='transaction-id';link.href=`${explorer}/tx/${txid}`;link.textContent=txid;link.target='_blank';link.rel='noopener noreferrer';
  const body=document.createElement('div');body.className='transaction-body';body.append(link);card.append(header,body);return card;
 }

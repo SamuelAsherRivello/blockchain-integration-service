@@ -17,6 +17,8 @@ import type { validContinueRecipient } from '../wallet-layer-arkade/continue-rec
 
 /** Runtime wallet operations required by the state-core context. This stays internal to the integration source surface. */
 export type BisContextDependencies = Readonly<{
+  retireWallet?(): void;
+  disposeWallets?(): void;
   create: typeof createAccount;
   identifyAccount: typeof identify;
   restore: typeof restoreAccount;

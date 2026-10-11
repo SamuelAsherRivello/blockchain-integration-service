@@ -35,7 +35,8 @@ test('Account UI does not expose saved profiles while preserving ordinary accoun
     await active.readyAsync();active.openAccountDialog();
     const activeHtml=renderToStaticMarkup(createElement(BisAccountView,{context:active}));
     assert.match(activeHtml,/>Accounts Details</);assert.match(activeHtml,/>Log Out</);
-    assert.doesNotMatch(activeHtml,/Profiles|profile-a|profile-b|Add Profile|Active/);
+    assert.match(activeHtml,/data-bis-player-id="profile-a"/,'only the active public identity is exposed for context verification');
+    assert.doesNotMatch(activeHtml,/Profiles|profile-b|Add Profile|Active|phrase a|phrase b/);
     active.dispose();
   }finally{await server.close();}
 });

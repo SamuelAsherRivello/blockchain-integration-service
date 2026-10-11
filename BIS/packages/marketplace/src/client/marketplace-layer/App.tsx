@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { advanceLocalMarketplaceCheckout, arkExplorerAssetUrl, beginLocalMarketplaceCheckout, classifyBisEquipmentAsset, confirmLocalMarketplaceCheckoutLeg, FormValue, createBisContext, createBisGameWallet, createBisUi, inspectBisEquipmentAsset, networkLabel, PendingOperations, readLocalMarketplaceCheckout, readLocalMarketplaceCheckouts, usePendingNotice, type BisEquipmentItem, type BisMarketplaceCheckoutRecord } from '@bis/integration';
 import '@bis/integration/style.css';
 import { fallbackCatalog, type MarketplaceCatalog } from './catalog';
+import { readPublicInventory } from '../inventory-layer/inventory';
 import { createMarketplaceInventoryCoordinator, type MarketplaceInventorySource } from '../inventory-layer/inventory-cache';
 import {createCheckoutSession, type CheckoutScope} from './checkout-session';
 import { version } from '../../../package.json';
 import arkadeLogo from '../../../../integration-admin/src/client/ui-layer-react/assets/arkade-logo.png';
 import '../ui-layer-react/marketplace-utilities.css';
 import '../ui-layer-react/marketplace-redesign.css';
-
 const blockchainBenefitsImageUrl = 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/documentation/bitcoin-ark-arkade-bis-game.png?raw=1';
 let playerArkadeAddressForDisplay: string | undefined;
 function shortAddress(address: string | undefined) {
@@ -81,6 +81,7 @@ function MarketplaceContent(){
   const [owner,setOwner]=useState<'all'|'game'|'player'>('game'),[game,setGame]=useState<string>('stealth-and-steel'),[type,setType]=useState<'all'|'speed'|'offense'|'defense'>('all');
   const selectedGame=game==='all'?undefined:catalog.games.find(entry=>entry.gameId===game);
   const defaultGame=catalog.games.find(entry=>entry.gameId==='stealth-and-steel');
+  const publicGameAddress=game==='all'?defaultGame?.gameWalletAddress:selectedGame?.gameWalletAddress;
   useEffect(()=>{
     try {
       const pending=readLocalMarketplaceCheckouts().find(record=>record.status==='pending');
@@ -107,41 +108,32 @@ function MarketplaceContent(){
   const sessionGameAddress=gameState.addresses?.arkadeAddress;
   const playerArkadeAddress=playerState.addresses.status==='ready'?playerState.addresses.arkadeAddress:undefined;
   playerArkadeAddressForDisplay=playerArkadeAddress??playerDisplayAddress;
-  const activeGameWallet=Boolean(playerState.profileId&&gameState.profileId&&gameState.addresses?.arkadeAddress);
-  const inventoryAddress=!activeGameWallet||isCatalogLoading|| (game!=='all'&&!selectedGame?.gameWalletAddress)
-    ?undefined
-    :sessionGameAddress;
+  const activeGameWallet=Boolean(playerState.profileId&&gameState.profileId&&gameState.network===network&&gameState.addresses?.arkadeAddress);
+  const inventoryAddress=isCatalogLoading?undefined:publicGameAddress;
   const salesEnabled=Boolean(playerState.profileId&&gameState.profileId&&playerState.profileId!==gameState.profileId&&(game==='all'||game==='stealth-and-steel'));
   const gameListingEnabled=Boolean(playerState.profileId&&gameState.profileId&&inventoryAddress);
   const inventorySources=useMemo<readonly MarketplaceInventorySource[]>(()=>{
     if(isCatalogLoading||!network)return [];
     const sources: MarketplaceInventorySource[]=[];
-    if(playerState.profileId)sources.push({role:'player',walletId:playerState.profileId,network,read:async()=>{
+    if(playerState.profileId)sources.push({role:'player',walletId:playerState.profileId,network,read:async(force=false)=>{
       // Use the same raw account asset snapshot as BIS Assets. Equipment-loadout
       // selection persistence is unrelated to inventory and must not be able to
       // hide valid marketplace items.
-      // A presentation read can be invalidated while the Marketplace is being
-      // opened (for example when the wallet finishes restoring). If that read
-      // reports an error, retry through the authoritative public listing before
-      // declaring the wallet unavailable.
-      const prepared=player.prepareAssetInventory?await player.prepareAssetInventory():undefined;
-      const result=prepared?.status==='success'?prepared:await player.listAssets();
+      // One shared, bounded attempt. Only explicit Retry starts another attempt.
+      const result=player.prepareAssetInventory?await player.prepareAssetInventory(force):await player.listAssets();
       if(result.status!=='success'||result.profileId!==playerState.profileId)throw Error('Player Wallet inventory unavailable');
       const classified=result.assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));
       return {items:classified.map(row=>row.item).filter((item):item is BisEquipmentItem=>item!==null),invalidMetadataCount:classified.filter(row=>row.status==='invalid-metadata').length,migrationRequiredCount:classified.filter(row=>row.status==='migration-required').length};
     }});
-    if(activeGameWallet&&(game==='all'||selectedGame?.gameWalletAddress)&&inventoryAddress)sources.push({role:'game',walletId:gameState.profileId!,network,read:async()=>{
-      // The shared presentation read is fast when its cache is warm, but a
-      // failed or stale cache must not hide a wallet that can still answer an
-      // authoritative asset listing. This mirrors the Player Wallet path.
-      const prepared=gameWallet.prepareAssetInventory?await gameWallet.prepareAssetInventory():undefined;
-      const result=prepared?.status==='success'?prepared:await gameWallet.listAssets();
-      if(result.status!=='success'||result.profileId!==gameState.profileId)throw Error('Game Wallet inventory unavailable');
-      const classified=result.assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));
+    if(publicGameAddress)sources.push({role:'game',walletId:publicGameAddress,network,read:async()=>{
+      // Marketplace browsing only needs the published public address. A
+      // mnemonic-backed Game Wallet remains necessary for minting and trades.
+      const assets=await readPublicInventory(publicGameAddress,new AbortController().signal,network);
+      const classified=assets.map(asset=>({asset,item:classifyBisEquipmentAsset(asset),status:inspectBisEquipmentAsset(asset)}));
       return {items:classified.map(row=>row.item).filter((item):item is BisEquipmentItem=>item!==null),invalidMetadataCount:classified.filter(row=>row.status==='invalid-metadata').length,migrationRequiredCount:classified.filter(row=>row.status==='migration-required').length};
     }});
     return sources;
-  },[activeGameWallet,game,gameState.profileId,inventoryAddress,isCatalogLoading,network,player,playerState.profileId,selectedGame?.gameWalletAddress]);
+  },[game,network,isCatalogLoading,player,playerState.profileId,publicGameAddress]);
   const inventorySourcesRef=useRef<readonly MarketplaceInventorySource[]>([]);
   inventorySourcesRef.current=inventorySources;
   const invalidateInventory=()=>{
@@ -156,16 +148,19 @@ function MarketplaceContent(){
     // State changes cover initiated operations and observed incoming wallet
     // activity, including balance/asset changes that do not have a public BIS
     // event type of their own.
-    let playerFingerprint=`${playerState.profileId??''}:${playerState.network??''}:${playerState.balance.status}:${playerState.balance.status==='ready'?`${playerState.balance.availableSats}:${playerState.balance.totalSats}`:''}:${playerState.addresses.status}:${playerState.addresses.status==='ready'?playerState.addresses.arkadeAddress:''}:${playerState.activity.status}:${playerState.assets.status}`;
-    let gameFingerprint=`${gameState.profileId??''}:${gameState.network??''}:${gameState.status}:${gameState.balance?.availableSats??''}:${gameState.balance?.totalSats??''}:${gameState.addresses?.arkadeAddress??''}`;
+    let playerBalance=player.getState().balance;
+    let gameTotal=gameWallet.getState().balance?.totalSats;
     const unsubscribePlayer=player.subscribe(()=>{
       const current=player.getState();
-      const next=`${current.profileId??''}:${current.network??''}:${current.balance.status}:${current.balance.status==='ready'?`${current.balance.availableSats}:${current.balance.totalSats}`:''}:${current.addresses.status}:${current.addresses.status==='ready'?current.addresses.arkadeAddress:''}:${current.activity.status}:${current.assets.status}`;
-      if(next!==playerFingerprint){playerFingerprint=next;invalidateInventory();}
+      if(current.balance.status==='ready'){
+        const changed=playerBalance.status==='ready'&&current.balance.totalSats!==playerBalance.totalSats;
+        playerBalance=current.balance;
+        if(changed)invalidateInventory();
+      }
     });
     const unsubscribeGame=gameWallet.subscribe(()=>{
-      const next=`${gameWallet.getState().profileId??''}:${gameWallet.getState().network??''}:${gameWallet.getState().status}:${gameWallet.getState().balance?.totalSats??''}`;
-      if(next!==gameFingerprint){gameFingerprint=next;invalidateInventory();}
+      const next=gameWallet.getState().balance?.totalSats;
+      if(next!==undefined){const changed=gameTotal!==undefined&&next!==gameTotal;gameTotal=next;if(changed)invalidateInventory();}
     });
     return()=>{unsubscribePlayerEvents();unsubscribePlayer();unsubscribeGame();};
   },[gameWallet,inventory,player]);
@@ -194,7 +189,7 @@ function MarketplaceContent(){
     });
   },[gameItems,playerItems]);
   const pendingItem=pendingCheckout?itemSnapshots[pendingCheckout.request.assetId]??(selected?.assetId===pendingCheckout.request.assetId?selected:undefined):undefined;
-  const gameItemsForSession=activeGameWallet?previousGameItems:[];
+  const gameItemsForSession=previousGameItems;
   const source=game!=='all'&&game!=='stealth-and-steel'?[]:owner==='player'
     ?[...previousPlayerItems,...(pendingItem&&pendingItemIsInPlayerWallet(pendingItem)&&!previousPlayerItems.some(item=>item.assetId===pendingItem.assetId)?[pendingItem]:[])]
     :owner==='game'
@@ -203,7 +198,14 @@ function MarketplaceContent(){
   const visibleItems=source.filter(item=>(game==='all'||game==='stealth-and-steel')&&(type==='all'||gameplayMetadata(item).some(stat=>stat.label.toLowerCase()===type&&stat.value!=='0')));
   const selectedGameIsEmpty=game!== 'all'&&game!== 'stealth-and-steel';
   const selectedInventory=owner==='player'?inventoryState.player:inventoryState.game;
-  const emptyMessage='No items found.';
+  const visibleInventories=owner==='all'?[inventoryState.player,inventoryState.game]:[selectedInventory];
+  const migrationCount=visibleInventories.reduce((sum,record)=>sum+record.migrationRequiredCount,0);
+  const invalidCount=visibleInventories.reduce((sum,record)=>sum+record.invalidMetadataCount,0);
+  const emptyMessage=selectedGameIsEmpty?'No items found.':migrationCount
+    ?`${migrationCount} owned item(s) have legacy metadata and cannot be traded or equipped. They remain visible in Account → Assets. Mint updated items through Admin; existing holdings are not changed.`
+    :invalidCount?'Owned assets have invalid marketplace metadata. View them in Account → Assets.'
+    :visibleInventories.some(record=>record.status==='unavailable')?'Item inventory is unavailable. Retry the load or view Account → Assets.'
+    :'No items found.';
   const sourceFor=(role:'player'|'game')=>inventorySources.find(source=>source.role===role);
   const recordNeedsInitialRead=(role:'player'|'game')=>{
     const source=sourceFor(role),record=inventoryState[role];
@@ -217,7 +219,7 @@ function MarketplaceContent(){
   // parallel, but its slower read cannot make a completed selected wallet look
   // empty or keep the page covered.
   const isMarketplaceLoading=isCatalogLoading||selectedInventoryLoading;
-  const rawInventoryError=owner==='all'?[inventoryState.player.error,inventoryState.game.error].find(Boolean):selectedInventory.error;
+  const rawInventoryError=owner==='all'?[inventoryState.player,inventoryState.game].find(record=>record.status==='unavailable')?.error:selectedInventory.status==='unavailable'?selectedInventory.error:undefined;
   const inventoryError=inventoryErrorDismissed?undefined:rawInventoryError;
   useEffect(()=>{setInventoryErrorDismissed(false);},[rawInventoryError]);
   const promptBusy=isMarketplaceLoading||!!operationLabel;
@@ -231,7 +233,7 @@ function MarketplaceContent(){
   const playerOwnsSelected=Boolean(selected&&playerItems.some(item=>item.assetId===selected.assetId));
   const checkoutIsPending=activeCheckout?.status==='pending';
   const checkoutHasBeenSubmitted=pendingCheckout?.phase==='payment-submitted'||pendingCheckout?.phase==='delivery-submitted';
-  const retrySelectedInventory=()=>{setInventoryErrorDismissed(false);const source=inventorySources.find(candidate=>candidate.role===(owner==='player'?'player':'game'));if(source)void inventory.retry(source);};
+  const retrySelectedInventory=()=>{setInventoryErrorDismissed(false);const role=owner==='all'?(inventoryState.game.status==='unavailable'?'game':'player'):owner;const source=inventorySources.find(candidate=>candidate.role===role);if(source)void inventory.retry(source);};
   const pendingTransferIsSelected=Boolean(selected&&pendingTransferFor(selected));
   const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;
   const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;
@@ -286,7 +288,7 @@ function MarketplaceContent(){
     const intent=Object.freeze({direction,assetId:selected.assetId,quantity:String(selected.quantity),priceSats:selected.priceSats});
     setOperationError(undefined);
     invalidateInventory();
-    setOperationLabel(direction==='buy'?'Buying...':'Selling...');
+    setOperationLabel(direction==='buy'?'Buying ...':'Selling ...');
     const loadingTimer=window.setTimeout(()=>{if(checkoutSession.current(scope))setOperationLabel(undefined);},3000);
     try {
       const record=await checkoutSession.prepare(intent,scope);

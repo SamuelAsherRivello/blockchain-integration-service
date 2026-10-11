@@ -4,6 +4,7 @@ import { ArkAddress, AssetManager, Extension, InMemoryContractRepository, InMemo
 import { listWalletAssets, mintWalletAsset, loadMintAvailability } from '../../src/client/wallet-layer-arkade/assets.ts';
 import {writeSendRecord} from '../../src/client/state-layer-core/sending.ts';
 import { readAssetRecords, writeAssetRecord } from '../../src/client/state-layer-core/assets.ts';
+import {bisMarketplaceItems,marketplaceItemMetadata,classifyBisEquipmentAsset} from '../../src/client/state-layer-core/equipment.ts';
 
 // A published BIP39 test vector, used only behind mocked wallet/provider factories.
 // These tests never contact an operator, restore a user identity, or submit funds.
@@ -18,6 +19,13 @@ const request = {
 const metadata = r => ({ name: r.name, ticker: r.ticker, decimals: r.decimals, ...(r.iconUrl ? { icon: r.iconUrl } : {}), ...r.metadata });
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const flush = () => new Promise(resolve => setImmediate(resolve));
+test('mint result keeps typed deltas and numeric-looking prices without indexer hex decoding',async t=>{
+  const f=fixture(t,'mutinynet'),item=bisMarketplaceItems.find(item=>item.name==='Dagger I');
+  const result=await f.mint({operationId:'structured-price',name:item.name,ticker:item.ticker,amount:'1',decimals:0,iconUrl:item.iconUrl,metadata:marketplaceItemMetadata(item)});
+  assert.equal(result.status,'minted');assert.equal(result.asset.metadata.bisPriceSats,'1100');
+  assert.deepEqual(result.asset.metadata.bisAttributeDeltas,item.attributeDeltas);
+  assert.equal(classifyBisEquipmentAsset(result.asset).catalogId,item.catalogId);
+});
 
 function fixture(t, network = 'signet') {
   const walletAccount = {...account, network};
@@ -80,6 +88,11 @@ function fixture(t, network = 'signet') {
         return { assets: [...state.holdings].map(([assetId, holding]) => ({ assetId, amount: holding.amount })) };
       },
       getProviderConnectionState: () => ({ mode: 'online', source: 'live' }),
+      getVtxos:async()=>{
+        try {await options.indexerProvider.getVtxos({scripts:[]});}
+        catch(error){if(!state.staleCacheFallback)throw error;}
+        return [{txid:'a'.repeat(64),vout:0,value:330,isSpent:false,isSwept:false,assets:[...state.holdings].map(([assetId,holding])=>({assetId,amount:holding.amount}))}];
+      },
       getSpendableVtxos: async options => { assert.equal(options.withRecoverable, false); return state.coins; },
       dispose: async () => { state.disposed++; },
       // Keep the actual SDK AssetManager.issue and its asset packet/coin selection.

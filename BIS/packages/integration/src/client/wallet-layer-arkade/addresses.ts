@@ -1,10 +1,16 @@
 import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
 import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
+import type { RoleWalletAccess } from './adapter-session.ts';
 
 export type AccountAddresses = Readonly<{ arkadeAddress: string; bitcoinAddress: string }>;
-export async function loadAddresses(account: AccountSecret, signal: AbortSignal): Promise<AccountAddresses> {
+export async function loadAddresses(account: AccountSecret, signal: AbortSignal, session?: RoleWalletAccess): Promise<AccountAddresses> {
   if (!validRecovery(account.phrase)) throw new Error('Invalid account.');
+  if (session) return session.read(account,signal,async wallet => {
+    const [arkadeAddress,bitcoinAddress]=await Promise.all([wallet.getAddress(),wallet.getBoardingAddress()]);
+    if(!arkadeAddress.startsWith('tark1')||!bitcoinAddress.startsWith('tb1'))throw Error('Unexpected address network.');
+    return Object.freeze({arkadeAddress,bitcoinAddress});
+  },false);
   signal.throwIfAborted();
   const network=account.network ?? 'signet', provider = new RestArkProvider(operatorFor(network));
   const getInfo = provider.getInfo.bind(provider);

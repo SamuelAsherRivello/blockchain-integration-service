@@ -7,7 +7,7 @@ This guide defines a concise cross-project acceptance pass for a game that consu
 1. Record the BIS and game revisions, working-tree status, browser, and browser origin used for the run.
 2. Build and test BIS with its current root commands: `npm run typecheck`, `npm test`, and `npm run build`.
 3. Build and test the consuming game with its own documented commands and the exact verified versioned BIS archive, hash, file inventory and source commit under test. Do not substitute a source symlink or declaration mirror for package acceptance.
-4. Keep account storage origin-local. Do not copy browser storage, recovery phrases, private keys, or wallet data between the BIS demo and the game.
+4. Keep account storage origin-local. Do not copy browser storage, private keys, wallet databases or operation journals between the BIS demo and the game. Never reveal or export recovery phrases from an application. Separately authorized disposable test identities may be restored independently through production hidden recovery inputs using the agent's private encrypted vault; this is not permission to extract application secrets or transfer browser storage. Keep recovery entry out of screenshots, traces, videos, DOM dumps and logs.
 5. Use a fresh isolated browser context for automated checks. Every AI-created game URL must include both `muteMusic=true&muteSFX=true`; never reuse a funded personal browser profile.
 
 ## Acceptance sequence

@@ -2,6 +2,8 @@ import {eligibleUnreservedCoins, walletReservations, migrateWalletReservations} 
 import { ArkAddress, MnemonicIdentity, ReadonlyWallet, Wallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, Transaction, Extension, createAssetPacket, type ExtendedVirtualCoin } from '@arkade-os/sdk';
 import { operatorFor, requireNetwork, withTemporaryWallet, type AccountSecret } from './account.ts';
 import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
+import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
+import type {RoleWalletAccess} from './adapter-session.ts';
 import type { TestNetwork } from '../state-layer-core/test-network.ts';
 import { requireReadablePolicy } from '../state-layer-core/wallet-network-policy.ts';
 import { readFreshBalance } from './balance.ts';
@@ -67,12 +69,12 @@ async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requ
  const quote:BisSendQuote=Object.freeze({id:crypto.randomUUID(),profileId,recipient:address.encode(),amountSats:amounts.amountSats,feeSats:0,totalSats:amounts.amountSats,maxSats:total,expiresAt:Date.now()+60000,fingerprint});
  return {quote,coins,recipientScript:hex(address.pkScript),changeScript:hex(ArkAddress.decode(own).pkScript)};
 }
-async function read<T>(account:AccountSecret,signal:AbortSignal,work:(wallet:ReadonlyWallet)=>Promise<T>):Promise<T> {
+async function read<T>(account:AccountSecret,signal:AbortSignal,work:(wallet:ReadonlyWallet)=>Promise<T>,session?:RoleWalletAccess):Promise<T> {
  const network=account.network ?? 'signet', c=config(signal,network),identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
- return withTemporaryWallet(ReadonlyWallet.create({...c.options,identity}),signal,async wallet=>{const result=await work(wallet);c.assertFresh();return result;});
+ return useReadonlyWallet(account,signal,c.options,async wallet=>{const result=await work(wallet);c.assertFresh();return result;},session);
 }
-export const loadSendFunds=(account:AccountSecret,signal:AbortSignal,preserveAssets=false)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId,undefined,account.network ?? 'signet')).total);
-export const quoteSend=(account:AccountSecret,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false,ignoreOperation?:string)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets,ignoreOperation,account.network ?? 'signet')).quote);
+export const loadSendFunds=(account:AccountSecret,signal:AbortSignal,preserveAssets=false,session?:RoleWalletAccess)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId,undefined,account.network ?? 'signet')).total,session);
+export const quoteSend=(account:AccountSecret,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false,ignoreOperation?:string,session?:RoleWalletAccess)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets,ignoreOperation,account.network ?? 'signet')).quote,session);
 
 // Verify the entire direct-send shape, including the checkpoint indirection.
 // No signed bytes are returned or persisted by this boundary.
@@ -95,12 +97,12 @@ export function inspectSendTransaction(encoded:string,checkpoints:string[],quote
 }
 export type SendJournal = {read(profileId:string):SendRecord|undefined; write(record:SendRecord):void; complete(id:string,transactionId:string,profileId:string):void};
 const defaultJournal:SendJournal={read:readSendRecord,write:writeSendRecord,complete:completeSend};
-export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurrent:()=>boolean,journal:SendJournal=defaultJournal,preserveAssets=false,ignoreOperation?:string):Promise<SendRecord> {
+export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurrent:()=>boolean,journal:SendJournal=defaultJournal,preserveAssets=false,ignoreOperation?:string,session?:RoleWalletAccess):Promise<SendRecord> {
  const signal=AbortSignal.timeout(30000),network=account.network ?? 'signet',c=config(signal,network),activeJournal=journal===defaultJournal?{read:(profileId:string,id?:string)=>readSendRecord(profileId,id,network),write:(record:SendRecord)=>writeSendRecord({...record,network}),complete:(id:string,transactionId:string,profileId:string)=>completeSend(id,transactionId,profileId,network)}:journal;let open=true,record:SendRecord|undefined;
  const submit=c.options.arkProvider.submitTx.bind(c.options.arkProvider);
  c.options.arkProvider.submitTx=async()=>{throw new SendError('Send preparation is incomplete.');};
  try {
-  return await withTemporaryWallet(Wallet.create({...c.options,identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})}),signal,async wallet=>{
+  return await useSigningWallet(account,signal,c.options,async wallet=>{
    const fresh=await plan(wallet,account.profileId,quote.recipient,quote.amountSats,preserveAssets,ignoreOperation,network);c.assertFresh();assertSendQuote(quote,fresh.quote);
    c.options.arkProvider.submitTx=async(encoded,checkpoints)=>{
     c.assertFresh();if(!open||!isCurrent()||record||quote.expiresAt<=Date.now())throw new SendError('Send details changed. Review again.');
@@ -111,8 +113,8 @@ export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurr
    };
    const transactionId=await wallet.send({recipients:[{address:quote.recipient,amount:quote.amountSats}],selectedVtxos:fresh.coins});
    if(!record||record.transactionId!==transactionId)throw new SendError('Send result needs verification.');
-   activeJournal.complete(record.id,transactionId,account.profileId);return activeJournal.read(account.profileId)!;
-  },30000);
+   if(isCurrent()&&activeJournal.read(account.profileId))activeJournal.complete(record.id,transactionId,account.profileId);return activeJournal.read(account.profileId)??record;
+  },session,30000);
  } catch(e) {if(record)return activeJournal.read(account.profileId)!;throw e instanceof SendError?e:new SendError('Send could not be prepared. Review again.');}
  finally {open=false;}
 }

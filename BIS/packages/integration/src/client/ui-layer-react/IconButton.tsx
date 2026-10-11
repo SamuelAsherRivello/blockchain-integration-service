@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-type IconButtonProps = { label: string; title?: string; disabled?: boolean; pressed?: boolean; className?: string; onClick(): void; children: ReactNode };
-export function IconButton({ label, title = label, disabled, pressed, className = '', onClick, children }: IconButtonProps) {
-  return <button type="button" className={`bis-copy-icon ${className}`.trim()} aria-label={label} title={title} disabled={disabled} aria-pressed={pressed} onClick={onClick}>{children}</button>;
+type IconButtonProps = { label: string; title?: string; disabled?: boolean; pressed?: boolean; tabIndex?: number; className?: string; onClick(): void; children: ReactNode };
+export function IconButton({ label, title = label, disabled, pressed, tabIndex, className = '', onClick, children }: IconButtonProps) {
+  return <button type="button" className={`bis-copy-icon ${className}`.trim()} aria-label={label} title={title} disabled={disabled} aria-pressed={pressed} tabIndex={tabIndex} onClick={onClick}>{children}</button>;
 }
 export function CopyIcon({ copied = false }: { copied?: boolean }) {
   return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -10,7 +10,7 @@ export function CopyIcon({ copied = false }: { copied?: boolean }) {
   </svg>;
 }
 export function CopyButton({ label, copied = false, disabled, onClick }: { label: string; copied?: boolean; disabled?: boolean; onClick(): void }) {
-  return <IconButton label={`Copy ${label}`} title={copied ? 'Copied' : `Copy ${label}`} disabled={disabled} onClick={onClick}><CopyIcon copied={copied} /></IconButton>;
+  return <IconButton label={`Copy ${label}`} title={copied ? 'Copied' : `Copy ${label}`} disabled={disabled} tabIndex={-1} onClick={onClick}><CopyIcon copied={copied} /></IconButton>;
 }
 export function PasteButton({ disabled, reading = false, onClick }: { disabled?: boolean; reading?: boolean; onClick(): void }) {
   return <IconButton label="Paste from Clipboard" title={reading ? 'Reading clipboard…' : 'Paste from Clipboard'} disabled={disabled} onClick={onClick}>

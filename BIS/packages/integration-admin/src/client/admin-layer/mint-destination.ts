@@ -2,7 +2,7 @@ import type { BisAssetDeliveryRequest, BisAssetDeliveryResult, BisMintAssetReque
 
 export type MintDestination = 'player' | 'game';
 export type MintWallet = {
-  getState(): { profileId?: string; phase?: string; addresses?: { status?: string; arkadeAddress?: string } };
+  getState(): { profileId?: string; phase?: string; network?: string; addresses?: { status?: string; arkadeAddress?: string } };
   getPaymentRecipient?(): Promise<{ profileId: string; address: string }>;
   subscribe(listener: () => void): () => void;
   getPendingAssetMint(): Promise<BisPendingMintResult>;
@@ -38,7 +38,10 @@ export async function prepareMintDestination(destination: MintDestination, sourc
   const destinationProfileId = destinationWallet?.getState().profileId;
   if (!source || !sourceProfileId) throw Error(legacy && destination === 'player' ? 'Log in to a player wallet first.' : 'Import a game wallet first.');
   if (!destinationWallet || !destinationProfileId) throw Error('Log in to a player wallet first.');
-  const isCurrent = () => current() && source.getState().profileId === sourceProfileId && destinationWallet.getState().profileId === destinationProfileId;
+  const sourceNetwork=source.getState().network,destinationNetwork=destinationWallet.getState().network;
+  if(sourceNetwork&&destinationNetwork&&sourceNetwork!==destinationNetwork)throw Error('The Game Wallet must match the Player Wallet network.');
+  const isCurrent = () => current() && source.getState().profileId === sourceProfileId && destinationWallet.getState().profileId === destinationProfileId
+    && source.getState().network===sourceNetwork && destinationWallet.getState().network===destinationNetwork;
   const pending = await source.getPendingAssetMint();
   if (!isCurrent()) throw Error('The selected wallet changed. Close and reopen Mint Asset.');
   if (pending.status === 'error') throw Error(pending.message);

@@ -11,19 +11,22 @@ import { loadAddresses } from './addresses.ts';
 import { fundTestAccount } from './funding.ts';
 import { reconcileContinuation, submitContinuation } from './continuation.ts';
 import type { BisContextDependencies } from '../state-layer-core/context-dependencies.ts';
+import type { RoleWalletAccess } from './adapter-session.ts';
 
 /** Binds the core's explicit wallet-operation contract to the existing Arkade adapters. */
-export function createArkadeContextDependencies(overrides: Partial<BisContextDependencies> = {}): BisContextDependencies {
+export function createArkadeContextDependencies(overrides: Partial<BisContextDependencies> = {},session?:RoleWalletAccess): BisContextDependencies {
   const defaults: BisContextDependencies = {
     create: createAccount,
     identifyAccount: identify,
     restore: restoreAccount,
-    readBalance: loadBalance,
-    fund: fundTestAccount,
-    readAddresses: loadAddresses,
+    retireWallet:session?()=>{void session.retire().catch(()=>{});}:undefined,
+    disposeWallets:session?()=>{void session.retire().catch(()=>{});}:undefined,
+    readBalance: (account,signal)=>loadBalance(account,signal,session),
+    fund: (account,signal,current)=>fundTestAccount(account,signal,current,session),
+    readAddresses: (account,signal)=>loadAddresses(account,signal,session),
     observeActivity: watchActivity,
     transfers: { quote: quoteBoarding, submit: submitBoarding, reconcile: reconcileBoarding, availability: getBoardingAvailability },
-    assets: { list: listWalletAssets, mint: mintWalletAsset },
+    assets: { list: (account,signal)=>listWalletAssets(account,signal,session), mint: mintWalletAsset },
     deliverAsset: deliverWalletAsset,
     reconcileAssetDelivery: reconcileWalletAssetDelivery,
     loadMintAvailability,

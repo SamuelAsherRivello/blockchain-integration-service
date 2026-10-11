@@ -1125,6 +1125,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       if (state.accountRecovery || !logoutTarget || !['logout-confirmation','logout-error'].includes(state.phase)) return;
       // Warning acknowledgements are informational; Player logout always remains available.
       const target=logoutTarget;
+      dependencies.retireWallet?.();
       invalidate(); const current=version;
       update({phase:'logging-out',error:undefined});
       try {
@@ -1156,7 +1157,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       else if(failure==='save')await context.continueAccount();
       else {failure=undefined;update({phase:'idle',error:undefined});await context.createAccount();}
     },
-    dispose() {if(disposed)return;onboardingOperation.abort();paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();reads.dispose();unsubscribeStorage();listeners.clear();events.clear();},
+    dispose() {if(disposed)return;dependencies.disposeWallets?.();onboardingOperation.abort();paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();reads.dispose();unsubscribeStorage();listeners.clear();events.clear();},
   };
   controls.set(context,{
     toasts,
@@ -1220,6 +1221,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       assertAlive();if(state.phase==='resetting')return;
       guardSend();
       if(state.profileId&&globalThis.localStorage&&readAccountOnboarding(state.profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('Onboarding is unresolved. Open Account → Balance → Onboarding before resetting this account.');
+      dependencies.retireWallet?.();
       invalidate();logoutTarget=undefined;update({phase:'resetting',error:undefined,logoutBackupAcknowledged:false});
       try {await storage.reset();if(disposed)return;previous='empty';update({view:'empty'});initialization=hydrate();await initialization;}
       catch (error) {const message=error instanceof BoardingBlockedError?error.message:'Reset did not finish. Your account has not been confirmed cleared.';if(!disposed)fail('load',message);throw new Error(message);}
@@ -1229,6 +1231,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       if (forceResetPromise) return forceResetPromise;
       const id = resetId ?? crypto.randomUUID();
       forceResetPromise = (async () => {
+        dependencies.retireWallet?.();
         invalidate();
         logoutTarget = undefined;
         update({view:'empty', phase:'resetting', hasProfile:false, profileId:undefined, canReset:false, savedProfiles:Object.freeze([]), error:undefined, logoutBackupAcknowledged:false, logoutPendingAcknowledged:false, logoutGameWalletAcknowledged:false, hasGameWallet:false});

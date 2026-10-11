@@ -21,7 +21,9 @@ test('Assets, Contracts and Transactions render the same titled collection, refr
       assert.match(html,/bis-card-collection/);
       assert.match(html,new RegExp(`>${title}</h2>`));
       assert.match(html,new RegExp(`aria-label="Refresh ${title}"`));
+      assert.match(html,/aria-label="Refresh [^"]+"[^>]*tabindex="-1"/);
       assert.match(html,new RegExp(`aria-label="Copy ${title}"`));
+      assert.match(html,new RegExp(`aria-label="Copy ${title}"[^>]*tabindex="-1"`));
       assert.match(html,/bis-collection-scroll bis-collection-list/);
       assert.equal((html.match(/>Back<\/button>/g)??[]).length,1);
       assert.equal((html.match(/role="dialog"/g)??[]).length,1);

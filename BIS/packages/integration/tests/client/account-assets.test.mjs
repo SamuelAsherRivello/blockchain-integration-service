@@ -10,6 +10,13 @@ function setup(list=async()=>[holding]) {
   const context=createContext({load:async()=>({account,generation}),save:async()=>{},reset:async()=>{},subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);}},undefined,async()=>account.profileId,undefined,undefined,undefined,undefined,undefined,undefined,{list,mint:async()=>{throw Error('unexpected mutation');}});
   return {context,replace(){account={...account,profileId:'account-b'};generation++;for(const l of listeners)l();}};
 }
+test('forced inventory preparation replaces pre-purchase cached Player holdings',async()=>{
+  let assets=[],reads=0;const {context:c}=setup(async()=>{reads++;return assets;});await c.readyAsync();
+  assert.deepEqual((await c.prepareAssetInventory()).assets,[]);
+  assets=[holding];assert.deepEqual((await c.prepareAssetInventory()).assets,[]);assert.equal(reads,1);
+  assert.deepEqual((await c.prepareAssetInventory(true)).assets,[holding]);assert.equal(reads,2);c.dispose();
+});
+
 test('entry, ready, Back, and headless reads keep API and presentation separate',async()=>{
   let reads=0;const {context:c}=setup(async()=>{reads++;return[holding];});await c.readyAsync();c.openAccountDialog();await tick();assert.equal(reads,0);
   c.openAccountAssets();await tick();assert.equal(reads,1);assert.equal(c.getState().assets.status,'ready');
@@ -33,10 +40,10 @@ test('presentation cleanup does not cancel independent callers',async()=>{
   const read=deferred();const signals=[];const {context:c}=setup((_account,signal)=>{signals.push(signal);return read.promise;});await c.readyAsync();c.openAccountDialog();c.openAccountAssets();await tick();const publicRead=c.listAssets();await tick();
   getControls(c).hideAssets();assert.equal(signals[0].aborted,false);assert.equal(signals[1].aborted,false);read.resolve([holding]);assert.equal((await publicRead).status,'success');assert.equal(c.getState().assets.status,'idle');c.dispose();
 });
-test('each 30 second attempt is bounded despite a noncooperative reader',async(t)=>{
+test('one 30 second attempt is bounded despite a noncooperative reader',async(t)=>{
   t.mock.timers.enable({apis:['setTimeout']});
   const read=deferred();let signal;const {context:c}=setup((_account,s)=>{signal=s;return read.promise;});await c.readyAsync();c.openAccountDialog();c.openAccountAssets();await tick();
-  t.mock.timers.tick(29999);await tick();assert.equal(c.getState().assets.status,'loading');t.mock.timers.tick(1);await tick();assert.equal(c.getState().assets.status,'loading');t.mock.timers.tick(30000);await tick();assert.equal(c.getState().assets.status,'unavailable');assert.equal(signal.aborted,true);
+  t.mock.timers.tick(29999);await tick();assert.equal(c.getState().assets.status,'loading');t.mock.timers.tick(1);await tick();assert.equal(c.getState().assets.status,'unavailable');assert.equal(signal.aborted,true);
   read.resolve([holding]);await tick();assert.equal(c.getState().assets.status,'unavailable');c.dispose();t.mock.timers.reset();
 });
 test('other pages and logout clear asset presentation without wallet mutation',async()=>{

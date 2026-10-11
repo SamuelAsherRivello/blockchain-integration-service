@@ -2,8 +2,64 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBisGameWallet,createLocalGameWallet,createNetworkScopedGameWalletStorage} from '../../src/client/state-layer-core/game-wallet.ts';
 import {writeAssetRecord} from '../../src/client/state-layer-core/assets.ts';
+import {invalidateSharedAssetInventory} from '../../src/client/state-layer-core/shared-asset-inventory.ts';
 import {testLocks} from './locks-fixture.mjs';
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('Game Wallet availability and payment readiness read reservations on the Player network',async()=>{
+ const f=fixture(),calls=[];
+ const c=createBisGameWallet({playerProfileId:()=> 'player',playerNetwork:()=> 'mutinynet'},f.dependencies,undefined,undefined,(profile,network)=>{calls.push([profile,network]);});
+ await tick();await c.importWallet('game');
+ c.getOperationAvailability();c.canPayPlayer();c.getPlayerPaymentBalance();
+ assert.deepEqual(calls,[['game','mutinynet'],['game','mutinynet'],['game','mutinynet']]);c.dispose();
+});
+
+test('Game Wallet preflight storage read is bounded without retry or mutation',async t=>{
+ const f=fixture(),c=f.create();await tick();await c.importWallet('game');
+ let reads=0;f.storage.load=()=>{reads++;return new Promise(()=>{});};
+ t.mock.timers.enable({apis:['setTimeout']});
+ const result=c.getPendingAssetMint();
+ const rejected=assert.rejects(result,/timed out/);
+ t.mock.timers.tick(30000);await rejected;assert.equal(reads,1);c.dispose();
+});
+
+test('forced Game Wallet inventory preparation replaces cached pre-trade holdings',async()=>{
+ invalidateSharedAssetInventory();const f=fixture();let assets=[],reads=0;
+ const c=createBisGameWallet({playerProfileId:()=> 'player'},f.dependencies,undefined,undefined,undefined,{
+  availability:async()=>({canMint:true}),list:async()=>{reads++;return assets;},mint:async()=>{throw Error('Not used');},
+ });
+ await tick();await c.importWallet('game');assert.deepEqual((await c.prepareAssetInventory()).assets,[]);
+ assets=[{assetId:'incoming',quantity:'1'}];assert.deepEqual((await c.prepareAssetInventory()).assets,[]);
+ assert.equal((await c.prepareAssetInventory(true)).assets[0].assetId,'incoming');assert.equal(reads,2);c.dispose();invalidateSharedAssetInventory();
+});
+
+test('confirmed Game Wallet mint invalidates presentation inventory',async()=>{
+ invalidateSharedAssetInventory();const values=new Map();
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)}});
+ Object.defineProperty(navigator,'locks',{configurable:true,value:testLocks()});
+ const f=fixture();let assets=[],reads=0;
+ const c=createBisGameWallet({playerProfileId:()=> 'player'},f.dependencies,undefined,undefined,undefined,{
+  availability:async()=>({canMint:true}),list:async()=>{reads++;return assets;},
+  mint:async(account,request)=>{const asset={assetId:'fresh-item',quantity:'1'};assets=[asset];return {status:'minted',profileId:account.profileId,operationId:request.operationId,asset};},
+ });
+ await tick();await c.importWallet('game');
+ assert.deepEqual((await c.prepareAssetInventory()).assets,[]);
+ await c.mintAsset({operationId:'cache-mint',name:'Test',ticker:'TEST',amount:'1',decimals:0});
+ assert.equal((await c.prepareAssetInventory()).assets[0].assetId,'fresh-item');assert.equal(reads,2);
+ c.dispose();invalidateSharedAssetInventory();
+});
+
+test('authoritative Game Wallet listing suppresses a same-profile network switch',async()=>{
+ const f=fixture();let network='signet',finish,begin;
+ const started=new Promise(resolve=>{begin=resolve;});
+ const c=createBisGameWallet({playerProfileId:()=> 'player',playerNetwork:()=>network},f.dependencies,undefined,undefined,undefined,{
+  availability:async()=>({canMint:true}),mint:async()=>{throw Error('Not used');},
+  list:async account=>{assert.equal(account.network,'signet');begin();return new Promise(resolve=>{finish=resolve;});},
+ });
+ await tick();await c.importWallet('game');const pending=c.listAssets();await started;
+ network='mutinynet';finish([{assetId:'obsolete',quantity:'1'}]);
+ assert.equal((await pending).code,'account-changed');c.dispose();
+});
 
 test('A.G.3 enables at 1000 sats and remains unavailable below 1000',async()=>{
   for(const amount of [999,1000]) {

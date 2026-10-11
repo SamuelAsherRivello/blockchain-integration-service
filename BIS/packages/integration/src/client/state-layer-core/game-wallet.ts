@@ -111,6 +111,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
   const currentRead=(signal:AbortSignal)=>!disposed&&!signal.aborted&&signal===operation.signal&&readScopes.get(signal)===playerScope();
   async function inspect(account: AccountSecret | null, signal: AbortSignal) {
     if (!currentRead(signal)) return;
+    if (account) account={...account,network:account.network ?? selectedNetwork()};
     selectProfile(account?.profileId);
     if (!account) { publish({status:'empty'}); return; }
     const previous = state.profileId === account.profileId ? state : undefined;
@@ -177,9 +178,10 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
   });
   void refresh();
   async function selectedAccount() {
-    const account = await storage.load();
-    if (disposed || importing || !playerConnected() || !account || account.profileId !== state.profileId || account.profileId === options.playerProfileId() || (account.network !== undefined && account.network !== selectedNetwork())) throw Error('Connect a Player Wallet and select a separate Game Wallet first.');
-    return account;
+    const signal=operation.signal,scope=playerScope();
+    const account = await readWithRetry(() => storage.load(),signal,30000,1);
+    if (disposed || signal.aborted || signal!==operation.signal || scope!==playerScope() || importing || !playerConnected() || !account || account.profileId !== state.profileId || account.profileId === options.playerProfileId() || (account.network !== undefined && account.network !== selectedNetwork())) throw Error('Connect a Player Wallet and select a separate Game Wallet first.');
+    return {...account,network:account.network ?? selectedNetwork()};
   }
   async function selectSeparateGameWallet(account: AccountSecret, signal: AbortSignal) {
     if (!playerConnected() || (account.network !== undefined && account.network !== selectedNetwork())) throw Error('Connect a Player Wallet on the same network first.');
@@ -203,7 +205,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
     if (!scope.gameProfileId) return {available:false, reason:'game-wallet', message:'Select a separate Game Wallet first.', scope};
     if (scope.playerProfileId === scope.gameProfileId) return {available:false, reason:'role-conflict', message:'The Player Wallet and Game Wallet must be different.', scope};
     if (state.status === 'loading' || state.status === 'unavailable' || !state.balance) return {available:false, reason:'wallet-read', message:state.message ?? 'Game Wallet public data is unavailable. Refresh and retry.', scope};
-    try { availability(scope.gameProfileId); }
+    try { availability(scope.gameProfileId,scope.network); }
     catch (error) { return {available:false, reason:'unresolved-operation', message:error instanceof Error ? error.message : 'A previous wallet operation is unresolved.', scope}; }
     if (state.balance.availableSats < 1000) return {available:false, reason:'insufficient-funds', message:'The Game Wallet has fewer than 1,000 spendable sats.', scope};
     return {available:true, reason:'ready', message:'Game Wallet is ready for the requested operation.', scope};
@@ -213,7 +215,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
     if (!options.playerProfileId()) return 'Awaiting Player';
     if (state.profileId === options.playerProfileId()) return 'Select A Different Wallet';
     if (paying) return 'Sending';
-    try { availability(state.profileId); }
+    try { availability(state.profileId,selectedNetwork()); }
     catch (error) {
       return error instanceof Error && error.message.startsWith('A transfer is unresolved.')
         ? 'Awaiting Confirmation' : 'Wallet Operation Unresolved';
@@ -249,6 +251,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
           const owner='bis-game-wallet-mint-owner:'+encodeURIComponent(account.profileId);
           localStorage.setItem(owner,'1');if(localStorage.getItem(owner)!=='1')throw new AssetError('unavailable');
           const result=await minting.mint(account,request,signal,()=>!disposed&&!signal.aborted&&state.profileId===account.profileId);
+          invalidateSharedAssetInventory(account.profileId, account.network, 'game');
           return result;
         },account.profileId,account.network ?? 'signet');
       } catch(error) {const code=error instanceof AssetError?error.code:'unavailable';return assetError(code,state.profileId,input.operationId,diagnoseAssetFailure({phase:'mint',error,profileId:state.profileId,operationId:input.operationId,network:selectedNetwork()}));}
@@ -262,7 +265,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
     },
     getPlayerPaymentBalance(): number | undefined {
       if (disposed || state.status !== 'ready' || !state.profileId || !state.balance) return;
-      try { availability(state.profileId); }
+      try { availability(state.profileId,selectedNetwork()); }
       catch (error) {
         // Known unresolved operations reserve spending; unreadable state is unknown, not zero.
         return error instanceof Error && error.message.includes('unresolved') ? 0 : undefined;
@@ -270,7 +273,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
       return state.balance.availableSats;
     },
     canPayPlayer() { return getPlayerPaymentBlockReason() === undefined; },
-    hasPendingPlayerPayment() { try { return !!state.profileId && readSendRecord(state.profileId)?.status === 'pending'; } catch { return true; } },
+    hasPendingPlayerPayment() { try { return !!state.profileId && readSendRecord(state.profileId,undefined,selectedNetwork())?.status === 'pending'; } catch { return true; } },
     async payPlayer(recipient: BisPlayerRecipient, amountSats=1000, playerCurrent: () => boolean = () => options.playerProfileId() === recipient.profileId) {
       if (paying) throw Error('A payment is already in progress.');
       paying = true;
@@ -348,7 +351,9 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
           if(current.profileId!==account.profileId||signal.aborted)throw new BurnError('account-changed','The game wallet changed.');
           const owner='bis-game-wallet-burn-owner:'+encodeURIComponent(account.profileId);
           localStorage.setItem(owner,'1');if(localStorage.getItem(owner)!=='1')throw new BurnError('unavailable','Burn recovery could not be saved.');
-          return minting.burn!(account,request,signal,()=>!disposed&&!signal.aborted&&state.profileId===account.profileId);
+          const result=await minting.burn!(account,request,signal,()=>!disposed&&!signal.aborted&&state.profileId===account.profileId);
+          invalidateSharedAssetInventory(account.profileId,account.network,'game');
+          return result;
         },account.profileId,account.network ?? 'signet');
       } catch(error) {return {status:'error',code:error instanceof BurnError?error.code:'unavailable',message:error instanceof BurnError?error.message:'Burn unavailable.'};}
     },
@@ -362,7 +367,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
           const owner='bis-game-wallet-delivery-owner:'+encodeURIComponent(account.profileId);
           localStorage.setItem(owner,'1');if(localStorage.getItem(owner)!=='1')throw new AssetDeliveryError('unavailable','Item delivery recovery could not be saved.');
           const result=await deliverWalletAsset(account,request,signal,()=>!disposed&&!signal.aborted&&state.profileId===account.profileId);
-          if(result.status==='delivered'||result.status==='already-delivered')void refresh();
+          if(result.status==='delivered'||result.status==='already-delivered'){invalidateSharedAssetInventory(account.profileId,account.network,'game');void refresh();}
           return result;
         },account.profileId,account.network ?? 'signet');
       } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery unavailable.',profileId:state.profileId,operationId:input.operationId};}
@@ -370,21 +375,22 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
     async checkAssetDelivery(operationId:string):Promise<BisAssetDeliveryResult> {
       try {
         const account=await selectedAccount(),result=await withWalletMutation(()=>reconcileWalletAssetDelivery(account,operationId,operation.signal),account.profileId,account.network ?? 'signet');
-        if(result.status==='delivered'||result.status==='already-delivered')void refresh();
+        if(result.status==='delivered'||result.status==='already-delivered'){invalidateSharedAssetInventory(account.profileId,account.network,'game');void refresh();}
         return result;
       } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status unavailable.',profileId:state.profileId,operationId};}
     },
     async listAssets():Promise<BisListAssetsResult> {
+      const signal=operation.signal,scope=playerScope();
       try {
         const account=await selectedAccount();
         if(!minting.list)return assetError('unavailable',account.profileId);
-        const assets=await minting.list(account,operation.signal);
-        if(disposed||operation.signal.aborted||state.profileId!==account.profileId)return assetError('account-changed',account.profileId);
+        const assets=await minting.list(account,signal);
+        if(disposed||signal.aborted||signal!==operation.signal||scope!==playerScope()||state.profileId!==account.profileId)return assetError('account-changed',account.profileId);
         return {status:'success',profileId:account.profileId,assets};
       } catch(error) {return assetError(error instanceof AssetError?error.code:'unavailable',state.profileId);}
     },
-    async prepareAssetInventory():Promise<BisListAssetsResult> {
-      try { const account=await selectedAccount(), network=account.network ?? selectedNetwork(); return await prepareSharedAssetInventory({role:'game',profileId:account.profileId,network,load:signal=>minting.list ? minting.list(account,signal) : Promise.reject(Error('Game Wallet asset listing unavailable.'))}); }
+    async prepareAssetInventory(force = false):Promise<BisListAssetsResult> {
+      try { const account=await selectedAccount(), network=account.network ?? selectedNetwork(); if(force)invalidateSharedAssetInventory(account.profileId,network,'game'); return await prepareSharedAssetInventory({role:'game',profileId:account.profileId,network,load:signal=>minting.list ? minting.list(account,signal) : Promise.reject(Error('Game Wallet asset listing unavailable.'))}); }
       catch { return assetError('unavailable',state.profileId); }
     },
     async createWallet() {

@@ -1,4 +1,8 @@
-import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, type AssetDetails } from '@arkade-os/sdk';
+import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, hasTerminalSpend, type AssetDetails } from '@arkade-os/sdk';
+import { encodeAssetMetadata } from './asset-metadata.ts';
+import { shareIndexerReads } from './indexer-reads.ts';
+import type { RoleWalletAccess } from './adapter-session.ts';
+import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
 import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import type { TestNetwork } from '../state-layer-core/test-network.ts';
 import { AssetError, checkMintRecord, readAssetRecords, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../state-layer-core/assets.ts';
@@ -6,30 +10,50 @@ import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnA
 import { eligibleUnreservedCoins, walletReservations } from '../state-layer-core/wallet-reservations.ts';
 import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, validateAssetDelivery, writeAssetDeliveryRecord, type AssetDeliveryAsset, type AssetDeliveryRecord, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from '../state-layer-core/asset-delivery.ts';
 
-export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal) {
+export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal,session?:RoleWalletAccess) {
   const network=account.network ?? 'signet';
   try {eligibleUnreservedCoins([],walletReservations(account.profileId,network));}
   catch {return {canMint:false,reason:'Pending operation inputs could not be verified. Open wallet recovery details before minting.'};}
   const p=providers(signal, undefined, undefined, network);
   const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
-  return withTemporaryWallet(ReadonlyWallet.create({identity,arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()}),signal,async wallet=>{
+  return useReadonlyWallet(account,signal,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()},async wallet=>{
     const coins=eligibleUnreservedCoins(await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}),walletReservations(account.profileId,network));
     const connection=wallet.getProviderConnectionState();p.assertFresh();
     if(connection.mode!=='online'||connection.source!=='live')throw new AssetError('unavailable');
     const availableSats=coins.reduce((sum,c)=>sum+c.value,0),minimumSats=Number(wallet.dustAmount);
     if(!Number.isSafeInteger(availableSats)||!Number.isSafeInteger(minimumSats)||minimumSats<=0)throw new AssetError('unavailable');
     return {canMint:availableSats>=minimumSats,availableSats,minimumSats,reason:availableSats>=minimumSats?undefined:'Awaiting Balance'};
-  });
+  },session);
 }
 
 type OwnedAsset = { asset: BisAsset; operationId?: string };
-type AssetWallet = Pick<ReadonlyWallet, 'getBalance' | 'getProviderConnectionState' | 'assetManager'>;
+type AssetWallet = Pick<ReadonlyWallet, 'getProviderConnectionState' | 'assetManager'> & {getBalance():Promise<{assets:readonly {assetId:string;amount:bigint}[]}>};
+/** Ownership reporting uses the same all-output view as SDK balance.assets,
+ * without unrelated Bitcoin UTXO, chain-tip, or spending-capability probes.
+ * This is never a source of spendable transaction inputs.
+ */
+export async function readAssetHoldings(wallet:Pick<ReadonlyWallet,'getVtxos'>) {
+  const totals=new Map<string,bigint>();
+  for(const coin of await wallet.getVtxos({withRecoverable:true,withUnrolled:true})){
+    if(hasTerminalSpend(coin))continue;
+    for(const asset of coin.assets ?? []){
+      if(typeof asset.amount!=='bigint'||asset.amount<0n)throw new AssetError('unavailable');
+      totals.set(asset.assetId,(totals.get(asset.assetId) ?? 0n)+asset.amount);
+    }
+  }
+  return {assets:[...totals].map(([assetId,amount])=>({assetId,amount}))};
+}
 export async function readFreshAssets(wallet: AssetWallet): Promise<OwnedAsset[]> {
   const balance = await wallet.getBalance();
   const connection = wallet.getProviderConnectionState();
   if (connection.mode !== 'online' || connection.source !== 'live' || !Array.isArray(balance.assets)) throw new AssetError('unavailable');
   const owned: OwnedAsset[] = [];
-  for (const holding of balance.assets) {
+  let next = 0;
+  // Bound metadata hydration so a nine-item catalog does not require nine
+  // sequential HTTP round trips or consume every SDK transport slot.
+  await Promise.all(Array.from({length:Math.min(4,balance.assets.length)},async()=>{
+    while(next<balance.assets.length) {
+    const holding=balance.assets[next++];
     if (typeof holding.amount !== 'bigint' || holding.amount < 0n) throw new AssetError('unavailable');
     if (holding.amount === 0n) continue;
     const details: AssetDetails = await wallet.assetManager.getAssetDetails(holding.assetId);
@@ -44,13 +68,14 @@ export async function readFreshAssets(wallet: AssetWallet): Promise<OwnedAsset[]
       ...(metadata ? {metadata} : {}) };
     const kind=decodeListedMetadataValue(m?.bisKind),schema=decodeListedMetadataValue(m?.bisSchemaVersion),operationId=decodeListedMetadataValue(m?.bisOperationId);
     owned.push({ asset, ...(kind === 'asset' && schema === '1' && typeof operationId === 'string' ? { operationId } : {}) });
-  }
+    }
+  }));
   return owned.sort((a, b) => a.asset.assetId.localeCompare(b.asset.assetId));
 }
 
 function providers(signal: AbortSignal, beforeSubmit?: () => void, afterSubmit?: (transactionId: string) => void, network: TestNetwork = 'signet') {
   const operator=operatorFor(network);
-  const arkProvider = new RestArkProvider(operator), indexerProvider = new RestIndexerProvider(operator);
+  const arkProvider = new RestArkProvider(operator), indexerProvider = shareIndexerReads(new RestIndexerProvider(operator),operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);
   arkProvider.getInfo = async () => { signal.throwIfAborted(); const info = await getInfo(); requireNetwork(info.network,network); return info; };
   let failed = false;
@@ -67,7 +92,7 @@ function providers(signal: AbortSignal, beforeSubmit?: () => void, afterSubmit?:
 }
 const storage = () => ({ walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() });
 // Caller holds the wallet mutation lock. A pending record is written before submission.
-export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetRequest, signal:AbortSignal, isCurrent:()=>boolean):Promise<Extract<BisBurnAssetResult,{status:'burned'}>> {
+export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetRequest, signal:AbortSignal, isCurrent:()=>boolean,session?:RoleWalletAccess):Promise<Extract<BisBurnAssetResult,{status:'burned'}>> {
   const network=account.network ?? 'signet';
   const request=validateBurn(input), prior=readBurnRecord(account.profileId, input.operationId, network);
   if(prior?.id===request.operationId) {
@@ -88,7 +113,7 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
     }
   },network);
   try {
-    return await withTemporaryWallet(Wallet.create({identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}),arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()}),deadline,async wallet=>{
+    return await useSigningWallet(account,deadline,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()},async wallet=>{
       const owned=await readFreshAssets(wallet);p.assertFresh();
       const asset=owned.find(row=>row.asset.assetId===request.assetId)?.asset;
       if(!asset||asset.quantity!==request.quantity)throw new BurnError('invalid-input','The owned quantity changed. Refresh Assets and confirm again.');
@@ -105,28 +130,51 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw Error('Invalid transaction ID');
       writeBurnRecord({version:1,id:request.operationId,profileId:account.profileId,request,status:'succeeded',network,transactionId,inputs:burnInputs});
       return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId};
-    },30000);
+    },session,30000);
   } catch(error) {
     if(submitted)throw new BurnError('outcome-unknown','The burn may have been submitted. Refresh Assets; do not retry the burn.');
     if(error instanceof Error && error.message.startsWith('Operator network mismatch:'))throw new BurnError('unavailable','The selected wallet network could not be verified. Refresh the wallet and try again.');
     throw error;
   } finally {open=false;}
 }
-export async function listWalletAssets(account: AccountSecret, signal: AbortSignal): Promise<BisAsset[]> {
+export async function listWalletAssets(account: AccountSecret, signal: AbortSignal, session?: RoleWalletAccess): Promise<BisAsset[]> {
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
   const network = account.network ?? 'signet';
+  if(session) {
+    const holdings=await session.read(account,deadline,readAssetHoldings);
+    return session.read(account,deadline,async wallet=>{
+      let cache=metadataCaches.get(session);if(!cache){cache=new Map();metadataCaches.set(session,cache);}
+      const owned=await readFreshAssets({getBalance:async()=>holdings,getProviderConnectionState:()=>({mode:'online',source:'live',lastOnlineAt:Date.now()}),assetManager:{
+        getAssetDetails:async assetId=>{
+          const key=JSON.stringify([network,operatorFor(network),assetId]);
+          const known=cache!.get(key);if(known)return known;
+          const details=await wallet.assetManager.getAssetDetails(assetId);
+          if(details.assetId!==assetId)throw new AssetError('unavailable');
+          deadline.throwIfAborted();cache!.set(key,details);return details;
+        },
+      } as ReadonlyWallet['assetManager']});
+      deadline.throwIfAborted();return addLocalProvenance(owned,account);
+    },false);
+  }
   const p = providers(deadline, undefined, undefined, network);
   const identity = await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly();
   return withTemporaryWallet(ReadonlyWallet.create({ identity, arkProvider: p.arkProvider, indexerProvider: p.indexerProvider, storage: storage() }), deadline, async wallet => {
-    const owned = await readFreshAssets(wallet); p.assertFresh();
+    const owned = await readFreshAssets({getBalance:()=>readAssetHoldings(wallet),getProviderConnectionState:()=>wallet.getProviderConnectionState(),assetManager:wallet.assetManager}); p.assertFresh();
+    return addLocalProvenance(owned,account);
+  }, 30000);
+}
+// Immutable metadata only. Mutable quantities are ALWAYS read above. Weak scope
+// is app-owned; network/operator/asset ID prevent cross-network metadata reuse.
+const metadataCaches=new WeakMap<RoleWalletAccess,Map<string,AssetDetails>>();
+function addLocalProvenance(owned:OwnedAsset[],account:AccountSecret):BisAsset[] {
     let records: ReturnType<typeof readAssetRecords> = [];
+    const network=account.network??'signet';
     try { records = readAssetRecords(account.profileId, network); } catch { /* Local provenance is optional; chain ownership remains authoritative. */ }
     return owned.map(({asset}) => {
       const record = records.find(item => item.status === 'succeeded' && item.asset?.assetId === asset.assetId);
       const transactionId = record?.transactionId && /^[a-f0-9]{64}$/i.test(record.transactionId) ? record.transactionId : undefined;
       return record ? {...asset, sourceOperationId: record.request.operationId, ...(transactionId ? {sourceTransactionId: transactionId} : {})} : asset;
     });
-  }, 30000);
 }
 
 function deliveryRecipient(recipient:string, own:string) {
@@ -185,7 +233,7 @@ function deliveryResult(record:NonNullable<ReturnType<typeof readAssetDeliveryRe
  * Sends one exact asset allocation using a local signer. The intent is stored
  * before `wallet.send` can submit so a lost acknowledgement stays recoverable.
  */
-export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDeliveryRequest,signal:AbortSignal,isCurrent:()=>boolean):Promise<BisAssetDeliveryResult> {
+export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDeliveryRequest,signal:AbortSignal,isCurrent:()=>boolean,session?:RoleWalletAccess):Promise<BisAssetDeliveryResult> {
   let request:BisAssetDeliveryRequest;
   try {request=validateAssetDelivery(input);} catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'invalid-input',message:error instanceof Error?error.message:'Item delivery is invalid.',profileId:account.profileId,operationId:input?.operationId};}
   try {
@@ -196,7 +244,7 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
       return {status:'error',code:'outcome-unknown',message:'This item delivery is pending confirmation.',profileId:account.profileId,operationId:request.operationId};
     }
     const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline,undefined,undefined,network);
-    return await withTemporaryWallet(Wallet.create({identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}),arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()}),deadline,async wallet=>{
+    return await useSigningWallet(account,deadline,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()},async wallet=>{
       const own=await wallet.getAddress(),destination=deliveryRecipient(request.recipient,own);
       const spendable=await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false});p.assertFresh();
       const sourceQuantity=spendable.flatMap(coin=>coin.assets??[]).filter(asset=>asset.assetId===request.assetId).reduce((sum,asset)=>sum+asset.amount,0n);
@@ -206,9 +254,9 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
       writeAssetDeliveryRecord(record);
       const transactionId=await wallet.send({recipients:[{address:destination.address,amount:Number(wallet.dustAmount),assets:[{assetId:request.assetId,amount:BigInt(request.quantity)}]}],selectedVtxos:selected});
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw new AssetDeliveryError('outcome-unknown','Item delivery acknowledgement could not be verified.');
-      writeAssetDeliveryRecord({...record,transactionId});
+      if(isCurrent()&&!deadline.aborted&&readAssetDeliveryRecord(account.profileId,record.id,network))writeAssetDeliveryRecord({...record,transactionId});
       return {status:'error',code:'outcome-unknown',message:'Item delivery confirmation is pending.',profileId:account.profileId,operationId:request.operationId};
-    },30000);
+    },session,30000);
   } catch(error) {
     if(error instanceof AssetDeliveryError)return {status:'error',code:error.code,message:error.message,profileId:account.profileId,operationId:request.operationId};
     return {status:'error',code:'unavailable',message:'Item delivery could not be prepared. Refresh the wallet and try again.',profileId:account.profileId,operationId:request.operationId};
@@ -216,7 +264,7 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
 }
 
 /** Reconcile only from current sender and recipient evidence; absence is never success. */
-export async function reconcileWalletAssetDelivery(account:AccountSecret,operationId:string,signal:AbortSignal):Promise<BisAssetDeliveryResult> {
+export async function reconcileWalletAssetDelivery(account:AccountSecret,operationId:string,signal:AbortSignal,session?:RoleWalletAccess):Promise<BisAssetDeliveryResult> {
   try {
     const network=account.network ?? 'signet',record=readAssetDeliveryRecord(account.profileId,operationId,network);
     if(!record)throw new AssetDeliveryError('invalid-input','The requested item delivery does not exist.');
@@ -224,16 +272,16 @@ export async function reconcileWalletAssetDelivery(account:AccountSecret,operati
     if(!record.transactionId)return {status:'error',code:'outcome-unknown',message:'Item delivery preparation is pending. Do not submit another delivery.',profileId:account.profileId,operationId};
     const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline,undefined,undefined,network);
     const identity=await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly();
-    return await withTemporaryWallet(ReadonlyWallet.create({identity,arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()}),deadline,async wallet=>{
+    return await useReadonlyWallet(account,deadline,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,storage:storage()},async wallet=>{
       const [source,{vtxos}]=await Promise.all([readFreshAssets(wallet),p.indexerProvider.getVtxos({scripts:[record.senderScript,record.recipientScript]})]);p.assertFresh();
       const sourceQuantity=source.filter(item=>item.asset.assetId===record.request.assetId).reduce((sum,item)=>sum+BigInt(item.asset.quantity),0n);
       if(!hasExactDeliveryEvidence(record,sourceQuantity,vtxos))return {status:'error',code:'outcome-unknown',message:'Item delivery is still awaiting fresh sender-change and recipient ownership evidence. Do not submit another delivery.',profileId:account.profileId,operationId};
       return deliveryResult(completeAssetDelivery(account.profileId,operationId,record.transactionId!,network));
-    },30000);
+    },session,30000);
   } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status is unavailable.',profileId:account.profileId,operationId};}
 }
 // Caller holds the mutation lock shared with transfers and account clearing.
-export async function mintWalletAsset(account: AccountSecret, request: BisMintAssetRequest, signal: AbortSignal, isCurrent: () => boolean): Promise<Exclude<BisMintAssetResult, {status:'error'}>> {
+export async function mintWalletAsset(account: AccountSecret, request: BisMintAssetRequest, signal: AbortSignal, isCurrent: () => boolean,session?:RoleWalletAccess): Promise<Exclude<BisMintAssetResult, {status:'error'}>> {
   const network=account.network ?? 'signet', record = checkMintRecord(account.profileId, request,network);
   if (record?.status === 'succeeded') return { status: 'already-minted', profileId: account.profileId, operationId: request.operationId, asset: record.asset!, transactionId: record.transactionId };
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
@@ -261,7 +309,7 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
     }
   }, account.network ?? 'signet');
   try {
-    return await withTemporaryWallet(Wallet.create({ identity: MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }), arkProvider: p.arkProvider, indexerProvider: p.indexerProvider, settlementConfig: false, storage: storage() }), deadline, async wallet => {
+    return await useSigningWallet(account,deadline,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()},async wallet => {
       const owned = await readFreshAssets(wallet); p.assertFresh();
       const existing = owned.find(o => o.operationId === request.operationId && o.asset.name === request.name && o.asset.ticker === request.ticker && o.asset.decimals === request.decimals && o.asset.quantity === assetBaseUnits(request.amount, request.decimals).toString() && (o.asset.iconUrl || '') === (request.iconUrl || ''));
       if (existing) {
@@ -283,15 +331,19 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
       if (coins.reduce((sum, c) => sum + BigInt(c.value), 0n) < BigInt(wallet.dustAmount)) throw new AssetError('insufficient-funds');
       if (!isCurrent()) throw new AssetError('account-changed');
       const quantity = assetBaseUnits(request.amount, request.decimals);
-      const chainMetadata = { name: request.name, ticker: request.ticker, decimals: request.decimals, ...(request.iconUrl ? {icon: request.iconUrl} : {}), ...request.metadata, bisKind: 'asset', bisSchemaVersion: '1', bisOperationId: request.operationId };
-      const result = await wallet.assetManager.issue({ amount: quantity, metadata: chainMetadata });
-      const metadata = normalizeAssetMetadata(chainMetadata, 'list');
+      const result = await wallet.assetManager.issue({ amount: quantity, metadata: {
+        name:request.name,ticker:request.ticker,decimals:request.decimals,...(request.iconUrl?{icon:request.iconUrl}:{}),
+        ...encodeAssetMetadata(request.metadata),bisKind:'asset',bisSchemaVersion:'1',bisOperationId:request.operationId,
+      } });
+      // These are already typed API values, not indexer hex. In particular a
+      // price such as "1100" must not be decoded as hex bytes a second time.
+      const metadata = normalizeAssetMetadata({...request.metadata,bisSchemaVersion:'1'});
       const asset: BisAsset = {assetId: result.assetId, name: request.name, ticker: request.ticker, quantity: quantity.toString(), decimals: request.decimals, ...(request.iconUrl ? {iconUrl: request.iconUrl} : {}), ...(metadata ? {metadata} : {})};
       // SDK finalization continues after abort, but only an open caller still
       // holds the mutation lock needed to update this operation's journal.
       if (open && !deadline.aborted && checkMintRecord(account.profileId, request,network)) writeAssetRecord(account.profileId, {request, status: 'succeeded', asset, network, transactionId: result.arkTxId});
       return { status: 'minted', profileId: account.profileId, operationId: request.operationId, asset, transactionId: result.arkTxId };
-    }, 30000);
+    },session,30000);
   } catch (e) {
     if (submitted) throw new AssetError('outcome-unknown');
     throw e;

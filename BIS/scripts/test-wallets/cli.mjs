@@ -84,6 +84,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
               if (Object.keys(request).some(key => !['command', 'type', 'screen'].includes(key))) fail('invalid-session-command');
               result = await owner.navigate(request.screen);
             }
+            else if (request.command === 'action') result = await (await import('./owned-actions.mjs')).ownedAction(owner, request);
             else if (request.command === 'run' && ['payment', 'funding'].includes(request.scenario)) result = await owner.payment(request);
             else if (request.command === 'run' && request.scenario === 'swap-to-bitcoin') result = await owner.swap(request);
             else fail('command-not-yet-implemented');

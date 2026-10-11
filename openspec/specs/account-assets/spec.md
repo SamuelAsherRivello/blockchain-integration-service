@@ -153,3 +153,11 @@ For a valid selected owned holding, Open On Explorer SHALL open the explorer URL
 #### Scenario: Selection changes before an action completes
 - **WHEN** the player changes account, leaves Asset Detail, or the selected holding disappears before a delayed action completes
 - **THEN** the obsolete action cannot open an explorer page for another asset or submit a burn under another account
+
+### Requirement: Assets title refresh is skipped by sequential tab navigation
+The Assets title refresh utility SHALL remain available and correctly labeled while being excluded from the browser's sequential tab order.
+
+#### Scenario: Keyboard traversal in Assets
+- **WHEN** a player tabs through the Assets list or Asset Detail view
+- **THEN** focus does not stop on the circular refresh icon beside the title
+- **AND** asset rows, selectable details, burn/explorer actions, and Back remain reachable according to their existing contracts

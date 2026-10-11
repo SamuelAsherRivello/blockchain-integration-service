@@ -6,8 +6,9 @@ import {renderStepCompletion,setupStepDisclosure} from './client/ui-layer-react/
 import { errorSummary, guarded } from './client/operation-layer/callback-errors.js';
 
 import { layout } from './client/ui-layer-react/layout.js';
+import { prototypeTitleMarkup as sharedPrototypeTitleMarkup } from './client/ui-layer-react/prototype-ui.js';
 
-import { Wallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository, Ramps, CSVMultisigTapscript, hasBoardingTxExpired, sdkVersion } from '@arkade-os/sdk';
+import { Wallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository, Ramps, CSVMultisigTapscript, hasBoardingTxExpired } from '@arkade-os/sdk';
 
 import { identity, read, write, recoveryDetails } from './client/operation-layer/storage.js';
 import { normalizeRecoveryPhrase } from './client/arkade-layer/identity-material.js';
@@ -20,30 +21,50 @@ import { incomingCard, transferBadge, statusBadge, settlementCard } from './clie
 
 import { recordTiming, loadTimings } from './client/operation-layer/timing.js';
 
-import { setupTimingViews, renderTimings } from './client/ui-layer-react/timing-view.js';
 
 import './client/ui-layer-react/style.css';
 import './client/ui-layer-react/admin-polish.css';
+import './client/ui-layer-react/prototype-styles.css';
 
 
 
 const $=id=>document.getElementById(id);
+let selectedAssetGame='stealth-and-steel',assetGameIds=new Map(),assetExportUrl;
+const formatCallDuration=ms=>`${(ms/1000).toFixed(1)} secs`;
+
+const NETWORKS={signet:{label:'Signet',operator:'https://signet.arkade.sh',faucet:'https://signet.2nd.dev/',explorer:'https://mempool.signet.arkade.sh'},mutinynet:{label:'Mutinynet',operator:'https://mutinynet.arkade.sh',faucet:'https://faucet.mutinynet.com/',explorer:'https://mempool.mutinynet.arkade.sh'}};
+const activeNetwork=/(?:^|[?&])network=mutinynet(?:&|$)/.test(typeof location==='undefined'?'':location.search)?'mutinynet':'signet';
+window.__onboardingNetwork=activeNetwork;
 
 document.querySelector('#app').innerHTML=layout;
+const appRoot=document.querySelector('#app');
+if(appRoot?.classList?.add) appRoot.classList.add('prototype-page');
+const prototypeTitleMarkup=typeof sharedPrototypeTitleMarkup==='function'?sharedPrototypeTitleMarkup:(number,title)=>`<div class="prototype-title-bar">${number?`<span class="prototype-number" aria-hidden="true">${number}</span>`:''}<h2>${title}</h2></div>`;
+document.querySelectorAll('.balances,.spike-diagnostics,.step-ui').forEach(section=>{if(section.classList?.add) section.classList.add('prototype-section');});
+document.querySelector('.balances')?.insertAdjacentHTML('afterbegin',prototypeTitleMarkup('O1','Balances'));
+document.querySelector('.spike-diagnostics')?.insertAdjacentHTML('afterbegin',prototypeTitleMarkup('O2','Diagnostics'));
+
+const networkPicker=$('network');
+networkPicker.value=activeNetwork;
+networkPicker.onchange=()=>{
+ if(!window.confirm('This will reset all data on the page')){networkPicker.value=activeNetwork;return;}
+ try{sessionStorage.removeItem('standalone-spike-window-v1');}catch{}
+ window.location.href=`${location.pathname}?network=${encodeURIComponent(networkPicker.value)}`;
+};
+$('direct-faucet').href=NETWORKS[activeNetwork].faucet;
+$('network-description').textContent=`Move a fresh ${NETWORKS[activeNetwork].label} account from Bitcoin funding to verified, spendable Arkade funds.`;
+$('network-label').textContent=`${NETWORKS[activeNetwork].label} network`;
+$('address-explorer').textContent=`View address on the ${NETWORKS[activeNetwork].label} explorer ↗`;
+$('asset-game').onchange=()=>{selectedAssetGame=$('asset-game').value;void refreshBalances();};
+$('assets-all-link').onclick=event=>{if($('assets-all-link').getAttribute('href')==='#')event.preventDefault();};
 
 let transferPercent=50;
 try{const saved=Number(stateStorage.getItem('standalone-transfer-percent'));if(Number.isInteger(saved)&&saved>=1&&saved<=100)transferPercent=saved;}catch{}
 $('transfer-percent').value=String(transferPercent);
 $('transfer-percent').oninput=()=>{transferPercent=Number($('transfer-percent').value);try{stateStorage.setItem('standalone-transfer-percent',String(transferPercent));}catch{}render();};
 setupStepDisclosure(stateStorage);
-setupTimingViews(stateStorage);
 
 $('status').insertAdjacentHTML('beforebegin','<div id="transfer-badge" class="transfer-badge" aria-live="polite"></div>');
-
-document.querySelector('.refresh-bar').insertAdjacentHTML('afterend','<p class="muted" id="timing-storage">Step timings and averages are saved separately for this window. In-progress durations are excluded. Time with the browser closed is included.</p>');
-
-$('sdk').textContent=sdkVersion;
-$('window-label').textContent=`Window ${windowState.id.slice(0,8)}`;
 try{$('seed-mode').value=stateStorage.getItem('standalone-seed-mode')==='manual'?'manual':'auto';}catch{}
 $('seed-mode').onchange=()=>{try{stateStorage.setItem('standalone-seed-mode',$('seed-mode').value);}catch{}};
 $('commitment').closest('dl').insertAdjacentHTML('afterend','<div id="settlement-transactions" class="transaction-scroll settlement-scroll" role="region" aria-label="Settlement transactions" tabindex="0"></div>');
@@ -130,9 +151,7 @@ async function timing(step,action,at=Date.now(),run=accountId){
 
  const saved=await recordTiming(run,step,action,at,stateStorage,stateLocks);
 
- if(!saved)$('timing-storage').textContent='Could not save timing history in local storage. Wallet processing continues.';
-
- renderTimings(accountId);
+ void saved;
 
 }
 
@@ -256,8 +275,6 @@ let nextRefreshAt=Date.now()+refreshIntervalMs;
 
 function renderRefresh(){
 
- renderTimings(accountId);
-
  $('refresh').disabled=busy||!wallet;
 
  $('refresh').textContent=busy?'Refreshing…':`Refresh status (${Math.max(0,Math.ceil((nextRefreshAt-Date.now())/1000))}s)`;
@@ -310,8 +327,6 @@ function render(){
  $('usable').textContent=state.phase==='success'?`${state.target.toLocaleString()} sats verified as usable Arkade funds. Ready.`:targetSpendable?`${state.target.toLocaleString()} sats verified spendable in Arkade. Step 6 completes after the matching Bitcoin transaction confirms.`:'Not ready yet. CPU will verify spendable Arkade funds after the transfer settles.';
 
  $('ready-panel').classList.toggle('complete',state.phase==='success');
-
- renderTimings(accountId);
 
 }
 
@@ -396,7 +411,7 @@ function watchedSettlementStream(open,signal,topics,getIntentId){
 
 async function prepare(coins,info,diagnostic=false){
  const snapshot={...state},token=activeToken(),signer=wallet,address=bitcoinAddress;
- if(info.network!=='signet')throw Error('Network mismatch; Signet required.');
+ if(info.network!==activeNetwork)throw Error(`Network mismatch; ${NETWORKS[activeNetwork].label} required.`);
  if(info.fees.txFeeRate!=='0'||Object.values(info.fees.intentFee).some(v=>v!==''&&v!=='0'))throw Error('The operator has nonzero fees. Nothing submitted.');
  let params;
  const facade={getAddress:()=>signer.getAddress(),getBoardingAddress:()=>signer.getBoardingAddress(),settle:async p=>{params=p;return 'quote-only';}};
@@ -444,7 +459,7 @@ function launchSettlement(params,requested){
 async function prepareReturn(selected,info){
  const token=activeToken(),snapshot={...state},signer=wallet,address=bitcoinAddress;
  if(!selected.length||selected.reduce((sum,v)=>sum+v.value,0)!==snapshot.total||selected.some(v=>!v.commitmentTxIds?.includes(snapshot.boardingCommitment)))throw Error('Captured Arkade inputs unavailable.');
- if(info.network!=='signet')throw Error('Network mismatch; Signet required.');
+ if(info.network!==activeNetwork)throw Error(`Network mismatch; ${NETWORKS[activeNetwork].label} required.`);
  if(info.fees.txFeeRate!=='0'||Object.values(info.fees.intentFee).some(v=>v!==''&&v!=='0'))throw Error('The operator fee schedule changed.');
  const own=await readWork('own-address',5,()=>signer.getAddress());
  if(!currentToken(token)||signer!==wallet||accountBusy)throw staleError();
@@ -454,9 +469,41 @@ async function prepareReturn(selected,info){
 async function refreshBalances(){
  const signer=wallet,owner=accountId;if(!signer)return;
  try{
-  const balance=await readWork('balance',3,()=>signer.getBalance());if(owner!==accountId||signer!==wallet||accountBusy)return;
+  // This duration covers the single getBalance request that supplies both Bitcoin and Arkade balances.
+  const balanceStarted=performance.now();
+  const balance=await readWork('balance',3,()=>signer.getBalance());
+  document.querySelector('.balance-flow')?.style.setProperty('--balance-call-duration',`'${formatCallDuration(performance.now()-balanceStarted)}'`);
+  if(owner!==accountId||signer!==wallet||accountBusy)return;
   $('bitcoin').textContent=balance.boarding.total.toLocaleString();$('arkade').textContent=(balance.total-balance.boarding.total).toLocaleString();$('available').textContent='Spendable sats: '+balance.available.toLocaleString();
- }catch(error){if(owner===accountId&&!['StaleOperationError','RecoveryPendingError'].includes(error?.name)){$('bitcoin').textContent='—';$('arkade').textContent='—';$('available').textContent='Spendable sats: —';captureError('balance observation',error);}}
+  const assets=Array.isArray(balance.assets)?balance.assets:[],availableAssets=Array.isArray(balance.availableAssets)?balance.availableAssets:[];
+  const totalAssets=assets.length,availableCount=availableAssets.length;
+  $('assets-count').textContent=`${totalAssets} Total`;
+  $('assets-pending').textContent=`(${Math.max(0,totalAssets-availableCount)} Pending)`;
+  void refreshAssetDetails({assets,availableAssets,signer,owner});
+ }catch(error){if(owner===accountId&&!['StaleOperationError','RecoveryPendingError'].includes(error?.name)){$('bitcoin').textContent='—';$('arkade').textContent='—';$('available').textContent='Spendable sats: —';$('assets-count').textContent='—';$('assets-pending').textContent='(— Pending)';captureError('balance observation',error);}}
+}
+async function refreshAssetDetails({assets,availableAssets,signer,owner}){
+ const assetsStarted=performance.now();
+ try{
+  const details=await Promise.allSettled(assets.map(asset=>withDeadline(()=>signer.assetManager.getAssetDetails(asset.assetId),{ms:10000,name:'AssetDetailsTimeout'})));
+  if(owner!==accountId||signer!==wallet||accountBusy)return;
+  document.querySelector('.asset-balance')?.style.setProperty('--asset-call-duration',`'${formatCallDuration(performance.now()-assetsStarted)}'`);
+  assetGameIds=new Map(details.flatMap((result,index)=>result.status==='fulfilled'&&result.value?.metadata?.bisGameId?[[assets[index].assetId,result.value.metadata.bisGameId]]:[]));
+  const availableAssetIds=new Set(availableAssets.map(asset=>asset.assetId));
+  const exportLines=[`Assets (ALL)`, `Network: ${NETWORKS[activeNetwork].label}`, `Updated: ${new Date().toISOString()}`, ''];
+  assets.forEach((asset,index)=>{
+   const detail=details[index].status==='fulfilled'?details[index].value:undefined;
+   exportLines.push(`Asset ${index+1}`,`Asset ID: ${asset.assetId}`,`Amount: ${String(asset.amount)}`,`Game: ${detail?.metadata?.bisGameId??'Unknown'}`,`Status: ${availableAssetIds.has(asset.assetId)?'Available':'Pending'}`,'');
+  });
+  if(assetExportUrl)URL.revokeObjectURL(assetExportUrl);
+  assetExportUrl=URL.createObjectURL(new Blob([exportLines.join('\n')],{type:'text/plain;charset=utf-8'}));
+  $('assets-all-link').href=assetExportUrl;
+  const visibleAssets=selectedAssetGame==='all'?assets:assets.filter(asset=>assetGameIds.get(asset.assetId)===selectedAssetGame);
+  const visibleAssetIds=new Set(visibleAssets.map(asset=>asset.assetId));
+  const totalAssets=visibleAssets.length,availableCount=availableAssets.filter(asset=>visibleAssetIds.has(asset.assetId)).length;
+  $('assets-count').textContent=`${totalAssets} Total`;
+  $('assets-pending').textContent=`(${Math.max(0,totalAssets-availableCount)} Pending)`;
+ }catch(error){captureError('asset metadata observation',error);}
 }
 async function tick(){
  if(!wallet||busy||accountBusy)return;busy=true;safeRenderRefresh();
@@ -483,7 +530,7 @@ async function tick(){
    const snapshot=activeToken();
    const [coins,tip,info]=await Promise.all([readWork('boarding-coins',3,()=>signer.getBoardingUtxos()),readWork('tip',3,()=>signer.onchainProvider.getChainTip()),readWork('info',4,()=>signer.arkProvider.getInfo())]);
    if(!currentToken(snapshot)||accountBusy||signer!==wallet)throw staleError();
-   if(info.network!=='signet')throw Error('Network mismatch; Signet required.');
+ if(info.network!==activeNetwork)throw Error(`Network mismatch; ${NETWORKS[activeNetwork].label} required.`);
    const connection=signer.getProviderConnectionState();if(connection.mode!=='online'||connection.source!=='live')throw Object.assign(new Error('Fresh network data unavailable.'),{name:'ProviderUnavailableError'});
    const exit=CSVMultisigTapscript.decode(Uint8Array.from(signer.boardingTapscript.exitScript.match(/.{2}/g),v=>parseInt(v,16)));
    const original=state.inputs?capturedFunding(state.inputs,coins).selected:coins;
@@ -542,7 +589,7 @@ async function tick(){
 
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(bitcoinAddress);$('copy').textContent='✓';$('copy').title='Copied';$('copied').textContent='';}catch(error){captureError('application callback',error);$('address').select();$('copied').textContent=' Select and copy the address manually.';}};
 
-$('faucet').onclick=()=>{if(wallet){try{window.open('https://signet.2nd.dev/','_blank','noopener,noreferrer');}catch(error){captureError('faucet navigation',error);$('fund-status').textContent='Use the direct faucet link and copy the boarding address above.';}void timing(2,'start').catch(error=>captureError('timing',error));}};
+$('faucet').onclick=()=>{if(wallet){try{window.open(NETWORKS[activeNetwork].faucet,'_blank','noopener,noreferrer');}catch(error){captureError('faucet navigation',error);$('fund-status').textContent='Use the direct faucet link and copy the boarding address above.';}void timing(2,'start').catch(error=>captureError('timing',error));}};
 
 async function restartAccount(manual=false){
  let manualPhrase;
@@ -600,19 +647,19 @@ async function start(providedSigner){
   const signer=providedSigner??await work.read(workKey('identity'),()=>identity());
   if(generation!==connectionGeneration||accountBusy)throw staleError();
 
-  if(!signer){$('account-status').textContent='Choose Auto or Manual seed phrase creation, then Restart to start a Signet account.';render();return;}
+  if(!signer){$('account-status').textContent=`Choose Auto or Manual seed phrase creation, then Restart to start a ${NETWORKS[activeNetwork].label} account.`;render();return;}
 
   const savedIdentity=await read('identity');accountId=savedIdentity.id;$('account-status').textContent='Connecting the saved account…';
 
   $('recovery-label').textContent=savedIdentity.kind==='mnemonic'?'Seed phrase':'Private key';
 
 
-  const provider=new RestArkProvider('https://signet.arkade.sh');
+  const provider=new RestArkProvider(NETWORKS[activeNetwork].operator);
   let registration={attempt:undefined,count:0,duplicate:false,deleted:false};
   const openStream=provider.getEventStream.bind(provider);
   provider.getEventStream=(signal,topics)=>watchedSettlementStream(openStream,signal,topics,()=>registration.intentId);
 
-  const getInfo=provider.getInfo.bind(provider);provider.getInfo=async()=>{const info=await getInfo();if(info.network!=='signet')throw Error('Signet required.');return info;};
+  const getInfo=provider.getInfo.bind(provider);provider.getInfo=async()=>{const info=await getInfo();if(info.network!==activeNetwork)throw Error(`${NETWORKS[activeNetwork].label} required.`);return info;};
 
   await work.read(workKey('startup-info'),()=>provider.getInfo());
 
@@ -681,7 +728,7 @@ async function start(providedSigner){
 
   void timing(1,'finish').catch(error=>captureError('timing',error));
 
-  $('address-explorer').href=`https://mempool.signet.arkade.sh/address/${bitcoinAddress}`;
+  $('address-explorer').href=`${NETWORKS[activeNetwork].explorer}/address/${bitcoinAddress}`;
 
   state=await read('operation')??{phase:'idle'};work.success(startupKey);work.success(workKey('startup'));safeRender();await tick();
   if(wallet.notifyIncomingFunds){

@@ -67,7 +67,10 @@ export function normalizeAssetMetadata(input: unknown, mode: 'mint' | 'list' = '
   }
   const entries: [string, BisAssetMetadataValue][] = [];
   for (const [key,rawValue] of Object.entries(input)) {
-    const value = mode === 'list' ? decodeListedMetadataValue(rawValue) : rawValue;
+    let value = mode === 'list' ? decodeListedMetadataValue(rawValue) : rawValue;
+    if (mode === 'list' && key === 'bisAttributeDeltas' && typeof value === 'string') {
+      try { value = JSON.parse(value); } catch { continue; }
+    }
     if (reservedMetadata.has(key)) {
       if (mode === 'mint') throw new AssetError('invalid-input');
       continue;
@@ -77,6 +80,10 @@ export function normalizeAssetMetadata(input: unknown, mode: 'mint' | 'list' = '
       continue;
     }
     if (key === 'bisAttributeDeltas') {
+      if (!Array.isArray(value)) {
+        if (mode === 'mint') throw new AssetError('invalid-input');
+        continue;
+      }
       const deltas = (value as readonly BisAttributeDelta[]).map(delta => Object.freeze({
         bisAttribute: delta.bisAttribute,
         bisAttributeDelta: delta.bisAttributeDelta ?? 0,
