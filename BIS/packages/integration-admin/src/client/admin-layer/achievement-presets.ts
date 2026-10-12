@@ -1,3 +1,5 @@
+import { formatAssetMetadata } from '@bis/integration';
+
 // Public metadata URLs must stay absolute, including when minting from localhost.
 // Preserve published versions: mint metadata can retain these URLs after future releases.
 export const achievementPresets = [1, 2, 3].map(level => ({
@@ -6,12 +8,12 @@ export const achievementPresets = [1, 2, 3].map(level => ({
   amount: '1',
   decimals: 0,
   iconUrl: `https://samuelasherrivello.github.io/blockchain-integration-service/assets/achievements/v2/level-${level}-trophy.png`,
-  metadata: {
+  metadata: formatAssetMetadata({
     bisGameId: 'stealth-and-steel',
     bisAssetType: 'trophy',
     bisCatalogId: `stealth-steel-trophy-${level}`,
     bisTier: String(level),
     bisDescription: `Level ${level} achievement trophy.`,
     bisAttributeDeltas: [],
-  },
+  }),
 }));

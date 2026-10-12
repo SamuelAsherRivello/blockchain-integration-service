@@ -6,7 +6,7 @@ import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
 import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
 import type { TestNetwork } from '../state-layer-core/test-network.ts';
 import { AssetError, checkMintRecord, readAssetRecords, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../state-layer-core/assets.ts';
-import { resolveBisAssetFormat } from '../state-layer-core/asset-format.ts';
+import { BIS_LATEST_ASSET_FORMAT_VERSION, resolveBisAssetFormat } from '../state-layer-core/asset-format.ts';
 import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult, type BurnInput } from '../state-layer-core/burning.ts';
 import { eligibleUnreservedCoins, walletReservations } from '../state-layer-core/wallet-reservations.ts';
 import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, validateAssetDelivery, writeAssetDeliveryRecord, type AssetDeliveryAsset, type AssetDeliveryRecord, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from '../state-layer-core/asset-delivery.ts';
@@ -341,7 +341,7 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
       const quantity = assetBaseUnits(request.amount, request.decimals);
       const result = await wallet.assetManager.issue({ amount: quantity, metadata: {
         name:request.name,ticker:request.ticker,decimals:request.decimals,...(request.iconUrl?{icon:request.iconUrl}:{}),
-        ...encodeAssetMetadata(request.metadata),bisKind:'asset',bisSchemaVersion:'1',bisAssetFormatVersion:'0.0.1',bisOperationId:request.operationId,
+        ...encodeAssetMetadata(request.metadata),bisKind:'asset',bisSchemaVersion:'1',bisAssetFormatVersion:request.metadata?.bisAssetFormatVersion ?? BIS_LATEST_ASSET_FORMAT_VERSION,bisOperationId:request.operationId,
       } });
       // These are already typed API values, not indexer hex. In particular a
       // price such as "1100" must not be decoded as hex bytes a second time.

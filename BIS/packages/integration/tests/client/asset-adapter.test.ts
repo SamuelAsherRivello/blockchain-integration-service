@@ -147,7 +147,7 @@ test('real adapter and SDK issue preserve the external holding, exact amount, ic
     ...metadata(request),
     bisKind: 'asset',
     bisSchemaVersion: '1',
-    bisAssetFormatVersion: '0.0.1',
+    bisAssetFormatVersion: '0.0.2',
     bisOperationId: request.operationId,
   });
   const { packet, outputs } = f.state.packets[0];
