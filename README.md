@@ -100,9 +100,10 @@ BIS separates reusable game integration from its development demos for Signet an
 ### 📝 Documentation
 
 <!-- AI: Link to the main documentation files that actually exist using relative Markdown links and a short purpose for each. Update links when files move; do not reference documentation inherited from another project unless present here. -->
+- [Agent test wallets](BIS/documentation/agent-test-wallets.md): Private test identities and autonomous workflow implementation status.
+- [Arkade OS — Overview](BIS/documentation/arkade-os-overview.md): Wallet operations and measured game-versus-Admin read timings.
 - [Diagram](BIS/documentation/bis-concept-diagram-1.png): BIS architecture and integration overview.
 - [Faucets](BIS/documentation/Faucets%20-%20README.md): Faucets for funding an account.
-- [Agent test wallets](BIS/documentation/agent-test-wallets.md): Private test identities and autonomous workflow implementation status.
 - [Integration Admin](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
 - [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
 
