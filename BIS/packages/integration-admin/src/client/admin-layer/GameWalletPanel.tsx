@@ -147,8 +147,8 @@ export function AdminGameWalletView({controller, onDetails, onRecipientChange, o
     }}>
       <label htmlFor="game-wallet-phrase">Recovery phrase</label>
       <input id="game-wallet-phrase" type="password" autoComplete="off" spellCheck={false} value={phrase} onChange={event => setPhrase(event.target.value)} />
-      <button className="story-button" type="submit" disabled={!phrase.trim() || busy}>{importing ? 'Importing…' : 'Import'}</button>
-      {importing && <p role="status">Importing game wallet…</p>}
+      <button className="story-button" type="submit" disabled={!phrase.trim() || busy}>{importing ? 'Restoring ...' : 'Import'}</button>
+      {importing && <p role="status">Restoring ...</p>}
       {importMessage && <p role="alert">{importMessage}</p>}
     </form>}
   </div>;

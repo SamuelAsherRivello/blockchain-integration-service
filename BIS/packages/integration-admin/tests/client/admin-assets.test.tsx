@@ -113,6 +113,7 @@ test('A.G.1 keeps the recovery phrase and reports an import failure beside the f
   const submit = source.slice(source.indexOf('<form onSubmit='), source.indexOf('</form>') + '</form>'.length);
   assert.match(submit, /role="alert"/, 'A.G.1 needs an accessible inline failure result');
   assert.match(submit, /await controller\.importWallet\(input\)/, 'A.G.1 still delegates import to the wallet controller');
+  assert.match(submit, /Restoring \.\.\./, 'A.G.1 reports Game Wallet restoration while the import is pending');
   assert.ok(submit.indexOf("setPhrase('')") > submit.indexOf('await controller.importWallet(input)'), 'A.G.1 must not erase the phrase before import succeeds');
 });
 

@@ -47,7 +47,7 @@ document.getElementById('run')!.onclick = async () => {
     button('Paste from Clipboard').click(); await tick();
     check(!button('⚡ Restore Wallet').disabled, 'Valid phrase enables Game Wallet restore');
     button('⚡ Restore Wallet').click(); await tick();
-    check(host.querySelector('.bis-pending-dialog h2')?.textContent === 'Logging in ...', 'Restore shows the blocking login loader');
+    check(host.querySelector('.bis-pending-dialog h2')?.textContent === 'Restoring ...', 'Restore shows the blocking restore loader');
     check(button('⚡ Restore Wallet').disabled, 'Restore remains disabled while login is pending');
     releaseImport(); await tick(); await tick();
     check(imported === phrase && host.textContent?.includes('Game wallet configured.'), 'Restore delegates only to Game Wallet import');
