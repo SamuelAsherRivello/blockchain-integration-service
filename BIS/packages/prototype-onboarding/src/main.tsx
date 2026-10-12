@@ -368,16 +368,26 @@ function showFailure(message){$('error').textContent=message;}
 // background signer running while a second attempt starts. SDK cleanup finishes
 // before launchSettlement releases the signing lease and enables recovery.
 function watchedSettlementStream(open,signal,topics,getIntentId){
- const controller=new AbortController();let timeout,expired=false,source,selectedBatch;
+ const controller=new AbortController();let timeout,deadline,expired=false,source,selectedBatch;
  const abort=()=>controller.abort();
- const arm=()=>{clearTimeout(timeout);timeout=setTimeout(()=>{expired=true;abort();},300000);};
+ const arm=()=>{
+  clearTimeout(timeout);
+  deadline=new Promise((_,reject)=>{timeout=setTimeout(()=>{
+   expired=true;
+   // Some EventSource implementations do not settle a pending next() when
+   // aborted. Reject the wrapper itself so a queued intent always reaches
+   // reconciliation instead of holding the signer forever.
+   reject(Object.assign(new Error('Settlement made no matching batch progress for five minutes.'),{name:'SettlementStreamTimeoutError'}));
+   abort();
+  },300000);});
+ };
  const iterator=(async function*(){
   if(signal?.aborted)return;
   signal?.addEventListener('abort',abort,{once:true});
   try{
    source=open(controller.signal,topics);arm();
    while(true){
-    const next=await source.next();
+    const next=await Promise.race([source.next(),deadline]);
     if(expired)throw Object.assign(new Error('Settlement made no matching batch progress for five minutes.'),{name:'SettlementStreamTimeoutError'});
     if(next.done)return;
     const event=next.value;

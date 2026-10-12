@@ -330,6 +330,23 @@ test('a silent settlement stream times out by closing the SDK stream before reco
  assert.equal(timeouts.size,0);
 });
 
+test('a settlement watchdog recovers even when the event source ignores abort',async()=>{
+ const {context,timeouts}=await app({...pending,phase:'uncertain'});
+ context.ignoredSignals=[];
+ const stream=vm.runInContext(`watchedSettlementStream(signal=>{
+   ignoredSignals.push(signal);
+   return {next:()=>new Promise(()=>{}),return:async()=>({done:true}),[Symbol.asyncIterator](){return this;}};
+  },new AbortController().signal,[],()=>undefined)`,context);
+ const next=stream.next();
+ const timeout=[...timeouts.values()].find(timer=>timer.ms===300000);
+ assert.ok(timeout);
+ timeout.fn();
+ await assert.rejects(next,{name:'SettlementStreamTimeoutError'});
+ assert.equal(context.ignoredSignals[0].aborted,true);
+ await stream.return();
+ assert.equal(timeouts.size,0);
+});
+
 test('SDK cleanup can close a pending watched stream without waiting for its timeout',async()=>{
  const {provider,streamSignals,timeouts}=await app({...pending,phase:'uncertain'});
  const stream=provider.getEventStream(new AbortController().signal,[]);
