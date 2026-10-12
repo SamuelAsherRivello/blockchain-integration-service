@@ -105,7 +105,10 @@ function MarketplaceContent(){
   const selectedGame=game==='all'?undefined:catalog.games.find(entry=>entry.gameId===game);
   const defaultGame=catalog.games.find(entry=>entry.gameId==='stealth-and-steel');
   const registeredGameAddress=game==='all'?defaultGame?.gameWalletAddress:selectedGame?.gameWalletAddress;
-  const publicGameAddress=registeredGameAddress?marketplaceGameInventoryAddress({registeredAddress:registeredGameAddress,playerProfileId:playerState.profileId,gameProfileId:gameState.profileId,sessionAddress:gameState.addresses?.arkadeAddress,network,gameNetwork:gameState.network}):undefined;
+  // The catalog address is only a read-only inventory source for an active
+  // Player Wallet session. Otherwise it can survive Player logout visually,
+  // even after the local Game Wallet has been cleared.
+  const publicGameAddress=playerState.profileId&&registeredGameAddress?marketplaceGameInventoryAddress({registeredAddress:registeredGameAddress,playerProfileId:playerState.profileId,gameProfileId:gameState.profileId,sessionAddress:gameState.addresses?.arkadeAddress,network,gameNetwork:gameState.network}):undefined;
   useEffect(()=>{
     try {
       const pending=readLocalMarketplaceCheckouts().find(record=>record.status==='pending');
