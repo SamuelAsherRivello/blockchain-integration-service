@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bisMarketplaceItems, classifyBisEquipmentAsset, inspectBisEquipmentAsset, marketplaceItemMetadata } from '../../src/client/state-layer-core/equipment.ts';
+import { bisMarketplaceItems, classifyBisEquipmentAsset, inspectBisEquipmentAsset, marketplaceItemMetadata, migrateMarketplaceAssetFormat001 } from '../../src/client/state-layer-core/equipment.ts';
 
 test('the shared catalog defines exactly nine approved items, prices, structured effects, and immutable URLs', () => {
   assert.deepEqual(bisMarketplaceItems.map(item => item.name), [
@@ -42,6 +42,14 @@ test('the classifier rejects legacy items that omit authoritative metadata', () 
   const asset = { assetId: 'legacy-shoes-1', quantity: '1', iconUrl: definition.iconUrl, metadata: legacyMetadata };
   assert.equal(classifyBisEquipmentAsset(asset), null);
   assert.equal(inspectBisEquipmentAsset(asset), 'migration-required');
+});
+
+test('a recognized legacy catalog envelope receives a complete immutable replacement plan', () => {
+  const definition=bisMarketplaceItems[0],metadata={bisSchemaVersion:'1',...marketplaceItemMetadata(definition)};
+  delete metadata.bisDescription;delete metadata.bisAttributeDeltas;delete metadata.bisAssetFormatVersion;
+  const plan=migrateMarketplaceAssetFormat001({assetId:'legacy-shoes-1',quantity:'1',metadata});
+  assert.deepEqual(plan,{name:definition.name,ticker:definition.ticker,amount:'1',decimals:0,iconUrl:definition.iconUrl,metadata:marketplaceItemMetadata(definition)});
+  assert.throws(()=>migrateMarketplaceAssetFormat001({assetId:'bad',quantity:'1',metadata:{...metadata,bisPriceSats:'999'}}));
 });
 
 test('generic and malformed holdings retain safe, explicit classification diagnostics', () => {

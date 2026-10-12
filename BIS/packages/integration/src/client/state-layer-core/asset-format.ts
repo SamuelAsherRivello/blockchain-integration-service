@@ -1,6 +1,7 @@
 import type { BisAsset, BisAssetMetadata } from './assets.ts';
+import { migrateMarketplaceAssetFormat001 } from './equipment.ts';
 
-export const BIS_LATEST_ASSET_FORMAT_VERSION = '0.0.1' as const;
+export const BIS_LATEST_ASSET_FORMAT_VERSION = '0.0.2' as const;
 export type BisAssetFormatDefinition = Readonly<{
   version: string;
   compatiblePredecessors: readonly string[];
@@ -29,9 +30,13 @@ export function createBisAssetFormatRegistry(entries: readonly BisAssetFormatReg
     return Object.freeze({version:entry.version,compatiblePredecessors:Object.freeze(Object.keys(predecessorMigrations)),predecessorMigrations,autoUpgrade:entry.autoUpgrade??true});
   }));
 }
-/** The only production format today. Future entries must explicitly declare
- * predecessor compatibility and whether Admin's Upgrade all action is allowed. */
-export const bisAssetFormats = createBisAssetFormatRegistry([{version:BIS_LATEST_ASSET_FORMAT_VERSION}]);
+/** 0.0.2 completes the structured item envelope.  0.0.1 holdings were
+ * issued before descriptions and attribute deltas were immutable chain data,
+ * so Admin replaces them before retiring the source holding. */
+export const bisAssetFormats = createBisAssetFormatRegistry([
+  {version:'0.0.1'},
+  {version:BIS_LATEST_ASSET_FORMAT_VERSION,predecessors:{'0.0.1':migrateMarketplaceAssetFormat001}},
+]);
 
 export function assetFormatDefinition(version: string): BisAssetFormatDefinition | undefined {
   return bisAssetFormats.find(entry=>entry.version===version);
@@ -64,7 +69,7 @@ export function resolveBisAssetFormat(asset: Pick<BisAsset, 'metadata'>): BisAss
   if (!metadata) return Object.freeze({ status: 'not-bis-format' });
   const version = metadata.bisAssetFormatVersion;
   if (version === undefined) return Object.freeze(isLegacy001(metadata)
-    ? { status: 'supported', version: BIS_LATEST_ASSET_FORMAT_VERSION, explicit: false }
+    ? { status: 'supported', version: '0.0.1', explicit: false }
     : { status: 'not-bis-format' });
   if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) return Object.freeze({ status: 'malformed-version' });
   if (assetFormatDefinition(version)) return Object.freeze({ status: 'supported', version, explicit: true });

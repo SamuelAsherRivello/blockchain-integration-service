@@ -25,10 +25,10 @@ test('all nine structured items pass the actual SDK encoder and hex listing roun
 
 test('asset format resolution retains legacy holdings and rejects unknown or malformed markers',()=>{
   const item=bisMarketplaceItems[0], {bisAssetFormatVersion: _marker,...legacyMetadata}=marketplaceItemMetadata(item), legacy={assetId:'legacy',quantity:'1',iconUrl:item.iconUrl,metadata:{bisSchemaVersion:'1',...legacyMetadata}};
-  assert.deepEqual(resolveBisAssetFormat(legacy),{status:'supported',version:BIS_LATEST_ASSET_FORMAT_VERSION,explicit:false});
+  assert.deepEqual(resolveBisAssetFormat(legacy),{status:'supported',version:'0.0.1',explicit:false});
   const current={...legacy,metadata:{...legacy.metadata,bisAssetFormatVersion:BIS_LATEST_ASSET_FORMAT_VERSION}};
   assert.deepEqual(resolveBisAssetFormat(current),{status:'supported',version:BIS_LATEST_ASSET_FORMAT_VERSION,explicit:true});
-  assert.deepEqual(resolveBisAssetFormat({...legacy,metadata:{...legacy.metadata,bisAssetFormatVersion:'0.0.2'}}),{status:'unknown-version',version:'0.0.2'});
+  assert.deepEqual(resolveBisAssetFormat({...legacy,metadata:{...legacy.metadata,bisAssetFormatVersion:'0.0.3'}}),{status:'unknown-version',version:'0.0.3'});
   assert.deepEqual(resolveBisAssetFormat({...legacy,metadata:{...legacy.metadata,bisAssetFormatVersion:'not-a-version'}}),{status:'malformed-version'});
 });
 
@@ -38,7 +38,7 @@ test('successors must explicitly map or opt out of predecessor migration',()=>{
   assert.equal(formats[1]?.predecessorMigrations['0.0.1']!==undefined,true);
   assert.deepEqual({version:formats[1]?.version,compatiblePredecessors:formats[1]?.compatiblePredecessors,autoUpgrade:formats[1]?.autoUpgrade},{version:'0.0.2',compatiblePredecessors:['0.0.1'],autoUpgrade:true});
   assert.deepEqual({version:createBisAssetFormatRegistry([{version:'0.0.1'},{version:'0.0.2',predecessors:{'0.0.1':false},autoUpgrade:false}])[1]?.version,compatiblePredecessors:createBisAssetFormatRegistry([{version:'0.0.1'},{version:'0.0.2',predecessors:{'0.0.1':false},autoUpgrade:false}])[1]?.compatiblePredecessors,autoUpgrade:createBisAssetFormatRegistry([{version:'0.0.1'},{version:'0.0.2',predecessors:{'0.0.1':false},autoUpgrade:false}])[1]?.autoUpgrade},{version:'0.0.2',compatiblePredecessors:[],autoUpgrade:false});
-  assert.equal(assetFormatMigrator('0.0.2','0.0.1'),undefined,'production has no successor yet');
+  assert.equal(typeof assetFormatMigrator('0.0.2','0.0.1'),'function','production upgrades legacy marketplace items');
 });
 
 test('untrusted structured strings never throw or fabricate equipment effects',()=>{

@@ -1,5 +1,6 @@
 import type { BisAsset, BisAssetMetadata, BisAttributeDelta } from './assets';
-import { formatAssetMetadata, isLatestBisAssetFormat } from './asset-format.ts';
+import type { BisAssetFormatMigrationPlan } from './asset-format.ts';
+import { formatAssetMetadata, resolveBisAssetFormat } from './asset-format.ts';
 
 export const BIS_STEALTH_AND_STEEL_GAME_ID = 'stealth-and-steel' as const;
 
@@ -64,6 +65,19 @@ export function marketplaceItemMetadata(item: BisEquipmentDefinition): BisAssetM
   });
 }
 
+/** Creates the immutable 0.0.2 replacement only for a recognized, unmodified
+ * 0.0.1 catalog envelope.  Never infer a replacement from display fields. */
+export function migrateMarketplaceAssetFormat001(asset: BisAsset): BisAssetFormatMigrationPlan {
+  const metadata=asset.metadata;
+  if (!metadata || metadata.bisSchemaVersion !== '1' || metadata.bisGameId !== BIS_STEALTH_AND_STEEL_GAME_ID
+    || metadata.bisAssetType !== 'item' || typeof metadata.bisCatalogId !== 'string') throw Error('The legacy item is not a recognized Marketplace catalog asset.');
+  const definition=byCatalogId.get(metadata.bisCatalogId);
+  if (!definition || metadata.bisEquipmentFamily !== definition.family || metadata.bisTier !== String(definition.tier)
+    || metadata.bisPriceSats !== String(definition.priceSats)) throw Error('The legacy item does not match its catalog definition.');
+  try { if (BigInt(asset.quantity)<=0n) throw Error(); } catch { throw Error('The legacy item quantity is invalid.'); }
+  return Object.freeze({name:definition.name,ticker:definition.ticker,amount:asset.quantity,decimals:0,iconUrl:definition.iconUrl,metadata:marketplaceItemMetadata(definition)});
+}
+
 function isCredentialFreeHttps(value: string | undefined): value is string {
   if (!value) return false;
   try {
@@ -93,7 +107,7 @@ function readAttributeDeltas(value: unknown): readonly BisAttributeDelta[] | nul
 export function classifyBisEquipmentAsset(asset: BisAsset): BisEquipmentItem | null {
   const metadata = asset.metadata;
   if (!metadata
-    || !isLatestBisAssetFormat(asset)
+    || resolveBisAssetFormat(asset).status !== 'supported'
     || metadata.bisSchemaVersion !== '1'
     || metadata.bisGameId !== BIS_STEALTH_AND_STEEL_GAME_ID
     || metadata.bisAssetType !== 'item'
