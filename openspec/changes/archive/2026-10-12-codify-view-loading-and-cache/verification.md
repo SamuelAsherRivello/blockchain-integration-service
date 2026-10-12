@@ -135,3 +135,70 @@ in process memory. No pair assignments, accounts, holdings, funding requests
 or operation journals were changed. No browser session was opened. Discovery
 finished and the exclusive slot was released. Task 5.5 remains unchecked;
 no financial workaround or fabricated metadata was attempted.
+
+## Final live two-item acceptance — 2026-10-12
+
+This checkpoint supersedes the earlier fixture gaps above. At the user's
+explicit request, the wallet owner delivered one additional valid Dagger I
+to test-account-2 on Mutinynet. The reconciled delivery transaction is
+`602bb0dd4a3bc696ce3d86b0166c31140644424bc14676f64cf238f0e59ca542`;
+public receipts are retained in output/reports/game-item-transfer/second-delivery.json
+and second-after.json. The cache owner performed only read-only verification.
+Shoes I and Dagger I are quantity one each; both existing generic holdings
+remain intact. No metadata was fabricated or generic asset reclassified.
+
+The initial live run exposed a real lifecycle race: wallet evidence invalidated
+a pending Player inventory read, and Marketplace retained its unavailable
+result even after Account Assets read successfully. Browser-only diagnostics
+confirmed the request entered with an active account, so hydration alone was
+not the live failure's cause. The scoped context fix tracks asset-evidence
+revisions and lets compatible waiting consumers adopt replacement work/cache
+within their original 30-second inventory budget. It also joins account
+hydration before preparation. Disposal/account changes remain terminal;
+ordinary provider failures do not automatically retry. No Marketplace App
+or TypeScript-migration source was changed for this correction.
+
+Five new regressions in
+BIS/packages/integration/tests/client/asset-inventory-readiness.test.ts cover
+hydration adoption (including synchronous subscribers), account replacement,
+disposal, two consumers sharing one replacement after evidence invalidation,
+and no automatic provider-failure retry. Hydration tests failed on the base;
+the evidence-invalidation test failed with the hydration-only correction;
+all five pass with the final correction. The focused canonical context,
+cache, profile and Marketplace suites pass **43/43**, with no skips or failures.
+Logs: output/reports/codify-view-loading-and-cache/overlay-focused-tests.log
+and readiness-regressions-final.log.
+
+Verification used the coordinator-owned isolated preview on port 5176,
+based on commit `efcfb022b8efa5cfa4d51d298ad003c67ce06134`, with only context.ts
+and the new regression overlaid in output/packages/final-22-source.
+Exact overlay SHA-256 values are recorded in live-two-item-cache.json.
+The coherent snapshot's `npm run typecheck` passes (overlay-typecheck.log).
+The released 0.0.22 tarball/provenance was not modified or repacked.
+The broader full-suite checkpoint above remains historical baseline evidence;
+the ongoing unrelated TypeScript migration was not claimed as verified.
+
+The final **uninstrumented live Edge run passed at 07:00:35 UTC**:
+Account Assets displayed four rows (two ready equipment items and two generic
+holdings); Marketplace arrived on Game Wallet with seven cards. Player Wallet
+displayed exactly Shoes I and Dagger I. Six subsequent tab switches retained
+seven Game/two Player cards, reused the exact Player cached assets array,
+made **zero additional inventory queries**, and produced zero page errors.
+Evidence: output/reports/codify-view-loading-and-cache/live-two-item-cache.json,
+live-account-assets.png and live-marketplace-player-two-items.png.
+The browser closed normally and released its exclusive profile slot.
+A transient vault-lock failure preceded this run; the wallet owner finished
+at 06:59:35 UTC, and no lock was deleted or overlapping session used.
+
+The retained synthetic Edge runner also passed all three modes after the
+final overlay: game-first, player-first and account-cache. Each displayed
+two Player cards with exactly one Player/one Game provider read and no page
+errors (synthetic-browser-overlay-final.log). These simulated completion
+orders complement, and do not substitute for, the real delivered-item run.
+Task 5.5 is verified; all **16/16** tasks are complete.
+
+The final inline spec reconciliation updated only marketplace-inventory-cache;
+the other seven delta capabilities were already synchronized. Recomparison
+finds no remaining delta operations. Strict change validation passes with no
+issues, and strict main-spec validation passes **63/63**. Existing main-spec
+Purpose/title and unmentioned requirements/scenarios were preserved.

@@ -509,13 +509,14 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     }
   }
   let walletRefreshQueued = false;
+  let assetInventoryRevision = 0;
   let receiptBalanceLoading = false;
   function walletChanged(profileId: string, refreshSource = true, foregroundBalance = false, sameSnapshot = false) {
     if (disposed || state.profileId !== profileId || state.phase !== 'active' || sameSnapshot && !refreshSource && !foregroundBalance) return;
     // Addresses are identity-derived and independent of ownership/payment evidence.
     reads.invalidate('balance'); reads.invalidate('transfer-availability'); reads.invalidate('contracts');
     if(refreshSource)reads.invalidate('activity');
-    if (refreshSource) { reads.invalidate('assets'); invalidateSharedAssetInventory(profileId, state.network ?? 'signet', 'player'); }
+    if (refreshSource) { assetInventoryRevision++; reads.invalidate('assets'); invalidateSharedAssetInventory(profileId, state.network ?? 'signet', 'player'); }
     cancelBalance();
     if (foregroundBalance) receiptBalanceLoading=true;
     if (walletRefreshQueued) return;
@@ -874,9 +875,25 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       } catch { return assetError(disposed ? 'disposed' : current !== version ? 'account-changed' : 'unavailable', profileId); }
     },
     async prepareAssetInventory(force = false) {
-      const profileId=state.profileId;
+      const profileId=state.profileId,current=version;
+      if(disposed)return assetError('disposed',profileId);
+      // A host can adopt the selected profile while its account is hydrating.
+      // Let hydrate() publish its promise before joining that validation.
+      if(state.phase==='loading') { await Promise.resolve(); await initialization; }
+      if(disposed || current!==version || profileId!==state.profileId)return assetError(disposed?'disposed':'account-changed',profileId);
       if(!state.hasProfile || state.phase!=='active')return assetError('account-required');
-      try { return await prepareSharedAssetInventory({role:'player',profileId:profileId!,network:state.network ?? 'signet',force,load:signal=>readAssetSnapshot(signal).then(result=>result.assets)}); }
+      const deadline=Date.now()+30000;
+      try {
+        for(let first=true;;first=false) {
+          const revision=assetInventoryRevision;
+          const result=await prepareSharedAssetInventory({role:'player',profileId:profileId!,network:state.network ?? 'signet',force:first&&force,timeoutMs:Math.max(1,deadline-Date.now()),load:signal=>readAssetSnapshot(signal).then(snapshot=>snapshot.assets)});
+          if(disposed || current!==version || profileId!==state.profileId)return assetError(disposed?'disposed':'account-changed',profileId);
+          // Wallet evidence supersedes a pending snapshot, not its consumers.
+          // Adopt the replacement/cache within the original attempt's budget.
+          if(result.status==='error' && revision!==assetInventoryRevision && Date.now()<deadline)continue;
+          return result;
+        }
+      }
       catch {return assetError('unavailable',profileId);}
     },
     async getPendingAssetMint() {
