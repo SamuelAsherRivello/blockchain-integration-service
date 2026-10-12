@@ -16,6 +16,7 @@ test('BIS style boundary owns protected typography and Marketplace does not over
   ]);
   assert.match(overlay, /\.bis-layer \{[\s\S]*?font: 400 12\.8px\/1\.5 Inter/);
   assert.match(overlay, /\.bis-layer \{[\s\S]*?letter-spacing: normal;[\s\S]*?text-transform: none;/);
+  assert.match(overlay, /\.bis-pending-backdrop \{[\s\S]*?text-transform: none;/);
   assert.match(overlay, /\.bis-copy-field-heading \{[\s\S]*?font: 700 9\.6px\/1\.5 Inter/);
   assert.match(overlay, /\.bis-copy-field-heading \{[\s\S]*?text-align: left;[\s\S]*?text-transform: none;/);
   assert.doesNotMatch(marketplacePolish, /\.bis-copy-field-heading\s*\{[^}]*font\s*:/);

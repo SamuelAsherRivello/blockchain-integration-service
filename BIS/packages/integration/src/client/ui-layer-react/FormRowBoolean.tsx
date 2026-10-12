@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 export function FormRowBoolean({ label, value, enabledText, disabledText }: { label: string; value: boolean | undefined; enabledText: string; disabledText: string }) {
   const checkbox = useRef<HTMLInputElement>(null);
   const loading = value === undefined;
-  const tooltip = loading ? 'Loading support status…' : value ? enabledText : disabledText;
+  const tooltip = loading ? 'Loading ...' : value ? enabledText : disabledText;
   useEffect(() => {
     if (checkbox.current) checkbox.current.indeterminate = loading;
   }, [loading]);

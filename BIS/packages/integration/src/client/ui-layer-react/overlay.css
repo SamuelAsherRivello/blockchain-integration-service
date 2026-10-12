@@ -284,7 +284,7 @@
 @keyframes bis-toast-exit { from { transform: translateY(0); } to { transform: translateY(calc(-100% - 48px)); } }
 @media (prefers-reduced-motion: reduce) { .bis-toast { animation: none !important; } }
 .bis-runtime { isolation: isolate; }
-.bis-pending-backdrop { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 12.8px; background: var(--bis-backdrop-color); backdrop-filter: var(--bis-backdrop-blur); pointer-events: auto; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; color: #182d39; color-scheme: light; }
+.bis-pending-backdrop { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 12.8px; background: var(--bis-backdrop-color); backdrop-filter: var(--bis-backdrop-blur); pointer-events: auto; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12.8px; text-transform: none; color: #182d39; color-scheme: light; }
 .bis-pending-dialog { box-sizing: border-box; width: min(224px, 100%); max-height: 100%; overflow: auto; padding: 22.4px 19.2px; border: 0.8px solid #d7e5df; border-radius: 14.4px; background: #f8fbfc; box-shadow: 0 16px 44px #0004; text-align: center; outline: none; }
 .bis-pending-dialog { opacity: 1; transform: scale(var(--bis-view-transition-to-scale)); transition: opacity var(--bis-view-transition-duration) var(--bis-view-transition-enter-ease), transform var(--bis-view-transition-duration) var(--bis-view-transition-enter-ease); }
 .bis-pending-dialog[data-closing] { opacity: 0; transform: scale(var(--bis-view-transition-from-scale)); transition-timing-function: var(--bis-view-transition-exit-ease); }

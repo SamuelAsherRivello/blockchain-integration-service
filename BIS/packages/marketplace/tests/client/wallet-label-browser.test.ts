@@ -78,7 +78,7 @@ test('cold Marketplace and reload show both real SDK addresses in under one seco
 test('slow, unavailable, mismatched and logged-out address labels remain truthful',{timeout:90000},async t=>{
   const f=await setup(t);
   f.setMode('slow');await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});
-  await f.page.getByTestId('player-wallet-label').waitFor();assert.equal(await f.page.getByTestId('player-wallet-label').innerText(),'Loading…');
+  await f.page.getByTestId('player-wallet-label').waitFor();assert.equal(await f.page.getByTestId('player-wallet-label').innerText(),'Loading ...');
   await f.page.waitForFunction(()=>document.querySelector('[data-testid="player-wallet-label"]')?.title.startsWith('tark1'));
   for(const mode of ['offline','mismatch']){
     f.setMode(mode);await f.page.reload({waitUntil:'domcontentloaded'});
