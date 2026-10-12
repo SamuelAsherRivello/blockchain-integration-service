@@ -358,7 +358,7 @@ test('atomic vault, exclusive lock and interrupted commit preserve encrypted rec
   const { vault } = await fixture(t);
   const sentinel = `sentinel-${randomBytes(16).toString('hex')}`;
   await vault.transaction(state => { state.sentinel = sentinel; });
-  assert.equal((await readFile(join(vault.root, 'vault.tson'), 'utf8')).includes(sentinel), false);
+  assert.equal((await readFile(join(vault.root, 'vault.json'), 'utf8')).includes(sentinel), false);
   await vault.transaction(async state => {
     assert.equal(state.sentinel === sentinel, true);
     await assert.rejects(vault.transaction(() => {}), /vault-locked/);
@@ -367,16 +367,16 @@ test('atomic vault, exclusive lock and interrupted commit preserve encrypted rec
   await assert.rejects(vault.transaction(state => { state.sentinel = 'replacement'; }), /simulated-interruption/);
   vault.beforeCommit = undefined;
   await vault.transaction(state => assert.equal(state.sentinel === sentinel, true));
-  assert.deepEqual(await readdir(vault.root), ['vault.tson']);
+  assert.deepEqual(await readdir(vault.root), ['vault.json']);
 });
 
 test('protection failures are closed, never plaintext, and do not overwrite the vault', async t => {
   const { vault } = await fixture(t);
-  const old = await readFile(join(vault.root, 'vault.tson'), 'utf8');
+  const old = await readFile(join(vault.root, 'vault.json'), 'utf8');
   vault.protector.protect = async () => { throw new Error('private-sentinel'); };
   await assert.rejects(vault.transaction(state => { state.privateValue = 'private-sentinel'; }));
-  assert.equal(await readFile(join(vault.root, 'vault.tson'), 'utf8'), old);
-  assert.deepEqual(await readdir(vault.root), ['vault.tson']);
+  assert.equal(await readFile(join(vault.root, 'vault.json'), 'utf8'), old);
+  assert.deepEqual(await readdir(vault.root), ['vault.json']);
   vault.protector.check = async () => { throw new Error('denied'); };
   await assert.rejects(vault.transaction(() => {}));
 });
@@ -406,7 +406,7 @@ test('four supplied accounts register idempotently with distinct roles and no in
 test('manifest and recovery identity mismatches prevent private use', async t => {
   const { vault } = await fixture(t);
   await register(vault, [{ label: 'registered', phrase: generateMnemonic(wordlist) }], 'agent-created');
-  const path = join(vault.root, 'vault.tson');
+  const path = join(vault.root, 'vault.json');
   const envelope = JSON.parse(await readFile(path, 'utf8'));
   envelope.public.accounts[0].profileId = '0'.repeat(64);
   await writeFile(path, JSON.stringify(envelope));
@@ -433,7 +433,7 @@ test('real Windows DPAPI and ACLs roundtrip and reject altered protection', { sk
   const sentinel = `private-${randomBytes(20).toString('hex')}`;
   await vault.transaction(state => { state.sentinel = sentinel; });
   await vault.transaction(state => assert.equal(state.sentinel === sentinel, true));
-  const disk = await readFile(join(vault.root, 'vault.tson'), 'utf8');
+  const disk = await readFile(join(vault.root, 'vault.json'), 'utf8');
   assert.equal(disk.includes(sentinel), false);
   await assert.rejects(protector.unprotect(Buffer.from('not-DPAPI')));
   await assert.rejects(windowsProtector({ executable: 'missing-bis-powershell-executable' }).protect(Buffer.from(sentinel)));

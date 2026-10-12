@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { artifactViolation } from './verify-test-wallet-build.ts';
 
 test('production exclusion rejects private files, fixture slots and runner controls without reading the real vault', () => {
-  for (const path of ['dist/.env.local', 'dist/vault.tson', 'dist/vault.lock', 'dist/profiles/Default/Cookies',
+  for (const path of ['dist/.env.local', 'dist/vault.json', 'dist/vault.lock', 'dist/profiles/Default/Cookies',
     'dist/test-wallets/cli.ts', 'dist/agent-test-wallets/profile/public.json', 'dist/Local State'])
     assert.equal(artifactViolation(path, Buffer.from('synthetic')), 'private-or-runner-file');
   assert.equal(artifactViolation('dist/main.js', Buffer.from('BIS_TEST_ACCOUNT_1_MNEMONIC')), 'fixture-secret-slot');

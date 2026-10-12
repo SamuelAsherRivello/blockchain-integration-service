@@ -6,7 +6,7 @@ import {createServer} from 'vite';
 import {developmentConfig} from '../../../../scripts/dev-config.ts';
 import {identify} from '../../../integration/src/client/wallet-layer-arkade/account.ts';
 import {MnemonicIdentity,ReadonlyWallet,InMemoryWalletRepository,InMemoryContractRepository} from '@arkade-os/sdk';
-import {operatorInfo,publicPhrases,seedWalletLabels} from './wallet-label-fixture.tsx';
+import {operatorInfo,publicPhrases,seedWalletLabels} from './wallet-label-fixture.ts';
 
 const output=new URL('../../../../../output/reports/marketplace-wallet-labels/',import.meta.url);
 async function setup(t){

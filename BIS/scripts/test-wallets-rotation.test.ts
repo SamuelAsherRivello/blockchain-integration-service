@@ -150,7 +150,7 @@ test('atomic encrypted rotation preserves old generation across failed commit an
     assert.deepEqual(state.archivedAccounts[0].account, old);
     assert.equal(state.accounts[0].profileId, result.profileId);
   });
-  const disk = await readFile(join(vault.root, 'vault.tson'), 'utf8');
+  const disk = await readFile(join(vault.root, 'vault.json'), 'utf8');
   assert.equal(disk.includes(old.phrase), false);
   assert.equal(disk.includes('archivedAccounts'), false);
 });
