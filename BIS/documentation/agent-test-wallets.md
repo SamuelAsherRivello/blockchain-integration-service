@@ -78,8 +78,8 @@ Register an exact loopback origin with `init --origin` before login. Changing th
 After a verified game package upgrade and matching checked-in runner pin, repeat `init --origin` for the same game origin. It upgrades only the exact trusted BIS21 registration to pinned BIS22, retaining the path, muted query, profile, identities and operation journals. Current provenance is unchanged; unknown hashes, incompatible rows, duplicates and rollback refuse. This command accepts no caller-supplied version/hash override and does not clear pending work or reconcile the held Signet operation.
 
 ```powershell
-node BIS/scripts/test-wallets/cli.mjs open --pair example-signet --origin http://127.0.0.1:5174 --app marketplace
-node BIS/scripts/test-wallets/cli.mjs open --pair example-signet --origin http://127.0.0.1:5174 --app admin
+node BIS/scripts/test-wallets/cli.ts open --pair example-signet --origin http://127.0.0.1:5174 --app marketplace
+node BIS/scripts/test-wallets/cli.ts open --pair example-signet --origin http://127.0.0.1:5174 --app admin
 ```
 
 The process owns a headless persistent context and stays running. It restores Player then Game through hidden production recovery inputs and verifies public network/address evidence. The agent's terminal-session handle is the transport; no HTTP browser-control or signing endpoint is created. Send newline-delimited public requests to that process's stdin:
@@ -233,7 +233,7 @@ The initial joined adapter supports an explicitly selected Marketplace tab alrea
 Select the exact Chromium target ID from that connection's page listing, not a profile path, URL alone or an unrelated browser tool's numeric tab index. The selected tab must already show a connected account on Account, Accounts Details, Receive, Assets or Transactions, at the exact `/marketplace/` destination with no query/fragment. This initial adapter does not support Admin, the game or standalone onboarding in joined mode. The debugging connection grants broad browser access, so keep it private and loopback-only; the runner's policy is not a security boundary against other same-user code with access to it.
 
 ```powershell
-node BIS/scripts/test-wallets/cli.mjs join --origin http://127.0.0.1:5174 --app marketplace --api http://127.0.0.1:9222 --page <explicit-32-hex-target-id>
+node BIS/scripts/test-wallets/cli.ts join --origin http://127.0.0.1:5174 --app marketplace --api http://127.0.0.1:9222 --page <explicit-32-hex-target-id>
 ```
 
 The running process accepts only these public requests:
@@ -249,6 +249,7 @@ Allowed destinations are Account, Accounts Details, Receive, Assets and Transact
 
 Creation/import, network/account changes, recovery access, settings, Send, Swap, Contracts, Developer, Game Wallet, onboarding, reload, signing, submission and arbitrary selectors/evaluation are denied. No vault or fixture-grant lookup is performed: a matching registered test identity still remains joined-only. The installed CDP connection uses `noDefaults` to avoid changing downloads/focus/media settings. `detach` disconnects this transport without logout, closing the tab/browser or clearing storage; it ends the CLI session. `close` is not a joined command. Existing application background work can continue independently; the runner does not freeze it. Isolated real-Chromium/CDP and CLI tests verify these behaviors with synthetic non-wallet data. Acceptance against an actual user-selected human session remains unperformed.
 
-Run `node --test BIS/scripts/test-wallets.test.mjs` for focused tests. Windows ACL/DPAPI tests need normal host access; a sandbox denial is not a reason to weaken the ACL. Test evidence is isolated unless specifically identified as live. Store sanitized reports under `output/reports/agent-test-wallets/`, never wallet material. Full completion also requires the application's typecheck/tests/build and live two-network funding, onboarding, app and game acceptance listed in the plan.
+Run `node --test BIS/scripts/test-wallets.test.ts` for focused tests. Windows ACL/DPAPI tests need normal host access; a sandbox denial is not a reason to weaken the ACL. Test evidence is isolated unless specifically identified as live. Store sanitized reports under `output/reports/agent-test-wallets/`, never wallet material. Full completion also requires the application's typecheck/tests/build and live two-network funding, onboarding, app and game acceptance listed in the plan.
 
-After building the normal applications and `npm run build --workspace @spike/prototype-onboarding`, run `node BIS/scripts/verify-test-wallet-build.mjs`. It requires all five build directories and rejects known fixture secret-slot names, runner/control code and private environment/vault/profile files without reading actual secrets. This is a structural exclusion check, not a guarantee that arbitrary secrets cannot appear in a bundle. Its isolated regression uses synthetic bytes only. A passing build scan does not prove wallet settlement or game acceptance.
+After building the normal applications and `npm run build --workspace @spike/prototype-onboarding`, run `node BIS/scripts/verify-test-wallet-build.ts`. It requires all five build directories and rejects known fixture secret-slot names, runner/control code and private environment/vault/profile files without reading actual secrets. This is a structural exclusion check, not a guarantee that arbitrary secrets cannot appear in a bundle. Its isolated regression uses synthetic bytes only. A passing build scan does not prove wallet settlement or game acceptance.
+

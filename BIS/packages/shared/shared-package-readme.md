@@ -36,4 +36,5 @@ The environment file is the canonical developer-supplied input, not a replacemen
 
 ## Development and verification
 
-The implementation entry is `src/server/environment.mjs`, exported only under a Node condition. It has no third-party dependencies. Run `npm run test --workspace @bis/shared` for precedence, key isolation, missing configuration, legacy fallback, and sanitized-error tests. Repository tests additionally check private serving and test-account import. These checks do not prove funding or onboarding; use the [agent wallet guide](../../documentation/agent-test-wallets.md) for that workflow and its live-verification limits.
+The implementation entry is `src/server/environment.ts`, exported only under a Node condition. It has no third-party dependencies. Run `npm run test --workspace @bis/shared` for precedence, key isolation, missing configuration, legacy fallback, and sanitized-error tests. Repository tests additionally check private serving and test-account import. These checks do not prove funding or onboarding; use the [agent wallet guide](../../documentation/agent-test-wallets.md) for that workflow and its live-verification limits.
+

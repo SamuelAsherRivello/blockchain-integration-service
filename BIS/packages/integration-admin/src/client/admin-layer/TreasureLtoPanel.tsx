@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import type {BisContext,createBisGameWallet,createBisLto} from '@bis/integration';
-import {createTreasureSession,treasureMessage} from '../preview-layer/treasure-session.js';
+import {createTreasureSession,treasureMessage} from '../preview-layer/treasure-session.ts';
 import {StoryButton} from './StoryButton';
 
 /** Admin simulates Start and collision/Claim; financial decisions remain in BIS. */
@@ -61,3 +61,4 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
     <button type="button" onClick={()=>void claim()}>Claim LTO</button>
   </StoryButton>;
 }
+

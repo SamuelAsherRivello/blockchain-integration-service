@@ -5,11 +5,12 @@
   "type": "module",
   "exports": {
     "./server/environment": {
-      "node": "./src/server/environment.mjs"
+      "node": "./src/server/environment.ts"
     }
   },
   "files": ["src", "shared-package-readme.md", ".env.local.template"],
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.ts"
   }
 }
+

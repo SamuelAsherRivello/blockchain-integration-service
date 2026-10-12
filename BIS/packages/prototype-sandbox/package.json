@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5189 --strictPort",
     "build": "vite build --base=./",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.ts"
   },
   "dependencies": {
     "@arkade-os/sdk": "0.4.72",
@@ -17,3 +17,4 @@
     "vite": "8.3.0"
   }
 }
+

@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "BIS/scripts/**/*.ts",
+    "BIS/packages/*/tests/**/*.ts",
+    "BIS/packages/*/tests/**/*.tsx"
+  ]
+}

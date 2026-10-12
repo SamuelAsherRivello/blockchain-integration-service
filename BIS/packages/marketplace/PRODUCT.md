@@ -35,7 +35,7 @@ The app loads `public/catalog.json`, filters equipment by owner, game, and gamep
 
 - `src/App.tsx` contains the catalog, filters, detail dialog, and disabled trade controls.
 - `public/catalog.json` is the verified catalog source.
-- `tests/catalog.test.mjs` validates catalog behavior.
+- `tests/catalog.test.tsx` validates catalog behavior.
 
 ## Product Principles
 
@@ -47,3 +47,4 @@ The app loads `public/catalog.json`, filters equipment by owner, game, and gamep
 ## Accessibility & Inclusion
 
 Catalog filters, item cards, and the detail dialog provide labels and keyboard-accessible controls; unavailable inventory and trade states are communicated in text.
+
