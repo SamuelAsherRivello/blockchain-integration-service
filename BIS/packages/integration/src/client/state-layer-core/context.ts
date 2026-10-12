@@ -378,7 +378,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     // refreshBalanceView adopts cached/pending reads without duplicating them.
     if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state)) void refreshBalanceView();});
   };
-  const invalidate = () => {warmer?.dispose();warmer=undefined;assetsInterest=false;reads.invalidate();invalidateSharedAssetInventory();issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
+  const invalidate = () => {pendingStableRead=undefined;warmer?.dispose();warmer=undefined;assetsInterest=false;reads.invalidate();invalidateSharedAssetInventory();issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
   const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
   const emit = (event: BisEvent, current: number) => {
     for (const listener of [...events]) {
@@ -389,7 +389,17 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       }
     }
   };
-  async function readStable(current: number): Promise<StoredAccount> {
+  let pendingStableRead: {version:number;revision:number;promise:Promise<StoredAccount>} | undefined;
+  function readStable(current: number): Promise<StoredAccount> {
+    // Compatible concurrent consumers share decryption/identity validation,
+    // never a completed account snapshot. Storage changes start a new read.
+    if(pendingStableRead?.version===current&&pendingStableRead.revision===storageRevision)return pendingStableRead.promise;
+    const entry={version:current,revision:storageRevision,promise:readStableAccount(current)};
+    entry.promise=entry.promise.finally(()=>{if(pendingStableRead===entry)pendingStableRead=undefined;});
+    pendingStableRead=entry;
+    return entry.promise;
+  }
+  async function readStableAccount(current: number): Promise<StoredAccount> {
     let loaded: StoredAccount, revision: number;
     do {
       revision = storageRevision;
@@ -653,8 +663,11 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     prepareArkBalance:()=>prepareBalance(false,true).then(entry=>entry.value.availableSats),
     getContinueRecipient: () => validContinueRecipient(options.continueRecipient) ? options.continueRecipient!.trim() : undefined,
     async getPaymentRecipient() {
-      const account = await activeTransferAccount(), current = version;
-      const addresses = (await prepareAddresses()).value;
+      assertAlive();
+      if(state.phase!=='active'||!state.hasProfile)throw Error('An active account is required.');
+      const current = version;
+      const [account,entry] = await Promise.all([activeTransferAccount(),prepareAddresses()]);
+      const addresses = entry.value;
       if (disposed || current !== version || state.phase !== 'active' || state.profileId !== account.profileId) throw Error('The player changed.');
       return {profileId:account.profileId, address:addresses.arkadeAddress};
     },

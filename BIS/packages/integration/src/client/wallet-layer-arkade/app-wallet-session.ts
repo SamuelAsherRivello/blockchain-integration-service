@@ -70,7 +70,6 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       const controller = new AbortController();
       const network = account.network ?? 'signet', operator = operatorFor(network);
       const arkProvider = new RestArkProvider(operator);
-      const identity = MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false });
       let resolveAddresses!: (value:AccountAddresses) => void;
       let rejectAddresses!: (reason:unknown) => void;
       const addresses = new Promise<AccountAddresses>((resolve,reject)=>{resolveAddresses=resolve;rejectAddresses=reject;});
@@ -94,6 +93,10 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
         if(!bootstrapConsumed){bootstrapConsumed=true;return startInfo();}
         return loadInfo();
       };
+      // MnemonicIdentity construction performs synchronous seed/HD work too.
+      // Start I/O first so that cost overlaps the bootstrap response wait.
+      if(earlyAddresses)startInfo();
+      const identity = MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false });
       const config: Configuration = {
         identity,
         arkProvider, indexerProvider: shareIndexerReads(new RestIndexerProvider(operator), operator),

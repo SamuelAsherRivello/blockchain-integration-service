@@ -30,6 +30,22 @@ The coordinator's first full main suite reported **1,087 passed / 5 failed / 0 s
 
 The entire retained-adapter file plus all prior focused regression suites passed **117/117**, with no skips. Follow-up evidence is `output/logs/marketplace-wallet-labels/fixture-followup.txt`; the original failed combined run remains `output/logs/final-22-release/test-all-source-final.txt`. Root reruns the final combined gate against the follow-up commit before publication.
 
+## Loading-path follow-up after full-suite timing miss
+
+The next combined main suite reported **1,091 passed / 1 failed / 0 skipped**; the sole failure was the cold Player label at **1,113.8 ms**. Its original evidence remains `output/logs/final-22-release/test-all-source-final-retry1.txt`. The previous test wrote timing JSON only after assertions, so that failed run left stale JSON. The browser test now writes sanitized timing evidence through its cleanup hook even on failure and records document readiness, first label element, paint, and configuration resource phases.
+
+Inspection found duplicated concurrent storage decryption/identity validation in recipient preparation, address preparation, and other consumers. The context now shares only pending validation for the same version and storage revision, clears it after settlement or invalidation, and retains every caller's profile/generation checks and the storage revision retry loop. Recipient validation runs alongside address preparation. Bootstrap configuration now begins before synchronous SDK mnemonic construction. No completed account cache, global secret cache, new wallet, cryptographic algorithm, or relaxed acceptance budget was introduced.
+
+Verification after these changes:
+
+- **119/119** focused regressions, including two new tests for concurrent validation sharing, fresh sequential reads, changed stored identity, and notification invalidation.
+- **36/36** additional context, profile, background, dependency, send, and transfer regressions.
+- Typecheck passed; full browser acceptance **2/2 passed**, cold Player **907.0 ms** / Game **914.6 ms**, reload Player **757.5 ms** / Game **745.7 ms**.
+- Three predetermined independent cold-browser samples all passed the unchanged threshold: cold Player/Game **878.8/886.1**, **918.4/880.0**, **873.9/881.4 ms**; reload **736.7/720.6**, **750.5/736.6**, **742.9/728.6 ms**. Every sample was retained separately, including failure output if any; none failed. These samples selected the timing test only; the complete failure-state test had passed separately.
+- The traced cold run reached document readiness at **432.6 ms**, first label element at **506.7 ms**, configuration requests at **622.3/641.3 ms**, and configuration completion at **885.0/900.1 ms**. This exposes the remaining development-page boot cost and network contribution. It does not establish an unconditional SLA under arbitrary load.
+
+Evidence: `stable-read-followup.txt`, `context-followup.txt`, `stable-read-browser.txt`, and `cold-sample-1/2/3.txt` under the task's ignored log folder; phase JSON samples under its ignored reports folder. Root must repeat the integrated gate against the final follow-up SHA before packing/pushing.
+
 Ignored evidence lives under `output/logs/marketplace-wallet-labels/`, `output/reports/marketplace-wallet-labels/`, and `output/playwright/marketplace-wallet-labels/`. The final self-hosted run updates `cold-label-timing.json`; live evidence is separate. No temporary evidence is committed.
 
 ## Stable handoff scope

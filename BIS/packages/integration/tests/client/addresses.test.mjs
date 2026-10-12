@@ -6,6 +6,29 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 globalThis.requestIdleCallback=()=>1;globalThis.cancelIdleCallback=()=>{};
 test.after(()=>{delete globalThis.requestIdleCallback;delete globalThis.cancelIdleCallback;});
 const addresses={arkadeAddress:'tark1-test-address',bitcoinAddress:'tb1p-test-address'};
+test('concurrent recipient/address validation shares only pending storage work and sequential calls revalidate',async()=>{
+  let loads=0,identifications=0;
+  let account={phrase:'test-placeholder',profileId:'test-profile'};
+  const context=createContext({load:async()=>{loads++;return {account,generation:0};},save:async()=>{},reset:async()=>{},subscribe:()=>()=>{}},undefined,async()=>{identifications++;return 'test-profile';},undefined,undefined,undefined,async()=>addresses);
+  await context.readyAsync();loads=0;identifications=0;
+  await Promise.all([context.getPaymentRecipient(),context.getPaymentRecipient()]);
+  assert.equal(loads,1);assert.equal(identifications,1);
+  await context.getPaymentRecipient();assert.equal(loads,2);assert.equal(identifications,2);
+  account={...account,profileId:'changed-in-storage'};
+  await assert.rejects(context.getPaymentRecipient(),/Invalid account/);
+  assert.equal(loads,3);context.dispose();
+});
+
+test('storage notification during shared validation invalidates pending recipient publication',async()=>{
+  let notify,finish,delayed=false;
+  let account={phrase:'test-placeholder',profileId:'test-profile'};
+  const context=createContext({load:async()=>({account,generation:0}),save:async()=>{},reset:async()=>{},subscribe:listener=>{notify=listener;return()=>{};}},undefined,async()=>{if(delayed){delayed=false;await new Promise(resolve=>{finish=resolve;});}return 'test-profile';},undefined,undefined,undefined,async()=>addresses);
+  await context.readyAsync();delayed=true;
+  const recipient=context.getPaymentRecipient(),rejected=assert.rejects(recipient);
+  await tick();account=null;notify();finish();await rejected;await tick();
+  assert.equal(context.getState().profileId,undefined);context.dispose();
+});
+
 test('Marketplace recipient joins prepared Receive addresses and retains active-account checks',async()=>{
   let calls=0,finish;
   const context=setup(async()=>{calls++;return new Promise(resolve=>{finish=resolve;});});

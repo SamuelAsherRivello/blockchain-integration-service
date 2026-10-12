@@ -52,6 +52,8 @@ test('cancelled borrower cannot cancel another early-address consumer',async t=>
 test('bootstrap configuration starts before SDK key work, is consumed once, and later reads stay fresh',async t=>{
   let requests=0,config,creations=0;
   t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({...info(),version:String(++requests)}));
+  const fromMnemonic=MnemonicIdentity.fromMnemonic.bind(MnemonicIdentity);
+  t.mock.method(MnemonicIdentity,'fromMnemonic',(...args)=>{assert.equal(requests,1,'configuration starts before synchronous seed/HD derivation');return fromMnemonic(...args);});
   const gate=deferred();
   const owner=createAppWalletSession({createWallet:async value=>{
     creations++;config=value;await gate.promise;
