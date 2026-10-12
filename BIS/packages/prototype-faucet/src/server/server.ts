@@ -52,7 +52,7 @@ function createLazyWallet(network) {
     async onboard() {
       const service = await getService();
       if (!service) { const error = new Error('Funding is not configured for this network.'); error.code = 'UNAVAILABLE'; throw error; }
-      return publicWalletState(await service.onboard());
+      return publicWalletState(await service.onboard({ retryFailed: true }));
     },
     async prepare() {
       const service = await getService();

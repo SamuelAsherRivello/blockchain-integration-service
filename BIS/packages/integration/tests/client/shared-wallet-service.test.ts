@@ -46,6 +46,22 @@ test('shared service preserves fee estimation failures as operator unavailable',
   assert.equal(normalizeSharedWalletFailure(new Error('fee-estimation-unavailable')).code, 'operator-unavailable');
 });
 
+test('shared service requires an explicit retry after an operator failure', async () => {
+  const records = [];
+  let attempts = 0;
+  const service = createSharedArkadeWalletService({
+    scope: { walletId: 'wallet-1', network: 'signet', operator: 'https://signet.arkade.sh', role: 'faucet' },
+    wallet: wallet({ settle: async () => { attempts += 1; if (attempts === 1) throw new Error('fee-estimation-unavailable'); return 'commitment-id'; } }),
+    store: { read: () => records.at(-1), write: value => records.push(value) },
+  });
+  await assert.rejects(() => service.onboard(), error => error.code === 'operator-unavailable');
+  await assert.rejects(() => service.onboard(), error => error.code === 'operator-unavailable');
+  assert.equal(attempts, 1);
+  await service.onboard({ retryFailed: true });
+  assert.equal(attempts, 2);
+  assert.equal(records.at(-1).status, 'complete');
+});
+
 test('shared service retains an ambiguous settlement as pending', async () => {
   const records = [];
   const service = createSharedArkadeWalletService({

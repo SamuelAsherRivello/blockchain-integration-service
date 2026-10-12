@@ -154,12 +154,20 @@ export function createSharedArkadeWalletService(options: Readonly<{
     return Object.freeze({ info, params, totalSats, inputs });
   }
 
-  async function onboard() {
+  async function onboard({ retryFailed = false }: Readonly<{ retryFailed?: boolean }> = {}) {
     return lock(`arkade-wallet:${scopeKey}`, async () => {
       const before = await read();
       if (before.balance.available > 0) return before;
       const existing = await store.read();
       if (existing && (existing.status === 'pending' || existing.status === 'complete')) return before;
+      // A failed settlement has no commitment identifier to reconcile.  Do not
+      // silently turn a later faucet request into another settlement attempt;
+      // only the explicit onboarding action may retry it.
+      if (existing?.status === 'failed' && !retryFailed) {
+        const error = new Error(existing.failureMessage ?? 'Onboarding must be retried explicitly.') as Error & { code: SharedWalletFailureCode };
+        error.code = existing.failureCode ?? 'outcome-unknown';
+        throw error;
+      }
       const prepared = await prepare();
       const base: SharedWalletOperation = {
         id: operationId,
