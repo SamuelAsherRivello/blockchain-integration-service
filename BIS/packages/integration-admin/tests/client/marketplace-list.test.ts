@@ -15,3 +15,9 @@ test('C.G.4 reports only marketplace equipment from a fresh wallet listing', asy
   assert.deepEqual(result.items.map(({assetId,quantity,catalogId,family,tier,priceSats}) => ({assetId,quantity,catalogId,family,tier,priceSats})), [{assetId:equipment.assetId,quantity:'1',catalogId:'stealth-steel-shoes-1',family:'Shoes',tier:1,priceSats:1000}]);
   assert.deepEqual(progress,[{stage:'listing'},{stage:'classifying',total:2}]);
 });
+
+test('C.G.4 excludes a future asset format from marketplace operations', async () => {
+  const future = {assetId:'c'.repeat(64),quantity:'1',iconUrl:'https://example.com/shoes.png',metadata:{bisAssetFormatVersion:'0.0.2',bisSchemaVersion:'1',bisGameId:'stealth-and-steel',bisAssetType:'item',bisCatalogId:'stealth-steel-shoes-1',bisEquipmentFamily:'Shoes',bisTier:'1',bisPriceSats:'1000',bisDescription:'Increases movement speed by 10%.',bisAttributeDeltas:[{bisAttribute:'movementSpeed',bisAttributeDelta:10}]}};
+  const result=await listMarketplaceItems({async listAssets(){return {status:'success',profileId:'game',assets:[future]};}},()=>true);
+  assert.equal(result.status,'success');assert.deepEqual(result.items,[]);
+});

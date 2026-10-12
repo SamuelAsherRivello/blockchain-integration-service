@@ -53,6 +53,7 @@ test('listing includes non-BIS and metadata-free assets with exact bigint quanti
   const wallet={getBalance:async()=>({assets:[{assetId:'b',amount:9007199254740993n},{assetId:'a',amount:1n},{assetId:'zero',amount:0n}]}),getProviderConnectionState:()=>({mode:'online',source:'live'}),assetManager:{getAssetDetails:async id=>({assetId:id,metadata:id==='b'?{name:'Other token',icon:'https://example.com/icon',communityTag:'external',nested:{ignored:true}}:undefined})}};
   const result=await readFreshAssets(wallet);assert.equal(result.length,2);assert.equal(result[0].asset.assetId,'a');assert.equal(result[1].asset.quantity,'9007199254740993');assert.doesNotThrow(()=>JSON.stringify(result));
   assert.deepEqual(result[1].asset.metadata,{communityTag:'external'});
+  assert.equal(result[1].asset.format.status,'not-bis-format');
   wallet.assetManager.getAssetDetails=async()=>{throw Error('private');};await assert.rejects(readFreshAssets(wallet));
   wallet.getProviderConnectionState=()=>({mode:'offline',source:'cache'});await assert.rejects(readFreshAssets(wallet),{code:'unavailable'});
   wallet.getProviderConnectionState=()=>({mode:'online',source:'live'});wallet.getBalance=async()=>({assets:[]});assert.deepEqual(await readFreshAssets(wallet),[]);
@@ -69,6 +70,7 @@ test('listing decodes Arkade hex-encoded custom metadata before BIS classificati
   };
   const [listed]=await readFreshAssets(wallet);
   assert.deepEqual(listed.asset.metadata,{bisAssetType:'item',bisGameId:'stealth-and-steel',bisSchemaVersion:'1'});
+  assert.equal(listed.asset.format.status,'not-bis-format');
   assert.equal(listed.operationId,'marketplace-op');
 });
 function setup(account={phrase:'test-only',profileId:'profile-a'}, assets={list:async()=>[],mint:async(_a,r)=>({status:'minted',profileId:'profile-a',operationId:r.operationId,asset:{assetId:'a',quantity:'1'}})}){

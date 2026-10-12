@@ -12,6 +12,8 @@ Owner, game, and equipment-type filters control browsing. Shoes, Daggers, and Sh
 
 Player and Game Wallet inventories have separate view states. BIS owns the complete in-memory role/profile/network-scoped provider snapshot. Account changes, wallet operations, observed evidence, and completed trades invalidate affected entries. Eligible reads start together; the selected owner controls loading completion. Fresh snapshots are reused; expired ones trigger live reads. Failures show wallet-specific errors and Retry. Invalid or legacy metadata contributes `invalid-metadata` or `migration-required` counts, distinct from generic holdings. Marketplace caches contain no credentials, SDK errors, or transaction secrets.
 
+Marketplace uses only the latest registered BIS asset format, currently `0.0.1`. Future, malformed, and legacy holdings never enable cards, checkout, trading, or equipment effects. Admin performs any approved player-item replacement migration explicitly; Marketplace does not mutate holdings while browsing.
+
 Item details expose appropriate actions, identifiers, and explorer links. Artwork and descriptions never establish ownership or transaction status. Classification follows integration equipment definitions.
 
 ## Accounts and trading

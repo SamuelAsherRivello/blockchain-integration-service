@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Marketplace recognizes only the latest asset format
-Marketplace SHALL classify, render as an owned equipment item, publish for trading, and use for checkout only a holding resolved as the registry's latest asset format. For a supported earlier version with automatic upgrade enabled, Marketplace SHALL show a truthful upgrading/pending state while BIS completes or resumes migration; it SHALL not enable item behavior until the latest-format replacement is verified. Older compatible formats with automatic upgrade disabled, unsupported formats, malformed markers, and legacy metadata SHALL remain outside Marketplace item behavior and SHALL receive a truthful migration/unsupported state without inferred effects.
+Marketplace SHALL classify, render as an owned equipment item, publish for trading, and use for checkout only a holding resolved as the registry's latest asset format. For a supported earlier version with automatic upgrade enabled, Marketplace SHALL show a truthful Admin-upgrade-required state; it SHALL not initiate migration or enable item behavior until Admin verifies the latest-format replacement. Older compatible formats with automatic upgrade disabled, unsupported formats, malformed markers, and legacy metadata SHALL remain outside Marketplace item behavior and SHALL receive a truthful migration/unsupported state without inferred effects.
 
 #### Scenario: Marketplace reads an earlier-format holding
 - **WHEN** fresh inventory contains an otherwise valid marketplace item from a format older than the registry's latest version

@@ -3,7 +3,7 @@ import { assertNoPendingSend } from './sending.ts';
 import {readAccountOnboarding} from './onboarding-record.ts';
 import { assertNoPendingBoarding, BoardingBlockedError } from './boarding-record.ts';
 import { readContractReservations } from './contract-reservations.ts';
-import { browserMutationLock, clearBrowserForceReset, clearBrowserPreferences, clearBrowserProfilePreferences, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
+import { browserMutationLock, clearBrowserForceReset, clearBrowserPreferences, withBrowserMutation, type LogoutOperations } from './logout-cleanup.ts';
 import type { TestNetwork } from './test-network.ts';
 export type LogoutReceipt = Readonly<{ id: string; profileId: string; generation: number }>;
 export type StoredAccount = { generation: number; account: AccountSecret | null; logout?: LogoutReceipt };
@@ -157,10 +157,6 @@ export function createAccountStorage(network: TestNetwork = 'signet'): AccountSt
         await withBrowserMutation(async () => {
           const loaded = await this.load();
           if (loaded.account?.profileId !== options.profileId || (expectedGeneration !== undefined && loaded.generation !== expectedGeneration)) throw Error('The account changed.');
-          // No SDK IndexedDB repositories are used by this app: all SDK wallets
-          // explicitly use in-memory repositories. Never clear an unrelated SDK DB.
-          clearBrowserProfilePreferences(options.profileId,globalThis.localStorage);
-          clearBrowserProfilePreferences(options.profileId,globalThis.sessionStorage);
           const receipt: LogoutReceipt = {id:crypto.randomUUID(),profileId:options.profileId,generation:loaded.generation+1};
           await transaction<void>(database,'readwrite', (store, set, tx) => {
             const request = store.get('generation');
@@ -170,7 +166,10 @@ export function createAccountStorage(network: TestNetwork = 'signet'): AccountSt
               profiles.onsuccess=()=>{
                 const list=profiles.result;
                 if(!Array.isArray(list)||!list.includes(options.profileId)){tx.abort();return;}
-                store.delete(`profile:${options.profileId}`);store.put(list.filter(id=>id!==options.profileId),'profiles');store.delete('activeProfile');store.delete('identity');store.put(receipt.generation,'generation');store.put(receipt,'logout');set(undefined);
+                // Logging out ends the active session. Profile material and its
+                // recovery journals remain so an explicit phrase restore can
+                // reactivate this network-scoped profile later.
+                store.delete('activeProfile');store.delete('identity');store.put(receipt.generation,'generation');store.put(receipt,'logout');set(undefined);
               };
             };
           });

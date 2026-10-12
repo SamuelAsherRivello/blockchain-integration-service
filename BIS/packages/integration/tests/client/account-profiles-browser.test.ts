@@ -40,6 +40,18 @@ test('encrypted player profiles migrate, deduplicate, select explicitly, and not
     await peer.selectProfile('profile-legacy',deduplicated.generation);
     await new Promise(resolve=>setTimeout(resolve,50));
     const selected=await storage.load();offA();offB();
+    const selectedGeneration=selected.generation;
+    localStorage.setItem('bis-signet-send-operation-v1:profile-legacy','retained');
+    await storage.reset(selectedGeneration,{purpose:'logout',profileId:'profile-legacy',operations:{count:0,fingerprint:'[]'}});
+    const afterLogout=await storage.load();
+    const profilesAfterLogout=await storage.listProfiles();
+    const retainedEnvelope=(await readKey('profile:profile-legacy'))!==undefined;
+    const retainedJournal=localStorage.getItem('bis-signet-send-operation-v1:profile-legacy');
+    await storage.save(legacy,afterLogout.generation,new AbortController().signal);
+    const reactivated=await storage.load();
+    await storage.forceReset('test-force-reset');
+    const afterForceReset=await storage.load();
+    const profilesAfterForceReset=await storage.listProfiles();
 
     await deleteDb();
     await putLegacy({phrase:'invalid browser fixture',profileId:'profile-invalid'});
@@ -48,7 +60,7 @@ test('encrypted player profiles migrate, deduplicate, select explicitly, and not
     let invalidRejected=false;try{await createAccountStorage().load();}catch{invalidRejected=true;}
     const invalidPreserved=(await readKey('identity'))!==undefined;
     await deleteDb();
-    return {migrated,afterMigration,legacyRemoved,extractable,deduplicated,notifications,selected,invalidRejected,invalidPreserved};
+    return {migrated,afterMigration,legacyRemoved,extractable,deduplicated,notifications,selected,afterLogout,profilesAfterLogout,retainedEnvelope,retainedJournal,reactivated,afterForceReset,profilesAfterForceReset,invalidRejected,invalidPreserved};
   });
   assert.equal(result.migrated.account.profileId,'profile-legacy');
   assert.deepEqual(result.afterMigration.profiles,['profile-legacy']);
@@ -57,5 +69,9 @@ test('encrypted player profiles migrate, deduplicate, select explicitly, and not
   assert.deepEqual(result.deduplicated.profiles,['profile-legacy','profile-second']);
   assert.equal(result.deduplicated.activeProfileId,'profile-second');
   assert.ok(result.notifications>0);assert.equal(result.selected.account.profileId,'profile-legacy');
+  assert.equal(result.afterLogout.account,null);assert.deepEqual(result.profilesAfterLogout.profiles,['profile-legacy','profile-second']);
+  assert.equal(result.profilesAfterLogout.activeProfileId,undefined);assert.equal(result.retainedEnvelope,true);assert.equal(result.retainedJournal,'retained');
+  assert.equal(result.reactivated.account.profileId,'profile-legacy');
+  assert.equal(result.afterForceReset.account,null);assert.deepEqual(result.profilesAfterForceReset.profiles,[]);
   assert.equal(result.invalidRejected,true);assert.equal(result.invalidPreserved,true);
 });

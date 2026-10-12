@@ -142,3 +142,31 @@ test('first local restore requires confirmation and Cancel saves nothing',async(
   assert.equal(f.context.getState().phase,'idle');assert.equal(f.saves(),0);assert.equal(f.events.length,0);assert.equal(getControls(f.context).recovery(),undefined);
   f.context.dispose();
 });
+
+test('same-network restore after logout reactivates the retained profile without confirmation',async()=>{
+  const f=fixture();await f.open();
+  await getControls(f.context).restore(f.phrase);await f.confirm();
+  f.context.openAccountDialog();f.context.openLogoutConfirmation();await f.context.confirmLogout();
+  assert.equal(f.context.getState().phase,'idle');assert.deepEqual((await f.storage.listProfiles()).profiles,['public-test-id']);
+  f.context.openRestoreAccount();await getControls(f.context).restore(f.phrase);
+  assert.equal(f.context.getState().phase,'active');assert.equal(f.saves(),2);assert.equal(f.events.filter(event=>event.type==='accountConnected').length,2);
+  f.context.dispose();
+});
+
+test('same phrase remains a first local profile on another network after logout',async()=>{
+  let network='signet',generation=0;
+  const accounts=new Map([['signet',null],['mutinynet',null]]),profiles=new Map([['signet',[]],['mutinynet',[]]]),listeners=new Set();
+  const storage={
+    load:async()=>({account:accounts.get(network),generation}),
+    save:async(account,expected,signal)=>{signal.throwIfAborted();assert.equal(expected,generation);accounts.set(network,account);if(!profiles.get(network).includes(account.profileId))profiles.get(network).push(account.profileId);},
+    reset:async()=>{accounts.set(network,null);generation++;for(const listener of listeners)listener();},
+    listProfiles:async()=>({profiles:[...profiles.get(network)]}),
+    subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},
+  };
+  const phrase=fresh(),context=createContext(storage,undefined,async()=> 'network-test-id',async(input,_signal)=>({phrase:input,profileId:'network-test-id',network}),undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,{getNetwork:()=>network,selectNetwork:value=>{network=value;},requireNetworkSelection:true});
+  await context.readyAsync();context.openRestoreAccount();await getControls(context).restore(phrase);await getControls(context).confirmRestoration();
+  context.openAccountDialog();context.openLogoutConfirmation();await context.confirmLogout();
+  network='mutinynet';await context.readyAsync();context.openRestoreAccount();await getControls(context).restore(phrase);
+  assert.equal(context.getState().phase,'restore-confirmation');assert.deepEqual(profiles.get('signet'),['network-test-id']);assert.deepEqual(profiles.get('mutinynet'),[]);
+  context.dispose();
+});

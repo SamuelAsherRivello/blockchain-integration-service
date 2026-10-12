@@ -20,6 +20,12 @@ Minted items share one raw metadata envelope. Native fields identify the asset; 
 
 Family, tier, catalog identity, price, and description support display and validation only. Games must reject malformed, duplicate, unknown, or out-of-range deltas instead of inferring effects. See the [equipment definitions and metadata builder](src/client/state-layer-core/equipment.ts) for complete item shapes.
 
+## Asset-format versioning
+
+New BIS-managed assets carry `bisAssetFormatVersion: "0.0.1"`. The library also recognizes a complete unmarked legacy `0.0.1` envelope, but generic/external holdings remain visible without being promoted to BIS items. Games and Marketplace consume only the latest registered format; malformed or future markers cannot grant gameplay effects or marketplace eligibility.
+
+When a future format is introduced, it must declare a deterministic predecessor mapping and whether Admin automatic upgrade is enabled (the default); an explicit opt-out is required when a predecessor must remain unchanged. Upgrade is never triggered by browsing: the Admin operator runs Upgrade all player items with an active Game Wallet and logged-in Player Wallet. Each source holding receives a replacement first; only then may the prior holding retire. Pending delivery or retirement remains recoverable and never authorizes a duplicate replacement.
+
 ## Accounts, caching, and operations
 
 Remembered accounts use encrypted, origin-scoped storage. Compromised same-origin code can access secrets; never log recovery phrases or put them in public state or reports. Logout remains available without settlement waits; risk checkboxes are informational acknowledgements. Deliberate logout clears local recovery records, not remote holdings or transactions. Admin Reset retains its separate guards.

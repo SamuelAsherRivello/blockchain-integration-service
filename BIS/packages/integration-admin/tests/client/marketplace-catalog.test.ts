@@ -40,6 +40,7 @@ test('every catalog mint uses a deterministic, distinct operation ID for recover
     name: 'Shoes I', ticker: 'SHO1', amount: '1', decimals: 0,
     iconUrl: 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/shoes-1.png',
     metadata: {
+      bisAssetFormatVersion: '0.0.1',
       bisAssetType: 'item',
       bisCatalogId: 'stealth-steel-shoes-1',
       bisEquipmentFamily: 'Shoes',

@@ -31,3 +31,8 @@ test('generic assets and trophies are excluded, unavailable reads apply no effec
   const service=createBisEquipment(f.context);let state=await service.refresh();assert.equal(state.ownedItems.length,1);assert.equal(state.ownedItems[0].iconUrl,item.iconUrl);await service.select(item.assetId);
   f.setUnavailable(true);state=await service.refresh();assert.equal(state.status,'unavailable');assert.deepEqual(state.effective,{});service.dispose();
 });
+
+test('future or malformed format markers cannot become equipped',async t=>{
+  storage(t);const f=contextFixture(),future={...chainAsset(0),metadata:{...chainAsset(0).metadata,bisAssetFormatVersion:'0.0.2'}},malformed={...chainAsset(1),metadata:{...chainAsset(1).metadata,bisAssetFormatVersion:'future'}};
+  f.setAssets([future,malformed]);const service=createBisEquipment(f.context);const state=await service.refresh();assert.deepEqual(state.ownedItems,[]);assert.deepEqual(state.effective,{});service.dispose();
+});

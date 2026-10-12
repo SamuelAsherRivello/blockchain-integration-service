@@ -10,7 +10,7 @@ See [proposal.md](proposal.md) for motivation. Current issuance writes `bisSchem
 
 - Establish `0.0.1` as the first immutable, explicit BIS asset format without changing its current metadata payload.
 - Make adding a successor format a bounded registry change with an explicit decoder, validator, catalog mapping, and migration declaration.
-- Default successor migrations to automatic, durable replacement-and-retirement work when the necessary wallet scope is available.
+- Default successor migrations to automatic, durable replacement-and-retirement work when the operator invokes Admin's Upgrade all player items action with the necessary wallet scope.
 - Keep Admin capable of inspecting and operating supported historical versions, while all normal BIS game/runtime and Marketplace behavior remains latest-only.
 
 **Non-Goals:**
@@ -41,7 +41,7 @@ The mapping creates a successor-format replacement with the same supported stabl
 
 ### 4. Automatic migration is version policy, enabled by default
 
-Every successor registration names compatible predecessor versions and provides a deterministic mapping. Unless that declaration explicitly sets `autoUpgrade: false`, eligible migrations begin/resume during a latest-only consumer's foreground inventory preparation and through Admin's selected-format operations. The action is not a background polling service: it uses existing active owner/issuer wallet scope, mutation coordination, and durable storage. Where those prerequisites are missing, the UI reports migration pending/unavailable and leaves the old holding intact.
+Every successor registration names compatible predecessor versions and provides a deterministic mapping. Unless that declaration explicitly sets `autoUpgrade: false`, Admin's explicit Upgrade all player items action begins/resumes eligible migrations for every compatible holding owned by the currently logged-in Player Wallet. The active Game Wallet issues and delivers a separate mapped replacement for each source holding. The action is not a background polling service and normal game/Marketplace browsing never triggers it; it uses existing active owner/issuer wallet scope, mutation coordination, and durable storage. Where those prerequisites are missing, the UI reports migration pending/unavailable and leaves the old holding intact.
 
 The design intentionally makes future format work include the mapping and its opt-out decision. A version cannot become current without declaring how older supported formats are handled. This is preferable to a global boolean because compatibility is directional and a `0.0.2` migration may be safe while a later format may deliberately require manual review.
 
@@ -49,7 +49,7 @@ The design intentionally makes future format work include the mapping and its op
 
 Admin receives a selector populated from supported registry versions represented in the active scope and defaults it to the latest. It scopes C.G.2/C.G.3/C.G.4 and Admin-hosted Asset operational views, not the underlying generic ownership snapshot. Unknown/malformed holdings show separately with safe reasons.
 
-Outside Admin, only the latest resolved version is eligible for game selection, equipment effects, Marketplace rendering, checkout, or trading. An older supported holding with auto-upgrade enabled is shown as upgrading/pending until its verified replacement is available; one with auto-upgrade disabled is migration-required. This prevents a new consumer from accidentally applying a new decoder to an old item.
+Outside Admin, only the latest resolved version is eligible for game selection, equipment effects, Marketplace rendering, checkout, or trading. An older supported holding is migration-required until the operator runs a successful Admin upgrade; an auto-upgrade opt-out remains explicitly version-scoped in Admin. This prevents a new consumer from accidentally applying a new decoder to an old item.
 
 ## Risks / Trade-offs
 
@@ -65,5 +65,5 @@ Outside Admin, only the latest resolved version is eligible for game selection, 
 2. Route generic listing, classification, and Admin filtering through resolution; preserve all generic assets and make non-Admin paths latest-only.
 3. Add Admin version selection and format-scoped C.G.2/C.G.3/C.G.4 reporting before enabling a successor migration.
 4. Add durable migration records and the replacement-delivery-then-retirement coordinator using existing mint, delivery, burn, reservations, reconciliation, and cache invalidation boundaries.
-5. Exercise a `0.0.2` fixture migration from `0.0.1`, including automatic, opted-out, unavailable, interrupted, recovery, account/network change, and duplicate-invocation cases.
+5. Exercise a `0.0.2` fixture migration from `0.0.1`, including Upgrade all player items completion, independent per-item continuation after an unavailable/unknown result, opted-out, unavailable, interrupted, recovery, account/network change, and duplicate-invocation cases.
 6. Before any live migration, report public wallet/network/inventory evidence and require the active local scope. Rollback disables automatic policy for a not-yet-started successor migration; durable started records continue recovery rather than being erased.

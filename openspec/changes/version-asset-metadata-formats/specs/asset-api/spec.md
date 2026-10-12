@@ -16,7 +16,7 @@ The UI-independent asset API SHALL expose JSON-safe resolved format information 
 - **AND** it does not classify the holding as current equipment
 
 ### Requirement: Non-Admin consumers use only the latest format
-Public BIS game-facing and runtime asset-selection APIs SHALL classify, equip, trade, or otherwise respect only holdings resolved as the registry's latest explicit or compatible version. For a supported earlier format whose latest successor enables automatic upgrade, BIS SHALL start or resume its recoverable migration before treating the holding as eligible; it SHALL use the replacement only after verified delivery. They SHALL not derive gameplay effects or marketplace eligibility from legacy, malformed, unknown, newer-than-supported, or migration-pending formats.
+Public BIS game-facing and runtime asset-selection APIs SHALL classify, equip, trade, or otherwise respect only holdings resolved as the registry's latest explicit or compatible version. They SHALL not start or resume a migration; they SHALL use a replacement only after Admin has verified its delivery. They SHALL not derive gameplay effects or marketplace eligibility from legacy, malformed, unknown, newer-than-supported, or migration-pending formats.
 
 #### Scenario: Older format remains owned after a newer release
 - **WHEN** a user owns a valid earlier-format item after a newer format becomes latest

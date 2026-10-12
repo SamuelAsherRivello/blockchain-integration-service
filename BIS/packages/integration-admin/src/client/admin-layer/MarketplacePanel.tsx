@@ -1,18 +1,34 @@
 import { useState, type ReactNode } from 'react';
-import { createBisGameWallet, prepareAssetMintBatch } from '@bis/integration';
+import { bisAssetFormats, createBisGameWallet, prepareAssetMintBatch, BIS_LATEST_ASSET_FORMAT_VERSION } from '@bis/integration';
 import { marketplaceCatalogItems, marketplaceMintRequest } from './marketplace-catalog';
 import { prepareMintDestination } from './mint-destination';
 import { mintAndVerifyMarketplaceCatalog } from './marketplace-mint-batch';
 import { burnMarketplaceListing } from './marketplace-burn-batch';
 import { listMarketplaceItems } from './marketplace-list';
 import { StoryButton } from './StoryButton';
+import {upgradeAllPlayerAssets,type PlayerAssetUpgradeWallet} from './player-asset-upgrade.ts';
 
-export function AdminMarketplaceView({ controller, onLog, children }: {controller?: ReturnType<typeof createBisGameWallet>; onLog(value: unknown): void; children?: ReactNode}) {
+/** C.G.2–C.G.4 currently own only the registered 0.0.1 catalog handler. */
+export const canUseMarketplaceCatalogFormat=(version:string)=>version===BIS_LATEST_ASSET_FORMAT_VERSION;
+
+export function AdminMarketplaceView({ controller, player, onLog, children }: {controller?: ReturnType<typeof createBisGameWallet>;player?:PlayerAssetUpgradeWallet; onLog(value: unknown): void; children?: ReactNode}) {
   const [busy, setBusy] = useState(false);
+  const [formatVersion,setFormatVersion]=useState<string>(BIS_LATEST_ASSET_FORMAT_VERSION);
   const active = !!controller?.getState().profileId;
+  const successor=bisAssetFormats.find(format=>format.autoUpgrade&&format.predecessorMigrations[formatVersion]);
+  async function upgradeAll() {
+    if(!controller||!player||!successor||busy)return;setBusy(true);
+    onLog({operation:'Upgrade all player items',sourceVersion:formatVersion,targetVersion:successor.version,status:'pending',message:'Reading Player Wallet holdings…'});
+    const gameProfile=controller.getState().profileId,playerProfile=player.getState().profileId;
+    try {
+      const results=await upgradeAllPlayerAssets({game:controller,player,targetVersion:successor.version,migrator:successor.predecessorMigrations[formatVersion]!,isCurrent:()=>controller.getState().profileId===gameProfile&&player.getState().profileId===playerProfile,onProgress:value=>onLog({operation:'Upgrade all player items',value})});
+      onLog({operation:'Upgrade all player items',sourceVersion:formatVersion,targetVersion:successor.version,status:'completed',results});
+    } catch {onLog({operation:'Upgrade all player items',status:'error',message:'Upgrade did not start. Confirm both wallets and recover any pending item before retrying.'});}
+    finally{setBusy(false);}
+  }
   async function mintCatalog() {
-    if (!controller || busy) return; setBusy(true);
-    onLog({operation:'C.G.2. Marketplace mint', status:'pending', message:'Preparing catalog issuance…'});
+    if (!controller || busy || !canUseMarketplaceCatalogFormat(formatVersion)) return; setBusy(true);
+    onLog({operation:'C.G.2. Marketplace mint', formatVersion, status:'pending', message:'Preparing catalog issuance…'});
     try {
       const targetProfile = controller.getState().profileId;
       if (!targetProfile) throw Error();
@@ -36,8 +52,8 @@ export function AdminMarketplaceView({ controller, onLog, children }: {controlle
     finally { setBusy(false); }
   }
   async function burnCatalog() {
-    if (!controller || busy) return; setBusy(true);
-    onLog({operation:'C.G.3. Burn Marketplace Listing', status:'pending', message:'Inspecting the exact nine-item listing…'});
+    if (!controller || busy || !canUseMarketplaceCatalogFormat(formatVersion)) return; setBusy(true);
+    onLog({operation:'C.G.3. Burn Marketplace Listing', formatVersion, status:'pending', message:'Inspecting the exact nine-item listing…'});
     const targetProfile=controller.getState().profileId;
     try {
       if(!targetProfile)throw Error();
@@ -54,9 +70,9 @@ export function AdminMarketplaceView({ controller, onLog, children }: {controlle
     finally {setBusy(false);}
   }
   async function listAllItems() {
-    if (!controller || busy) return; setBusy(true);
+    if (!controller || busy || !canUseMarketplaceCatalogFormat(formatVersion)) return; setBusy(true);
     const operation = 'C.G.4. List All Items For Marketplace';
-    const log = (value: Record<string, unknown>) => onLog({operation, arkadeAddress: controller.getState().addresses?.arkadeAddress ?? 'Unavailable', ...value});
+    const log = (value: Record<string, unknown>) => onLog({operation, formatVersion, arkadeAddress: controller.getState().addresses?.arkadeAddress ?? 'Unavailable', ...value});
     log({status:'pending',message:'Listing fresh game-wallet marketplace items…'});
     const targetProfile=controller.getState().profileId;
     try {
@@ -66,5 +82,6 @@ export function AdminMarketplaceView({ controller, onLog, children }: {controlle
     } catch {onLog({operation,status:'error',message:'Marketplace item listing is unavailable.'});}
     finally {setBusy(false);}
   }
-  return <div className="marketplace-panel"><p className="story-summary">Mint or burn the nine-item Stealth &amp; Steel catalog in the active game wallet.</p>{children}<StoryButton label="C.G.2. Mint Items for Marketplace"><button disabled={!active || busy} onClick={() => void mintCatalog()}>Mint catalog</button></StoryButton><StoryButton label="C.G.3. Burn Items for Marketplace"><button disabled={!active || busy} onClick={() => void burnCatalog()}>Burn marketplace listing</button></StoryButton><StoryButton label="C.G.4. List All Items For Marketplace"><button disabled={!active || busy} onClick={() => void listAllItems()}>List all marketplace items</button></StoryButton></div>;
+  const catalogEnabled=canUseMarketplaceCatalogFormat(formatVersion);
+  return <div className="marketplace-panel"><p className="story-summary">Mint or burn the nine-item Stealth &amp; Steel catalog in the active game wallet.</p><label className="marketplace-format">Asset format<select aria-label="Asset format" value={formatVersion} disabled={busy} onChange={event=>setFormatVersion(event.target.value)}>{bisAssetFormats.map(format=><option key={format.version} value={format.version}>{format.version}{format.version===BIS_LATEST_ASSET_FORMAT_VERSION?' (latest)':''}</option>)}</select></label>{children}<StoryButton label="Upgrade all player items"><button disabled={!active||!player||!successor||busy} title={!successor?'No automatic successor is registered for this format.':undefined} onClick={()=>void upgradeAll()}>{successor?`Upgrade to ${successor.version} ${successor.autoUpgrade?'(automatic)':''}`:'No upgrade available'}</button></StoryButton><StoryButton label="C.G.2. Mint Items for Marketplace"><button disabled={!active || busy || !catalogEnabled} title={!catalogEnabled?'No marketplace catalog handler is registered for this format.':undefined} onClick={() => void mintCatalog()}>Mint catalog</button></StoryButton><StoryButton label="C.G.3. Burn Items for Marketplace"><button disabled={!active || busy || !catalogEnabled} title={!catalogEnabled?'No marketplace catalog handler is registered for this format.':undefined} onClick={() => void burnCatalog()}>Burn marketplace listing</button></StoryButton><StoryButton label="C.G.4. List All Items For Marketplace"><button disabled={!active || busy || !catalogEnabled} title={!catalogEnabled?'No marketplace catalog handler is registered for this format.':undefined} onClick={() => void listAllItems()}>List all marketplace items</button></StoryButton></div>;
 }

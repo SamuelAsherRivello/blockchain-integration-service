@@ -1,4 +1,5 @@
 import type { BisAsset, BisAssetMetadata, BisAttributeDelta } from './assets';
+import { formatAssetMetadata, isLatestBisAssetFormat } from './asset-format.ts';
 
 export const BIS_STEALTH_AND_STEEL_GAME_ID = 'stealth-and-steel' as const;
 
@@ -51,7 +52,7 @@ const byCatalogId = new Map(bisMarketplaceItems.map(item => [item.catalogId, ite
 const allowedAttributes = new Set<BisEquipmentAttribute>(['movementSpeed', 'playerDamage', 'damageTaken']);
 
 export function marketplaceItemMetadata(item: BisEquipmentDefinition): BisAssetMetadata {
-  return Object.freeze({
+  return formatAssetMetadata({
     bisAssetType: 'item',
     bisCatalogId: item.catalogId,
     bisEquipmentFamily: item.family,
@@ -92,6 +93,7 @@ function readAttributeDeltas(value: unknown): readonly BisAttributeDelta[] | nul
 export function classifyBisEquipmentAsset(asset: BisAsset): BisEquipmentItem | null {
   const metadata = asset.metadata;
   if (!metadata
+    || !isLatestBisAssetFormat(asset)
     || metadata.bisSchemaVersion !== '1'
     || metadata.bisGameId !== BIS_STEALTH_AND_STEEL_GAME_ID
     || metadata.bisAssetType !== 'item'

@@ -16,9 +16,9 @@ C.G.2, C.G.3, and C.G.4 SHALL expose and honor the active Admin asset-format sel
 - **AND** all new catalog minting uses that version
 
 ### Requirement: Admin exposes and controls automatic format migration
-Admin SHALL show version-migration progress and safe recovery state for selected-format catalog holdings. When the latest successor enables automatic upgrade, Admin SHALL automatically start or resume only eligible migrations in the active wallet scope; it SHALL retain a format-level control to opt out before a new successor's migration begins. Disabling automatic upgrade SHALL not abandon or duplicate a migration that has already crossed a durable submission boundary.
+Admin SHALL provide an explicit Upgrade all player items action whenever an active Game Wallet, a logged-in Player Wallet, and an automatically upgradable successor format are available. The action SHALL find every eligible selected-format holding owned by that Player Wallet, then automatically start or resume its durable per-item migration using the active Game Wallet as issuer/funder. It SHALL show per-item migration progress and safe recovery state. Admin SHALL retain a format-level control to opt out before a new successor's migration begins. Disabling automatic upgrade SHALL not abandon or duplicate a migration that has already crossed a durable submission boundary.
 
 #### Scenario: Default automatic migration finds old catalog items
-- **WHEN** the active Game Wallet contains supported predecessor catalog holdings and the latest successor enables automatic upgrade
-- **THEN** Admin starts/resumes durable per-item migration and reports each replacement and retirement phase
-- **AND** it preserves unrelated, unsupported, or already-recovering holdings
+- **WHEN** the operator invokes Upgrade all player items while the logged-in Player Wallet owns supported predecessor holdings and the latest successor enables automatic upgrade
+- **THEN** Admin starts/resumes durable per-item migration for every eligible Player Wallet holding and reports each replacement and retirement phase
+- **AND** it preserves unrelated, unsupported, or already-recovering holdings and continues safely after an independent item failure

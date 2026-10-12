@@ -143,7 +143,13 @@ test('real adapter and SDK issue preserve the external holding, exact amount, ic
   assert.equal(result.asset.assetId, result.transactionId + '0000');
   assert.equal(f.state.issues[0].amount, 1n);
   assert.equal('controlAssetId' in f.state.issues[0], false);
-  assert.deepEqual(f.state.issues[0].metadata, { ...metadata(request), bisKind: 'asset', bisSchemaVersion: '1', bisOperationId: request.operationId });
+  assert.deepEqual(f.state.issues[0].metadata, {
+    ...metadata(request),
+    bisKind: 'asset',
+    bisSchemaVersion: '1',
+    bisAssetFormatVersion: '0.0.1',
+    bisOperationId: request.operationId,
+  });
   const { packet, outputs } = f.state.packets[0];
   const issued = packet.groups.find(group => group.isIssuance());
   assert.equal(issued.controlAsset, null);
@@ -160,6 +166,7 @@ test('real adapter and SDK issue preserve the external holding, exact amount, ic
   assert.deepEqual(assets.find(asset => asset.assetId === externalId), {
     assetId: externalId, quantity: '1', name: request.name, ticker: request.ticker,
     decimals: request.decimals, iconUrl: request.iconUrl, metadata: request.metadata,
+    format: { status: 'not-bis-format' },
   });
   const listedMint = assets.find(asset => asset.assetId === result.asset.assetId);
   assert.equal(listedMint.sourceOperationId, request.operationId);

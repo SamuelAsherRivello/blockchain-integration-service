@@ -47,11 +47,11 @@ Every registered successor format SHALL declare which supported earlier formats 
 - **AND** non-Admin consumers do not treat them as latest-format items
 
 ### Requirement: Automated migration is recoverable and non-destructive
-For an eligible automatic upgrade, BIS SHALL durably bind the source holding, target format, replacement operation, account, and network before mutation. It SHALL verify and deliver the replacement to the current owner before it submits the guarded retirement/burn of the old holding. It SHALL never delete, hide, or claim migration of an old holding solely from a local flag, a missing response, or a replacement request. An unavailable owner, issuer, funding source, or explicit auto-upgrade opt-out SHALL leave the old holding intact and report a safe pending/unavailable migration state.
+For an eligible automatic upgrade invoked by Admin, BIS SHALL durably bind the source holding, target format, replacement operation, currently logged-in Player Wallet, active Game Wallet, and network before mutation. The active Game Wallet SHALL mint and deliver one mapped replacement per source holding to the Player Wallet before BIS submits the guarded retirement/burn of that old holding. It SHALL never delete, hide, or claim migration of an old holding solely from a local flag, a missing response, or a replacement request. An unavailable player, Game Wallet, funding source, or explicit auto-upgrade opt-out SHALL leave the old holding intact and report a safe pending/unavailable migration state.
 
 #### Scenario: Automatic migration completes
-- **WHEN** an active eligible owner holds a supported older-format item and the latest format enables automatic upgrade
-- **THEN** BIS delivers one verified mapped latest-format replacement to that owner before retiring the old holding
+- **WHEN** an operator invokes Upgrade all player items with an active Game Wallet, a logged-in Player Wallet, and the latest format enables automatic upgrade
+- **THEN** BIS mints and delivers one verified mapped latest-format replacement to the Player Wallet before retiring each old holding
 - **AND** subsequent latest-only consumers use the verified replacement
 
 #### Scenario: Migration is interrupted after replacement delivery
