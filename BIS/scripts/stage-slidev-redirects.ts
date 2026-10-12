@@ -1,3 +1,4 @@
+// This module is plain TypeScript: Node's built-in type stripping does not load .tsx files.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
