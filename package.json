@@ -20,7 +20,7 @@
     "preview": "npm run preview --workspace @bis/integration-admin",
     "check:release": "node BIS/scripts/check-release-version.ts",
     "stage:pages": "node BIS/scripts/stage-pages-artifact.ts",
-    "verify:pages": "node BIS/scripts/verify-pages-routes.tsx"
+    "verify:pages": "node BIS/scripts/verify-pages-routes.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

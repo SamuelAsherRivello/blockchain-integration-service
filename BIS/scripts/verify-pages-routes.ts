@@ -1,3 +1,4 @@
+// This module is plain TypeScript: Node's built-in type stripping does not load .tsx files.
 import assert from 'node:assert/strict';
 import { createReadStream } from 'node:fs';
 import { access, readFile, stat } from 'node:fs/promises';
