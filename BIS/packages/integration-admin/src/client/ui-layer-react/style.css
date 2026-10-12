@@ -140,5 +140,11 @@ nav + .story-section { margin-top: 24px; }
 .story-card-start:hover { border-color: #a5a1ff; background: #746eff; }
 .story-card-start:focus-within { outline: 2px solid #b7b4ff; outline-offset: 4px; }
 
+.admin-panel .story-card-subbuttons .marketplace-format-select { display: inline-flex; align-items: center; gap: 5px; color: #a9b6c7; font: 600 11px/1.2 Inter, sans-serif; white-space: nowrap; }
+.admin-panel .story-card-subbuttons .marketplace-format-select select { min-width: 96px; appearance: auto; border: 1px solid #526274; border-radius: 4px; background: #121923; color: #e5e9ef; padding: 3px 6px; font: 600 12px/1.2 Inter, sans-serif; cursor: pointer; }
+.admin-panel .story-card-subbuttons .marketplace-format-select select:hover:not(:disabled) { border-color: #a9d9c3; }
+.admin-panel .story-card-subbuttons .marketplace-format-select select:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 2px; }
+.admin-panel .story-card-subbuttons .marketplace-format-select select:disabled { cursor: not-allowed; opacity: .55; }
+
 /* Preserve the first action longest when the action group must compress. */
 .admin-panel .story-card-subbuttons button:first-child { flex-shrink: 1; }
