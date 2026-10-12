@@ -51,11 +51,10 @@ export function AccountAssetsView({assets, network, onDetailChange, onBack, onBa
     burnInFlight.current=true;burnOrigin.current=true;setConfirmation(undefined);setBurning(true);setBurnError('');
     let confirmed=false;
     try {
-      onToast('Asset burn (Pending)', {messageType:'info'});
       const result=await onBurn({operationId:crypto.randomUUID(),assetId:asset.assetId,quantity:asset.quantity});
       if(!mounted.current)return;
       if(result.status!=='burned')setBurnError(result.code==='outcome-unknown'?'Outcome not yet confirmed. The burn may still complete. Do not submit it again.':result.message);
-      if(result.status==='burned'){confirmed=true;onToast('Asset burn (Confirmed)', {messageType:'success'});setBackgroundImages(true);setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;await onRefresh();}
+      if(result.status==='burned'){confirmed=true;onToast('Asset burn (Pending)', {messageType:'info'});onToast('Asset burn (Confirmed)', {messageType:'success'});setBackgroundImages(true);setDetailOpen(false);setSelectedId(undefined);restoreFocus.current=true;await onRefresh();}
     } catch {if(mounted.current)setBurnError(confirmed?'Assets could not be loaded.':'Outcome not yet confirmed. The burn may still complete. Do not submit it again.');}
     finally {burnInFlight.current=false;if(mounted.current)setBurning(false);}
   }

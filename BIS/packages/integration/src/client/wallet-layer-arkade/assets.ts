@@ -139,7 +139,8 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
       throw new BurnError('unavailable',`This asset needs ${minimum} spendable sats for its Arkade carrier output. Add or settle spendable funds, then try again.`);
     }
     if(error instanceof Error && error.message.startsWith('Insufficient asset balance:'))throw new BurnError('unavailable','This asset is owned but is not currently spendable. Wait for its wallet operation to settle, then refresh Assets and try again.');
-    throw error;
+    if(error instanceof BurnError)throw error;
+    throw new BurnError('unavailable','The wallet could not prepare a spendable burn transaction. This is not caused by the item metadata format. Refresh Assets, resolve any pending wallet operation, and try again.');
   } finally {open=false;}
 }
 export async function listWalletAssets(account: AccountSecret, signal: AbortSignal, session?: RoleWalletAccess): Promise<BisAsset[]> {
