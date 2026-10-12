@@ -86,7 +86,7 @@ const wallets = Object.fromEntries(NETWORK_IDS.map(network => [network, createLa
 const service = createFaucetService({
   wallets,
   infos: Object.fromEntries(NETWORK_IDS.map(network => [network, async () => new RestArkProvider(NETWORKS[network].operator).getInfo()])),
-  limits: Object.fromEntries(NETWORK_IDS.map(network => [network, Number(process.env[`FAUCET_${envName(network)}_MAX_SATS`] ?? 200_000)])),
+  limits: Object.fromEntries(NETWORK_IDS.map(network => [network, Number(process.env[`FAUCET_${envName(network)}_MAX_SATS`] ?? 100_000)])),
 });
 
 function json(response, status, body) {

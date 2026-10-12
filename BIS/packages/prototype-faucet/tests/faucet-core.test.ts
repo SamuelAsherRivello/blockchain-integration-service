@@ -23,10 +23,12 @@ test('validates the selected operator identity, not only the tark prefix', () =>
   assert.throws(() => validateArkadeAddress(address, { ...info, signerPubkey: '04'.padEnd(66, 'a') }, 'signet'), /not a signet/);
 });
 
-test('accepts only the bounded prototype amounts', () => {
-  assert.deepEqual(ALLOWED_AMOUNTS, [50_000, 100_000, 200_000]);
+test('accepts every whole-satoshi amount within the configured bounds', () => {
+  assert.deepEqual(ALLOWED_AMOUNTS, [25_000, 50_000, 100_000]);
+  assert.equal(validateAmount(1, 100_000), 1);
+  assert.equal(validateAmount(12_345, 100_000), 12_345);
   assert.equal(validateAmount(100_000, 200_000), 100_000);
-  for (const value of [0, -1, 1, 300_000, '100000.5']) assert.throws(() => validateAmount(value, 200_000));
+  for (const value of [0, -1, 100_001, '100000.5']) assert.throws(() => validateAmount(value, 100_000));
 });
 
 test('sanitizes fee-estimation failures into an actionable onboarding message', () => {
@@ -42,6 +44,7 @@ test('server service validates, idempotently sends, and returns pending status',
     limiter: createRateLimiter({ max: 5 }),
   });
   const input = { network: 'signet', address, amount: 100_000, idempotencyKey: 'same-request' };
+  await assert.rejects(() => service.request({ ...input, amount: 100_001, idempotencyKey: 'above-contract-limit' }), /up to 100,000/);
   assert.equal((await service.request(input)).status, 'pending');
   assert.equal((await service.request(input)).operationId, 'ark-tx-1');
   assert.equal((await service.request(input)).transactionId, 'ark-tx-1');
@@ -59,11 +62,14 @@ test('rate limits repeated destination requests', async () => {
   await assert.rejects(() => service.request({ network: 'signet', address, amount: 50_000, idempotencyKey: 'two' }), /rate limit/);
 });
 
-test('funding CLI requires an explicit amount and accepts sats or k notation', () => {
+test('funding CLI requires an explicit in-range amount and accepts sats or k notation', () => {
+  assert.equal(parseSats('1'), 1);
+  assert.equal(parseSats('25000'), 25_000);
+  assert.equal(parseSats('25k'), 25_000);
   assert.equal(parseSats('50000'), 50_000);
   assert.equal(parseSats('50k'), 50_000);
   assert.throws(() => parseArgs(['--address', 'tark1example', '--network', 'signet']), /--amount is required/);
-  assert.throws(() => parseSats('25k'), /one of 50000/);
+  assert.throws(() => parseSats('100001'), /from 1 to 100000/);
 });
 
 test('funding CLI serializes the selected network, address, amount, and idempotency key', async () => {

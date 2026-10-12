@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isValidArkAddress } from '@arkade-os/sdk';
-import { ALLOWED_AMOUNTS } from '../shared/faucet-core.ts';
+import { ALLOWED_AMOUNTS, MAX_AMOUNT_SATS, MIN_AMOUNT_SATS } from '../shared/faucet-core.ts';
 import { NETWORKS, NETWORK_IDS } from '../shared/network-config.ts';
 import { addressSubmissionUrl, clearAddressUrl, selectedNetwork } from './navigation.ts';
 import { PrototypeSection, PrototypeTitle } from '../../../prototype-onboarding/src/client/ui-layer-react/prototype-ui.tsx';
@@ -47,7 +47,7 @@ export function App({ request = defaultRequest } = {}) {
   const requestController = useRef();
   const validFormat = useMemo(() => isValidArkAddress(address.trim()), [address]);
   const amountValue = useMemo(() => Number(amount.trim()), [amount]);
-  const validAmount = useMemo(() => /^\d+$/.test(amount.trim()) && ALLOWED_AMOUNTS.includes(amountValue), [amount, amountValue]);
+  const validAmount = useMemo(() => /^\d+$/.test(amount.trim()) && amountValue >= MIN_AMOUNT_SATS && amountValue <= MAX_AMOUNT_SATS, [amount, amountValue]);
   const busy = ['submitting', 'onboarding'].includes(state.status);
   const ready = validFormat && validAmount && balance.status === 'ready' && balance.available >= amountValue;
   const needsOnboarding = balance.status === 'ready' && Number(balance.total ?? 0) > Number(balance.available ?? 0);
@@ -151,7 +151,7 @@ export function App({ request = defaultRequest } = {}) {
       <PrototypeSection number="F3" title="Choose destination and amount" className="faucet-panel">
         <form onSubmit={submit}>
           <label>Amount in sats<input aria-describedby="amount-help" inputMode="numeric" value={amount} onChange={event => setAmount(event.target.value)} placeholder="50000" spellCheck="false" autoComplete="off" disabled={busy} /></label>
-          <p id="amount-help" className={amount && !validAmount ? 'field-error' : 'field-help'}>{amount && !validAmount ? `Choose ${ALLOWED_AMOUNTS.map(value => value.toLocaleString()).join(', ')} sats.` : 'Enter one of the available amounts or use a preset below.'}</p>
+          <p id="amount-help" className={amount && !validAmount ? 'field-error' : 'field-help'}>{amount && !validAmount ? `Enter a whole number from ${MIN_AMOUNT_SATS.toLocaleString()} to ${MAX_AMOUNT_SATS.toLocaleString()} sats.` : `Enter any whole amount from ${MIN_AMOUNT_SATS.toLocaleString()} to ${MAX_AMOUNT_SATS.toLocaleString()} sats, or use a preset below.`}</p>
           <fieldset><legend>Presets</legend><div className="amount-grid">{ALLOWED_AMOUNTS.map(value => <button key={value} className={`amount-choice${amountValue === value ? ' selected' : ''}`} type="button" aria-pressed={amountValue === value} onClick={() => setAmount(String(value))} disabled={busy}>{value.toLocaleString()} sats</button>)}</div></fieldset>
           <button className="primary" type="submit" disabled={!ready || busy}>{busy ? 'Requesting…' : 'Request Arkade sats'}</button>
         </form>

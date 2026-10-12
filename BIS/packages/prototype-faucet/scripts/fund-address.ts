@@ -7,7 +7,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readSharedEnvironment } from '../../shared/src/server/environment.ts';
 
 export const DEFAULT_API = 'http://127.0.0.1:5190';
-export const ALLOWED_AMOUNTS = Object.freeze([50_000, 100_000, 200_000]);
+export const MIN_AMOUNT_SATS = 1;
+export const MAX_AMOUNT_SATS = 100_000;
 
 function usageError(message) {
   const error = new Error(message);
@@ -25,8 +26,8 @@ export function parseSats(value) {
       ? Number.parseInt(text, 10)
       : Number.NaN;
 
-  if (!Number.isSafeInteger(amount) || !ALLOWED_AMOUNTS.includes(amount)) {
-    throw usageError('--amount must be one of 50000, 100000, or 200000 sats (also written 50k, 100k, or 200k).');
+  if (!Number.isSafeInteger(amount) || amount < MIN_AMOUNT_SATS || amount > MAX_AMOUNT_SATS) {
+    throw usageError('--amount must be a whole-satoshi value from 1 to 100000 (for example 25000 or 25k).');
   }
   return amount;
 }

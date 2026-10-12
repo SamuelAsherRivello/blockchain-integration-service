@@ -1,7 +1,9 @@
 import { ArkAddress, isValidArkAddress } from '@arkade-os/sdk';
 import { isNetwork } from './network-config.ts';
 
-export const ALLOWED_AMOUNTS = Object.freeze([50_000, 100_000, 200_000]);
+export const MIN_AMOUNT_SATS = 1;
+export const MAX_AMOUNT_SATS = 100_000;
+export const ALLOWED_AMOUNTS = Object.freeze([25_000, 50_000, 100_000]);
 
 function bytesToHex(bytes) {
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
@@ -31,9 +33,9 @@ export function validateArkadeAddress(address, info, expectedNetwork) {
   return Object.freeze({ address: String(address).trim(), network: expectedNetwork });
 }
 
-export function validateAmount(amount, maximum = Number.POSITIVE_INFINITY) {
+export function validateAmount(amount, maximum = MAX_AMOUNT_SATS) {
   const value = Number(amount);
-  if (!Number.isSafeInteger(value) || value <= 0 || !ALLOWED_AMOUNTS.includes(value)) throw new Error('Choose an available faucet amount.');
+  if (!Number.isSafeInteger(value) || value < MIN_AMOUNT_SATS) throw new Error(`Choose a whole-satoshi amount from ${MIN_AMOUNT_SATS.toLocaleString()} to ${maximum.toLocaleString()}.`);
   if (value > maximum) throw new Error(`This faucet currently allows up to ${maximum.toLocaleString()} sats.`);
   return value;
 }
@@ -72,7 +74,8 @@ export function createFaucetService({ wallets, infos, limits = {}, limiter = cre
       const info = await infos[network]();
       let destination;
       try { destination = validateArkadeAddress(address, info, network); } catch (cause) { cause.code ??= 'ADDRESS_INVALID'; throw cause; }
-      const maximum = Number(limits[network] ?? Math.max(...ALLOWED_AMOUNTS));
+      const configuredMaximum = Number(limits[network] ?? MAX_AMOUNT_SATS);
+      const maximum = Math.min(configuredMaximum, MAX_AMOUNT_SATS);
       let amountSats;
       try { amountSats = validateAmount(amount, maximum); } catch (cause) { cause.code ??= 'AMOUNT_INVALID'; throw cause; }
       limiter.check(`${network}:${clientKey}:${destination.address}`);
