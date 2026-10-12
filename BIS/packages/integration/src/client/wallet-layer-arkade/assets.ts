@@ -100,7 +100,7 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
     throw new BurnError('outcome-unknown','This item burn is unresolved. Its asset and inputs remain reserved; do not resubmit it.');
   }
   const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]);
-  let submitted=false,open=true,burnInputs:BurnInput[]=[];
+  let submitted=false,open=true,burnInputs:BurnInput[]=[],minimumCarrierSats:number|undefined;
   const p=providers(deadline,()=>{
     if(!open||!isCurrent())throw new BurnError('account-changed','The account changed.');
     if(!burnInputs.length)throw new BurnError('unavailable','The burn inputs could not be verified.');
@@ -124,6 +124,7 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
         burnInputs=inputs.map(input=>({txid:input.txid,vout:input.vout}));
         return submitOffchain(inputs,outputs);
       };
+      minimumCarrierSats=Number(wallet.dustAmount);
       const transactionId=await wallet.assetManager.burn({assetId:request.assetId,amount:BigInt(request.quantity)});
       if(!open||deadline.aborted||!isCurrent())throw new BurnError('outcome-unknown','The burn outcome is unknown. Refresh Assets; do not retry the burn.');
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw Error('Invalid transaction ID');
@@ -133,6 +134,11 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
   } catch(error) {
     if(submitted)throw new BurnError('outcome-unknown','The burn may have been submitted. Refresh Assets; do not retry the burn.');
     if(error instanceof Error && error.message.startsWith('Operator network mismatch:'))throw new BurnError('unavailable','The selected wallet network could not be verified. Refresh the wallet and try again.');
+    if(error instanceof Error && error.message === 'Insufficient funds') {
+      const minimum=Number.isSafeInteger(minimumCarrierSats) && minimumCarrierSats! > 0 ? minimumCarrierSats!.toLocaleString('en-US') : 'the required';
+      throw new BurnError('unavailable',`This asset needs ${minimum} spendable sats for its Arkade carrier output. Add or settle spendable funds, then try again.`);
+    }
+    if(error instanceof Error && error.message.startsWith('Insufficient asset balance:'))throw new BurnError('unavailable','This asset is owned but is not currently spendable. Wait for its wallet operation to settle, then refresh Assets and try again.');
     throw error;
   } finally {open=false;}
 }

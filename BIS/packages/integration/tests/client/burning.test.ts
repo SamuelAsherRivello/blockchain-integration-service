@@ -13,7 +13,7 @@ function fixture(t, network='signet', reportedNetwork=network) {
   const walletAccount={...account,network};
   const memory=new Map();
   const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
-  const state={submits:0,fail:false,storageFail:false,current:true,amount:BigInt(request.quantity),packets:[],calls:0,providerUrls:[]};
+  const state={submits:0,fail:false,burnFailure:undefined as string|undefined,storageFail:false,current:true,amount:BigInt(request.quantity),packets:[],calls:0,providerUrls:[]};
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return memory.size;},key:i=>[...memory.keys()][i]??null,getItem:k=>memory.get(k)??null,setItem:(k,v)=>{if(state.storageFail)throw Error('denied');memory.set(k,v);}}});
   t.after(()=>{if(original)Object.defineProperty(globalThis,'localStorage',original);else Reflect.deleteProperty(globalThis,'localStorage');});
   t.mock.method(globalThis,'fetch',async()=>{throw Error('unexpected network');});
@@ -32,7 +32,9 @@ function fixture(t, network='signet', reportedNetwork=network) {
       getSpendableVtxos:async()=>[{txid:'d'.repeat(64),vout:0,value:1000,assets:[{assetId,amount:state.amount},{assetId:otherId,amount:7n}]}],dispose:async()=>{},
       buildAndSubmitOffchainTx:async(inputs,outputs)=>{state.packets.push(Extension.fromBytes(outputs.find(output=>Extension.isExtension(output.script)).script).getAssetPacket());const result=await options.arkProvider.submitTx('fixture',[]);return result;},
     };
-    wallet.assetManager=new AssetManager(wallet);wallet.assetManager.getAssetDetails=async id=>({assetId:id});return wallet;
+    wallet.assetManager=new AssetManager(wallet);wallet.assetManager.getAssetDetails=async id=>({assetId:id});
+    const burn=wallet.assetManager.burn.bind(wallet.assetManager);wallet.assetManager.burn=async params=>{if(state.burnFailure)throw Error(state.burnFailure);return burn(params);};
+    return wallet;
   });
   return {state,memory,burn:(signal=new AbortController().signal)=>burnWalletAsset({...account,network},request,signal,()=>state.current)};
 }
@@ -70,6 +72,13 @@ test('changed holding, missing storage and account change prevent submission',as
   const f=fixture(t);f.state.amount=1n;await assert.rejects(f.burn(),{code:'invalid-input'});assert.equal(f.state.submits,0);
   f.state.amount=BigInt(request.quantity);f.state.storageFail=true;await assert.rejects(f.burn(),{code:'unavailable'});assert.equal(f.state.submits,0);
   f.state.storageFail=false;f.state.current=false;await assert.rejects(f.burn(),{code:'account-changed'});assert.equal(f.state.submits,0);
+});
+test('burn explains whether the selected asset lacks carrier sats or is not spendable',async t=>{
+  const f=fixture(t);
+  f.state.burnFailure='Insufficient funds';
+  await assert.rejects(f.burn(),{code:'unavailable',message:'This asset needs 330 spendable sats for its Arkade carrier output. Add or settle spendable funds, then try again.'});
+  f.state.burnFailure='Insufficient asset balance: have 0, need 1';
+  await assert.rejects(f.burn(),{code:'unavailable',message:'This asset is owned but is not currently spendable. Wait for its wallet operation to settle, then refresh Assets and try again.'});
 });
 test('lost response stays pending, blocks other spends and is counted for logout',async t=>{
   const f=fixture(t);f.state.fail=true;await assert.rejects(f.burn(),{code:'outcome-unknown'});assert.equal(f.state.submits,1);
