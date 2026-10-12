@@ -64,7 +64,7 @@ export function settlementTimeoutMs(session: {sessionDuration: bigint; scheduled
   if(!Number.isSafeInteger(duration)||duration<0||!Number.isSafeInteger(end)||end<0)throw Error('The operator settlement schedule could not be verified.');
   // Cover scheduled waiting plus two session durations and a network grace minute.
   const timeout=Math.max(180000,Math.max(0,end-now)+2*duration+60000);
-  if(!Number.isSafeInteger(timeout)||timeout>2147483647)throw Error('The operator settlement schedule could not be verified.');
+  if(!Number.isSafeInteger(timeout))throw Error('The operator settlement schedule could not be verified.');
   return timeout;
 }
 

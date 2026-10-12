@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Transaction,ArkAddress,Wallet,ReadonlyWallet,RestArkProvider} from '@arkade-os/sdk';
-import {inspectSendTransaction,sendRecipient,quoteSend,submitSend} from '../../src/client/wallet-layer-arkade/sending.ts';
+import {inspectSendTransaction,sendRecipient,quoteSend,selectExactSendInputs,submitSend} from '../../src/client/wallet-layer-arkade/sending.ts';
 import {readSendRecord} from '../../src/client/state-layer-core/sending.ts';
 import {writeBoardingRecord,readBoardingRecord} from '../../src/client/state-layer-core/boarding-record.ts';
 const bytes=n=>new Uint8Array(32).fill(n);
@@ -29,6 +29,12 @@ test('send preparation excludes pending transfer inputs and preserves the transf
 const publicPoints=['79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798','c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5'];
 const script=n=>Uint8Array.from(Buffer.from('5120'+publicPoints[n%2],'hex'));
 const hex=b=>Buffer.from(b).toString('hex'),encoded=tx=>Buffer.from(tx.toPSBT()).toString('base64');
+test('automatic fixed-price selection avoids a dust remainder without spending asset carriers',()=>{
+ const coin=(suffix,value,assets=undefined)=>({txid:suffix.repeat(64),vout:0,value,assets});
+ const exact=coin('a',600),other=coin('b',400),remainder=coin('c',100),asset=coin('d',600,[{assetId:'e'.repeat(68),amount:1n}]);
+ assert.deepEqual(selectExactSendInputs([other,remainder,asset,exact],1000),[exact,other]);
+ assert.equal(selectExactSendInputs([other,remainder,asset],1000),undefined);
+});
 function fixture(){
  const coin={txid:'a'.repeat(64),vout:0,value:1000};const cp=new Transaction({version:3});cp.addInput({txid:coin.txid,index:0,witnessUtxo:{script:script(1),amount:1000n}});cp.addOutput({script:script(2),amount:1000n});cp.addOutput({script:Uint8Array.from([0x51,0x02,0x4e,0x73]),amount:0n});
  const tx=new Transaction({version:3});tx.addInput({txid:cp.id,index:0,witnessUtxo:{script:script(2),amount:1000n}});tx.addOutput({script:script(3),amount:500n});tx.addOutput({script:script(4),amount:500n});tx.addOutput({script:Uint8Array.from([0x51,0x02,0x4e,0x73]),amount:0n});

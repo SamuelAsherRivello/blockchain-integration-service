@@ -31,7 +31,7 @@ document.getElementById('run')!.onclick = async () => {
     check(transferCard.scrollHeight<=transferCard.clientHeight,'Zero Bitcoin transfer fits without cropping or scrolling');
     check(host.querySelectorAll('.bis-balance-direction').length===1 && !!button('→'),'Single direction button starts forward');
     const quotesBeforeUnavailableReview=quoteCalls;
-    (host.querySelector('[aria-label="Increase amount"]') as HTMLButtonElement).click();await tick();
+    (host.querySelector('[aria-label="Amount (sats)"]') as HTMLInputElement).value='400';host.querySelector('[aria-label="Amount (sats)"]')?.dispatchEvent(new Event('input',{bubbles:true}));await tick();
     check(button('Review Transfer').disabled,'Positive amount is disabled when Bitcoin has no confirmed eligible funds');
     button('Review Transfer').click();await tick();
     check(quoteCalls===quotesBeforeUnavailableReview,'Disabled Review Transfer does not request a quote');
@@ -81,7 +81,7 @@ document.getElementById('run')!.onclick = async () => {
     check(!!button('←') && !button('→'),'Direction toggled to reverse');
     check(transferCard.scrollHeight<=transferCard.clientHeight,'Reverse transfer form fits without cropping or scrolling');
     button('Review Transfer').click();await tick();
-    check(host.textContent?.includes('Review: Arkade → Bitcoin') && host.textContent.includes('501 sats'),'Reverse review');
+    check(host.textContent?.includes('Review: Arkade → Bitcoin') && host.textContent.includes('400 sats'),'Reverse review');
     check(!button('Confirm Transfer').disabled && host.textContent?.includes('After transfer (estimate)'),'Reviewed reverse quote enables explicit confirmation');
     button('Back').click();await tick();check(!!button('←'),'Back retains direction');
     button('Back').click();await tick();check(host.querySelector('h2')?.textContent==='Accounts Details','Back to Details');

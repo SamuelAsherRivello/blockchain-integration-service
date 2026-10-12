@@ -35,6 +35,31 @@ export function assetTotals(coins: readonly {assets?: readonly {assetId:string;a
  }
  return [...totals].sort(([a],[b])=>a.localeCompare(b)).map(([assetId,amount])=>({assetId,amount:String(amount)}));
 }
+type SendCoin=Pick<ExtendedVirtualCoin,'txid'|'vout'|'value'|'assets'>;
+
+// A fixed-price Marketplace checkout must never turn into an overpayment just
+// to avoid a dust change output. When spending every available coin would
+// leave only dust, look for an exact, asset-free input set instead. The search
+// is deliberately bounded: it is a convenience for normal wallet shapes, not
+// a reason to hold an unbounded amount of browser memory on a large wallet.
+export function selectExactSendInputs<T extends SendCoin>(coins:readonly T[],amount:number,maximumStates=100_000):T[]|undefined {
+ if(!Number.isSafeInteger(amount)||amount<=0||!Number.isSafeInteger(maximumStates)||maximumStates<1)return;
+ const candidates=coins.filter(coin=>!coin.assets?.length&&Number.isSafeInteger(coin.value)&&coin.value>0&&coin.value<=amount)
+  .sort((a,b)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
+ const selections=new Map<number,T[]>();selections.set(0,[]);
+ for(const coin of candidates) {
+  const additions:[number,T[]][]=[];
+  for(const [total,selected] of selections) {
+   const next=total+coin.value;if(next>amount||selections.has(next))continue;
+   const result=[...selected,coin];
+   if(next===amount)return result;
+   additions.push([next,result]);
+  }
+  if(selections.size+additions.length>maximumStates)return;
+  for(const [total,selected] of additions)selections.set(total,selected);
+ }
+ return selections.get(amount);
+}
 async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:string,ignoreOperation?:string,network:TestNetwork='signet') {
  const {info,policy}=await readWalletNetworkPolicy(network);
  requireReadablePolicy(policy,'Direct Send');
@@ -54,12 +79,16 @@ async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:strin
 }
 async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requested?:number,preserveAssets=false,ignoreOperation?:string,network:TestNetwork='signet') {
  const own=await wallet.getAddress();const address=sendRecipient(recipient,own);
- const {info,policy,coins,total,dust,reservedSats,blocking}=await funds(wallet,preserveAssets,profileId,ignoreOperation,network);
- if(reservedSats>0&&(requested===undefined?total===0:Number.isSafeInteger(requested)&&requested>total&&requested<=total+reservedSats)) {
+ const {info,policy,coins:availableCoins,total:availableTotal,dust,reservedSats,blocking}=await funds(wallet,preserveAssets,profileId,ignoreOperation,network);
+ if(reservedSats>0&&(requested===undefined?availableTotal===0:Number.isSafeInteger(requested)&&requested>availableTotal&&requested<=availableTotal+reservedSats)) {
   const transfers=blocking.filter(r=>r.id.startsWith('transfer:'));
   const ids=transfers.map(r=>r.id.slice(9)).filter(id=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id));
   throw new SendError(`${reservedSats.toLocaleString('en-US')} sats are reserved by ${transfers.length===blocking.length?'pending transfer(s)':'pending wallet operations'}${ids.length?` (${ids.join(', ')})`:''}. Open Account → Transactions → Recovery Info to check their status. No payment was submitted.`);
  }
+ const coins=requested!==undefined&&availableTotal-requested>0&&availableTotal-requested<dust
+  ?selectExactSendInputs(availableCoins,requested)??availableCoins
+  :availableCoins;
+ const total=coins.reduce((sum,coin)=>sum+coin.value,0);
  const amounts=sendAmounts(total,requested,dust);
  if(info.vtxoMaxAmount>0n&&(BigInt(amounts.amountSats)>info.vtxoMaxAmount||BigInt(amounts.changeSats)>info.vtxoMaxAmount))throw new SendError('Amount exceeds the operator limit.');
  const retained=assetTotals(coins);

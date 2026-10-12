@@ -38,17 +38,17 @@ test('storage cleanup rechecks pending consent and account identity inside its l
  assert.equal(readBoardingRecord('profile').status,'pending');
 });
 
-test('Admin reset stays guarded while Player logout clears unresolved local journals', async () => {
+test('Admin reset stays guarded while Player logout retains the profile and its scoped recovery journals', async () => {
  const pending={...record(),phase:'registered',intentId:'operator-intent'};
  writeBoardingRecord(pending);
- const stored=new Map([['generation',0],['identity','encrypted-test-double']]);
+ const stored=new Map([['generation',0],['identity','encrypted-test-double'],['profiles',['profile']],['profile:profile','encrypted-test-double']]);
  const previous=Object.getOwnPropertyDescriptor(globalThis,'indexedDB');
  Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{open(){
   const request={};
   queueMicrotask(()=>{
    request.result={close(){},transaction(){
     const tx={objectStore(){return {
-     get(key){const result={result:key==='profiles'?['profile']:stored.get(key)};queueMicrotask(()=>{result.onsuccess?.();if(key==='generation')queueMicrotask(()=>tx.oncomplete());});return result;},
+     get(key){const result={result:stored.get(key)};queueMicrotask(()=>{result.onsuccess?.();if(key==='generation')queueMicrotask(()=>tx.oncomplete());});return result;},
      put(value,key){stored.set(key,value);},delete(key){stored.delete(key);},clear(){stored.clear();}
     };},abort(){tx.onabort();}};
     return tx;
@@ -62,16 +62,17 @@ test('Admin reset stays guarded while Player logout clears unresolved local jour
   await assert.rejects(storage.reset(0),/unresolved/);
   await storage.reset(0,{purpose:'logout',profileId:'profile',operations:pendingLogoutOperations()});
   assert.equal(stored.has('identity'),false);
-  assert.deepEqual([...stored.keys()].sort(),['generation','logout','profiles']);
-  assert.deepEqual(stored.get('profiles'),[]);
+  assert.deepEqual([...stored.keys()].sort(),['generation','logout','profile:profile','profiles']);
+  assert.deepEqual(stored.get('profiles'),['profile']);
+  assert.equal(stored.get('profile:profile'),'encrypted-test-double');
   assert.equal(stored.get('generation'),1);
   const receipt=stored.get('logout');
   assert.deepEqual(Object.keys(receipt).sort(),['generation','id','profileId']);
   assert.equal(receipt.generation,1);
   assert.equal(receipt.profileId,'profile');
   assert.match(receipt.id,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-  assert.equal(values.size,0);
-  assert.equal(readBoardingRecord('profile'),undefined);
+  assert.equal(values.size,1);
+  assert.deepEqual(readBoardingRecord('profile'),pending);
  } finally {
   if(previous)Object.defineProperty(globalThis,'indexedDB',previous);
   else Reflect.deleteProperty(globalThis,'indexedDB');
@@ -172,6 +173,12 @@ test('settlement lifetime covers the advertised session end and signing grace',(
  const timeout=settlementTimeoutMs({sessionDuration:60n,scheduledSession:{nextEndTime:1300n}},now);
  assert.ok(now+timeout >= 1420000, 'must not dispose the signing wallet before the advertised session finishes');
  assert.ok(settlementTimeoutMs({sessionDuration:60n},now)>=180000);
+});
+
+test('a valid operator schedule may exceed one browser timer interval',()=>{
+ const now=1000000;
+ const timeout=settlementTimeoutMs({sessionDuration:60n,scheduledSession:{nextEndTime:BigInt(Math.floor((now+2147483648)/1000))}},now);
+ assert.ok(timeout>2147483647);
 });
 
 test('status failure retains the recorded attempt and its phase without resubmitting',async()=>{

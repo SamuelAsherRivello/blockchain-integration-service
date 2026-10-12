@@ -143,6 +143,15 @@ test('first local restore requires confirmation and Cancel saves nothing',async(
   f.context.dispose();
 });
 
+test('restore with live network evidence saves directly even when this browser has no profile',async()=>{
+  let account=null,generation=0,saves=0;
+  const storage={load:async()=>({account,generation}),save:async(value,expected)=>{assert.equal(expected,generation);account=value;saves++;},listProfiles:async()=>({profiles:[]}),subscribe:()=>()=>{}};
+  const context=createContext(storage,undefined,async()=> 'funded-network-id',async phrase=>({phrase,profileId:'funded-network-id',network:'signet',networkAccountFound:true}));
+  await context.readyAsync();context.openRestoreAccount();await getControls(context).restore(fresh());
+  assert.equal(context.getState().phase,'active');assert.equal(saves,1);assert.equal(context.getState().profileId,'funded-network-id');
+  context.dispose();
+});
+
 test('same-network restore after logout reactivates the retained profile without confirmation',async()=>{
   const f=fixture();await f.open();
   await getControls(f.context).restore(f.phrase);await f.confirm();

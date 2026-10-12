@@ -128,6 +128,12 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
   let selectionVersion = 0, selectedProfileId: string | undefined;
   let state: BisGameWalletState = Object.freeze({status:'loading',selectionVersion});
   let operation = new AbortController(), disposed = false, importing = false, refreshQueued = false;
+  // A saved Game Wallet's public addresses do not authorize any operation. Start
+  // deriving them while Player storage is hydrating so connected Marketplace
+  // labels do not inherit that otherwise unrelated startup delay. The result is
+  // deliberately not published until the normal Player-scoped inspection below.
+  const addressPrewarm = new AbortController();
+  let prewarming: Promise<void> | undefined;
   const listeners = new Set<() => void>();
   const selectedNetwork = () => options.playerNetwork?.() ?? 'signet';
   const playerConnected = () => !!options.playerProfileId();
@@ -145,6 +151,18 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
   const readScopes=new WeakMap<AbortSignal,string>();
   const begin = () => { operation.abort(); operation = new AbortController();readScopes.set(operation.signal,playerScope()); return operation.signal; };
   const currentRead=(signal:AbortSignal)=>!disposed&&!signal.aborted&&signal===operation.signal&&readScopes.get(signal)===playerScope();
+  function prewarmStoredAddresses() {
+    if (prewarming || disposed || addressPrewarm.signal.aborted) return;
+    prewarming = (async () => {
+      try {
+        const account = await storage.load();
+        if (!account || addressPrewarm.signal.aborted) return;
+        await dependencies.addresses({...account,network:account.network ?? selectedNetwork()},addressPrewarm.signal);
+      } catch {
+        // The normal Player-scoped read owns visible unavailable/mismatch state.
+      }
+    })().finally(() => { prewarming = undefined; });
+  }
   async function inspect(account: AccountSecret | null, signal: AbortSignal) {
     if (!currentRead(signal)) return;
     if (account) account={...account,network:account.network ?? selectedNetwork()};
@@ -202,7 +220,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
   async function runRefresh() {
     if (disposed) return;
     if (importing) { refreshQueued = true; return; }
-    if (!playerConnected()) { begin(); selectProfile(undefined); publish({status:'empty',message:'Connect a Player Wallet before using the Game Wallet.'}); return; }
+    if (!playerConnected()) { prewarmStoredAddresses(); begin(); selectProfile(undefined); publish({status:'empty',message:'Connect a Player Wallet before using the Game Wallet.'}); return; }
     const signal = begin(); publish({status:'loading', profileId:state.profileId, ...(state.addresses ? {addresses:state.addresses} : {}), ...(state.balance ? {balance:state.balance} : {})});
     try {
       const account=await storage.load();
@@ -480,7 +498,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
         if (refreshQueued) { refreshQueued = false; void refresh(); }
       }
     },
-    dispose() { if(disposed)return;dependencies.dispose?.();disposed = true; operation.abort(); unsubscribe(); unsubscribePlayer?.(); storage.dispose(); listeners.clear(); },
+    dispose() { if(disposed)return;dependencies.dispose?.();disposed = true; addressPrewarm.abort(); operation.abort(); unsubscribe(); unsubscribePlayer?.(); storage.dispose(); listeners.clear(); },
   };
 }
 

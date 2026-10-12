@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { isValidArkAddress } from '@arkade-os/sdk';
 import { ALLOWED_AMOUNTS } from '../shared/faucet-core.ts';
 import { NETWORKS, NETWORK_IDS } from '../shared/network-config.ts';
+import { addressSubmissionUrl, clearAddressUrl, selectedNetwork } from './navigation.ts';
 import { PrototypeSection, PrototypeTitle } from '../../../prototype-onboarding/src/client/ui-layer-react/prototype-ui.tsx';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
 
@@ -35,7 +36,7 @@ function publicHistoryRows(history) {
 }
 
 export function App({ request = defaultRequest } = {}) {
-  const [network, setNetwork] = useState('mutinynet');
+  const [network, setNetwork] = useState(() => selectedNetwork(window.location.search));
   const [address, setAddress] = useState(() => new URLSearchParams(window.location.search).get('address') ?? '');
   const [amount, setAmount] = useState(String(ALLOWED_AMOUNTS[0]));
   const [state, setState] = useState({ status: 'checking', message: 'Checking faucet availability…' });
@@ -116,12 +117,10 @@ export function App({ request = defaultRequest } = {}) {
   }
   function submitAddress() {
     if (!validFormat) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('address', address.trim());
-    window.location.href = url.toString();
+    window.location.href = addressSubmissionUrl(window.location.href, address, network);
   }
   function clearAddress() {
-    window.location.href = `${window.location.pathname}${window.location.hash}`;
+    window.location.href = clearAddressUrl(window.location.href, network);
   }
   async function onboardFaucet() {
     if (busy || !needsOnboarding) return;

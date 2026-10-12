@@ -14,7 +14,8 @@ export async function useReadonlyWallet<T>(account:AccountSecret,signal:AbortSig
   if(session)return session.read(account,signal,use);
   return withTemporaryWallet(ReadonlyWallet.create({...options,identity:await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly()}),signal,use,timeout);
 }
-export function useSigningWallet<T>(account:AccountSecret,signal:AbortSignal,options:Options,use:(wallet:Wallet)=>Promise<T>,session?:RoleWalletAccess,timeout=30000):Promise<T>{
-  if(session)return session.sign(account,AbortSignal.any([signal,AbortSignal.timeout(timeout)]),options as Parameters<RoleWalletAccess['sign']>[2],use);
-  return withTemporaryWallet(Wallet.create({...options,identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})}),signal,use,timeout);
+export function useSigningWallet<T>(account:AccountSecret,signal:AbortSignal,options:Options,use:(wallet:Wallet)=>Promise<T>,session?:RoleWalletAccess,timeout:number|false=30000):Promise<T>{
+  const deadline=timeout===false?signal:AbortSignal.any([signal,AbortSignal.timeout(timeout)]);
+  if(session)return session.sign(account,deadline,options as Parameters<RoleWalletAccess['sign']>[2],use);
+  return withTemporaryWallet(Wallet.create({...options,identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})}),deadline,use,false);
 }

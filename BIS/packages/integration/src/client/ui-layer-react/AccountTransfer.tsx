@@ -15,8 +15,6 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   const cachedAvailability = context.peekAccountTransferAvailability?.('to-arkade');
   const [direction, setDirection] = useState<'to-arkade' | 'to-bitcoin'>('to-arkade');
   const [amount, setAmount] = useState('0');
-  const [recipientBitcoin,setRecipientBitcoin]=useState('');
-  const [fundRecipient,setFundRecipient]=useState(false);
   const [review, setReview] = useState(false);
   const [quote, setQuote] = useState<BoardingQuote>();
   const [working, setBusy] = useState(!cachedAvailability);
@@ -45,9 +43,6 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   const numeric = Number(amount);
   const valid = /^\d+$/.test(amount) && Number.isSafeInteger(numeric) && numeric > 0;
   const label = direction === 'to-arkade' ? 'Bitcoin → Arkade' : 'Arkade → Bitcoin';
-  const funding=direction==='to-bitcoin'&&fundRecipient;
-  const fundingNetwork=context.getState?.().network;
-  const fundingValid=!funding||!!fundingNetwork&&/^tb1p[a-z0-9]{20,100}$/.test(recipientBitcoin);
   const pending = status.status === 'pending';
   const sourceAvailable = balance.status === 'ready'
     ? direction === 'to-arkade' ? balance.availableBitcoinSats : balance.availableArkadeSats
@@ -132,16 +127,14 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   async function loadQuote(max=false) {
     const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Preparing ...');setError('');setQuote(undefined);
     try {
-      if(!fundingValid)throw Error('Choose an eligible Bitcoin funding destination.');
-      const destination=funding?{purpose:'bitcoin-funding' as const,bitcoinAddress:recipientBitcoin,network:fundingNetwork!}:undefined;
-      const next=await readWithRetry(()=>context.quoteAccountTransfer(max?undefined:numeric,direction,destination),readController.current.signal);
+      const next=await readWithRetry(()=>context.quoteAccountTransfer(max?undefined:numeric,direction),readController.current.signal);
       if(!alive.current||current!==request.current)return;
       setQuote(next);setAmount(String(next.amountSats));setReview(!max);setStatus({status:'idle'});
     }catch(cause){if(alive.current&&current===request.current)setError(failure(cause));}
     finally{if(alive.current&&current===request.current){setBusy(false);setForeground(false);}}
   }
   async function confirm() {
-    if(!boardingSubmissionEnabled||!quote||busy||blocked||expired||!fundingValid)return;
+    if(!boardingSubmissionEnabled||!quote||busy||blocked||expired)return;
     const current=++request.current;setBusy(true);setForeground(true);setOperationLabel('Transferring ...');setSubmitting(true);setStatusChecked(false);setError('');
     try {
       const next=await context.confirmAccountTransfer(quote,acknowledged.current);
@@ -175,34 +168,29 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
       </button>
     } /></div>
     {review ? <div className="bis-review" data-bis-quote-fingerprint={quote?.fingerprint} data-bis-quote-expires-at={quote?.expiresAt}>
-      <h3 ref={reviewHeading} tabIndex={-1} data-bis-autofocus>Review: {funding?'Bitcoin funding':label}</h3>
+      <h3 ref={reviewHeading} tabIndex={-1} data-bis-autofocus>Review: {label}</h3>
       <FormValueList rows={[
-        ...(quote?.destination?[['From','Arkade balance'],['Bitcoin recipient',quote.destination.bitcoinAddress],['Network',quote.destination.network==='signet'?'Signet':'Mutinynet']] as const:[]),
         ['Amount', sats(numeric)], ['Fee', quote ? sats(quote.feeSats) : 'Unavailable'],
-        [`Added to ${funding?'recipient Bitcoin':direction === 'to-arkade' ? 'Arkade' : 'Bitcoin'}`, quote ? sats(quote.netSats) : 'Unavailable'],
+        [`Added to ${direction === 'to-arkade' ? 'Arkade' : 'Bitcoin'}`, quote ? sats(quote.netSats) : 'Unavailable'],
       ]} />
       {quote && <><h3>After transfer (estimate)</h3><FormValueList rows={[
         ['Total balance', sats(quote.totalAfterSats)], ['Bitcoin balance', sats(quote.bitcoinAfterSats)], ['Arkade balance', sats(quote.arkadeAfterSats)],
       ]} /></>}
       {expired && <p role="status">Quote expired. Go Back for a fresh review.</p>}
     </div> : <div className="bis-transfer-form">
-      {direction==='to-bitcoin'&&<>
-        <label><input type="checkbox" checked={fundRecipient} disabled={busy} onChange={event=>{edit(amount);setFundRecipient(event.target.checked);}}/> Fund another Bitcoin account</label>
-        {fundRecipient&&<label>Bitcoin recipient address<input aria-label="Bitcoin recipient address" value={recipientBitcoin} disabled={busy} onChange={event=>{edit(amount);setRecipientBitcoin(event.target.value);}} autoComplete="off" spellCheck={false}/></label>}
-      </>}
-      <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy} maxDisabled={balance.status!=='ready'} inputRef={amountInput} describedBy={amount !== '0' && !valid ? `${amountId}-help` : undefined} />
+      <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy} maxDisabled={balance.status!=='ready'} inputRef={amountInput} describedBy={amount !== '0' && !valid ? `${amountId}-help` : undefined} step={100} />
       {amount !== '0' && !valid && <p id={`${amountId}-help`} className="bis-transfer-help">Enter a positive whole number of sats.</p>}
     </div>}
-    {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">{funding?'Arkade funds leave this account and arrive as Bitcoin at the reviewed recipient.':"Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade."}</p>}
+    {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}
     {availability && !availability.available && status.status !== 'pending' && <p className="bis-transfer-help bis-transfer-status" role="status">{availability.message ?? 'Transfer unavailable.'}</p>}
     {amountExceedsAvailable && <p className="bis-transfer-help bis-transfer-status" role="status">Amount exceeds the currently available {direction === 'to-arkade' ? 'Bitcoin' : 'Arkade'} balance.</p>}
     {!boardingSubmissionEnabled && <p className="bis-warning">Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.</p>}
     {pending && <p className="bis-transfer-help" role="status">Check Transactions for updates on pending transfers.</p>}
     {status.status==='not-submitted' && <p role="status">Transfer was not submitted. Review again to start a new transfer.</p>}
-    {direction==='to-arkade' && balance.status==='ready' && balance.bitcoinSats>0 && amount==='0' && <p className="bis-transfer-help bis-transfer-status" role="status">Set amount above</p>}
+    {balance.status==='ready' && (sourceAvailable ?? 0) > 0 && amount==='0' && <p className="bis-transfer-help bis-transfer-status" role="status">Set amount above</p>}
     <div className="bis-actions">
-      {review ? <button className="bis-button bis-primary" disabled={!boardingSubmissionEnabled||!quote||expired||busy||blocked||!fundingValid} onClick={()=>void confirm()}>Confirm Transfer</button>
-        : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||!fundingValid||balance.status!=='ready'} onClick={reviewTransfer}>Review Transfer</button>}
+      {review ? <button className="bis-button bis-primary" disabled={!boardingSubmissionEnabled||!quote||expired||busy||blocked} onClick={()=>void confirm()}>Confirm Transfer</button>
+        : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||balance.status!=='ready'} onClick={reviewTransfer}>Review Transfer</button>}
       {error && !pending && <button className="bis-button" disabled={busy} onClick={()=>void check()}>Check Status</button>}
       <button className="bis-button bis-back" onClick={() => review ? (setReview(false),setQuote(undefined)) : onBack()}>Back</button>
     </div>

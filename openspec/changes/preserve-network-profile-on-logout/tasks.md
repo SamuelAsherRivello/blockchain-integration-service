@@ -14,4 +14,4 @@
 ## 3. Verify the production flow
 
 - [x] 3.1 Add or update UI/browser coverage for logged-out-after-reload behavior and for create → logout → same-network restore; verify no recovery phrase appears in public DOM, logs, or test artifacts.
-- [ ] 3.2 Run the focused logout, account-storage, and restoration tests, then `npm run typecheck`, `npm test`, and `npm run build --workspace @bis/integration`; verify all commands succeed.
+- [x] 3.2 Run the focused logout, account-storage, and restoration tests, then `npm run typecheck`, `npm test`, and `npm run build --workspace @bis/integration`; verify all commands succeed.

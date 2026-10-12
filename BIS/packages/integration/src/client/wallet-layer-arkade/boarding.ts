@@ -189,6 +189,15 @@ async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:(
   requireZeroFeePolicy(schedulePolicy,'Account Transfer');
   const timeout=settlementTimeoutMs(schedule);
   const deadline=Date.now()+timeout;
+  let settlementDeadline:AbortSignal, cancelDeadline=()=>{};
+  if(timeout<=2147483647)settlementDeadline=AbortSignal.timeout(timeout);
+  else {
+    const controller=new AbortController();
+    let remaining=timeout,timer:ReturnType<typeof setTimeout>|undefined;
+    const scheduleDeadline=()=>{const delay=Math.min(remaining,2147483647);timer=setTimeout(()=>{remaining-=delay;if(remaining<=0)controller.abort();else scheduleDeadline();},delay);};
+    scheduleDeadline();settlementDeadline=controller.signal;
+    cancelDeadline=()=>{if(timer!==undefined)clearTimeout(timer);controller.abort();};
+  }
   const register=c.options.arkProvider.registerIntent.bind(c.options.arkProvider);
   c.options.arkProvider.registerIntent=async intent=>{
     if(!attempt)throw Error('Transfer preparation is incomplete.');
@@ -206,7 +215,7 @@ async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:(
   // Do not allow SDK error recovery to cancel/re-register an ambiguous intent.
   c.options.arkProvider.deleteIntent=async()=>{throw Error('Automatic cancellation is disabled; reconcile the transfer.');};
   try {
-    return await useSigningWallet(account,new AbortController().signal,c.options,async wallet=>{
+    return await useSigningWallet(account,settlementDeadline,c.options,async wallet=>{
       const fresh=await plan(wallet,account.profileId,quote.amountSats,quote.direction,network,quote.destination);
       const connection=wallet.getProviderConnectionState();
       if(!active || !isCurrent() || Date.now()>=deadline)throw Error('Transfer details changed. Review again.');
@@ -233,12 +242,13 @@ async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:(
       },network); }
       attempt.close();
       return readBoardingRecord(account.profileId,record.id,account.network ?? 'signet')!;
-    },session,timeout);
+    },session,false);
   } catch(error) {
     attempt?.interrupted(Date.now()>=deadline?'deadline-exceeded':'settlement-interrupted',error,{sdkVersion:installedSdkVersion,batchId:selectedBatch});
     throw error;
   } finally {
     active=false; // Closes late preparation/registration after timeout or disposal.
+    cancelDeadline();
     settlementAbort.abort();
     attempt?.close();
   }

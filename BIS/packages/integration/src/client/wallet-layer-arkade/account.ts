@@ -6,7 +6,10 @@ import { testNetwork, type TestNetwork } from '../state-layer-core/test-network.
 import type { RoleWalletAccess } from './adapter-session.ts';
 
 export const SIGNET_OPERATOR = 'https://signet.arkade.sh';
-export type AccountSecret = { phrase: string; profileId: string; network?: TestNetwork };
+/** `networkAccountFound` is live, read-only evidence collected during restore.
+ * It is deliberately not persisted: the encrypted local profile is not a
+ * substitute for the selected network's current state. */
+export type AccountSecret = { phrase: string; profileId: string; network?: TestNetwork; networkAccountFound?: boolean };
 export async function identify(phrase: string): Promise<string> {
   const identity = MnemonicIdentity.fromMnemonic(phrase, { isMainnet: false });
   const publicKey = await identity.compressedPublicKey();
@@ -32,7 +35,17 @@ export async function restoreAccount(input: string, signal: AbortSignal, network
   requireNetwork((await response.json()).network, network);
   if(session) {
     const account={phrase,profileId:await identify(phrase),network};
-    try {await session.read(account,signal,wallet=>wallet.getAddress(),false);return account;}
+    try {
+      // Address derivation always succeeds for a valid mnemonic.  It is not
+      // evidence that this account is new (or absent) on the selected network.
+      // Ask the live wallet for its balance before choosing restore UI.
+      const networkAccountFound=await session.read(account,signal,async wallet=>{
+        await wallet.getAddress();
+        const balance=await wallet.getBalance();
+        return balance.total>0 || balance.assets.length>0;
+      });
+      return {...account,networkAccountFound};
+    }
     catch(error){void session.retire().catch(()=>{});throw error;}
   }
   const provider = new RestArkProvider(operator);
@@ -46,14 +59,15 @@ export async function restoreAccount(input: string, signal: AbortSignal, network
   });
   return withTemporaryWallet(pending, signal, async wallet => {
     await wallet.getAddress();
-    return { phrase, profileId: await identify(phrase), network };
+    const balance=await wallet.getBalance();
+    return { phrase, profileId: await identify(phrase), network, networkAccountFound:balance.total>0 || balance.assets.length>0 };
   });
 }
 // Private lifecycle seam: the deadline covers address acquisition as well as creation.
 export async function withTemporaryWallet<W extends { dispose(): Promise<void> }, T>(
-  pending: Promise<W>, signal: AbortSignal, use: (wallet: W) => Promise<T>, timeout = 20000,
+  pending: Promise<W>, signal: AbortSignal, use: (wallet: W) => Promise<T>, timeout: number | false = 20000,
 ): Promise<T> {
-  const deadline = AbortSignal.any([signal, AbortSignal.timeout(timeout)]);
+  const deadline = timeout===false ? signal : AbortSignal.any([signal, AbortSignal.timeout(timeout)]);
   let onAbort: () => void = () => {};
   let acquired: W | undefined;
   let cleanup: Promise<void> | undefined;

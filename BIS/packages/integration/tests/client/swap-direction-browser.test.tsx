@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { browserEnvironment } from '../../../../scripts/test-wallets/browser-public.ts';
-import { readSwapReview, readBitcoinFundingReview, publicBoardings, readSwapState } from '../../../../scripts/test-wallets/swap.ts';
+import { readSwapReview, publicBoardings, readSwapState } from '../../../../scripts/test-wallets/swap.ts';
 
 test('an Arkade-only wallet can select Bitcoin without bypassing availability, amount or review guards', {timeout:60000}, async t => {
   const fixture = `
@@ -72,11 +72,18 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
   await page.waitForFunction(()=>!document.querySelector('.bis-balance-direction').disabled);
   const review=page.getByRole('button',{name:'Review Transfer',exact:true});
   assert.equal(await review.isDisabled(),true,'oversized reverse amount remains blocked');
+  await amount.fill('0');
+  await page.getByText('Set amount above',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Increase amount',exact:true}).click();
+  assert.equal(await amount.inputValue(),'100','Swap amount controls change by 100 sats');
+  assert.equal(await review.isEnabled(),true,'a 100-sat reverse amount is available for review');
   await amount.fill('10000');assert.equal(await review.isEnabled(),true);
   await review.click();await page.getByRole('heading',{name:'Review: Arkade → Bitcoin',exact:true}).waitFor();
   assert.equal(await reverse.isDisabled(),true,'review direction is immutable');
   assert.equal(await page.evaluate(()=>window.calls.quotes),1);
   assert.equal(await page.evaluate(()=>window.calls.confirmations),0);
+  assert.equal(await page.getByRole('checkbox',{name:'Fund another Bitcoin account',exact:true}).count(),0,'Swap never offers cross-account funding');
+  assert.equal(await page.evaluate(()=>window.calls.destination),undefined,'reverse swaps use the current account destination');
   const reviewed=await readSwapReview(page);
   assert.equal(reviewed.amountSats,10000);assert.equal(reviewed.netSats,10000);
   assert.equal(reviewed.quoteFingerprint,'a'.repeat(64));assert.ok(reviewed.quoteExpiresAt>Date.now());
@@ -127,24 +134,6 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
   const state=await readSwapState(page);
   assert.equal(state.direction,'to-bitcoin');assert.equal(state.reviewEnabled,true);
   assert.equal(state.availability,'policy-unavailable');assert.equal(JSON.stringify(state).includes('private-synthetic-sentinel'),false);
-  for(const network of ['signet','mutinynet']) {
-    await page.evaluate(network=>window.mountSwap(false,network),network);
-    await page.getByText('No eligible Bitcoin.',{exact:true}).waitFor();await toggle.click();
-    await page.waitForFunction(()=>window.calls.directions.includes('to-bitcoin'));await page.evaluate(()=>window.finishAvailability());
-    await page.getByRole('checkbox',{name:'Fund another Bitcoin account',exact:true}).check();
-    await amount.fill('10000');assert.equal(await review.isDisabled(),true,'recipient is required');
-    const recipient=page.getByLabel('Bitcoin recipient address',{exact:true}),first='tb1p'+'q'.repeat(58),second='tb1p'+'p'.repeat(58);
-    await recipient.fill(first);await review.click();await page.getByRole('heading',{name:'Review: Bitcoin funding',exact:true}).waitFor();
-    const funding=await readBitcoinFundingReview(page);
-    assert.equal(funding.recipient,first);assert.equal(funding.network,network==='signet'?'Signet':'Mutinynet');assert.equal(funding.source,'Arkade balance');
-    assert.deepEqual(await page.evaluate(()=>window.calls.destination),{purpose:'bitcoin-funding',bitcoinAddress:first,network});
-    assert.equal(await page.locator('.bis-review').getByText('0 sats',{exact:true}).count(),2,'source Bitcoin remains zero and fee is zero');
-    await page.getByRole('button',{name:'Back',exact:true}).click();await recipient.fill(second);
-    assert.equal(await page.getByRole('button',{name:'Confirm Transfer',exact:true}).count(),0,'destination edit invalidates reviewed quote');
-    await review.click();await page.getByRole('heading',{name:'Review: Bitcoin funding',exact:true}).waitFor();
-    assert.equal((await readBitcoinFundingReview(page)).recipient,second);
-    assert.deepEqual(await page.evaluate(()=>[window.calls.quotes,window.calls.confirmations]),[2,0]);
-  }
 });
 
 

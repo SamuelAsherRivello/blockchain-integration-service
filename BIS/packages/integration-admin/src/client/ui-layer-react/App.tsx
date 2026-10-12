@@ -159,16 +159,10 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
     setGameWalletController(gameWallet);
     const adminContext = createBisAdminContext(context);
     const ui = createBisUi(context, {gameWallet});
-    const restarts = new Set<string>();
-    const unsubscribeEvents = context.onEvent(event => {
-      if (event.type !== 'restartRequested' || restarts.has(event.logoutId)) return;
-      restarts.add(event.logoutId);
-      window.location.reload();
-    });
     const unsubscribe = context.subscribe(() => setState(context.getState()));
     ui.mount(container.current!);
     setState(context.getState());
-    return { context, adminContext, ui, gameWallet, stop() { continueController.current?.dispose(); continueController.current=undefined; unsubscribeEvents(); unsubscribe(); ui.unmount(); gameWallet?.dispose(); context.dispose(); } };
+    return { context, adminContext, ui, gameWallet, stop() { continueController.current?.dispose(); continueController.current=undefined; unsubscribe(); ui.unmount(); gameWallet?.dispose(); context.dispose(); } };
   }
   useEffect(() => {
     let cancelled = false;

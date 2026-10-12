@@ -417,7 +417,10 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     current = version;
     confirmedProfile = loaded.account?.profileId;
     generation = loaded.generation; failure = undefined; logoutTarget = undefined;
-    update({...((closeOnAbsence || logout) && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,network:loaded.account?.network ?? state.network,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
+    // Logout is a transition within Account, not a dismissal of BIS. Keep the
+    // signed-out account screen open so the player can create or restore an
+    // account immediately.
+    update({...(logout ? {view:'account' as const} : closeOnAbsence && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,network:loaded.account?.network ?? state.network,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
     if (former && former!==loaded.account?.profileId) emit({type:'accountDisconnected',profileId:former}, current);
     if (!suppressConnectionEvent && previouslyHydrated&&loaded.account && former!==loaded.account.profileId) emit({type:'accountConnected',profileId:loaded.account.profileId},current);
     if (logout && !publishedLogouts.has(logout.id)) {
@@ -477,7 +480,10 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     update({phase:'restore-saving',error:undefined});
     try {
       await commitPlayerRole(account, async()=>{
-        await storage.save(account,generation,operation.signal);
+        // Live restore evidence controls this one UI decision only; never
+        // persist it alongside the recovery phrase.
+        const {networkAccountFound: _networkAccountFound, ...storedAccount}=account;
+        await storage.save(storedAccount,generation,operation.signal);
         if(disposed||version!==current)return;
         const saved=await readStable(current);
         if(disposed||version!==current) return;
@@ -513,7 +519,10 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       }
       const profiles=typeof storage.listProfiles==='function' ? await storage.listProfiles() : {profiles:loaded.account?[loaded.account.profileId]:[]};
       if(disposed||version!==current) return;
-      if(!profiles.profiles.includes(pending.profileId)) { update({phase:'restore-confirmation',error:undefined}); return; }
+      // A missing browser profile is normal after a restore and is never proof
+      // that the mnemonic is absent from this network.  Only ask to create a
+      // new network account after the live restore lookup found no funds/assets.
+      if(!profiles.profiles.includes(pending.profileId) && !pending.networkAccountFound) { update({phase:'restore-confirmation',error:undefined}); return; }
       await saveRestored(current);
     } catch (error) {
       if(!disposed&&version===current) update({phase:'restore-error',error:error instanceof WalletRoleConflictError?error.message:(pending?'Your account could not be confirmed saved.':'The test service could not be reached.')});
@@ -1179,7 +1188,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         const loaded=await readStable(current);
         if (disposed || version!==current) return;
         if (!loaded.account || loaded.generation!==target.generation || loaded.account.profileId!==target.profileId) {
-          acceptLoaded(loaded,current,true); return;
+          acceptLoaded(loaded,current); return;
         }
         if (state.hasGameWallet && options.resetGameWallet && !await options.resetGameWallet()) throw new Error('Game Wallet cleanup did not finish.');
         await storage.reset(target.generation, {purpose:'logout',profileId:target.profileId,operations:logoutOperations ?? {count:0,fingerprint:''}});
@@ -1187,7 +1196,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         const after=await readStable(current);
         if (disposed || version!==current) return;
         if (after.account?.profileId===target.profileId && after.generation===target.generation) throw new Error('Clearing not confirmed.');
-        acceptLoaded(after,current,true);
+        acceptLoaded(after,current);
         if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
       } catch (error) {
         if (!disposed && version===current) {

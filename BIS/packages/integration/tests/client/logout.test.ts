@@ -53,7 +53,7 @@ test('failed Game Wallet cleanup blocks Player logout until the compound cleanup
   c.dispose();
 });
 
-test('logout warnings reset on reopen and preserve host destination', async () => {
+test('logout warnings reset and leave the signed-out account screen open', async () => {
   const f = fixture(), c = f.make(); await c.readyAsync(); getControls(c).present(); c.openAccountDialog();
   c.openLogoutConfirmation(); await c.confirmLogout(); assert.equal(f.clears(), 1);
   const reopened = f.make(); await reopened.readyAsync(); assert.equal(reopened.getState().hasProfile, false); reopened.dispose();
@@ -61,7 +61,7 @@ test('logout warnings reset on reopen and preserve host destination', async () =
   d.openLogoutConfirmation();
   d.setLogoutBackupAcknowledged(true); d.cancelLogout(); assert.equal(d.getState().phase, 'active');
   d.openLogoutConfirmation(); assert.equal(d.getState().logoutBackupAcknowledged, false); d.dispose();
-  assert.equal(c.getState().view, 'account-button'); c.dispose();
+  assert.equal(c.getState().view, 'account'); c.dispose();
 });
 
 test('failed clearing stays in dialogue with retry and no premature event', async () => {
@@ -145,7 +145,7 @@ test('generation guard rejects replacement after preflight and stale account sav
   await assert.rejects(f.storage.save(identity,0,new AbortController().signal));c.dispose();
 });
 
-test('successful logout never publishes a create/restore dialog, including reconciled retry', async () => {
+test('successful logout keeps the signed-out account dialog open, including reconciled retry', async () => {
   for (const presented of [false, true]) for (const ambiguous of [false, true]) {
     const f = fixture(), c = f.make(), reset = f.storage.reset;
     if (ambiguous) f.storage.reset = async (...args) => { await reset(...args); throw Error('after commit'); };
@@ -156,8 +156,8 @@ test('successful logout never publishes a create/restore dialog, including recon
     c.subscribe(() => states.push(c.getState()));
     await c.confirmLogout();
     if (ambiguous) await c.retry();
-    assert.equal(states.some(s => !s.hasProfile && s.view === 'account'), false);
-    assert.equal(c.getState().view, presented ? 'account-button' : 'empty');
+    assert.equal(states.some(s => !s.hasProfile && s.view === 'account'), true);
+    assert.equal(c.getState().view, 'account');
     c.dispose();
   }
 });
