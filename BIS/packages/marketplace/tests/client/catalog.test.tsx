@@ -220,13 +220,14 @@ test('Player Wallet inventory reuses the shared BIS Assets read without retrying
   assert.doesNotMatch(app, /const source=inventorySources\.find\(candidate=>candidate\.role==='player'\)/);
 });
 
-test('Marketplace refreshes Game Wallet inventory after a completed checkout without exposing a manual refresh control', async () => {
+test('Marketplace refreshes the receiving Player Wallet and Game Wallet inventories after a completed checkout without exposing a manual refresh control', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
   assert.match(app, /inventory\.retry\(source\)/);
   assert.match(app, /const CHECKOUT_INVENTORY_SETTLE_MS=3000/);
   assert.match(app, /setIsCheckoutInventorySettling\(true\)/);
   assert.match(app, /void gameWallet\.refresh\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(app, /void player\.refreshAssets\(\)\.catch\(\(\)=>\{\}\)/);
   assert.match(app, /inventory\.invalidate\(inventorySourcesRef\.current\)/);
   assert.match(app, /isCheckoutInventorySettling\?undefined:rawInventoryError/);
 });

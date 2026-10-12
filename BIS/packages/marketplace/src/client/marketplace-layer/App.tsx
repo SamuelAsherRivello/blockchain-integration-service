@@ -327,6 +327,11 @@ function MarketplaceContent(){
       if(checkoutInventoryTimer.current)window.clearTimeout(checkoutInventoryTimer.current);
       if(publicInventoryRequestRef.current)invalidatePublicAssetInventory(publicInventoryRequestRef.current);
       void gameWallet.refresh().catch(()=>{});
+      // The delivery originates from the Game Wallet, so Player Wallet state
+      // receives no local mutation notification. Refresh an open Account →
+      // Assets view now; a closed view still performs its normal fresh read
+      // when the player opens it.
+      void player.refreshAssets().catch(()=>{});
       checkoutInventoryTimer.current=window.setTimeout(()=>{
         void inventory.invalidate(inventorySourcesRef.current).finally(()=>setIsCheckoutInventorySettling(false));
       },CHECKOUT_INVENTORY_SETTLE_MS);
