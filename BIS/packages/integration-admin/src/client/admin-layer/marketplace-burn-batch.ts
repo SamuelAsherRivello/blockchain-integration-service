@@ -1,4 +1,4 @@
-import { classifyBisEquipmentAsset, type BisAsset, type BisBurnAssetRequest, type BisBurnAssetResult, type BisListAssetsResult } from '@bis/integration';
+import { type BisAsset, type BisBurnAssetRequest, type BisBurnAssetResult, type BisListAssetsResult } from '@bis/integration';
 import { marketplaceCatalogItems } from './marketplace-catalog.ts';
 
 export type MarketplaceBurnBatchWallet = Readonly<{
@@ -27,8 +27,22 @@ export function marketplaceListingBurnRequest(assetId: string, quantity: string)
   return {operationId:`marketplace-listing-burn-v1-${assetId}`,assetId,quantity};
 }
 
-function listingTarget(asset: BisAsset) {
+/**
+ * Matches one of the fixed Marketplace catalog entries across both metadata
+ * formats we have issued. Older items predate the structured BIS envelope, so
+ * their immutable catalog presentation is the only available identity. A
+ * partial or malformed structured envelope is never allowed to fall through
+ * to that legacy match.
+ */
+export function marketplaceBurnTarget(asset: BisAsset) {
   const metadata = asset.metadata ?? {};
+  const hasStructuredEnvelope = metadata.bisGameId !== undefined || metadata.bisAssetType !== undefined
+    || metadata.bisCatalogId !== undefined || metadata.bisEquipmentFamily !== undefined
+    || metadata.bisTier !== undefined || metadata.bisPriceSats !== undefined;
+  if (!hasStructuredEnvelope) {
+    const legacy = marketplaceCatalogItems.find(item => asset.name === item.name && asset.ticker === item.ticker && asset.iconUrl === item.iconUrl);
+    return legacy ? { ...legacy, assetId: asset.assetId, quantity: asset.quantity } : null;
+  }
   if (metadata.bisGameId !== 'stealth-and-steel' || metadata.bisAssetType !== 'item') return null;
   const expected = marketplaceCatalogItems.find(item => metadata.bisCatalogId === item.id);
   if (!expected || metadata.bisEquipmentFamily !== expected.family || metadata.bisTier !== String(expected.tier) || metadata.bisPriceSats !== String(expected.priceSats)) return null;
@@ -37,7 +51,7 @@ function listingTarget(asset: BisAsset) {
 
 /** Finds exactly the nine known store catalog assets, including legacy metadata. */
 export function exactMarketplaceListingTargets(assets: readonly BisAsset[]) {
-  const targets = assets.map(listingTarget).filter((item): item is NonNullable<ReturnType<typeof listingTarget>> => item !== null);
+  const targets = assets.map(marketplaceBurnTarget).filter((item): item is NonNullable<ReturnType<typeof marketplaceBurnTarget>> => item !== null);
   if (targets.length !== marketplaceCatalogItems.length) return null;
   if (new Set(targets.map(item => item.id)).size !== marketplaceCatalogItems.length) return null;
   return marketplaceCatalogItems.map(expected => targets.find(item => item.id === expected.id)!);
@@ -73,7 +87,7 @@ export async function burnAllMarketplaceItems(wallet: MarketplaceBurnBatchWallet
     onProgress({stage:'listing',burned});
     const fresh = await wallet.listAssets();
     if (fresh.status === 'error' || !isCurrent()) return results.length ? {status:'partial',eligible,burned,unresolved,skipped,results} : {status:'error',eligible:0,burned:0,unresolved:0,skipped:0,results:[]};
-    const item = fresh.assets.map(classifyBisEquipmentAsset).find(item => item !== null && !attempted.has(item.assetId));
+    const item = fresh.assets.map(marketplaceBurnTarget).find(item => item !== null && !attempted.has(item.assetId));
     if (!item) break;
     eligible++;
     attempted.add(item.assetId);

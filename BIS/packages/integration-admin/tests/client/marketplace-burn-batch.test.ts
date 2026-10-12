@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { marketplaceCatalogItems } from '../../src/client/admin-layer/marketplace-catalog.ts';
-import { burnAllMarketplaceItems, marketplaceBurnRequest, marketplaceListingBurnRequest, exactMarketplaceListingTargets, burnMarketplaceListing } from '../../src/client/admin-layer/marketplace-burn-batch.ts';
+import { burnAllMarketplaceItems, marketplaceBurnRequest, marketplaceListingBurnRequest, exactMarketplaceListingTargets, burnMarketplaceListing, marketplaceBurnTarget } from '../../src/client/admin-layer/marketplace-burn-batch.ts';
 
 function asset(item,index,type='item') { return {
   assetId:`${String(index+1).padStart(64,'a')}0000`,quantity:'1',iconUrl:item.iconUrl,
@@ -19,6 +19,23 @@ test('C.G.3 selects only freshly classified marketplace items and preserves trop
   },()=>true);
   assert.equal(result.status,'complete');assert.equal(result.burned,2);
   assert.deepEqual(calls,items.map(item=>marketplaceBurnRequest(item.assetId,item.quantity)));
+});
+
+test('C.G.3 includes the established legacy catalog format but not lookalike or malformed structured assets',async()=>{
+  const item=marketplaceCatalogItems[0];
+  const legacy={assetId:'c'.repeat(64)+'0000',quantity:'1',name:item.name,ticker:item.ticker,iconUrl:item.iconUrl};
+  const lookalike={...legacy,assetId:'d'.repeat(64)+'0000',iconUrl:'https://example.invalid/dagger.png'};
+  const malformed={...legacy,assetId:'e'.repeat(64)+'0000',metadata:{bisGameId:'stealth-and-steel'}};
+  assert.equal(marketplaceBurnTarget(legacy)?.id,item.id);
+  assert.equal(marketplaceBurnTarget(lookalike),null);
+  assert.equal(marketplaceBurnTarget(malformed),null);
+  const calls=[];
+  const result=await burnAllMarketplaceItems({
+    async listAssets(){return {status:'success',profileId:'game',assets:[legacy,lookalike,malformed]};},
+    async burnAsset(request){calls.push(request);return {status:'burned',assetId:request.assetId,quantity:request.quantity,transactionId:'d'.repeat(64)};},
+  },()=>true);
+  assert.equal(result.burned,1);
+  assert.deepEqual(calls,[marketplaceBurnRequest(legacy.assetId,legacy.quantity)]);
 });
 
 test('C.G.3 continues after item-scoped unknown outcomes and a later invocation never changes operation IDs',async()=>{
