@@ -1,6 +1,6 @@
 import { loadPublicAssetInventory } from '../wallet-layer-arkade/public-asset-inventory.ts';
 import { assetError, type BisListAssetsResult } from './assets.ts';
-import { prepareSharedAssetInventory, invalidateSharedAssetInventory, type SharedAssetInventoryRole } from './shared-asset-inventory.ts';
+import { getSharedAssetInventory, prepareSharedAssetInventory, invalidateSharedAssetInventory, type SharedAssetInventoryRole } from './shared-asset-inventory.ts';
 import type { TestNetwork } from './test-network.ts';
 
 export type BisPublicAssetInventoryRequest = Readonly<{
@@ -22,6 +22,10 @@ export function createPublicAssetInventory(load=loadPublicAssetInventory) {
   };
 }
 export const preparePublicAssetInventory=createPublicAssetInventory();
+/** Returns a fresh presentation cache entry without starting a provider read. */
+export function getPublicAssetInventory(input: BisPublicAssetInventoryRequest): BisListAssetsResult | undefined {
+  return valid(input) ? getSharedAssetInventory(input.role,input.profileId,input.network,input.address) : undefined;
+}
 /** Evidence/lifecycle invalidation; explicit Refresh uses force and joins live work. */
 export function invalidatePublicAssetInventory(input:BisPublicAssetInventoryRequest):void {
   if(valid(input))invalidateSharedAssetInventory(input.profileId,input.network,input.role,input.address);

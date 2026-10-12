@@ -43,7 +43,7 @@ export type BisState = Readonly<{
   view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
   savedProfiles: readonly string[];
   profileChooser: boolean;
-  phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error' | 'restore-entry' | 'restoring' | 'restore-saving' | 'restore-error';
+  phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error' | 'restore-entry' | 'restoring' | 'restore-confirmation' | 'restore-saving' | 'restore-error';
   logoutBackupAcknowledged: boolean;
   logoutPendingCount: number | null;
   logoutPendingAcknowledged: boolean;
@@ -140,7 +140,7 @@ export interface BisContext {
   dispose(): void;
 }
 export function accountDestination(hasProfile: boolean) { return hasProfile ? 'account-menu' : 'account-chooser'; }
-type Controls = { toasts: ReturnType<typeof createToastQueue>; dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; forceReset(resetId?: string): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void> };
+type Controls = { toasts: ReturnType<typeof createToastQueue>; dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; forceReset(resetId?: string): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void>; confirmRestoration(): Promise<void>; cancelRestoration(): void };
 const controls = new WeakMap<BisContext, Controls>();
 const presentationReads=new WeakMap<BisContext,ReturnType<typeof createReadCoordinator>>();
 const foregroundWork=new WeakMap<BisContext,<T>(work:()=>Promise<T>,mutation:boolean)=>Promise<T>>();
@@ -471,6 +471,26 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
     emit({type:'accountConnected',profileId:account.profileId},current);
   }
+  async function saveRestored(current: number) {
+    const account=pending;
+    if (!account || disposed || version!==current) return;
+    update({phase:'restore-saving',error:undefined});
+    try {
+      await commitPlayerRole(account, async()=>{
+        await storage.save(account,generation,operation.signal);
+        if(disposed||version!==current)return;
+        const saved=await readStable(current);
+        if(disposed||version!==current) return;
+        if(saved.generation!==generation || saved.account?.profileId!==account.profileId) {
+          pending=undefined;restorePhrase=undefined;acceptLoaded(saved,current);return;
+        }
+        activateRestored(account,current);
+        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
+      });
+    } catch (error) {
+      if(!disposed&&version===current) update({phase:'restore-error',error:error instanceof WalletRoleConflictError?error.message:'Your account could not be confirmed saved.'});
+    }
+  }
   async function runRestore(input: string) {
     assertAlive();
     if (!['restore-entry','restore-error'].includes(state.phase) || !validRecovery(input)) return;
@@ -491,19 +511,10 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         if(disposed||version!==current) return;
         pending=restored;
       }
-      const account=pending;
-      update({phase:'restore-saving'});
-      await commitPlayerRole(account, async()=>{
-        await storage.save(account,generation,operation.signal);
-        if(disposed||version!==current)return;
-        const saved=await readStable(current);
-        if(disposed||version!==current) return;
-        if(saved.generation!==generation || saved.account?.profileId!==account.profileId) {
-          pending=undefined;restorePhrase=undefined;acceptLoaded(saved,current);return;
-        }
-        activateRestored(account,current);
-        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
-      });
+      const profiles=typeof storage.listProfiles==='function' ? await storage.listProfiles() : {profiles:loaded.account?[loaded.account.profileId]:[]};
+      if(disposed||version!==current) return;
+      if(!profiles.profiles.includes(pending.profileId)) { update({phase:'restore-confirmation',error:undefined}); return; }
+      await saveRestored(current);
     } catch (error) {
       if(!disposed&&version===current) update({phase:'restore-error',error:error instanceof WalletRoleConflictError?error.message:(pending?'Your account could not be confirmed saved.':'The test service could not be reached.')});
     }
@@ -1072,7 +1083,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       if(state.accountAssets) {update({accountAssets:false,accountDetails:true});return;}
       if(state.accountActivity) {update({accountActivity:false,accountDetails:true});return;}
       if(state.accountDetails) {update({accountTransfer:false,accountDetails:false});return;}
-      if(['restore-entry','restoring','restore-error'].includes(state.phase)) {
+      if(['restore-entry','restoring','restore-confirmation','restore-error'].includes(state.phase)) {
         invalidate();initialization=hydrate();return;
       }
       if(state.phase==='logout-confirmation'||state.phase==='logout-error') {context.cancelLogout();return;}
@@ -1141,7 +1152,13 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       assertAlive();
       if (state.hasProfile || !['idle','active'].includes(state.phase)) return;
       options.selectNetwork?.(network);
+      if (state.network === network) return;
+      // Account storage is scoped by network.  Treat a selection change as a
+      // new session rather than merely repainting the chooser: otherwise the
+      // first restore can still reconcile against the previous network's
+      // generation and discard its own result as a stale session.
       update({network,error:undefined});
+      initialization=hydrate();
     },
     cancelLogout() {
       assertAlive();
@@ -1227,6 +1244,17 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       } finally { if (funding === current) funding = undefined; }
     },
     restore:runRestore,
+    async confirmRestoration() {
+      assertAlive();
+      if(state.phase!=='restore-confirmation'||!pending)return;
+      await saveRestored(version);
+    },
+    cancelRestoration() {
+      assertAlive();
+      if(state.phase!=='restore-confirmation')return;
+      pending=undefined;restorePhrase=undefined;failure=undefined;
+      update({phase:'idle',error:undefined,canReset:false});
+    },
     recovery:()=>state.accountRecovery && state.recoveryStatus === 'ready' ? revealedPhrase : pending?.phrase,
     hideRecovery() {
       clearRecovery();

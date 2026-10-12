@@ -3,7 +3,7 @@ export type MarketplaceInventoryRole = 'player' | 'game';
 export type MarketplaceInventoryStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'unavailable' | 'invalid-metadata' | 'migration-required';
 export type MarketplaceInventoryRead = Readonly<{ items: readonly BisEquipmentItem[]; invalidMetadataCount?: number; migrationRequiredCount?: number }>;
 export type MarketplaceInventoryRecord = Readonly<{ role: MarketplaceInventoryRole; walletId?: string; network?: TestNetwork; status: MarketplaceInventoryStatus; items: readonly BisEquipmentItem[]; invalidMetadataCount: number; migrationRequiredCount: number; fetchedAt?: number; error?: string }>;
-export type MarketplaceInventorySource = Readonly<{ role: MarketplaceInventoryRole; walletId: string; network: TestNetwork; read(force?: boolean): Promise<readonly BisEquipmentItem[] | MarketplaceInventoryRead> }>;
+export type MarketplaceInventorySource = Readonly<{ role: MarketplaceInventoryRole; walletId: string; network: TestNetwork; read(force?: boolean): Promise<readonly BisEquipmentItem[] | MarketplaceInventoryRead>; cached?(): MarketplaceInventoryRead | undefined }>;
 const DEFAULT_READ_TIMEOUT_MS = 35000;
 async function readWithTimeout<T>(read: Promise<T>, timeoutMs: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -28,19 +28,24 @@ export function createMarketplaceInventoryCoordinator(options: Readonly<{ readTi
   const listeners = new Set<() => void>();
   const inFlight = new Map<MarketplaceInventoryRole, {walletId:string;network:TestNetwork;force:boolean;work:Promise<void>}>();
   const publish = (role: MarketplaceInventoryRole, next: MarketplaceInventoryRecord) => { if (disposed) return; state = Object.freeze({ ...state, [role]: Object.freeze(next) }); listeners.forEach(listener => listener()); };
+  const readyRecord = (source: MarketplaceInventorySource, read: readonly BisEquipmentItem[] | MarketplaceInventoryRead): MarketplaceInventoryRecord => {
+    const result: MarketplaceInventoryRead = Array.isArray(read) ? { items: read as readonly BisEquipmentItem[] } : read as MarketplaceInventoryRead;
+    const items = Object.freeze(result.items.map(freezeItem));
+    const invalidMetadataCount = result.invalidMetadataCount ?? 0;
+    const migrationRequiredCount = result.migrationRequiredCount ?? 0;
+    const status = items.length ? 'ready' : migrationRequiredCount ? 'migration-required' : invalidMetadataCount ? 'invalid-metadata' : 'empty';
+    return { role: source.role, walletId: source.walletId, network: source.network, status, items, invalidMetadataCount, migrationRequiredCount, fetchedAt: Date.now() };
+  };
   async function run(source: MarketplaceInventorySource, force: boolean) {
     const request = ++sequence[source.role], previous = state[source.role];
+    const cached = force ? undefined : source.cached?.();
+    if (cached) { publish(source.role, readyRecord(source,cached)); return; }
     const retainedItems = previous.walletId === source.walletId && previous.network === source.network ? previous.items : Object.freeze([]);
     publish(source.role, { role: source.role, walletId: source.walletId, network: source.network, status: 'loading', items: retainedItems, invalidMetadataCount: previous.invalidMetadataCount, migrationRequiredCount: previous.migrationRequiredCount });
     try {
       const read = await readWithTimeout(source.read(force), readTimeoutMs);
-      const result: MarketplaceInventoryRead = Array.isArray(read) ? { items: read as readonly BisEquipmentItem[] } : read as MarketplaceInventoryRead;
-      const items = Object.freeze(result.items.map(freezeItem));
-      const invalidMetadataCount = result.invalidMetadataCount ?? 0;
-      const migrationRequiredCount = result.migrationRequiredCount ?? 0;
       if (disposed || sequence[source.role] !== request) return;
-      const status = items.length ? 'ready' : migrationRequiredCount ? 'migration-required' : invalidMetadataCount ? 'invalid-metadata' : 'empty';
-      publish(source.role, { role: source.role, walletId: source.walletId, network: source.network, status, items, invalidMetadataCount, migrationRequiredCount, fetchedAt: Date.now() });
+      publish(source.role, readyRecord(source,read));
     }
     catch { if (!disposed && sequence[source.role] === request) publish(source.role, { role: source.role, walletId: source.walletId, network: source.network, status: 'unavailable', items: Object.freeze([]), invalidMetadataCount: 0, migrationRequiredCount: 0, error: 'This wallet’s item inventory is unavailable. Try again.' }); }
   }

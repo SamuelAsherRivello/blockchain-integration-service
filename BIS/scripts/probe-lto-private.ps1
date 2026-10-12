@@ -8,7 +8,7 @@ try {
     $probeStart.WorkingDirectory = $probeRoot
     $probeStart.UseShellExecute = $false
     $probeStart.RedirectStandardInput = $true
-    $probeStart.ArgumentList.Add((Join-Path $PSScriptRoot 'probe-lto-contract.mjs'))
+    $probeStart.ArgumentList.Add((Join-Path $PSScriptRoot 'probe-lto-contract.tsx'))
     $probeStart.ArgumentList.Add('--funded-stdin')
     $probeProcess = [System.Diagnostics.Process]::Start($probeStart)
     try {
@@ -20,3 +20,4 @@ try {
     } finally { $probeProcess.Dispose() }
 } finally { $probeSecret.Dispose() }
 exit $probeExit
+

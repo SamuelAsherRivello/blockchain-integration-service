@@ -50,6 +50,12 @@ test('repeated coordinator refresh delegates cache ownership to BIS', async() =>
   const coordinator = createMarketplaceInventoryCoordinator(); let calls=0; const source={role:'game',walletId:'game-1',network:'signet',read:async()=>{calls++;return[item()]}};
   await coordinator.refresh([source]); await coordinator.refresh([source]); assert.equal(calls,2);
 });
+test('a fresh BIS cache entry is published without a loading transition or another read', async() => {
+  const coordinator=createMarketplaceInventoryCoordinator(); let calls=0;
+  const source={role:'game' as const,walletId:'game-1',network:'signet' as const,cached:()=>({items:[item('cached')]}),read:async()=>{calls++;return[item('network')];}};
+  await coordinator.refresh([source]);
+  assert.equal(calls,0);assert.equal(coordinator.getState().game.status,'ready');assert.equal(coordinator.getState().game.items[0].assetId,'cached');
+});
 test('explicit retry replaces a result and retains prior items while pending', async() => {
   const coordinator = createMarketplaceInventoryCoordinator(); const source={role:'player',walletId:'player-1',network:'signet',read:async()=>[item('player-item-1')]};
   await coordinator.refresh([source]); let release; const pending=new Promise(resolve=>{release=resolve}); const refresh=coordinator.retry({role:'player',walletId:'player-1',network:'signet',read:async()=>{await pending;return[item('player-item-2')]}});

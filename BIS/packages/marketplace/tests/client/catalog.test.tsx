@@ -235,10 +235,13 @@ test('Marketplace delegates visible Marketplace loading to the shared pending pr
   assert.match(app, /const \[isCatalogLoading,setIsCatalogLoading\]=useState\(true\)/);
   assert.match(app, /createMarketplaceInventoryCoordinator/);
   assert.match(app, /const selectedInventoryLoading=owner==='all'/);
-  assert.doesNotMatch(app, /inventoryCycleLoading|settledInventorySourceKey|initialInventoryWaitExpired|MARKETPLACE_INITIAL_INVENTORY_WAIT_MS/);
   assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|selectedInventoryLoading/);
-  assert.match(app, /const promptBusy=isMarketplaceLoading\|\|!!operationLabel/);
+  assert.match(app, /const MARKETPLACE_INITIAL_LOADING_MAX_MS=500/);
+  assert.match(app, /const \[initialLoadingBudgetExpired,setInitialLoadingBudgetExpired\]=useState\(false\)/);
+  assert.match(app, /setInitialLoadingBudgetExpired\(true\),MARKETPLACE_INITIAL_LOADING_MAX_MS/);
+  assert.match(app, /const promptBusy=!!operationLabel\|\|\(isMarketplaceLoading&&\(!initialLandingRef\.current\|\|initialLandingLoading\)\)/);
   assert.match(app, /const MARKETPLACE_LOADING_SETTLE_MS=1000/);
+  assert.match(app, /setTimeout\(\(\)=>setLoadingPromptVisible\(false\),MARKETPLACE_LOADING_SETTLE_MS\)/);
   assert.match(app, /rawInventoryError=owner==='all'/);
   assert.match(app, /<MarketplacePendingNotice busy=\{loadingPromptVisible\} label=\{operationLabel\?\?'Loading \.\.\.'\}/);
   assert.doesNotMatch(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.'/);

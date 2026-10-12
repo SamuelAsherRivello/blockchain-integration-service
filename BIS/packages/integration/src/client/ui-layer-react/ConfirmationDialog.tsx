@@ -1,7 +1,7 @@
 import { useLayoutEffect, useId, useRef } from 'react';
 
 /** Native modal focus containment, Escape cancellation and focus restoration. */
-export function ConfirmationDialog({onConfirm,onCancel}: {onConfirm:()=>void;onCancel:()=>void}) {
+export function ConfirmationDialog({onConfirm,onCancel,titleText='Confirmation',bodyText='Are you sure?',confirmLabel='OK',cancelLabel='Cancel'}: {onConfirm:()=>void;onCancel:()=>void;titleText?:string;bodyText?:string;confirmLabel?:string;cancelLabel?:string}) {
   const ref=useRef<HTMLDialogElement>(null), cancel=useRef<HTMLButtonElement>(null), title=useId(), body=useId(), answered=useRef(false);
   useLayoutEffect(()=>{
     const previous=document.activeElement as HTMLElement|null;
@@ -22,7 +22,7 @@ export function ConfirmationDialog({onConfirm,onCancel}: {onConfirm:()=>void;onC
     ref.current?.close();if(confirm)onConfirm();else onCancel();
   }
   return <dialog ref={ref} className="bis-confirmation" aria-labelledby={title} aria-describedby={body} onCancel={event=>{event.preventDefault();answer(false);}}>
-    <h2 id={title}>Confirmation</h2><p id={body}>Are you sure?</p>
-    <div className="bis-confirmation-actions"><button className="bis-button" onClick={()=>answer(true)}>OK</button><button ref={cancel} className="bis-button" onClick={()=>answer(false)}>Cancel</button></div>
+    <h2 id={title}>{titleText}</h2><p id={body}>{bodyText}</p>
+    <div className="bis-confirmation-actions"><button className="bis-button" onClick={()=>answer(true)}>{confirmLabel}</button><button ref={cancel} className="bis-button" onClick={()=>answer(false)}>{cancelLabel}</button></div>
   </dialog>;
 }

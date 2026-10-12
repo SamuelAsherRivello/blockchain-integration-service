@@ -10,12 +10,13 @@ const fresh=()=>generateMnemonic(wordlist);
 const deferred=()=>{let resolve; const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 const tick=()=>new Promise(r=>setImmediate(r));
 function fixture(connect) {
-  let account=null,generation=0,saves=0,calls=0;
+  let account=null,generation=0,saves=0,calls=0;const profiles=[];
   const listeners=new Set();
   const phrase=fresh();
   const storage={
     load:async()=>({account,generation}),
-    save:async(a,g,signal)=>{signal.throwIfAborted();if(g!==generation||account)throw Error('conflict');account=a;saves++;},
+    save:async(a,g,signal)=>{signal.throwIfAborted();if(g!==generation||account)throw Error('conflict');account=a;if(!profiles.includes(a.profileId))profiles.push(a.profileId);saves++;},
+    listProfiles:async()=>({profiles:[...profiles]}),
     reset:async()=>{generation++;account=null;for(const l of listeners)l();},
     subscribe:l=>{listeners.add(l);return()=>listeners.delete(l);},
   };
@@ -24,7 +25,7 @@ function fixture(connect) {
   });
   const events=[];context.onEvent(e=>events.push(e));
   const open=async()=>{await context.readyAsync();context.openRestoreAccount();};
-  return {context,storage,phrase,events,open,saves:()=>saves,calls:()=>calls,notify(){for(const listener of listeners)listener();},replace(){generation++;account={phrase:fresh(),profileId:'public-test-id'};for(const l of listeners)l();}};
+  return {context,storage,phrase,events,open,saves:()=>saves,calls:()=>calls,confirm:()=>getControls(context).confirmRestoration(),notify(){for(const listener of listeners)listener();},replace(){generation++;account={phrase:fresh(),profileId:'public-test-id'};if(!profiles.includes('public-test-id'))profiles.push('public-test-id');for(const l of listeners)l();}};
 }
 test('word membership, twelve words, normalization and full checksum',()=>{
   const phrase=fresh();
@@ -53,6 +54,8 @@ test('temporary wallet disposes on success, failure, abort and late acquisition'
 test('restore saves once, publishes only public identity and survives hydration',async()=>{
   const f=fixture();await f.open();
   await Promise.all([getControls(f.context).restore(f.phrase),getControls(f.context).restore(f.phrase)]);
+  assert.equal(f.saves(),0);assert.equal(f.context.getState().phase,'restore-confirmation');
+  await f.confirm();
   assert.equal(f.saves(),1);assert.equal(f.calls(),1);assert.equal(f.context.getState().phase,'active');assert.equal(f.context.getState().view,'account');
   assert.deepEqual(f.events,[{type:'accountConnected',profileId:'public-test-id'}]);assert.equal(JSON.stringify(f.context.getState()).includes(f.phrase),false);assert.equal(getControls(f.context).recovery(),undefined);
   f.context.openRestoreAccount();assert.equal(f.context.getState().phase,'active');f.context.dispose();
@@ -62,14 +65,14 @@ test('network failure remains unsaved; Retry reuses phrase; invalid submission i
   let fails=true;const f=fixture(async()=>{if(fails)throw Error('private error');});await f.open();
   await getControls(f.context).restore('invalid');assert.equal(f.calls(),0);
   await getControls(f.context).restore(f.phrase);assert.equal(f.saves(),0);assert.equal(f.events.length,0);assert.equal(f.context.getState().phase,'restore-error');
-  assert.equal(JSON.stringify(f.context.getState()).includes('private error'),false);fails=false;await f.context.retry();assert.equal(f.saves(),1);f.context.dispose();
+  assert.equal(JSON.stringify(f.context.getState()).includes('private error'),false);fails=false;await f.context.retry();await f.confirm();assert.equal(f.saves(),1);f.context.dispose();
 });
 test('save failure and ambiguous completion reconcile without another connection',async()=>{
   for(const committed of [false,true]){
     const f=fixture();const save=f.storage.save;let first=true;
     f.storage.save=async(...args)=>{if(first){first=false;if(committed)await save(...args);throw Error('uncertain');}await save(...args);};
-    await f.open();await getControls(f.context).restore(f.phrase);assert.equal(f.events.length,0);
-    await f.context.retry();assert.equal(f.calls(),1);assert.equal(f.saves(),1);assert.equal(f.events.length,1);f.context.dispose();
+    await f.open();await getControls(f.context).restore(f.phrase);await f.confirm();assert.equal(f.events.length,0);
+    await f.context.retry();if(f.context.getState().phase==='restore-confirmation')await f.confirm();assert.equal(f.calls(),1);assert.equal(f.saves(),1);assert.equal(f.events.length,1);f.context.dispose();
   }
 });
 test('storage notification during restore save cannot restart hydration',async()=>{
@@ -77,7 +80,7 @@ test('storage notification during restore save cannot restart hydration',async()
   const save=f.storage.save;
   f.storage.save=async(...args)=>{await save(...args);f.notify();};
   await f.open();
-  await getControls(f.context).restore(f.phrase);
+  await getControls(f.context).restore(f.phrase);await f.confirm();
   assert.equal(f.context.getState().phase,'active');
   assert.equal(f.context.getState().profileId,'public-test-id');
   f.context.dispose();
@@ -91,7 +94,7 @@ test('Back, disposal and concurrent account replacement invalidate delayed resto
 });
 test('Back is guarded while saving and cancellation cannot clobber a newer attempt',async()=>{
   const f=fixture();const save=f.storage.save,gate=deferred();f.storage.save=async(...args)=>{await gate.promise;await save(...args);};
-  await f.open();const work=getControls(f.context).restore(f.phrase);await tick();f.context.closeAccount();assert.equal(f.context.getState().phase,'restore-saving');gate.resolve();await work;assert.equal(f.events.length,1);f.context.dispose();
+  await f.open();const work=getControls(f.context).restore(f.phrase);await tick();const confirmation=f.confirm();await tick();f.context.closeAccount();assert.equal(f.context.getState().phase,'restore-saving');gate.resolve();await confirmation;await work;assert.equal(f.events.length,1);f.context.dispose();
 });
 test('deadline disposes a wallet even if address acquisition never completes',async()=>{
   let disposals=0;const pending=deferred();
@@ -103,6 +106,39 @@ test('late cancelled connection cannot clear the pending identity of a newer res
   const first=deferred(),second=deferred();let calls=0;
   const f=fixture(()=>++calls===1?first.promise:second.promise);await f.open();
   const old=getControls(f.context).restore(f.phrase);await tick();f.context.closeAccount();await f.context.readyAsync();f.context.openRestoreAccount();
-  const current=getControls(f.context).restore(f.phrase);await tick();first.resolve();await old;second.resolve();await current;
+  const current=getControls(f.context).restore(f.phrase);await tick();first.resolve();await old;second.resolve();await current;await f.confirm();
   assert.equal(f.saves(),1);assert.equal(f.events.length,1);f.context.dispose();
+});
+test('switching networks hydrates its storage before the first restore',async()=>{
+  let network='signet',generation=0,calls=0;
+  const accounts=new Map([['signet',null],['mutinynet',null]]),profiles=new Map([['signet',[]],['mutinynet',[]]]),listeners=new Set();
+  const storage={
+    load:async()=>({account:accounts.get(network),generation}),
+    save:async(account,expected,signal)=>{signal.throwIfAborted();assert.equal(expected,generation);assert.equal(accounts.get(network),null);accounts.set(network,account);if(!profiles.get(network).includes(account.profileId))profiles.get(network).push(account.profileId);for(const listener of listeners)listener();},
+    listProfiles:async()=>({profiles:[...profiles.get(network)]}),
+    subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},
+  };
+  const context=createContext(storage,undefined,async()=> 'network-test-id',async(phrase,_signal)=>{calls++;return {phrase,profileId:'network-test-id',network};},undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,{getNetwork:()=>network,selectNetwork:value=>{network=value;},requireNetworkSelection:true});
+  await context.readyAsync();
+  context.selectNetwork('mutinynet');
+  await context.readyAsync();
+  assert.equal(context.getState().network,'mutinynet');
+  assert.equal(context.getState().phase,'idle');
+  context.openRestoreAccount();
+  await getControls(context).restore(fresh());
+  await getControls(context).confirmRestoration();
+  assert.equal(calls,1);
+  assert.equal(context.getState().phase,'active');
+  assert.equal(context.getState().network,'mutinynet');
+  assert.equal(accounts.get('mutinynet')?.network,'mutinynet');
+  context.dispose();
+});
+
+test('first local restore requires confirmation and Cancel saves nothing',async()=>{
+  const f=fixture();await f.open();
+  await getControls(f.context).restore(f.phrase);
+  assert.equal(f.context.getState().phase,'restore-confirmation');assert.equal(f.saves(),0);assert.equal(f.events.length,0);
+  getControls(f.context).cancelRestoration();
+  assert.equal(f.context.getState().phase,'idle');assert.equal(f.saves(),0);assert.equal(f.events.length,0);assert.equal(getControls(f.context).recovery(),undefined);
+  f.context.dispose();
 });

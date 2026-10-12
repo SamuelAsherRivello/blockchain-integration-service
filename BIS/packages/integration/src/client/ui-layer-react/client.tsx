@@ -27,6 +27,7 @@ import { FormRowBoolean } from './FormRowBoolean';
 import { ViewTransition } from './ViewTransition';
 import { defaultViewLoadingPolicy, useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 import { BackDismissalLayer, type BackAction } from './BackDismissalLayer';
+import { ConfirmationDialog } from './ConfirmationDialog';
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 const emptySubscribe = () => () => {};
 const emptySnapshot = () => undefined;
@@ -142,6 +143,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const heading = useRef<HTMLHeadingElement>(null);
   const busy = ['loading','creating','saving','resetting','logging-out','restoring','restore-saving'].includes(state.phase);
   const restoring = ['restore-entry','restoring','restore-saving','restore-error'].includes(state.phase);
+  const restoreConfirmation = state.phase === 'restore-confirmation';
   const savedRecovery = state.accountRecovery;
   const logout = !savedRecovery && ['logout-confirmation','logging-out','logout-error'].includes(state.phase);
   const transfer = state.phase === 'active' && state.accountTransfer;
@@ -272,6 +274,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
         {(savedRecovery || recovery || state.phase === 'creating') && <TestWalletWarning />}
         {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <RecoveryPhrasePanel key={savedRecovery ? 'saved' : 'setup'} phrase={getControls(context).recovery()} session={recoverySession} disabled={busy} />}
         {state.error && !busy && <p role="alert">{state.error}</p>}
+        {restoreConfirmation && <ConfirmationDialog titleText="Create New Account?" bodyText={`This recovery phrase does not have an account on ${networkLabel(state.network ?? 'signet')} yet. Would you like to create one now?`} confirmLabel="Create Account" onConfirm={()=>void getControls(context).confirmRestoration()} onCancel={()=>getControls(context).cancelRestoration()} />}
         {gameWalletLogin && gameWallet ? <GameWalletLoginView wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <AccountRestoreView context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
           <div className="bis-copy-field-heading"><h3>Support</h3></div>
           <div className="bis-support-list">

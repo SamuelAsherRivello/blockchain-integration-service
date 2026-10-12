@@ -30,7 +30,7 @@ body, button, input, select, textarea { font-family: Inter, ui-sans-serif, syste
 .balances strong { display: block; margin: 8px 0 3px; color: #eef1f6; font-size: clamp(26px, 4vw, 34px); font-variant-numeric: tabular-nums; letter-spacing: -.03em; overflow-wrap: anywhere; }
 .asset-balance { display: flex; min-height: 100%; flex-direction: column; justify-content: center; border-color: #365247 !important; background: #17251f !important; }
 .asset-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.asset-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; width:100%; margin-top:auto; }
+.asset-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; width:100%; margin-top:10px; }
 .asset-actions select { width:80%; min-height: 28px; padding: 4px 22px 4px 7px; border: 1px solid #455368; border-radius: 6px; background: #11151c; color: #e5e9ef; font: inherit; font-size: 11px; }
 .asset-actions .assets-all-link { position:static; display:grid; place-items:center; flex:0 0 24px; width:24px; height:24px; border-radius:4px; color:#a9d9c3; }
 .asset-actions .assets-all-link:hover, .asset-actions .assets-all-link:focus-visible { background:#263b35; }

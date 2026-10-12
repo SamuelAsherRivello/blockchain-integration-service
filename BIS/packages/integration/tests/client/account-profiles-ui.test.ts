@@ -40,3 +40,12 @@ test('Account UI does not expose saved profiles while preserving ordinary accoun
     active.dispose();
   }finally{await server.close();}
 });
+
+test('new network account confirmation uses the exact non-secret copy',async()=>{
+  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
+  try{
+    const {ConfirmationDialog}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/ConfirmationDialog.tsx');
+    const html=renderToStaticMarkup(createElement(ConfirmationDialog,{titleText:'Create New Account?',bodyText:'This recovery phrase does not have an account on Mutiny yet. Would you like to create one now?',confirmLabel:'Create Account',onConfirm:()=>{},onCancel:()=>{}}));
+    assert.match(html,/>Create New Account\?</);assert.match(html,/This recovery phrase does not have an account on Mutiny yet\. Would you like to create one now\?/);assert.match(html,/>Create Account</);assert.match(html,/>Cancel</);
+  }finally{await server.close();}
+});
