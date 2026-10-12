@@ -23,6 +23,10 @@ function gameplayMetadata(item:BisEquipmentItem){
   ];
 }
 const MARKETPLACE_LOADING_SETTLE_MS=1000;
+// A completed transfer is durable before the public indexer can reflect its
+// new owner. Do not turn that short propagation window into a false checkout
+// or inventory failure for the player.
+const CHECKOUT_INVENTORY_SETTLE_MS=3000;
 // Inventory is a background read on the first page load. A slow or unavailable
 // indexer must not leave the whole Marketplace behind the BIS loading modal.
 const poeticQuotes:Record<string,string>={
@@ -74,8 +78,11 @@ function MarketplaceContent(){
   const [operationLabel,setOperationLabel]=useState<string>();
   const [operationError,setOperationError]=useState<string>();
   const [inventoryErrorDismissed,setInventoryErrorDismissed]=useState(false);
+  const [isCheckoutInventorySettling,setIsCheckoutInventorySettling]=useState(false);
+  const checkoutInventoryTimer=useRef<ReturnType<typeof window.setTimeout>|undefined>(undefined);
   const [isBenefitsOpen,setIsBenefitsOpen]=useState(false);
   const [owner,setOwner]=useState<'all'|'game'|'player'>('game'),[game,setGame]=useState<string>('stealth-and-steel'),[type,setType]=useState<'all'|'speed'|'offense'|'defense'>('all');
+  useEffect(()=>()=>{if(checkoutInventoryTimer.current)window.clearTimeout(checkoutInventoryTimer.current);},[]);
   const selectedGame=game==='all'?undefined:catalog.games.find(entry=>entry.gameId===game);
   const defaultGame=catalog.games.find(entry=>entry.gameId==='stealth-and-steel');
   const registeredGameAddress=game==='all'?defaultGame?.gameWalletAddress:selectedGame?.gameWalletAddress;
@@ -234,7 +241,7 @@ function MarketplaceContent(){
   // empty or keep the page covered.
   const isMarketplaceLoading=isCatalogLoading||selectedInventoryLoading;
   const rawInventoryError=owner==='all'?[inventoryState.player,inventoryState.game].find(record=>record.status==='unavailable')?.error:selectedInventory.status==='unavailable'?selectedInventory.error:undefined;
-  const inventoryError=inventoryErrorDismissed?undefined:rawInventoryError;
+  const inventoryError=inventoryErrorDismissed||isCheckoutInventorySettling?undefined:rawInventoryError;
   useEffect(()=>{setInventoryErrorDismissed(false);},[rawInventoryError]);
   const promptBusy=isMarketplaceLoading||!!operationLabel;
   const [loadingPromptVisible,setLoadingPromptVisible]=useState(true);
@@ -290,7 +297,18 @@ function MarketplaceContent(){
     });
     if(!current())return;
     setCheckout(next);
-    if(next.status==='completed') {await Promise.all([gameWallet.refresh(),inventory.refresh(inventorySources,true)]);}
+    if(next.status==='completed') {
+      // Delivery has succeeded. Refreshing presentation data is best-effort:
+      // indexer propagation must never reclassify a completed purchase as an
+      // error. A delayed forced read also replaces any pre-delivery snapshot.
+      setIsCheckoutInventorySettling(true);
+      if(checkoutInventoryTimer.current)window.clearTimeout(checkoutInventoryTimer.current);
+      if(publicInventoryRequestRef.current)invalidatePublicAssetInventory(publicInventoryRequestRef.current);
+      void gameWallet.refresh().catch(()=>{});
+      checkoutInventoryTimer.current=window.setTimeout(()=>{
+        void inventory.invalidate(inventorySourcesRef.current).finally(()=>setIsCheckoutInventorySettling(false));
+      },CHECKOUT_INVENTORY_SETTLE_MS);
+    }
   }
   async function beginCheckout(direction:'buy'|'sell') {
     if(!selected||!salesEnabled||!gameState.profileId||!sessionGameAddress) return;

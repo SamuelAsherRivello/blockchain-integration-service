@@ -223,7 +223,11 @@ test('Marketplace refreshes Game Wallet inventory after a completed checkout wit
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.doesNotMatch(app, />Refresh listings<\/button>/);
   assert.match(app, /inventory\.retry\(source\)/);
-  assert.match(app, /await Promise\.all\(\[gameWallet\.refresh\(\),inventory\.refresh\(inventorySources,true\)\]\)/);
+  assert.match(app, /const CHECKOUT_INVENTORY_SETTLE_MS=3000/);
+  assert.match(app, /setIsCheckoutInventorySettling\(true\)/);
+  assert.match(app, /void gameWallet\.refresh\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(app, /inventory\.invalidate\(inventorySourcesRef\.current\)/);
+  assert.match(app, /isCheckoutInventorySettling\?undefined:rawInventoryError/);
 });
 
 test('Marketplace delegates visible Marketplace loading to the shared pending prompt', async () => {
