@@ -47,8 +47,8 @@ Begin only after the user verifies the Milestone 1 working copy and the converte
 
 ## 6. Repository-wide verification and cleanup
 
-- [ ] 6.1 Remove obsolete in-scope JavaScript source files only after all imports, exports, scripts, test globs, and documentation references resolve to their TypeScript replacements; verify the extension audit reports zero authored `.js`, `.jsx`, `.mjs`, and `.cjs` files in scope.
-- [ ] 6.2 Run strict typechecking and every package build, including `npm run typecheck`, `npm run build`, and `npm run build:all`; verify only pre-existing non-blocking advisories remain.
-- [ ] 6.3 Run the complete unit/API/browser verification matrix, including `npm test`, `npm run test:all`, route verification, relevant Playwright smoke checks, and package-specific commands; verify no behavior, route, storage, wallet, or network contract changes are observed.
-- [ ] 6.4 Review the final diff for generated files, dependency changes, secrets, unrelated working-tree edits, stale extension references, and accidental Arkade-specific public types; verify only the approved migration/configuration/documentation files are included.
-- [ ] 6.5 Update the package and repository documentation to describe the all-TypeScript authored-source baseline and verified commands; verify every documented command and link resolves against the converted filenames.
+- [x] 6.1 Remove obsolete in-scope JavaScript source files only after all imports, exports, scripts, test globs, and documentation references resolve to their TypeScript replacements; verify the extension audit reports zero authored `.js`, `.jsx`, `.mjs`, and `.cjs` files in scope.
+- [x] 6.2 Run strict typechecking and every package build, including `npm run typecheck`, `npm run build`, and `npm run build:all`; verify only pre-existing non-blocking advisories remain.
+- [x] 6.3 Run the complete unit/API/browser verification matrix, including `npm test`, `npm run test:all`, route verification, relevant Playwright smoke checks, and package-specific commands; verify no behavior, route, storage, wallet, or network contract changes are observed.
+- [x] 6.4 Review the final diff for generated files, dependency changes, secrets, unrelated working-tree edits, stale extension references, and accidental Arkade-specific public types; verify only the approved migration/configuration/documentation files are included.
+- [x] 6.5 Update the package and repository documentation to describe the all-TypeScript authored-source baseline and verified commands; verify every documented command and link resolves against the converted filenames.
