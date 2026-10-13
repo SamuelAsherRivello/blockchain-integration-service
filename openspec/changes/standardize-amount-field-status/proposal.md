@@ -7,7 +7,7 @@ The Send and Account Transfer screens place several unrelated text fields betwee
 ## What Changes
 
 - Add one standalone, replaceable status line below the sats amount control in Send and Account Transfer; it is not part of the shared control.
-- Use `Set amount above.` as the default status and replace it with applicable input, availability, transfer-state, or recovery guidance without ever rendering two status fields.
+- Use `Set amount above.` as the default status and replace it with applicable input, availability, or recovery guidance without ever rendering two status fields. Show pending-transfer guidance only in the post-transfer dialog.
 - Add fixed page body text: `Send balance to another address.` on Send and `Swap between your balances.` on Account Transfer.
 - Reserve error prompts for failures returned after the user starts review or confirmation.
 

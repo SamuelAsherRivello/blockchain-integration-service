@@ -48,8 +48,7 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
     : undefined;
   const amountExceedsAvailable = sourceAvailable !== undefined && valid && numeric > sourceAvailable;
   const blocked = !statusChecked || availability === undefined || !availability.available || amountExceedsAvailable;
-  const fieldStatus = pending ? 'See Transactions for any pending transfers.'
-    : !boardingSubmissionEnabled ? 'Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.'
+  const fieldStatus = !boardingSubmissionEnabled ? 'Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.'
       : availability && !availability.available ? availability.message ?? 'Transfer unavailable.'
         : amountExceedsAvailable ? `Amount exceeds the currently available ${direction === 'to-arkade' ? 'Bitcoin' : 'Arkade'} balance.`
           : amount !== '0' && !valid ? 'Enter a positive whole number of sats.'
@@ -146,7 +145,8 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
       const next=await context.confirmAccountTransfer(quote,acknowledged.current);
       if(!alive.current||current!==request.current)return;
       setStatus(next);setQuote(undefined);setStatusChecked(true);
-      if(next.status==='succeeded'||next.status==='pending'){context.closeAccount();return;}
+      if(next.status==='succeeded'){context.closeAccount();return;}
+      if(next.status==='pending'){setSubmitted(true);return;}
       setError('Transfer was not submitted. Review a fresh transfer.');
     }catch(cause){if(alive.current&&current===request.current){
       if(cause instanceof PendingTransferConfirmationError){setStatusChecked(true);setWarning(context.getPendingAccountTransfers());}
@@ -158,7 +158,7 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   const loadingNotice=useEntryLoadingGate(foreground,initialLoading.current,viewLoadingPolicies.transfer);
   usePendingNotice(loadingNotice,operationLabel,error||undefined,warning?()=>setWarning(undefined):onBack,
     warning?{title:'Pending transfer',message:`You already have a transfer of ${sats(warning.reduce((total,r)=>total+(r.amountSats??0),0))} pending. Are you sure you want to send another?`,confirm:acceptWarning}
-    :submitted?{title:'Transfer pending.',message:'You can view progress in Transactions.'}:undefined);
+    :submitted?{title:'Transfer pending.',message:'See Transactions for any pending transfers.'}:undefined);
   return <>
     <div className="bis-transfer-balances"><AccountBalancesFormValue balance={balance} directionControl={
       <button type="button" className="bis-button bis-balance-direction" disabled={busy||review}

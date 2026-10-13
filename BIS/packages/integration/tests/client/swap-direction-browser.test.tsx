@@ -126,8 +126,7 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
   assert.equal(await review.isEnabled(),true,'editing must not discard the independent availability result');
   assert.deepEqual(await page.evaluate(()=>[window.calls.quotes,window.calls.confirmations]),[0,0]);
   await page.evaluate(()=>window.mountSwap(false,'signet',true));
-  await page.getByText('See Transactions for any pending transfers.',{exact:true}).waitFor();
-  assert.equal(await page.locator('.bis-field-status-line').count(),1,'pending Swap still has exactly one status line');
+  assert.equal(await page.getByText('See Transactions for any pending transfers.',{exact:true}).count(),0,'pending-transfer guidance is reserved for the confirmation dialog');
   // Public projection must not read arbitrary text, form values or storage.
   await page.evaluate(()=>{
     const host=document.getElementById('host');host.className='bis-card';
