@@ -25,5 +25,6 @@ test('C.G.1 presets identify themselves as Stealth & Steel trophies', () => {
     bisTier: String(level),
     bisDescription: `Level ${level} achievement trophy.`,
     bisAttributeDeltas: [],
+    bisAssetFormatVersion: '0.0.2',
   })));
 });
