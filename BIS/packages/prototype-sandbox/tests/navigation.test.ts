@@ -13,8 +13,8 @@ test('defines twelve labeled demo routes', () => {
   assert.equal(DEMOS[9].subject, 'Asset History (2 views)');
   assert.equal(DEMOS[9].title, 'Private wallet');
   assert.equal(DEMOS[10].title, 'Public address');
-  assert.equal(DEMOS[11].subject, 'External Wallet');
-  assert.equal(DEMOS[11].title, 'Approve Payment');
+  assert.equal(DEMOS[11].subject, 'Send Payment from External Wallet');
+  assert.equal(DEMOS[11].title, 'Send Payment');
 });
 
 test('derives active demo from direct paths and defaults safely', () => {
@@ -70,7 +70,7 @@ test('setup initializes an empty selected-network profile without using legacy s
   assert.equal(values.has('mnemonic-3'), false);
 });
 
-test('builds a network-specific Arkade Wallet payment link with an encoded BIP21 request', () => {
+test('builds a network-specific Arkade Wallet payment link with an Arkade BIP21 recipient', () => {
   const callback = walletCallbackUrl('http://127.0.0.1:5174/prototype-interactive-docs/demo-12/?status=sent#ignored');
   const link = new URL(walletPaymentUrl({ network: 'signet', address: 'tark1recipient', amountSats: 100, callback }));
   assert.equal(walletUrl('signet'), 'https://signet.arkade.money/');
@@ -78,7 +78,7 @@ test('builds a network-specific Arkade Wallet payment link with an encoded BIP21
   assert.equal(callback, 'http://127.0.0.1:5174/prototype-interactive-docs/demo-12/');
   assert.equal(link.origin, 'https://signet.arkade.money');
   assert.equal(link.searchParams.get('action'), 'send');
-  assert.equal(link.searchParams.get('request'), 'bitcoin:tark1recipient?amount=0.000001');
+  assert.equal(link.searchParams.get('request'), 'bitcoin:?ark=tark1recipient&amount=0.000001');
   assert.equal(link.searchParams.get('callback'), callback);
   assert.equal(formatSatsAsBitcoin(100_000_000), '1');
   assert.throws(() => walletCallbackUrl('http://example.test/demo-12/'), /HTTPS or localhost/);

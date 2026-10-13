@@ -10,7 +10,7 @@ export const DEMOS = Object.freeze([
   { number: 9, subject: 'Receive Asset', title: 'Receive Asset', path: '/prototype-interactive-docs/demo-9/' },
   { number: 10, subject: 'Asset History (2 views)', title: 'Private wallet', path: '/prototype-interactive-docs/demo-10/' },
   { number: 11, subject: 'Asset History (2 views)', title: 'Public address', path: '/prototype-interactive-docs/demo-11/' },
-  { number: 12, subject: 'External Wallet', title: 'Approve Payment', path: '/prototype-interactive-docs/demo-12/' },
+  { number: 12, subject: 'Send Payment from External Wallet', title: 'Send Payment', path: '/prototype-interactive-docs/demo-12/' },
 ]);
 
 export const SETUP_PATH = '/prototype-interactive-docs/setup/';
@@ -53,7 +53,7 @@ export function walletPaymentUrl({ network, address, amountSats, callback }) {
   const recipient = String(address ?? '').trim();
   if (!recipient) throw new Error('Enter an Arkade recipient address on Setup Input first.');
   const callbackUrl = new URL(callback);
-  const request = `bitcoin:${recipient}?amount=${formatSatsAsBitcoin(amountSats)}`;
+  const request = `bitcoin:?ark=${encodeURIComponent(recipient)}&amount=${formatSatsAsBitcoin(amountSats)}`;
   const wallet = new URL(walletUrl(network));
   wallet.search = new URLSearchParams({ action: 'send', request, callback: callbackUrl.toString() }).toString();
   return wallet.toString();

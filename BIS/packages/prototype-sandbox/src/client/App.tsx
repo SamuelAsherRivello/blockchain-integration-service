@@ -26,7 +26,7 @@ const DOCS_URLS = Object.freeze({
   sendAsset: 'https://docs.arkadeos.com/wallets/operations/assets/send-assets',
   receiveAsset: 'https://docs.arkadeos.com/wallets/operations/assets/check-balance',
   assetHistory: 'https://docs.arkadeos.com/wallets/operations/assets/check-balance',
-  externalWallet: 'https://github.com/arkade-os/wallet#app-links',
+  externalWallet: 'https://github.com/arkade-os/wallet',
 });
 
 function DocsSection({ href, topic, description, subheading, mainLink = false, linkLabel }) {
@@ -257,18 +257,18 @@ console.log('Send Payment')
 console.log('Transaction ID:', txid)
 console.log('Success:', success)`;
 
-const EXTERNAL_WALLET_PAYMENT_SOURCE = `// No mnemonic or private key enters this demo.
+const EXTERNAL_WALLET_PAYMENT_SOURCE = `// Send from the external wallet to Wallet 1. No mnemonic or private key enters this demo.
 const network = document.querySelector('#network').value
 const recipient = localStorage.getItem(network + '-wallet-1-address')
 const amountSats = 100
 
-// BIP21 stores Bitcoin values, so 100 sats is 0.000001 BTC.
-const request = 'bitcoin:' + recipient + '?amount=0.000001'
+// Arkade addresses belong in BIP21's ark parameter. 100 sats is 0.000001 BTC.
+const request = 'bitcoin:?ark=' + encodeURIComponent(recipient) + '&amount=0.000001'
 const callback = new URL(window.location.href)
 callback.search = ''
 callback.hash = ''
 
-// Arkade Wallet shows the prefilled payment and asks the wallet owner to approve.
+// Arkade Wallet shows the selected network and the prefilled Arkade payment.
 const wallet = new URL(network === 'signet'
   ? 'https://signet.arkade.money/'
   : 'https://mutinynet.arkade.money/')
@@ -818,8 +818,8 @@ function DemoExternalWalletPayment({ network }) {
     }
   }
 
-  return <OperationDemo demoTitle="External Wallet Payment" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-payment-source" source={EXTERNAL_WALLET_PAYMENT_SOURCE} output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Open Arkade Wallet" runningLabel="Checking recipient…" input={<>
-    <label htmlFor="external-wallet-address">Wallet 1 Address</label>
+  return <OperationDemo demoTitle="Send Payment from External Wallet" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-payment-source" source={EXTERNAL_WALLET_PAYMENT_SOURCE} output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Send Payment from External Wallet" runningLabel="Checking recipient…" input={<>
+    <label htmlFor="external-wallet-address">Recipient: Wallet 1 Address</label>
     <input id="external-wallet-address" value={setupWalletProfileValues(network).address1} readOnly spellCheck="false" />
     <label htmlFor="external-wallet-amount">Amount in sats</label>
     <input id="external-wallet-amount" value={amount} onChange={event => setAmount(event.target.value)} inputMode="numeric" spellCheck="false" autoComplete="off" />
