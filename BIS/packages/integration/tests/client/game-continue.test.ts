@@ -78,7 +78,7 @@ test('duplicate clicks submit once, uncertainty stays pending, exact success del
  const f=fixture();const first=f.controller.pay();assert.equal(f.controller.getState().status,'pending');await f.controller.pay();await first;
  assert.equal(f.submitted.length,1);f.setRecords('throw');await f.controller.check();assert.equal(f.controller.getState().status,'pending');
  f.setRecords([f.receipt(f.submitted[0],'succeeded')]);await f.controller.check();await f.controller.check();await f.controller.pay();
- assert.deepEqual(f.toasts,['You sent 1000 sats (Confirmed)']);assert.equal(f.success.length,1);assert.equal(f.submitted.length,1);f.controller.dispose();
+ assert.deepEqual(f.toasts,['You paid 1000 sats to continue. (Confirmed)']);assert.equal(f.success.length,1);assert.equal(f.submitted.length,1);f.controller.dispose();
 });
 test('definitive failure enables an explicit new attempt with a new identity',async()=>{
  const f=fixture();f.setResult('failed');await f.controller.pay();assert.equal(f.controller.getState().canPay,true);assert.equal(f.toasts.length,0);
@@ -102,7 +102,7 @@ test('a verified failed payment uses the concise failed status',async()=>{
  const message='Insufficient eligible spendable funds for this 1,000-sat payment. No payment was submitted.';
  f.setRecords([{...f.receipt(f.submitted[0],'failed'),message}]);
  await f.controller.check();
- assert.equal(f.controller.getState().message,'You could not send 1000 sats (Failed)');
+ assert.equal(f.controller.getState().message,'Your continue payment is unavailable.');
  assert.equal(f.controller.getState().canPay,true);
  assert.equal(f.success.length,0);f.controller.dispose();
 });

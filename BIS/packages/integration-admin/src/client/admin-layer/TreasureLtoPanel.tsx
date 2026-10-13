@@ -25,7 +25,7 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
         previousOfferKey='';setDeadline(undefined);setRemaining(0);
       }
       if(key===previous||!state.sessionId)return;previous=key;
-      const message=state.reason||treasureMessage(state.status);
+      const message=state.status === 'unavailable' || state.status === 'no-offer' ? 'The limited-time offer Treasure is unavailable.' : treasureMessage(state.status);
       log.current({event:'LTO status',...state,message,...(state.reason?{reason:state.reason}:{})});
       if (state.status === 'unavailable' || state.status === 'no-offer') context?.showToast(message, {messageType:'warning'});
     };
@@ -40,7 +40,7 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
   },[deadline]);
   function start(){
     log.current({event:'Start LTO',message:'Starting a new 90-second session. Any prior offer must resolve before replacement.'});
-    if(!controller){const message='BIS and the game wallet are not ready. No offer was created.';log.current({event:'Start LTO',status:'unavailable',message});context?.showToast(message,{messageType:'warning'});return;}
+    if(!controller){const message='The limited-time offer Treasure could not be created.';log.current({event:'Start LTO',status:'unavailable',message});context?.showToast(message,{messageType:'warning'});return;}
     void controller.start();
   }
   async function claim(){
@@ -54,7 +54,7 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
     const result=await current.act('claim');
     if(latest.current!==current)return;
     log.current({event:'Claim LTO',status:result.status,sessionId:before.sessionId,contractId:before.contractId,message:result.status==='pending'?'Claim pending; confirmation will arrive without interrupting play.':treasureMessage(before.status)});
-    if (result.status !== 'pending') context?.showToast(result.status === 'too-late' ? "You found a treasure but it's expired" : result.status === 'not-submitted' ? 'Contract claim was not submitted.' : treasureMessage(before.status), {messageType:'warning'});
+    if (result.status !== 'pending') context?.showToast(result.status === 'too-late' ? 'The limited-time offer Treasure has expired.' : result.status === 'not-submitted' ? 'You could not claim limited-time offer Treasure.' : result.status === 'confirmed' ? 'You claimed limited-time offer Treasure. (Confirmed)' : 'The limited-time offer Treasure is unavailable.', {messageType:result.status === 'confirmed' ? 'success' : 'warning'});
   }
   return <StoryButton label="D.G.1 / D.P.2. LTO Treasure Chest" sublabel={<span className="game-wallet-balance" aria-label="LTO time left" style={{fontVariantNumeric:'tabular-nums'}}>Time left: {remaining}s</span>}>
     <button type="button" onClick={start}>Start LTO</button>

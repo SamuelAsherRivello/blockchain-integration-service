@@ -25,10 +25,10 @@ export function createPaymentNotifications(show: (message: string, messageType: 
       const id = sender(row), short = id && id.length > 9 ? `${id.slice(0,4)} ....${id.slice(-5)}` : id;
       const senderLabel = id && id === gameWalletProfileId() ? 'Game Wallet' : short ? `User ${short}` : 'Unknown user';
       const message = transfer
-        ? `Transferred ${row.amountSats} sats from ${transfer.direction === 'to-arkade' ? 'Bitcoin to Arkade' : 'Arkade to Bitcoin'}`
-        : `${senderLabel} sent you ${row.amountSats} sats`;
+        ? `You transferred ${row.amountSats} sats from ${transfer.direction === 'to-arkade' ? 'Bitcoin to Arkade' : 'Arkade to Bitcoin'}.`
+        : `${senderLabel} sent you ${row.amountSats} sats.`;
       if (!previous && verifiedArkade && row.status === 'Pending offchain') show(message + ' (Pending)', 'info');
-      show(message + (stage === 1 ? ' (Pending)' : !transfer && (verifiedArkade || row.status === 'Settled offchain') ? ' (Confirmed)' : ''), stage === 1 ? 'info' : 'success');
+      show(message + (stage === 1 ? ' (Pending)' : ' (Confirmed)'), stage === 1 ? 'info' : 'success');
     }
     baseline = true;
     return {newArkadeReceipt};

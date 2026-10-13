@@ -87,7 +87,7 @@ test('controller recreation is silent and waits for explicit reconciliation',asy
   const worker=createLtoService({context:s.context,gameWallet:s.gameWallet},{...s.dependencies,poll:true});
   await delay();
   assert.equal(reconciliations,0);
-  assert.equal(s.toasts.some(text=>text==='Offer funding pending'),false);
+ assert.equal(s.toasts.some(text=>text==='The limited-time offer Treasure funding was submitted. (Pending)'),false);
   await worker.reconcile({contractId:before.id,feedback:'explicit'});
   assert.equal(reconciliations,1);
   worker.dispose();
@@ -97,7 +97,7 @@ test('game-role Refund reports its pending and confirmed feedback to the inspect
   const s=setup(),funded=await s.service.start(s.request);await delay();
   s.playerState.profileId='game';assert.equal((await s.service.refund(funded.contract.id)).status,'pending');
   await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
-  assert.ok(s.toasts.includes('Contract refund pending'));assert.ok(s.toasts.some(text=>text.startsWith('Contract refund confirmed')));
+  assert.ok(s.toasts.includes('Game Wallet refunded limited-time offer Treasure. (Pending)'));assert.ok(s.toasts.includes('Game Wallet refunded limited-time offer Treasure. (Confirmed)'));
 });
 
 test('visibility recovery refunds an elapsed offer once without extending its original deadline',async t=>{
@@ -141,7 +141,7 @@ test('same session submits once; funded slot stays reserved and duplicate notifi
   const s=setup();const first=s.service.start(s.request),second=s.service.start(s.request);
   assert.equal(first,second);assert.equal((await first).status,'confirmed');
   await delay();await s.service.reconcile();
-  assert.deepEqual(s.calls,['fund']);assert.equal(s.toasts.filter(text=>text==='Limited Time Offer: Find & claim treasure (1000 sats) within 90 secs.').length,1);
+ assert.deepEqual(s.calls,['fund']);assert.equal(s.toasts.filter(text=>text==='The limited-time offer Treasure funding was submitted. (Confirmed)').length,1);
   assert.equal((await s.storage.load()).ledger.contracts.length,1);
 });
 test('same-key active calls share one promise but settled unavailable does not poison a fresh session',async()=>{
@@ -165,7 +165,7 @@ test('end during funding immediately persists forfeiture, then refunds late succ
   await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='refunded'&&!walletReservations('game').some(operation=>operation.id===`contract:${funded.contract.id}`));
   assert.deepEqual(s.calls,['fund','refund']);
   assert.ok(!walletReservations('game').some(operation=>operation.id===`contract:${funded.contract.id}`));
-  assert.ok(!s.toasts.some(text=>text.startsWith('Offer funding confirmed')));
+ assert.ok(!s.toasts.some(text=>text==='The limited-time offer Treasure funding was submitted. (Confirmed)'));
 });
 test('new session waits for prior offer cleanup, then creates one replacement',async()=>{
   const s=setup();await s.service.start(s.request);await delay();
@@ -181,8 +181,8 @@ test('claim emits one pending and one confirmed toast without creating a replace
   assert.equal((await s.service.claim(funded.contract.id)).status,'pending');
   await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='claimed');
   assert.deepEqual(s.calls,['fund','claim']);
-  assert.equal(s.toasts.filter(text=>text==='Contract claim pending').length,1);
-  assert.equal(s.toasts.filter(text=>text.startsWith('Contract claim confirmed')).length,1);
+ assert.equal(s.toasts.filter(text=>text==='You claimed limited-time offer Treasure. (Pending)').length,1);
+ assert.equal(s.toasts.filter(text=>text==='You claimed limited-time offer Treasure. (Confirmed)').length,1);
   assert.equal((await s.storage.load()).ledger.contracts.length,1);
 });
 test('Claim returns pending after durable acceptance; unknown outcome prevents competing refund after logout',async()=>{

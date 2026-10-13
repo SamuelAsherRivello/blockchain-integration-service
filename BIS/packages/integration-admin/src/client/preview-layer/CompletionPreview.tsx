@@ -8,7 +8,7 @@ export function GameCompletionView({context, onRestart, onBusy}: {context: BisCo
   const [controller, setController] = useState<ReturnType<typeof createBisAssetCollection>>();
   const [state, setState] = useState<BisAssetCollectionState>();
   useEffect(() => {
-    const current = createBisAssetCollection(context, {asset: achievementPresets[level - 1]!, successMessage: `Level ${level} trophy collected!`});
+    const current = createBisAssetCollection(context, {asset: achievementPresets[level - 1]!, successMessage: `You received the Level ${level} trophy. (Confirmed)`});
     setController(current); setState(current.getState());
     const update = () => { setState(current.getState()); onBusy(current.getState().busy); };
     const unsubscribe = current.subscribe(update);

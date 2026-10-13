@@ -19,9 +19,9 @@ document.getElementById('release')!.onclick=()=>{hold=false;reads.splice(0).forE
 document.getElementById('duplicate')!.onclick=()=>publish(rows);
 for (const messageType of ['info','warning','error','success'] as const) {
  const button=document.createElement('button');button.textContent=`Preview ${messageType}`;
- button.onclick=()=>{getControls(context).toasts.clear();context.showToast({info:'Payment is processing…',warning:'Log in to pay to continue.',error:'Payment could not be submitted. Check your account and funds, then try again.',success:'Transferred 1000 sats from Bitcoin to Arkade'}[messageType],{messageType,durationMs:60000});};
+ button.onclick=()=>{getControls(context).toasts.clear();context.showToast({info:'You paid 1000 sats to continue. (Pending)',warning:'Your continue payment is unavailable.',error:'Your continue payment is unavailable.',success:'You transferred 1000 sats from Bitcoin to Arkade. (Confirmed)'}[messageType],{messageType,durationMs:60000});};
  document.body.insertBefore(button,document.getElementById('preview'));
 }
 const artwork=document.createElement('button');artwork.textContent='Preview artwork at half scale';
-artwork.onclick=()=>{const host=document.getElementById('preview')!;host.style.width='360px';host.style.height='640px';host.style.transform='scale(.5)';host.style.transformOrigin='top left';getControls(context).toasts.clear();context.showToast('Level 1 trophy collected!',{messageType:'success',imageUrl:'/tests/client/toast-artwork.svg',durationMs:60000});};
+ artwork.onclick=()=>{const host=document.getElementById('preview')!;host.style.width='360px';host.style.height='640px';host.style.transform='scale(.5)';host.style.transformOrigin='top left';getControls(context).toasts.clear();context.showToast('You received the Level 1 trophy. (Confirmed)',{messageType:'success',imageUrl:'/tests/client/toast-artwork.svg',durationMs:60000});};
 document.body.insertBefore(artwork,document.getElementById('preview'));

@@ -43,5 +43,5 @@ test('a carrier-value receipt remains a generic payment notification beside the 
   payments.observe([{id:'carrier',identifier:`ark:${transactionId}`,direction:'Incoming',amountSats:330,status:'Pending offchain',receiptVerified:true}]);
   const store=memory();
   assert.equal(publishMarketplaceDeliveryToast({record:record(),item,playerProfileId:'player',network:'signet',storage:store,show:message=>messages.push(message)}),true);
-  assert.deepEqual(messages,['Unknown user sent you 330 sats (Pending)','Unknown user sent you 330 sats (Confirmed)','Game Wallet sent you Shield II item. (Pending)']);
+  assert.deepEqual(messages,['Unknown user sent you 330 sats. (Pending)','Unknown user sent you 330 sats. (Confirmed)','Game Wallet sent you Shield II item. (Pending)']);
 });

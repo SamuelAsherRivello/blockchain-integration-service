@@ -4,7 +4,7 @@ import { createAccountStorage } from './account-storage.ts';
 import { createGameWalletStorage } from './game-wallet-storage.ts';
 import { withWalletMutation } from './boarding-record.ts';
 import { createContractStorage, createNetworkScopedContractStorage, type ContractDocument, type ContractRecovery } from './contract-storage.ts';
-import { beginContractOperation, contractResolved, endContract, finishContractOperation, presentContract, startLto, contractFailureMessages, type BisContract, type ContractRecord, type LtoRequest } from './contracts.ts';
+import { beginContractOperation, contractResolved, endContract, finishContractOperation, presentContract, startLto, type BisContract, type ContractRecord, type LtoRequest } from './contracts.ts';
 import { publishContractReservations, reserveContract } from './contract-reservations.ts';
 import { prepareLtoRecovery, reconcileLtoSpend, resumeLtoFinalization, submitLtoSpend } from '../wallet-layer-arkade/lto-contract.ts';
 import { operatorFor } from '../wallet-layer-arkade/account.ts';
@@ -123,12 +123,21 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     const phase = record.operation.submission, key = `${record.operation.id}:${phase === 'confirmed' || phase === 'not-submitted' ? phase : 'pending'}`;
     if (notifications.has(key)) return;
     notifications.add(key);
-    const label = record.operation.kind === 'fund' ? 'Offer funding' : record.operation.kind === 'claim' ? 'Contract claim' : 'Contract refund';
+    const offerName = record.purpose === 'treasureLTO' ? 'Treasure' : 'Offer';
+    const completed = record.operation.kind === 'fund'
+      ? `The limited-time offer ${offerName} funding was submitted.`
+      : record.operation.kind === 'claim'
+        ? `You claimed limited-time offer ${offerName}.`
+        : `Game Wallet refunded limited-time offer ${offerName}.`;
+    const unavailable = record.operation.kind === 'fund'
+      ? `The limited-time offer ${offerName} could not be created.`
+      : record.operation.kind === 'claim'
+        ? `You could not claim limited-time offer ${offerName}.`
+        : `Game Wallet could not refund limited-time offer ${offerName}.`;
     if (feedback === 'active' && !['confirmed','not-submitted'].includes(phase) && record.operation.kind === 'fund') return;
-    const message = phase === 'confirmed' ? record.operation.kind === 'fund' && (record.ended || Date.now() >= record.expiresAt) ? 'Offer funded; return pending'
-      : record.operation.kind === 'fund' && record.purpose === 'treasureLTO' ? `Limited Time Offer: Find & claim treasure (${record.amountSats} sats) within 90 secs.`
-      : `${label} confirmed: ${record.amountSats.toLocaleString('en-US')} sats`
-      : phase === 'not-submitted' ? `${label} was not submitted${record.operation.failure?`: ${contractFailureMessages[record.operation.failure]}`:''}` : `${label} pending`;
+    const message = phase === 'not-submitted' ? unavailable
+      : record.operation.kind === 'fund' && (record.ended || Date.now() >= record.expiresAt) ? `Game Wallet refunded limited-time offer ${offerName}. (${phase === 'confirmed' ? 'Pending' : 'Confirmed'})`
+      : `${completed} (${phase === 'confirmed' ? 'Confirmed' : 'Pending'})`;
     context.showToast(message,{messageType:phase==='confirmed'?'success':phase==='not-submitted'?'warning':'info',icon:'lightning'});
   }
   async function execute(document: ContractDocument, record: ContractRecord, recovery: ContractRecovery, account: NonNullable<Awaited<ReturnType<typeof wallets>>['game']>, expected: number, feedback: BisContractReconcileOptions['feedback'] = 'silent') {

@@ -64,9 +64,7 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
     await controller.readyAsync();
     if(session.current!==current || continueController.current!==controller)return;
     if(!controller.getState().canPay){
-      const message=current.context.getState().hasProfile
-        ? controller.getState().message || 'Payment is unavailable. Try again when your account is ready.'
-        : 'Log in to pay to continue.';
+      const message='Your continue payment is unavailable.';
       logAsset('Request Continue',{status:'error',message});
       current.context.showToast(message, {messageType: 'warning'});
       return;
@@ -183,16 +181,16 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
     context.openAccountDialog();
     context.openAccountOnboarding();
   }
-  function showToast() { session.current?.context.showToast('This is a test message from BIS.'); }
+  function showToast() { session.current?.context.showToast('Test notification.'); }
   function showToastWithIcon() {
     const imageUrl = new URL('assets/achievements/v2/level-1-trophy.png', document.baseURI).pathname;
-    session.current?.context.showToast('This is a test message from BIS.', {imageUrl});
+    session.current?.context.showToast('Test notification.', {imageUrl});
   }
   function showLimitedTimeOfferToast() {
-    session.current?.context.showToast('Limited Time Offer: Find & claim treasure (1000 sats) within 90 secs.', {messageType:'info'});
+    session.current?.context.showToast('The limited-time offer Treasure funding was submitted. (Confirmed)', {messageType:'info'});
   }
   function showTreasureClaimToast() {
-    session.current?.context.showToast('Contract claim confirmed: 1,000 sats', {messageType:'success'});
+    session.current?.context.showToast('You claimed limited-time offer Treasure. (Confirmed)', {messageType:'success'});
   }
   async function reset() {
     const current = session.current;
