@@ -2,7 +2,7 @@ import { FormValueList, formatSats as sats } from './FormValueList';
 import { useQuoteExpiry } from './useQuoteExpiry';
 import { readWithRetry } from '../state-layer-core/pending-read';
 import { usePendingNotice } from './PendingOperationDialog';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BisBalance, BisContext, BisTransferStatus } from '../state-layer-core/context';
 import type { WalletOperationAvailability } from '../state-layer-core/wallet-network-policy';
 import { boardingSubmissionEnabled, type BoardingQuote } from '../state-layer-core/boarding-quote';
@@ -39,7 +39,6 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
   const amountInput = useRef<HTMLInputElement>(null);
   const firstRender = useRef(true);
   const initialLoading = useRef(!cachedAvailability);
-  const amountId = useId();
   const numeric = Number(amount);
   const valid = /^\d+$/.test(amount) && Number.isSafeInteger(numeric) && numeric > 0;
   const label = direction === 'to-arkade' ? 'Bitcoin → Arkade' : 'Arkade → Bitcoin';
@@ -49,6 +48,13 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
     : undefined;
   const amountExceedsAvailable = sourceAvailable !== undefined && valid && numeric > sourceAvailable;
   const blocked = !statusChecked || availability === undefined || !availability.available || amountExceedsAvailable;
+  const fieldStatus = pending ? 'See Transactions for any pending transfers.'
+    : !boardingSubmissionEnabled ? 'Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.'
+      : availability && !availability.available ? availability.message ?? 'Transfer unavailable.'
+        : amountExceedsAvailable ? `Amount exceeds the currently available ${direction === 'to-arkade' ? 'Bitcoin' : 'Arkade'} balance.`
+          : amount !== '0' && !valid ? 'Enter a positive whole number of sats.'
+            : direction === 'to-bitcoin' ? 'Bitcoin returns to this account\'s boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.'
+              : balance.status==='ready' && (sourceAvailable ?? 0) > 0 && amount==='0' ? 'Set amount above' : '';
   function failure(cause: unknown) {
     const message = cause instanceof Error ? cause.message : '';
     return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';
@@ -177,16 +183,9 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
       ]} /></>}
       {expired && <p role="status">Quote expired. Go Back for a fresh review.</p>}
     </div> : <div className="bis-transfer-form">
-      <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy} maxDisabled={balance.status!=='ready'} inputRef={amountInput} describedBy={amount !== '0' && !valid ? `${amountId}-help` : undefined} step={100} />
-      {amount !== '0' && !valid && <p id={`${amountId}-help`} className="bis-transfer-help">Enter a positive whole number of sats.</p>}
+      <AmountChooserRow value={amount} onChange={edit} onMax={()=>void loadQuote(true)} disabled={busy} maxDisabled={balance.status!=='ready'} inputRef={amountInput} step={100} />
+      {fieldStatus&&<p className="bis-field-status-line" role="status">{fieldStatus}</p>}
     </div>}
-    {direction==='to-bitcoin' && <p className="bis-transfer-help bis-transfer-direction-help">Bitcoin returns to this account's boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.</p>}
-    {availability && !availability.available && status.status !== 'pending' && <p className="bis-transfer-help bis-transfer-status" role="status">{availability.message ?? 'Transfer unavailable.'}</p>}
-    {amountExceedsAvailable && <p className="bis-transfer-help bis-transfer-status" role="status">Amount exceeds the currently available {direction === 'to-arkade' ? 'Bitcoin' : 'Arkade'} balance.</p>}
-    {!boardingSubmissionEnabled && <p className="bis-warning">Quotes are available. Confirmation is disabled while interrupted-transfer recovery is being verified.</p>}
-    {pending && <p className="bis-transfer-help" role="status">Check Transactions for updates on pending transfers.</p>}
-    {status.status==='not-submitted' && <p role="status">Transfer was not submitted. Review again to start a new transfer.</p>}
-    {balance.status==='ready' && (sourceAvailable ?? 0) > 0 && amount==='0' && <p className="bis-transfer-help bis-transfer-status" role="status">Set amount above</p>}
     <div className="bis-actions">
       {review ? <button className="bis-button bis-primary" disabled={!boardingSubmissionEnabled||!quote||expired||busy||blocked} onClick={()=>void confirm()}>Confirm Transfer</button>
         : <button className="bis-button bis-primary" disabled={!valid||busy||blocked||balance.status!=='ready'} onClick={reviewTransfer}>Review Transfer</button>}

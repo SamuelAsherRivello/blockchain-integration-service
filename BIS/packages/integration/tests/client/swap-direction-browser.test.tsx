@@ -13,11 +13,11 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
     import {AccountTransferView} from '/BIS/packages/integration/src/client/ui-layer-react/AccountTransfer.tsx';
     const root=createRoot(document.getElementById('host'));
     let generation=0;
-    window.mountSwap=(blocked=false,network='signet')=>{
+    window.mountSwap=(blocked=false,network='signet',withPending=false)=>{
       window.calls={quotes:0,confirmations:0,directions:[]};
       const context={
         getState:()=>({network}),
-        getPendingAccountTransfers:()=>[],checkAccountTransfer:async()=>({status:'idle'}),
+        getPendingAccountTransfers:()=>withPending?[{status:'pending',amountSats:100,operationId:'pending-synthetic'}]:[],checkAccountTransfer:async()=>withPending?{status:'pending',amountSats:100,operationId:'pending-synthetic'}:{status:'idle'},
         getAccountTransferAvailability:direction=>{
           window.calls.directions.push(direction);
           if(direction==='to-arkade')return Promise.resolve({available:false,reason:'insufficient-funds',message:'No eligible Bitcoin.'});
@@ -74,6 +74,7 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
   assert.equal(await review.isDisabled(),true,'oversized reverse amount remains blocked');
   await amount.fill('0');
   await page.getByText('Set amount above',{exact:true}).waitFor();
+  assert.equal(await page.locator('.bis-field-status-line').count(),1,'Swap has one standalone field-status line');
   await page.getByRole('button',{name:'Increase amount',exact:true}).click();
   assert.equal(await amount.inputValue(),'100','Swap amount controls change by 100 sats');
   assert.equal(await review.isEnabled(),true,'a 100-sat reverse amount is available for review');
@@ -124,6 +125,9 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
   assert.equal(await amount.inputValue(),'10000','queued amount is retained');
   assert.equal(await review.isEnabled(),true,'editing must not discard the independent availability result');
   assert.deepEqual(await page.evaluate(()=>[window.calls.quotes,window.calls.confirmations]),[0,0]);
+  await page.evaluate(()=>window.mountSwap(false,'signet',true));
+  await page.getByText('See Transactions for any pending transfers.',{exact:true}).waitFor();
+  assert.equal(await page.locator('.bis-field-status-line').count(),1,'pending Swap still has exactly one status line');
   // Public projection must not read arbitrary text, form values or storage.
   await page.evaluate(()=>{
     const host=document.getElementById('host');host.className='bis-card';

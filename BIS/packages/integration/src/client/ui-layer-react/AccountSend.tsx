@@ -66,6 +66,7 @@ export function AccountSendView({context}:{context:BisContext}) {
  }
  const network=networkLabel(context.getState().network);
  const validAddress=recipient.trim().startsWith('tark1'),validAmount=/^\d+$/.test(amount)&&Number.isSafeInteger(Number(amount))&&Number(amount)>0&&funds!==undefined&&Number(amount)<=funds;
+ const fieldStatus=clipboardError||(recipient&&!validAddress?'Enter an Arkade test address.':funds!==undefined&&funds>0&&amount==='0'?'Set amount above':'');
  const loadingNotice=useEntryLoadingGate(busy,initialLoad.current,viewLoadingPolicies.send);
  usePendingNotice(loadingNotice,operationLabel,error||undefined,()=>context.closeAccount());
  return <div className="bis-send">
@@ -82,10 +83,8 @@ export function AccountSendView({context}:{context:BisContext}) {
    <FormHeading htmlFor={recipientId} label="Recipient address"><PasteButton disabled={busy} onClick={() => void paste()} /></FormHeading>
    <input id={recipientId} ref={recipientInput} aria-label="Recipient address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>
    <AmountChooserRow value={amount} onChange={value=>edit(value,'amount')} onMax={()=>void review(true)} disabled={busy} maxDisabled={!validAddress||!funds}/>
-   {recipient&&!validAddress&&<p role="status">Enter an Arkade test address.</p>}
-   {funds!==undefined&&funds>0&&amount==='0'&&<p className="bis-transfer-help bis-transfer-status" role="status">Set amount above</p>}
+   {fieldStatus&&<p className="bis-field-status-line" role="status">{fieldStatus}</p>}
   </div>}
-  {clipboardError&&<p role="status">{clipboardError}</p>}
   <div className="bis-actions">
    {quote?<button className="bis-button bis-primary" disabled={busy||expired} onClick={()=>void confirm()}>⚡ Confirm Send</button>:<button className="bis-button bis-primary" disabled={busy||!validAddress||!validAmount} onClick={()=>void review()}>⚡ Review Send</button>}
    <button className="bis-button bis-back" onClick={()=>{if(quote&&!busy){setQuote(undefined);requestAnimationFrame(()=>recipientInput.current?.focus());}else context.closeAccount();}}>Back</button>
