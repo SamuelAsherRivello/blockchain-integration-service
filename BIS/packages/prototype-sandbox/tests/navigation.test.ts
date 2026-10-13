@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_NETWORK, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, formatSatsAsBitcoin, getActiveDemo, isHomePath, isSetupPath, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from '../src/client/navigation.ts';
+import { DEFAULT_NETWORK, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, formatSatsAsBitcoin, getActiveDemo, isHomePath, isSetupPath, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from '../src/client/navigation.ts';
 
-test('defines twelve labeled demo routes', () => {
-  assert.equal(DEMOS.length, 12);
-  assert.deepEqual(DEMOS.map(demo => demo.path), Array.from({ length: 12 }, (_, index) => `/prototype-interactive-docs/demo-${index + 1}/`));
+test('defines thirteen labeled demo routes', () => {
+  assert.equal(DEMOS.length, 13);
+  assert.deepEqual(DEMOS.map(demo => demo.path), Array.from({ length: 13 }, (_, index) => `/prototype-interactive-docs/demo-${index + 1}/`));
   assert.equal(DEMOS[0].subject, 'Get Wallet');
   assert.equal(DEMOS[1].subject, 'Get Balance (2 views)');
   assert.equal(DEMOS[1].title, 'Private wallet');
@@ -13,8 +13,9 @@ test('defines twelve labeled demo routes', () => {
   assert.equal(DEMOS[9].subject, 'Asset History (2 views)');
   assert.equal(DEMOS[9].title, 'Private wallet');
   assert.equal(DEMOS[10].title, 'Public address');
-  assert.equal(DEMOS[11].subject, 'Send Payment from External Wallet');
+  assert.equal(DEMOS[11].subject, 'External Wallet');
   assert.equal(DEMOS[11].title, 'Send Payment');
+  assert.equal(DEMOS[12].title, 'Receive Payment');
 });
 
 test('derives active demo from direct paths and defaults safely', () => {
@@ -84,3 +85,7 @@ test('builds a network-specific Arkade Wallet payment link with an Arkade BIP21 
   assert.throws(() => walletCallbackUrl('http://example.test/demo-12/'), /HTTPS or localhost/);
 });
 
+  const connect = new URL(walletConnectUrl({ network: 'mutinynet', callback }));
+  assert.equal(connect.origin, 'https://mutinynet.arkade.money');
+  assert.equal(connect.searchParams.get('action'), 'connect');
+  assert.equal(connect.searchParams.get('callback'), callback);

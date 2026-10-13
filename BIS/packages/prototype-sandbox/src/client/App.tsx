@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MnemonicIdentity, RestArkProvider, Wallet } from '@arkade-os/sdk';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.ts';
 import { decodeArkadeAddress, validateArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
-import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
+import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
 import './style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
 
@@ -65,8 +65,13 @@ function HomeSection() {
 
 export function Navigation({ activeDemo, homeActive = false, setupActive = false, onNavigate }) {
   const activeRecord = DEMOS.find(demo => demo.number === activeDemo);
-  const subjects = [...new Set(DEMOS.map(demo => demo.subject))];
-  const variants = activeRecord ? DEMOS.filter(demo => demo.subject === activeRecord.subject) : [];
+  const sectionStarts = { 'Get Wallet': 'Payments', 'Mint Asset': 'Assets', 'External Wallet': 'External Wallet' };
+  const demoGroups = DEMOS.reduce((groups, demo) => {
+    const existing = groups.find(group => group[0].subject === demo.subject);
+    if (existing) existing.push(demo);
+    else groups.push([demo]);
+    return groups;
+  }, []);
   return <nav className="sandbox-navigation prototype-section" aria-label="Prototype Interactive Docs navigation">
     <div className="prototype-title-bar"><h2>Demos</h2></div>
     <div className="sandbox-navigation-list">
@@ -76,20 +81,26 @@ export function Navigation({ activeDemo, homeActive = false, setupActive = false
       {setupActive
         ? <button type="button" disabled aria-current="page">Setup</button>
         : <a href={SETUP_PATH} onClick={event => { event.preventDefault(); onNavigate(SETUP_PATH); }}>Setup</a>}
-      {subjects.map(subject => {
-        const firstDemo = DEMOS.find(demo => demo.subject === subject);
-        const isActive = activeRecord?.subject === subject;
-        return isActive
-          ? <button key={subject} type="button" disabled aria-current="page">{subject}</button>
-          : <a key={subject} href={firstDemo.path} onClick={event => { event.preventDefault(); onNavigate(firstDemo.path); }}>{subject}</a>;
+      {demoGroups.map(group => {
+        const orderedGroup = [...group].sort((left, right) => Number(right.title === 'Public address') - Number(left.title === 'Public address'));
+        const [defaultDemo] = orderedGroup;
+        const hasVariants = orderedGroup.length > 1;
+        const groupActive = activeRecord?.subject === defaultDemo.subject;
+        return <div className="sandbox-navigation-group-block" key={defaultDemo.subject}>
+          {sectionStarts[defaultDemo.subject] && <div className="sandbox-navigation-section" role="heading" aria-level="3">{sectionStarts[defaultDemo.subject]}</div>}
+          <div className={`sandbox-navigation-group${hasVariants ? ' sandbox-navigation-group-variants' : ''}`}>
+            {defaultDemo.subject !== 'External Wallet' && (groupActive && !hasVariants
+              ? <button type="button" disabled aria-current="page">{defaultDemo.subject}</button>
+              : <a className={groupActive ? 'sandbox-navigation-group-active' : undefined} href={defaultDemo.path} onClick={event => { event.preventDefault(); onNavigate(defaultDemo.path); }}>{defaultDemo.subject}</a>)}
+            {hasVariants && <div className="sandbox-navigation-children">
+              {orderedGroup.map(demo => demo.number === activeDemo
+                ? <button key={demo.number} type="button" disabled aria-current="page">{demo.title}</button>
+                : <a key={demo.number} href={demo.path} onClick={event => { event.preventDefault(); onNavigate(demo.path); }}>{demo.title}</a>)}
+            </div>}
+          </div>
+        </div>;
       })}
     </div>
-    {variants.length > 1 && <div className="sandbox-navigation-sublist" aria-label={`${activeRecord.subject} variants`}>
-      <h3>Variants</h3>
-      {variants.map(demo => demo.number === activeDemo
-        ? <button key={demo.number} type="button" disabled aria-current="page">{demo.title}</button>
-        : <a key={demo.number} href={demo.path} onClick={event => { event.preventDefault(); onNavigate(demo.path); }}>{demo.title}</a>)}
-    </div>}
   </nav>;
 }
 
@@ -278,6 +289,21 @@ wallet.search = new URLSearchParams({
   callback: callback.toString(),
 })
 window.location.assign(wallet)`;
+
+const EXTERNAL_WALLET_RECEIVE_SOURCE = `// The external wallet shares its Arkade address, then Wallet 2 pays it.
+const externalWalletAddress = new URL(window.location.href).searchParams.get('address')
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
+const wallet = await Wallet.create({
+  identity,
+  arkServerUrl: NETWORKS[network].operator,
+  settlementConfig: false,
+})
+
+const txid = await wallet.send({ address: externalWalletAddress, amount: 100 })
+console.log('Transaction ID:', txid)
+console.log('Success:', Boolean(txid))`;
 
 const RECEIVE_PAYMENT_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
@@ -829,6 +855,72 @@ function DemoExternalWalletPayment({ network }) {
 function DemoReceivePayment({ network }) {
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
+function externalWalletAddressResult(search) {
+  const result = new URLSearchParams(search);
+  if (result.has('error')) return { error: result.get('error') || 'denied' };
+  return { address: result.get('address') || '' };
+}
+
+function DemoExternalWalletReceivePayment({ network }) {
+  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
+  const [running, setRunning] = useState(false);
+  const [externalAddress, setExternalAddress] = useState(() => externalWalletAddressResult(window.location.search).address);
+  const receivedAddress = useRef('');
+
+  async function payExternalWallet(address) {
+    const startedAt = begin();
+    setRunning(true);
+    setOutput('');
+    try {
+      const provider = new RestArkProvider(NETWORKS[network].operator);
+      const info = await provider.getInfo();
+      validateArkadeAddress(address, info, network);
+      const wallet = await createDemoWallet(network);
+      const txid = await wallet.send({ address, amount: 100 });
+      setOutput([`External wallet address: ${address}`, `Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'));
+      await wallet.dispose?.();
+    } catch (error) {
+      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
+    } finally {
+      finish(startedAt);
+      setRunning(false);
+    }
+  }
+
+  useEffect(() => {
+    const result = externalWalletAddressResult(window.location.search);
+    if (result.error) {
+      setOutput([`External wallet result: ${result.error}`, 'Success: false'].join('\n'));
+      return;
+    }
+    if (!result.address || receivedAddress.current === result.address) return;
+    receivedAddress.current = result.address;
+    setExternalAddress(result.address);
+    const callback = new URL(window.location.href);
+    callback.search = '';
+    callback.hash = '';
+    window.history.replaceState(window.history.state, '', callback);
+    void payExternalWallet(result.address);
+  }, [network]);
+
+  function receivePayment() {
+    try {
+      window.location.assign(walletConnectUrl({ network, callback: walletCallbackUrl(window.location.href) }));
+    } catch (error) {
+      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
+    }
+  }
+
+  return <OperationDemo demoTitle="Receive Payment to External Wallet" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-receive-source" source={EXTERNAL_WALLET_RECEIVE_SOURCE} output={output || 'Click Receive Payment to External Wallet. Arkade Wallet will share its address, then Wallet 2 sends it 100 sats.'} elapsedMs={elapsedMs} running={running} onExecute={receivePayment} actionLabel="Receive Payment to External Wallet" runningLabel="Waiting for external wallet…" input={<>
+    <label htmlFor="external-wallet-receive-address">External Wallet Address</label>
+    <input id="external-wallet-receive-address" value={externalAddress} readOnly placeholder="Choose an external wallet" spellCheck="false" />
+    <label htmlFor="external-wallet-receive-mnemonic">Wallet 2 Mnemonic</label>
+    <input id="external-wallet-receive-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <label htmlFor="external-wallet-receive-amount">Amount</label>
+    <input id="external-wallet-receive-amount" value="100 sats" readOnly />
+  </>} />;
+}
+
   async function execute() {
     const startedAt = begin();
     setRunning(true); setOutput('');
@@ -1076,6 +1168,7 @@ export function App({ pathname = window.location.pathname }) {
       </main>
     </div>
     <footer className="spike-footer" aria-label="Footer" />
+        {!homeActive && !setupActive && activeDemo === 13 && <DemoExternalWalletReceivePayment network={network} />}
   </div>;
 }
 

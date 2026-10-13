@@ -10,7 +10,8 @@ export const DEMOS = Object.freeze([
   { number: 9, subject: 'Receive Asset', title: 'Receive Asset', path: '/prototype-interactive-docs/demo-9/' },
   { number: 10, subject: 'Asset History (2 views)', title: 'Private wallet', path: '/prototype-interactive-docs/demo-10/' },
   { number: 11, subject: 'Asset History (2 views)', title: 'Public address', path: '/prototype-interactive-docs/demo-11/' },
-  { number: 12, subject: 'Send Payment from External Wallet', title: 'Send Payment', path: '/prototype-interactive-docs/demo-12/' },
+  { number: 12, subject: 'External Wallet', title: 'Send Payment', path: '/prototype-interactive-docs/demo-12/' },
+  { number: 13, subject: 'External Wallet', title: 'Receive Payment', path: '/prototype-interactive-docs/demo-13/' },
 ]);
 
 export const SETUP_PATH = '/prototype-interactive-docs/setup/';
@@ -63,6 +64,13 @@ export function walletProfileStorageKey(network, field) {
   if (!['signet', 'mutinynet'].includes(network)) throw new Error('Choose Signet or Mutinynet.');
   if (!['wallet-1-address', 'wallet-2-mnemonic'].includes(field)) throw new Error('Choose a wallet profile field.');
   return `${network}-${field}`;
+export function walletConnectUrl({ network, callback }) {
+  const callbackUrl = new URL(callback);
+  const wallet = new URL(walletUrl(network));
+  wallet.search = new URLSearchParams({ action: 'connect', callback: callbackUrl.toString() }).toString();
+  return wallet.toString();
+}
+
 }
 
 export function setupWalletProfileValues(network, storage = globalThis.localStorage) {
