@@ -93,16 +93,21 @@ export function Navigation({ activeDemo, homeActive = false, setupActive = false
   </nav>;
 }
 
-function SetupSection({ network }) {
+function SetupSection() {
   return <div className="sandbox-setup">
+    <DocsSection
+      href={DOCS_URLS.wallet}
+      linkLabel="Create or restore an Arkade wallet"
+    />
     <section className="prototype-section" aria-label="Setup Input">
       <div className="prototype-title-bar"><h2>Setup Input</h2></div>
       <div className="sandbox-setup-fields">
         <div className="sandbox-setup-guidance">
-          <p>To use all of the demos, enter all of the following fields using wallets you own.</p>
-          <p><a href={walletUrl(network)} target="_blank" rel="noreferrer">Open the {NETWORKS[network].label} Arkade Wallet to create or restore one.</a> This link updates when the network selection changes.</p>
-          <p>Wallet 1 Address is used for public reads and as the recipient for transfers. Wallet 2 Mnemonic authorizes every signing operation.</p>
-          <p>Use addresses and mnemonics with the selected network only. A wallet created from the same mnemonic can have a different Arkade address on Signet and Mutinynet because each network uses a different operator context.</p>
+          <p>The demos require at least 2 wallets on your one preferred network.</p>
+          <ul className="sandbox-setup-wallet-links">
+            <li><a href={walletUrl('signet')} target="_blank" rel="noreferrer">Create wallet for Signet</a></li>
+            <li><a href={walletUrl('mutinynet')} target="_blank" rel="noreferrer">Create wallet for Mutinynet</a></li>
+          </ul>
         </div>
         <hr className="sandbox-setup-divider" />
         <div className="sandbox-setup-profiles">
@@ -1055,7 +1060,7 @@ export function App({ pathname = window.location.pathname }) {
       <Navigation activeDemo={homeActive || setupActive ? null : activeDemo} homeActive={homeActive} setupActive={setupActive} onNavigate={navigate} />
       <main className="sandbox-main-content">
         {homeActive && <HomeSection />}
-        {setupActive && <SetupSection network={network} />}
+        {setupActive && <SetupSection />}
         {!homeActive && !setupActive && activeDemo === 1 && <DemoCreateWallet network={network} />}
         {!homeActive && !setupActive && activeDemo === 2 && <DemoGetBalancePrivate network={network} />}
         {!homeActive && !setupActive && activeDemo === 3 && <DemoGetBalancePublic network={network} />}

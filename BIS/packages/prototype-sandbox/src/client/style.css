@@ -54,6 +54,7 @@ button, input, select { font: inherit; }
 .sandbox-setup-fields { display: grid; gap: 12px; padding: 16px; }
 .sandbox-setup-guidance { display: grid; gap: 8px; padding-bottom: 4px; color: #bec9d7; font-size: 12px; line-height: 1.55; }
 .sandbox-setup-guidance p { margin: 0; }
+.sandbox-setup-wallet-links { margin: 0; padding-left: 20px; }
 .sandbox-setup-guidance a { color: #a9d9c3; }
 .sandbox-setup-guidance a:hover, .sandbox-setup-guidance a:focus-visible { color: #c2ebd6; }
 .sandbox-setup-divider { width: 100%; height: 1px; margin: 0; border: 0; background: #2c3947; }
