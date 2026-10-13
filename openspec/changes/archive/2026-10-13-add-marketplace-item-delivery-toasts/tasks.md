@@ -15,3 +15,8 @@
 
 - [x] 3.1 Extend focused payment-notification coverage to prove incoming-sats receipts, including carrier-value receipts, retain their existing notification behavior alongside the new delivery notifications.
 - [x] 3.2 Run the relevant integration and Marketplace test suites, TypeScript checks, and production build; verify checkout recovery, generic receipt notifications, and toast queue ordering remain intact.
+
+## 4. Approved built-in notification copy
+
+- [x] 4.1 Standardize built-in receipt, transfer, continuation, trophy, limited-time-offer, Marketplace item-delivery, and developer-test notification text so paired pending and confirmed messages differ only by their final status suffix.
+- [x] 4.2 Verify focused producer tests preserve Game Wallet receipt labeling, carrier-receipt visibility, item artwork, and the approved no-suffix unavailable and expiry messages.

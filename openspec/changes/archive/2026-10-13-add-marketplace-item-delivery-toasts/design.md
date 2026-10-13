@@ -17,7 +17,7 @@ See [proposal.md](proposal.md). Marketplace already persists a checkout request 
 - Suppressing, changing, or correlating incoming-sats notifications.
 - Treating an Arkade carrier amount as a delivery identifier.
 - Adding a toast for failed, unknown, or merely prepared delivery work.
-- Changing payment-leg notifications, catalog artwork validation, or Arkade SDK behavior.
+- Changing catalog artwork validation or Arkade SDK behavior.
 
 ## Decisions
 
@@ -29,9 +29,9 @@ An optimistic toast at button press was considered and rejected because it would
 
 ### 2. Keep delivery state notifications separate from payment receipts
 
-Marketplace invokes the active Player Wallet context's existing public toast entry point with explicit delivery text, direction-aware confirmed wording, and semantic type. It does not extend the generic payment observer or use the carrier sats amount, Arkade transaction ID, or receipt timing to decide whether a payment toast is shown. The queue preserves normal arrival order when the payment and delivery notifications occur near each other.
+Marketplace invokes the active Player Wallet context's existing public toast entry point with explicit delivery text, direction-aware confirmed wording, and semantic type. Built-in producers use approved sentence templates, with paired pending and confirmed text that differs only by the final `(Pending)` or `(Confirmed)` suffix. Unavailable, expiry, and failed messages have no suffix. It does not extend the generic payment observer or use the carrier sats amount, Arkade transaction ID, or receipt timing to decide whether a payment toast is shown. The queue preserves normal arrival order when the payment and delivery notifications occur near each other.
 
-Receipt suppression or relabeling was considered and rejected because the user explicitly wants every incoming-sats notification retained and because payment observation can precede durable delivery correlation.
+Receipt suppression was considered and rejected because the user explicitly wants every incoming-sats notification retained and because payment observation can precede durable delivery correlation. A verified sender journal may label a receipt from the selected Game Wallet as `Game Wallet`; otherwise the established user label remains.
 
 ### 3. Carry the selected item's validated presentation data through checkout notification publication
 
@@ -44,6 +44,10 @@ Reload recovery must obtain the item presentation from current verified Marketpl
 The Marketplace view needs a small local, non-secret deduplication record so a re-render or the 2.5-second recovery poll cannot replay pending or confirmed delivery toasts. The marker is written only after the matching toast is accepted for the current checkout, Player Wallet profile, network, transfer direction, and milestone. A session replacement, logout, network change, or stale callback must not publish or recreate a marker.
 
 In-memory-only deduplication was rejected because refresh and recovery can span a page reload. Reusing the generic payment notifier's receipt keys was rejected because delivery and payment messages have different semantics and the payment notification must remain visible.
+
+### 5. Keep approved copy at the producer boundary
+
+Each producer owns its literal template. Incoming receipts resolve `{user}` from verified sender evidence and use `Game Wallet` only for the selected Game Wallet profile. Bitcoin and Arkade transfer, continuation payment, item delivery, trophy, and limited-time-offer producers use the approved templates from the toast-messaging specification. This preserves literal caller-provided content and avoids a queue-level text rewrite that could alter identifiers or external messages.
 
 ## Risks / Trade-offs
 
