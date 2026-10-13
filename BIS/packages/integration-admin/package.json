@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@bis/integration": "0.0.22",
-    "mermaid": "^11.17.2",
+    "mermaid": "^12.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "^10.1.0",
