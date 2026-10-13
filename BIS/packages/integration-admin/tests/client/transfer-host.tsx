@@ -114,7 +114,7 @@ document.getElementById('run')!.onclick = async () => {
     let submissions=0;
     c.confirmAccountTransfer=async(_quote,ids)=>{check(ids?.includes('test-operation')&&ids.includes('other-tab-operation'),'All pending acknowledgements accompany submission');submissions++;return {status:'pending',phase:'registered',operationId:'second-operation',amountSats:500,direction:'to-bitcoin'};};
     button('Confirm Transfer').click();await tick();
-    check(submissions===1 && !host.querySelector('.bis-transfer') && !!button('⚡ Send'),'Registered transfer returns to the account actions');
+    check(submissions===1 && !host.querySelector('.bis-transfer') && host.querySelector('h2')?.textContent==='Accounts Details','Registered transfer returns to Account Details');
     check(!host.textContent?.includes('Operation unavailable'),'Pending is not an operation failure');
     c.getPendingAccountTransfers=()=>[];
     c.checkAccountTransfer=async()=>({status:'succeeded',direction:'to-bitcoin',amountSats:1000,operationId:'test-operation',commitmentTxid:'b'.repeat(64),verification:'live'});

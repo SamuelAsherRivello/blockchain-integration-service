@@ -54,7 +54,7 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
         : amountExceedsAvailable ? `Amount exceeds the currently available ${direction === 'to-arkade' ? 'Bitcoin' : 'Arkade'} balance.`
           : amount !== '0' && !valid ? 'Enter a positive whole number of sats.'
             : direction === 'to-bitcoin' ? 'Bitcoin returns to this account\'s boarding address. It stays Bitcoin until you choose to transfer it back to Arkade.'
-              : balance.status==='ready' && (sourceAvailable ?? 0) > 0 && amount==='0' ? 'Set amount above' : '';
+              : balance.status==='ready' && (sourceAvailable ?? 0) > 0 && amount==='0' ? 'Set amount above.' : '';
   function failure(cause: unknown) {
     const message = cause instanceof Error ? cause.message : '';
     return /^(Choose an eligible|Leave at least|The operator fee schedule changed|The operator settlement schedule|Transfer details changed|Transfer status could not be verified|Review a fresh|A transfer is unresolved|Another wallet operation|No confirmed eligible|No spendable|No eligible)/.test(message) ? message : 'Transfer information could not be verified. Choose Check Status before reviewing again.';

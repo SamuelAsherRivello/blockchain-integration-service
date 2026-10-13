@@ -1,6 +1,6 @@
 import type { BisAsset, BisAssetMetadata, BisAttributeDelta } from './assets';
 import type { BisAssetFormatMigrationPlan } from './asset-format.ts';
-import { formatAssetMetadata, resolveBisAssetFormat } from './asset-format.ts';
+import { BIS_LATEST_ASSET_FORMAT_VERSION, formatAssetMetadata, resolveBisAssetFormat } from './asset-format.ts';
 
 export const BIS_STEALTH_AND_STEEL_GAME_ID = 'stealth-and-steel' as const;
 
@@ -104,10 +104,17 @@ function readAttributeDeltas(value: unknown): readonly BisAttributeDelta[] | nul
   return Object.freeze(deltas);
 }
 
-export function classifyBisEquipmentAsset(asset: BisAsset): BisEquipmentItem | null {
+/**
+ * Marketplace, gameplay, and ordinary admin actions operate on the latest
+ * asset format by default. Admin recovery tools may explicitly inspect a
+ * registered predecessor in order to list or migrate it.
+ */
+export function classifyBisEquipmentAsset(asset: BisAsset, formatVersion: string = BIS_LATEST_ASSET_FORMAT_VERSION): BisEquipmentItem | null {
   const metadata = asset.metadata;
+  const format = resolveBisAssetFormat(asset);
   if (!metadata
-    || resolveBisAssetFormat(asset).status !== 'supported'
+    || format.status !== 'supported'
+    || format.version !== formatVersion
     || metadata.bisSchemaVersion !== '1'
     || metadata.bisGameId !== BIS_STEALTH_AND_STEEL_GAME_ID
     || metadata.bisAssetType !== 'item'
@@ -151,6 +158,8 @@ export function inspectBisEquipmentAsset(asset: BisAsset): BisEquipmentClassific
   if (!hasMarketplaceEnvelope) return 'generic';
   if (metadata.bisGameId !== BIS_STEALTH_AND_STEEL_GAME_ID || metadata.bisAssetType !== 'item'
     || typeof metadata.bisCatalogId !== 'string' || !byCatalogId.has(metadata.bisCatalogId)) return 'invalid-metadata';
+  const format = resolveBisAssetFormat(asset);
+  if (format.status === 'supported' && format.version !== BIS_LATEST_ASSET_FORMAT_VERSION) return 'migration-required';
   if (metadata.bisDescription === undefined || metadata.bisAttributeDeltas === undefined) return 'migration-required';
   return classifyBisEquipmentAsset(asset) ? 'ready' : 'invalid-metadata';
 }

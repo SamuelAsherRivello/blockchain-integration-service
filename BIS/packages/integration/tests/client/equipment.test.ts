@@ -44,6 +44,15 @@ test('the classifier rejects legacy items that omit authoritative metadata', () 
   assert.equal(inspectBisEquipmentAsset(asset), 'migration-required');
 });
 
+test('the default classifier admits only the latest format while admin can explicitly inspect a predecessor', () => {
+  const definition = bisMarketplaceItems[0];
+  const latestMetadata = { bisSchemaVersion: '1', ...marketplaceItemMetadata(definition) };
+  const legacyAsset = { assetId: 'legacy-complete-shoes-1', quantity: '1', iconUrl: definition.iconUrl, metadata: { ...latestMetadata, bisAssetFormatVersion: '0.0.1' } };
+  assert.equal(classifyBisEquipmentAsset(legacyAsset), null);
+  assert.equal(inspectBisEquipmentAsset(legacyAsset), 'migration-required');
+  assert.equal(classifyBisEquipmentAsset(legacyAsset, '0.0.1')?.catalogId, definition.catalogId);
+});
+
 test('a recognized legacy catalog envelope receives a complete immutable replacement plan', () => {
   const definition=bisMarketplaceItems[0],metadata={bisSchemaVersion:'1',...marketplaceItemMetadata(definition)};
   delete metadata.bisDescription;delete metadata.bisAttributeDeltas;delete metadata.bisAssetFormatVersion;

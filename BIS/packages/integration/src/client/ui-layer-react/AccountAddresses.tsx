@@ -5,7 +5,7 @@ export function AccountAddressesFormValue({ addresses, arkadeOnly = false }: { a
   const ready = addresses.status === 'ready';
   const placeholder = '';
   return <div className="bis-addresses">
-    {!arkadeOnly && <FormValue label="Bitcoin address" value={ready ? addresses.bitcoinAddress : placeholder} copyable disabled={!ready} />}
     <FormValue label="Arkade address" value={ready ? addresses.arkadeAddress : placeholder} copyable disabled={!ready} />
+    {!arkadeOnly && <FormValue label="Bitcoin address" value={ready ? addresses.bitcoinAddress : placeholder} copyable disabled={!ready} />}
   </div>;
 }

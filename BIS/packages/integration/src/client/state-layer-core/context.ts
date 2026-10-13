@@ -37,6 +37,7 @@ import { createBackgroundCache } from './background-cache.ts';
 import { rememberSharedAssetInventory, invalidateSharedAssetInventory, prepareSharedAssetInventory } from './shared-asset-inventory.ts';
 export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
 import type { BisContextDependencies } from './context-dependencies.ts';
+import type { BisGameLogoutAuthorization, BisGameLogoutRecheck } from './bis-game.ts';
 export type BisBalanceReadStatus = 'wallet-read' | 'storage';
 export type BisBalance = Readonly<{ status: 'idle' | 'loading' }> | Readonly<{ status: 'unavailable'; readStatus?: BisBalanceReadStatus }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
 export type BisState = Readonly<{
@@ -48,6 +49,10 @@ export type BisState = Readonly<{
   logoutPendingCount: number | null;
   logoutPendingAcknowledged: boolean;
   logoutGameWalletAcknowledged: boolean;
+  logoutGameConfirmationBody?: string;
+  logoutGameAuthorizationId?: string;
+  logoutOverrideAcknowledged: boolean;
+  logoutOverrideRequired: boolean;
   hasGameWallet: boolean;
   network?: TestNetwork;
   accountRecovery: boolean;
@@ -133,6 +138,7 @@ export interface BisContext {
   setLogoutBackupAcknowledged(acknowledged: boolean): void;
   setLogoutPendingAcknowledged(acknowledged: boolean): void;
   setLogoutGameWalletAcknowledged(acknowledged: boolean): void;
+  setLogoutOverrideAcknowledged(acknowledged: boolean): void;
   selectNetwork(network: TestNetwork): void;
   confirmLogout(): Promise<void>;
   cancelLogout(): void;
@@ -156,7 +162,7 @@ export function getControls(context: BisContext): Controls {
   return result;
 }
 // Internal construction options shared with the outer composition façade.
-export type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined; hasGameWallet?:()=>boolean; resetGameWallet?:()=>Promise<boolean>; getNetwork?:()=>TestNetwork|undefined; selectNetwork?:(network:TestNetwork)=>void; requireNetworkSelection?:boolean};
+export type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined; hasGameWallet?:()=>boolean; resetGameWallet?:()=>Promise<boolean>; authorizeLogout?:(profileId:string)=>Promise<BisGameLogoutAuthorization>; recheckLogout?:(authorizationId:string)=>Promise<BisGameLogoutRecheck>; getNetwork?:()=>TestNetwork|undefined; selectNetwork?:(network:TestNetwork)=>void; requireNetworkSelection?:boolean};
 const playerGameWalletConflict = 'This wallet is already configured as the Game Wallet. Use a different Player Wallet.';
 const unavailableOperation = () => { throw new Error('A wallet operation dependency is required.'); };
 const unavailableDependencies = (): BisContextDependencies => ({
@@ -206,7 +212,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   const activityVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && s.accountActivity;
   const idleBalance: BisBalance = Object.freeze({status:'idle'});
   const idleAddresses: BisAddresses = Object.freeze({status:'idle'});
-  let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:false,network:options.getNetwork?.() ?? (options.requireNetworkSelection ? undefined : 'signet'),balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
+  let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:false,hasGameWallet:false,network:options.getNetwork?.() ?? (options.requireNetworkSelection ? undefined : 'signet'),balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
   const readKey = (dataType: string, query?: unknown): ReadKey => ({dataType,profileId:state.profileId ?? '',network:state.network ?? 'signet',generation:version,query});
   let revealedPhrase: string | undefined;
   let recoveryVersion = 0;
@@ -324,6 +330,7 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
   const publishedLogouts = new Set<string>();
   let logoutTarget: { profileId: string; generation: number } | undefined;
   let logoutOperations: LogoutOperations | undefined;
+  let logoutAuthorizing = false;
   let forceResetPromise: Promise<void> | undefined;
   let storageRevision = 0;
   let balanceVersion = 0;
@@ -1130,19 +1137,31 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
         });
       }catch(error) {if(!disposed&&version===current){if(error instanceof WalletRoleConflictError)update({phase:'recovery',error:error.message});else fail('save','Your account could not be saved.');}}
     },
-    openLogoutConfirmation() {
+    async openLogoutConfirmation() {
       assertAlive();
-      if (state.phase !== 'active' || !state.profileId) return;
+      if (logoutAuthorizing || state.phase !== 'active' || !state.profileId) return;
       context.openAccountDialog();
-      logoutTarget = {profileId:state.profileId!,generation};
+      const target = {profileId:state.profileId!,generation}; logoutTarget = target; logoutAuthorizing=true;
+      let authorization: BisGameLogoutAuthorization = {decision:'allow'}, authorizationUnavailable=false;
+      if (options.authorizeLogout) {
+        try { authorization=await options.authorizeLogout(target.profileId); }
+        catch { authorizationUnavailable=true; }
+      }
+      if(disposed || generation!==target.generation || logoutTarget!==target) { logoutAuthorizing=false; return; }
+      logoutAuthorizing=false;
+      if(authorization.decision==='deny') {
+        logoutTarget=undefined;
+        update({phase:'active',error:authorization.message ?? 'The game did not allow logout from its current state.'});
+        return;
+      }
       try {
         logoutOperations=pendingLogoutOperations(globalThis.localStorage,state.profileId);
-        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:logoutOperations.count,error:undefined});
+        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:authorizationUnavailable,logoutGameConfirmationBody:authorization.decision==='confirm'?authorization.body:undefined,logoutGameAuthorizationId:authorization.decision==='confirm'?authorization.authorizationId:undefined,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:logoutOperations.count,error:undefined});
       } catch {
         logoutOperations=undefined;
         // Counting is advisory. A malformed journal must not open an error
         // modal and make the logout controls inert.
-        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:null,error:undefined});
+        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:authorizationUnavailable,logoutGameConfirmationBody:authorization.decision==='confirm'?authorization.body:undefined,logoutGameAuthorizationId:authorization.decision==='confirm'?authorization.authorizationId:undefined,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:null,error:undefined});
       }
     },
     setLogoutBackupAcknowledged(acknowledged) {
@@ -1156,6 +1175,10 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
     setLogoutGameWalletAcknowledged(acknowledged) {
       assertAlive();
       if (!state.accountRecovery && ['logout-confirmation','logout-error'].includes(state.phase) && state.hasGameWallet) update({logoutGameWalletAcknowledged:acknowledged === true});
+    },
+    setLogoutOverrideAcknowledged(acknowledged) {
+      assertAlive();
+      if (!state.accountRecovery && ['logout-confirmation','logout-error'].includes(state.phase) && state.logoutOverrideRequired) update({logoutOverrideAcknowledged:acknowledged === true});
     },
     selectNetwork(network) {
       assertAlive();
@@ -1174,13 +1197,28 @@ export function createContextWithDependencies(storage: AccountStorage, dependenc
       if (state.phase === 'logout-error') { initialization=hydrate();return; }
       if (state.phase !== 'logout-confirmation') return;
       logoutTarget=undefined;
-      update({phase:'active',accountRecovery:false,logoutBackupAcknowledged:false,error:undefined});
+      update({phase:'active',accountRecovery:false,logoutBackupAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:false,logoutGameConfirmationBody:undefined,logoutGameAuthorizationId:undefined,error:undefined});
     },
     async confirmLogout() {
       assertAlive();
       if (state.accountRecovery || !logoutTarget || !['logout-confirmation','logout-error'].includes(state.phase)) return;
+      if(state.logoutOverrideRequired && !state.logoutOverrideAcknowledged) return;
       // Warning acknowledgements are informational; Player logout always remains available.
       const target=logoutTarget;
+      if (state.logoutGameAuthorizationId && !state.logoutOverrideRequired) {
+        let recheck: BisGameLogoutRecheck;
+        try { recheck=options.recheckLogout ? await options.recheckLogout(state.logoutGameAuthorizationId) : {decision:'deny',message:'The game logout confirmation is unavailable.'}; }
+        catch {
+          if(!disposed && generation===target.generation && logoutTarget===target) update({logoutOverrideRequired:true,logoutOverrideAcknowledged:false,logoutGameAuthorizationId:undefined,error:'The game could not recheck this logout. Confirm the BIS override to continue.'});
+          return;
+        }
+        if(disposed || generation!==target.generation || logoutTarget!==target) return;
+        if(recheck.decision==='deny') {
+          logoutTarget=undefined;
+          update({phase:'active',logoutGameAuthorizationId:undefined,logoutGameConfirmationBody:undefined,error:recheck.message ?? 'The game no longer allows logout from its current state.'});
+          return;
+        }
+      }
       dependencies.retireWallet?.();
       invalidate(); const current=version;
       update({phase:'logging-out',error:undefined});

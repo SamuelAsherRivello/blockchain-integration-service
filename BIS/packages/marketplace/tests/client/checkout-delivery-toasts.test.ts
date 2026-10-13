@@ -14,7 +14,7 @@ test('pending Player Wallet delivery toast is evidence-backed, icon-bearing, and
   const input={record:record(),item,playerProfileId:'player',network:'signet',storage:store,show:(message:string,options:unknown)=>events.push({message,options})};
   assert.equal(publishMarketplaceDeliveryToast(input),true);
   assert.equal(publishMarketplaceDeliveryToast(input),false);
-  assert.deepEqual(events,[{message:'Item transfer pending — Shield II is being transferred.',options:{messageType:'info',imageUrl:item.iconUrl}}]);
+  assert.deepEqual(events,[{message:'Game Wallet sent you Shield II item. (Pending)',options:{messageType:'info',imageUrl:item.iconUrl}}]);
 });
 
 test('confirmed Player Wallet receipt and send use direction-aware wording',()=>{
@@ -23,8 +23,8 @@ test('confirmed Player Wallet receipt and send use direction-aware wording',()=>
   assert.equal(publishMarketplaceDeliveryToast({record:record({status:'completed',phase:'completed'}),item,playerProfileId:'player',network:'signet',storage:memory(),show}),true);
   assert.equal(publishMarketplaceDeliveryToast({record:record({request:{...request,direction:'sell'},status:'completed',phase:'completed'}),item,playerProfileId:'player',network:'signet',storage:memory(),show}),true);
   assert.deepEqual(events,[
-    {message:'Item transfer confirmed — Shield II is now in your Player Wallet.',options:{messageType:'success',imageUrl:item.iconUrl}},
-    {message:'Item transfer confirmed — Shield II was sent from your Player Wallet.',options:{messageType:'success',imageUrl:item.iconUrl}},
+    {message:'Game Wallet sent you Shield II item. (Confirmed)',options:{messageType:'success',imageUrl:item.iconUrl}},
+    {message:'You sent Shield II item. (Confirmed)',options:{messageType:'success',imageUrl:item.iconUrl}},
   ]);
 });
 
@@ -33,7 +33,7 @@ test('prepared, mismatched-player, and missing-artwork inputs do not fabricate a
   assert.equal(publishMarketplaceDeliveryToast({record:record({deliveryTransactionId:undefined}),item,playerProfileId:'player',network:'signet',storage:memory(),show}),false);
   assert.equal(publishMarketplaceDeliveryToast({record:record(),item,playerProfileId:'other',network:'signet',storage:memory(),show}),false);
   assert.equal(publishMarketplaceDeliveryToast({record:record(),item:{...item,iconUrl:''},playerProfileId:'player',network:'signet',storage:memory(),show}),true);
-  assert.deepEqual(events,[{message:'Item transfer pending — Shield II is being transferred.',options:{messageType:'info'}}]);
+  assert.deepEqual(events,[{message:'Game Wallet sent you Shield II item. (Pending)',options:{messageType:'info'}}]);
 });
 
 test('a carrier-value receipt remains a generic payment notification beside the item transfer toast',()=>{
@@ -43,5 +43,5 @@ test('a carrier-value receipt remains a generic payment notification beside the 
   payments.observe([{id:'carrier',identifier:`ark:${transactionId}`,direction:'Incoming',amountSats:330,status:'Pending offchain',receiptVerified:true}]);
   const store=memory();
   assert.equal(publishMarketplaceDeliveryToast({record:record(),item,playerProfileId:'player',network:'signet',storage:store,show:message=>messages.push(message)}),true);
-  assert.deepEqual(messages,['Unknown user sent you 330 sats (Pending)','Unknown user sent you 330 sats (Confirmed)','Item transfer pending — Shield II is being transferred.']);
+  assert.deepEqual(messages,['Unknown user sent you 330 sats (Pending)','Unknown user sent you 330 sats (Confirmed)','Game Wallet sent you Shield II item. (Pending)']);
 });

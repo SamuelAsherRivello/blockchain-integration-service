@@ -1,4 +1,6 @@
 export { createBisAdminContext } from './client/state-layer-core/context';
+export { WALLET_SESSION_NOTIFICATION_VERSION, createWalletSessionPublisher, listenForWalletSessionNotifications, publishWalletSessionLifecycle, isWalletSessionNotification } from './client/integration-layer/wallet-session-notifications';
+export type { WalletSessionNotification, WalletSessionPeer, WalletSessionRole, WalletSessionSource, WalletSessionSourceState } from './client/integration-layer/wallet-session-notifications';
 export { createBisContext } from './client/wallet-layer-arkade/context-composition';
 export { BisService } from './client/integration-layer/bis-service';
 // Read-only production recovery classification for consumers; never clears or
@@ -16,7 +18,7 @@ export type {
 } from './client/integration-layer/bis';
 export type { BisServiceOptions, BisServiceContinueDeliveryOptions, BisServiceResetResult, BisServiceResetErrorCode } from './client/integration-layer/bis-service';
 export { BisServiceResetError } from './client/integration-layer/bis-service';
-export type { IBisGame, BisGameSession, BisGameContinuationTarget, BisGameConfirmedContinuation, BisGameConfirmedPlayerReward, BisGameEffectReceipt } from './client/state-layer-core/bis-game';
+export type { IBisGame, BisGameSession, BisGameContinuationTarget, BisGameConfirmedContinuation, BisGameConfirmedPlayerReward, BisGameEffectReceipt, BisGameLogoutAuthorizationRequest, BisGameLogoutAuthorization, BisGameLogoutRecheck } from './client/state-layer-core/bis-game';
 export { createBisGameWallet } from './client/state-layer-core/game-wallet';
 export { arkExplorerAssetUrl, arkExplorerTransactionUrl, testNetwork } from './client/state-layer-core/test-network';
 export type { TestNetwork } from './client/state-layer-core/test-network';

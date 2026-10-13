@@ -7,9 +7,9 @@ type Evidence=Readonly<{status:string;transactionId?:string;recipient?:string;am
 
 /** Owns preparation only. Submitted operations stay in the integration journal. */
 type Journal={begin:typeof beginLocalMarketplaceCheckout;confirm:typeof confirmLocalMarketplaceCheckoutLeg;read:typeof readLocalMarketplaceCheckout};
-export function createCheckoutSession(player:Player,game:Game,journal:Journal){
+export function createCheckoutSession(player:Player,game:Game,journal:Journal,externalRevision:()=>string=()=> ''){
  const playerAddress=()=>{const p=player.getState();return p.addresses?.status==='ready'?p.addresses.arkadeAddress:undefined;};
- const key=()=>{const p=player.getState(),g=game.getState();return JSON.stringify([p.profileId,p.phase,p.network,playerAddress(),g.profileId,g.selectionVersion,g.addresses?.arkadeAddress]);};
+ const key=()=>{const p=player.getState(),g=game.getState();return JSON.stringify([p.profileId,p.phase,p.network,playerAddress(),g.profileId,g.selectionVersion,g.addresses?.arkadeAddress,externalRevision()]);};
  let generation=0,last=key(),disposed=false;
  const changed=()=>{const next=key();if(next!==last){last=next;generation++;}};
  const offPlayer=player.subscribe(changed),offGame=game.subscribe(changed);

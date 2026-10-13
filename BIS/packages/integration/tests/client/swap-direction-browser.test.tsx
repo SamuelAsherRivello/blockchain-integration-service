@@ -73,7 +73,7 @@ test('an Arkade-only wallet can select Bitcoin without bypassing availability, a
   const review=page.getByRole('button',{name:'Review Transfer',exact:true});
   assert.equal(await review.isDisabled(),true,'oversized reverse amount remains blocked');
   await amount.fill('0');
-  await page.getByText('Set amount above',{exact:true}).waitFor();
+  await page.getByText('Set amount above.',{exact:true}).waitFor();
   assert.equal(await page.locator('.bis-field-status-line').count(),1,'Swap has one standalone field-status line');
   await page.getByRole('button',{name:'Increase amount',exact:true}).click();
   assert.equal(await amount.inputValue(),'100','Swap amount controls change by 100 sats');

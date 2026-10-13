@@ -34,13 +34,16 @@ test('public Marketplace uses a read-only address query and live local-sales act
 
 test('Marketplace never reuses the published Game Wallet without a connected local Game Wallet', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
-  assert.match(app, /const hasConnectedGameWallet=Boolean\(playerState\.profileId&&gameState\.profileId&&gameState\.profileId!==playerState\.profileId&&gameState\.network===network&&gameState\.addresses\?\.arkadeAddress\)/);
+  assert.match(app, /const hasConnectedGameWallet=Boolean\(playerSessionActive&&gameSessionActive&&playerState\.profileId&&gameState\.profileId&&gameState\.profileId!==playerState\.profileId&&gameState\.network===network&&gameState\.addresses\?\.arkadeAddress\)/);
   assert.match(app, /const publicGameAddress=hasConnectedGameWallet&&registeredGameAddress\?marketplaceGameInventoryAddress/);
   assert.match(app, /const activeGameWallet=hasConnectedGameWallet;/);
   assert.match(app, /const inventoryAddress=isCatalogLoading\?undefined:publicGameAddress/);
   assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
   assert.match(app, /const gameItemsForSession=previousGameItems/);
   assert.match(app, /if\(event\.type==='accountDisconnected'\)void gameWallet\.logout\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(app, /listenForWalletSessionNotifications/);
+  assert.match(app, /VITE_BIS_WALLET_SESSION_ORIGIN/);
+  assert.match(app, /playerSessionActive&&gameSessionActive/);
 });
 
 test('Marketplace reads Game Wallet display inventory from the published public address', async () => {
@@ -80,8 +83,10 @@ test('Marketplace restores the pending exact-item checkout after a page reload',
 test('Marketplace publishes evidence-backed Player Wallet item-transfer toasts without changing payment observation', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /publishMarketplaceDeliveryToast/);
+  assert.match(app, /gameWalletProfileId:\(\)=>gameWalletRef\.current\?\.getState\(\)\.profileId/);
   assert.match(app, /result\.transactionId\?\{transactionId:result\.transactionId\}/);
   assert.match(app, /publishCheckoutDeliveryToast\(next\)/);
+  assert.match(app, /Your Player Wallet could not prepare payment for this item\. Refresh and try again\./);
   assert.doesNotMatch(app, /createPaymentNotifications/);
 });
 

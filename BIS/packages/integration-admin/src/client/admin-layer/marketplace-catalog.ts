@@ -46,7 +46,7 @@ export function marketplaceMintRequest(item: MarketplaceCatalogItem, operationVe
 
 /** Builds publication records only from a complete, unambiguous fresh chain read. */
 export function verifiedMarketplaceRecordsFromAssets(assets: readonly BisAsset[]): MintedMarketplaceCatalogItem[] | null {
-  const classified = assets.map(classifyBisEquipmentAsset).filter(item => item !== null);
+  const classified = assets.map(asset=>classifyBisEquipmentAsset(asset)).filter(item => item !== null);
   const records: MintedMarketplaceCatalogItem[] = [];
   for (const expected of marketplaceCatalogItems) {
     const matches = classified.filter(item => item.catalogId === expected.id);

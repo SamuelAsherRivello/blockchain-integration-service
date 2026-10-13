@@ -66,7 +66,7 @@ export function AccountSendView({context}:{context:BisContext}) {
  }
  const network=networkLabel(context.getState().network);
  const validAddress=recipient.trim().startsWith('tark1'),validAmount=/^\d+$/.test(amount)&&Number.isSafeInteger(Number(amount))&&Number(amount)>0&&funds!==undefined&&Number(amount)<=funds;
- const fieldStatus=clipboardError||(recipient&&!validAddress?'Enter an Arkade test address.':funds!==undefined&&funds>0&&amount==='0'?'Set amount above':'');
+ const fieldStatus=clipboardError||(recipient&&!validAddress?'Enter an Arkade test address.':funds!==undefined&&funds>0&&amount==='0'?'Set amount above.':'');
  const loadingNotice=useEntryLoadingGate(busy,initialLoad.current,viewLoadingPolicies.send);
  usePendingNotice(loadingNotice,operationLabel,error||undefined,()=>context.closeAccount());
  return <div className="bis-send">

@@ -27,7 +27,10 @@ export function AdminMarketplaceView({ controller, player, onLog, children }: {c
     try {
       const results=await upgradeAllPlayerAssets({game:controller,player,targetVersion:upgrade.target.version,migrator:upgrade.migrator,isCurrent:()=>controller.getState().profileId===gameProfile&&player.getState().profileId===playerProfile,onProgress:value=>onLog({operation:'Upgrade all player items',value})});
       onLog({operation:'Upgrade all player items',sourceVersion:upgrade.source.version,targetVersion:upgrade.target.version,status:'completed',results});
-    } catch {onLog({operation:'Upgrade all player items',status:'error',message:'Upgrade did not start. Confirm both wallets and recover any pending item before retrying.'});}
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : 'The upgrade could not start.';
+      onLog({operation:'Upgrade all player items',sourceVersion:upgrade.source.version,targetVersion:upgrade.target.version,status:'error',message:reason});
+    }
     finally{setBusy(false);}
   }
   async function mintCatalog() {
@@ -37,7 +40,7 @@ export function AdminMarketplaceView({ controller, player, onLog, children }: {c
       const targetProfile = controller.getState().profileId;
       if (!targetProfile) throw Error();
       const target = await prepareMintDestination('game', controller, controller, () => controller.getState().profileId === targetProfile, result => onLog({operation:'C.G.2. Marketplace mint', result}));
-      const requests = await prepareAssetMintBatch(targetProfile, controller.getState().network ?? 'signet', marketplaceCatalogItems.map(item => marketplaceMintRequest(item, 'v3')));
+      const requests = await prepareAssetMintBatch(targetProfile, controller.getState().network ?? 'signet', marketplaceCatalogItems.map(item => marketplaceMintRequest(item, 'v4')));
       if (!target.isCurrent()) throw Error('The selected wallet changed.');
       const operationVersion = requests[0].operationId.slice(`marketplace-${marketplaceCatalogItems[0].id}-`.length);
       const batch = await mintAndVerifyMarketplaceCatalog({mint:target.mint,listAssets:()=>controller.listAssets(),pendingMintRequest:target.request}, target.isCurrent, progress => {

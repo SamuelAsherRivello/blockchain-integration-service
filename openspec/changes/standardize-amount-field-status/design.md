@@ -26,7 +26,7 @@ Each consumer renders exactly one `field-status-line` after `AmountChooserRow`. 
 
 ### One priority-selected message occupies the status line
 
-`Set amount above` is the default for verified positive funds with a zero amount. A single applicable message replaces it for recipient or amount validation, reverse-transfer explanation, transfer availability, over-limit amounts, recovery, or pending transfers. The line may wrap so long guidance is fully readable. Each view defines a priority order and never renders a second status field.
+`Set amount above.` is the default for verified positive funds with a zero amount. A single applicable message replaces it for recipient or amount validation, reverse-transfer explanation, transfer availability, over-limit amounts, recovery, or pending transfers. The line may wrap so long guidance is fully readable. Each view defines a priority order and never renders a second status field.
 
 ### Static page context and operation failures are separate
 

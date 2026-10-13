@@ -30,9 +30,8 @@ export function publishMarketplaceDeliveryToast(input:MarketplaceDeliveryToastIn
   try { if(store.getItem(marker)!==null)return false; }
   catch { return false; }
   const received=input.record.request.direction==='buy';
-  const notification:MarketplaceDeliveryToast=event==='pending'
-    ?{message:`Item transfer pending — ${input.item.name} is being transferred.`,options:{messageType:'info',...(input.item.iconUrl?{imageUrl:input.item.iconUrl}:{})}}
-    :{message:received?`Item transfer confirmed — ${input.item.name} is now in your Player Wallet.`:`Item transfer confirmed — ${input.item.name} was sent from your Player Wallet.`,options:{messageType:'success',...(input.item.iconUrl?{imageUrl:input.item.iconUrl}:{})}};
+  const subject=received?`Game Wallet sent you ${input.item.name} item.`:`You sent ${input.item.name} item.`;
+  const notification:MarketplaceDeliveryToast={message:`${subject} (${event==='pending'?'Pending':'Confirmed'})`,options:{messageType:event==='pending'?'info':'success',...(input.item.iconUrl?{imageUrl:input.item.iconUrl}:{})}};
   input.show(notification.message,notification.options);
   try {store.setItem(marker,'1');return store.getItem(marker)==='1';}
   catch { return false; }

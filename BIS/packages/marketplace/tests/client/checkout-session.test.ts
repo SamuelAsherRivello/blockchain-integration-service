@@ -30,7 +30,8 @@ function fixture(){
  const listeners=new Set(),notify=()=>{for(const l of listeners)l();},subscribe=l=>{listeners.add(l);return()=>listeners.delete(l);};
  const player={getState:()=>p,subscribe,getSendSpendable:async()=>2000,getPaymentRecipient:async()=>({profileId:p.profileId,address:'tark1playerdestination'})};
  const game={getState:()=>g,subscribe,getPlayerPaymentBalance:()=>2000};
- const session=createCheckoutSession(player,game,{begin:beginLocalMarketplaceCheckout,confirm:confirmLocalMarketplaceCheckoutLeg,read:readLocalMarketplaceCheckout});
+ let externalRevision='';
+ const session=createCheckoutSession(player,game,{begin:beginLocalMarketplaceCheckout,confirm:confirmLocalMarketplaceCheckoutLeg,read:readLocalMarketplaceCheckout},()=>externalRevision);
  const change=kind=>{
   if(kind==='player')p={...p,profileId:'other'};
   if(kind==='game')g={...g,profileId:'other',selectionVersion:2};
@@ -40,8 +41,13 @@ function fixture(){
   if(kind==='dispose')session.dispose();
   notify();
  };
- return {session,player,game,change,data,listeners};
+ return {session,player,game,change,external(value='wallet-role-logout'){externalRevision=value;},data,listeners};
 }
+test('external wallet lifecycle replacement invalidates a pending checkout without changing local controllers',async()=>{
+ const f=fixture(),scope=f.session.capture(),gate=deferred();f.player.getSendSpendable=()=>gate.promise;
+ const prepared=f.session.prepare(intent,scope);await tick();f.external();gate.resolve(2000);
+ await assert.rejects(prepared,/session changed/);assert.equal(readLocalMarketplaceCheckouts().length,0);f.session.dispose();
+});
 for(const at of ['balance','recipient'])for(const kind of ['player','game','network','recipient','relogin','dispose'])test(`checkout ${at} completion cannot cross ${kind}`,async()=>{
  const f=fixture(),gate=deferred(),scope=f.session.capture();
  if(at==='balance')f.player.getSendSpendable=()=>gate.promise;

@@ -185,7 +185,7 @@
 .bis-amount-controls .bis-button { width: 100%; padding: 3.84px 1.6px; border-radius: 4.8px; font-size: 8.8px; }
 .bis-amount-controls input { min-width: 0; width: 100%; padding: 3.84px 6.4px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; font: 8.8px ui-monospace, monospace; text-align: center; background: #fff; color: #294650; }
 .bis-amount-controls input:focus-visible { outline: 1.6px solid #30977f; }
-.bis-card .bis-field-status-line { margin: 4.8px 0 0; color: #294650; font-size: 8px; line-height: 1.35; overflow-wrap: anywhere; }
+.bis-card .bis-field-status-line { margin: 4.8px 0 0; color: #294650; font-size: 8px; line-height: 1.35; overflow-wrap: anywhere; text-align: center; }
 .bis-review { text-align: left; font-size: 9.6px; }
 .bis-review h3 { font-size: 11.2px; margin: 0 0 9.6px; }
 .bis-review h3:focus { outline: none; }

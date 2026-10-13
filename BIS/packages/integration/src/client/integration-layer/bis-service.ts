@@ -5,7 +5,7 @@ import { createBisContinue } from '../state-layer-core/game-continue';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
 import { createBisLto, type BisContractFilter, type BisContractActionResult, type BisContractsResult } from '../state-layer-core/lto-service';
 import { createBisEquipment } from '../state-layer-core/equipment-loadout';
-import type { IBisGame, BisGameSession, BisGameEffectReceipt, BisGameConfirmedPlayerReward } from '../state-layer-core/bis-game';
+import type { IBisGame, BisGameSession, BisGameEffectReceipt, BisGameConfirmedPlayerReward, BisGameLogoutAuthorization, BisGameLogoutRecheck } from '../state-layer-core/bis-game';
 import { createBisUi } from '../ui-layer-react/client';
 import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable,
   assetMintingSupportFeedback, contractSupportFeedback, itemSupportFeedback, paymentSupportAvailable,
@@ -46,6 +46,27 @@ function frozenCopy<T>(value: T): T {
   freeze(copy); return copy;
 }
 const sameSession = (a: BisGameSession | undefined, b: BisGameSession) => a?.gameId === b.gameId && a.gameSessionId === b.gameSessionId;
+const boundedGameLogoutAuthorization = async <T>(work: Promise<T>): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([work, new Promise<T>((_, reject) => { timer=setTimeout(() => reject(Error('Game logout authorization timed out.')), 2000); })]);
+  } finally { clearTimeout(timer); }
+};
+const gameLogoutAuthorization = (value: unknown): BisGameLogoutAuthorization => {
+  if (!value || typeof value !== 'object' || !('decision' in value)) throw Error('Game logout authorization was invalid.');
+  const result = value as { decision?: unknown; authorizationId?: unknown; body?: unknown; message?: unknown };
+  if (result.decision === 'allow') return { decision: 'allow' };
+  if (result.decision === 'deny') return { decision: 'deny', ...(typeof result.message === 'string' ? { message: result.message } : {}) };
+  if (result.decision === 'confirm' && typeof result.authorizationId === 'string' && result.authorizationId.length > 0 && result.authorizationId.length <= 128 && typeof result.body === 'string' && result.body.trim().length > 0 && result.body.length <= 500) return { decision: 'confirm', authorizationId: result.authorizationId, body: result.body };
+  throw Error('Game logout authorization was invalid.');
+};
+const gameLogoutRecheck = (value: unknown): BisGameLogoutRecheck => {
+  if (!value || typeof value !== 'object' || !('decision' in value)) throw Error('Game logout confirmation was invalid.');
+  const result = value as { decision?: unknown; message?: unknown };
+  if (result.decision === 'allow') return { decision: 'allow' };
+  if (result.decision === 'deny') return { decision: 'deny', ...(typeof result.message === 'string' ? { message: result.message } : {}) };
+  throw Error('Game logout confirmation was invalid.');
+};
 
 /** Lifecycle-owned game facade. Private resources cannot escape to a host. */
 export class BisService implements IBis {
@@ -78,6 +99,18 @@ export class BisService implements IBis {
       gameWalletProfileId: () => wallet?.getState().profileId,
       hasGameWallet: () => !!wallet?.getState().profileId,
       resetGameWallet: async () => wallet ? wallet.reset() : true,
+      authorizeLogout: async profileId => {
+        const host=this.#host();
+        if(!host) return {decision:'allow'};
+        if(!host.authorizePlayerLogoutAsync) throw Error('Game logout authorization is unavailable.');
+        const gameSession=host.getActiveGameSession();
+        return frozenCopy(gameLogoutAuthorization(await boundedGameLogoutAuthorization(host.authorizePlayerLogoutAsync({playerProfileId:profileId,...(gameSession?{gameSession:frozenCopy(gameSession)}:{})}))));
+      },
+      recheckLogout: async authorizationId => {
+        const host=this.#host();
+        if(!host?.confirmPlayerLogoutAsync) throw Error('Game logout confirmation is unavailable.');
+        return frozenCopy(gameLogoutRecheck(await boundedGameLogoutAuthorization(host.confirmPlayerLogoutAsync({authorizationId}))));
+      },
     });
     wallet = createBisGameWallet({ playerProfileId: () => this.#context.getState().profileId, playerNetwork: () => this.#context.getState().network, playerSubscribe:this.#context.subscribe, playerSessionKey:()=>JSON.stringify([this.#context.getState().profileId,this.#context.getState().network]) });
     this.#gameWallet = wallet;

@@ -42,7 +42,7 @@ export function createBisEquipment(context:Pick<BisContext,'getState'|'listAsset
       const result=await (!authoritative && context.prepareAssetInventory ? context.prepareAssetInventory() : context.listAssets());
       if(disposed||request!==revision||context.getState().profileId!==profileId)throw Error('changed');
       if(result.status==='error'||result.profileId!==profileId)throw Error('unavailable');
-      const ownedItems=Object.freeze(result.assets.map(classifyBisEquipmentAsset).filter(item=>item!==null).sort((a,b)=>a.family.localeCompare(b.family)||a.tier-b.tier||a.assetId.localeCompare(b.assetId)));
+      const ownedItems=Object.freeze(result.assets.map(asset=>classifyBisEquipmentAsset(asset)).filter(item=>item!==null).sort((a,b)=>a.family.localeCompare(b.family)||a.tier-b.tier||a.assetId.localeCompare(b.assetId)));
       const record=readSelections(profileId),slots=effective(ownedItems,record.selections);
       const cleaned=Object.fromEntries(families.flatMap(family=>slots[family]?[[family,slots[family].assetId]]:[]));
       if(JSON.stringify(cleaned)!==JSON.stringify(record.selections))writeSelections({version:1,profileId,selections:cleaned});
