@@ -56,6 +56,11 @@ button, input, select { font: inherit; }
 .sandbox-setup-guidance p { margin: 0; }
 .sandbox-setup-guidance a { color: #a9d9c3; }
 .sandbox-setup-guidance a:hover, .sandbox-setup-guidance a:focus-visible { color: #c2ebd6; }
+.sandbox-setup-divider { width: 100%; height: 1px; margin: 0; border: 0; background: #2c3947; }
+.sandbox-setup-profiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.sandbox-setup-profile { display: grid; gap: 12px; min-width: 0; }
+.sandbox-setup-profile + .sandbox-setup-profile { padding-left: 16px; border-left: 1px solid #2c3947; }
+.sandbox-setup-profile h3 { margin: 0; color: #dce5ef; font-size: 13px; font-weight: 650; }
 .sandbox-setup-field { display: grid; gap: 6px; }
 .sandbox-setup-field > label { color: #bec9d7; font-size: 12px; font-weight: 550; }
 .sandbox-setup-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
@@ -103,4 +108,6 @@ button, input, select { font: inherit; }
   .sandbox-workspace { grid-template-columns: 1fr; }
   .sandbox-navigation { position: static; }
   .sandbox-main-content { min-height: auto; padding: 16px 12px 200px; }
+  .sandbox-setup-profiles { grid-template-columns: 1fr; }
+  .sandbox-setup-profile + .sandbox-setup-profile { padding-top: 16px; padding-left: 0; border-top: 1px solid #2c3947; border-left: 0; }
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MnemonicIdentity, RestArkProvider, Wallet } from '@arkade-os/sdk';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.ts';
 import { decodeArkadeAddress, validateArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
-import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues, walletCallbackUrl, walletPaymentUrl, walletUrl } from './navigation.ts';
+import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
 import './style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
 
@@ -94,33 +94,43 @@ export function Navigation({ activeDemo, homeActive = false, setupActive = false
 }
 
 function SetupSection({ network }) {
-  const initial = setupStorageValues();
-  const mnemonics = setupMnemonicValues();
-  const [values, setValues] = useState({ ...initial, ...mnemonics });
-  const [focusedField, setFocusedField] = useState(null);
-  function submit(key, event) {
-    event.preventDefault();
-    const storageKey = { address1: 'address-1', address2: 'address-2', mnemonic3: 'mnemonic-3', mnemonic4: 'mnemonic-4' }[key];
-    window.localStorage.setItem(storageKey, values[key]);
-  }
-  const fields = [
-    ['address1', 'Wallet 1 Address'], ['address2', 'Wallet 2 Address'],
-    ['mnemonic3', 'Wallet 3 Mnemonic'], ['mnemonic4', 'Wallet 4 Mnemonic'],
-  ];
   return <div className="sandbox-setup">
     <section className="prototype-section" aria-label="Setup Input">
       <div className="prototype-title-bar"><h2>Setup Input</h2></div>
       <div className="sandbox-setup-fields">
-      <div className="sandbox-setup-guidance">
-        <p>To use all of the demos, enter all of the following fields using wallets you own.</p>
-        <p><a href={walletUrl(network)} target="_blank" rel="noreferrer">Open the {NETWORKS[network].label} Arkade Wallet to create or restore one.</a> This link updates when the network selection changes.</p>
-        <p>Use addresses and mnemonics with the selected network only. A wallet created from the same mnemonic can have a different Arkade address on Signet and Mutinynet because each network uses a different operator context.</p>
+        <div className="sandbox-setup-guidance">
+          <p>To use all of the demos, enter all of the following fields using wallets you own.</p>
+          <p><a href={walletUrl(network)} target="_blank" rel="noreferrer">Open the {NETWORKS[network].label} Arkade Wallet to create or restore one.</a> This link updates when the network selection changes.</p>
+          <p>Wallet 1 Address is used for public reads and as the recipient for transfers. Wallet 2 Mnemonic authorizes every signing operation.</p>
+          <p>Use addresses and mnemonics with the selected network only. A wallet created from the same mnemonic can have a different Arkade address on Signet and Mutinynet because each network uses a different operator context.</p>
+        </div>
+        <hr className="sandbox-setup-divider" />
+        <div className="sandbox-setup-profiles">
+          {NETWORK_IDS.map(profileNetwork => <SetupNetworkProfile key={profileNetwork} network={profileNetwork} />)}
+        </div>
       </div>
+    </section>
+  </div>;
+}
+
+function SetupNetworkProfile({ network }) {
+  const [values, setValues] = useState(() => setupWalletProfileValues(network));
+  const [focusedField, setFocusedField] = useState(null);
+  function submit(key, event) {
+    event.preventDefault();
+    const storageKey = key === 'address1' ? walletProfileStorageKey(network, 'wallet-1-address') : walletProfileStorageKey(network, 'wallet-2-mnemonic');
+    window.localStorage.setItem(storageKey, values[key]);
+  }
+  const fields = [
+    ['address1', 'Wallet 1 Address'], ['mnemonic2', 'Wallet 2 Mnemonic'],
+  ];
+  return <section className="sandbox-setup-profile" aria-label={`${NETWORKS[network].label} wallet profile`}>
+      <h3>{NETWORKS[network].label}</h3>
       {fields.map(([key, label]) => <form key={key} className="sandbox-setup-field" onSubmit={event => submit(key, event)}>
-        <label htmlFor={key}>{label}</label>
+        <label htmlFor={`${network}-${key}`}>{label}</label>
         <div className="sandbox-setup-control">
           <input
-            id={key}
+            id={`${network}-${key}`}
             value={key.startsWith('mnemonic') && focusedField !== key ? maskMnemonic(values[key]) : values[key]}
             onChange={event => setValues(current => ({ ...current, [key]: event.target.value }))}
             onFocus={() => setFocusedField(key)}
@@ -131,17 +141,15 @@ function SetupSection({ network }) {
           <button className="sandbox-action-button" type="submit">Submit</button>
         </div>
       </form>)}
-      </div>
-    </section>
-  </div>;
+  </section>;
 }
 
 const BALANCE_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
 // No wallet or mnemonic is needed for a public address lookup.
-const address1 = localStorage.getItem('address-1')
-const network = localStorage.getItem('network')
+const network = document.querySelector('#network').value
+const address1 = localStorage.getItem(network + '-wallet-1-address')
 
 const bytesToHex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
 function getBaseURL(network, address) {
@@ -172,9 +180,9 @@ console.log('Success:', success)`;
 const CREATE_WALLET_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const mnemonic3 = localStorage.getItem('mnemonic-3')
-const network = localStorage.getItem('network')
-const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 
 const wallet = await Wallet.create({
   identity,
@@ -194,9 +202,9 @@ console.log('Success:', success)`;
 const PRIVATE_BALANCE_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const mnemonic3 = localStorage.getItem('mnemonic-3')
-const network = localStorage.getItem('network')
-const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 
 const wallet = await Wallet.create({
   identity,
@@ -221,10 +229,10 @@ console.log('Success:', success)`;
 const SEND_PAYMENT_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const mnemonic3 = localStorage.getItem('mnemonic-3')
-const address1 = localStorage.getItem('address-1')
-const network = localStorage.getItem('network')
-const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const address1 = localStorage.getItem(network + '-wallet-1-address')
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
@@ -245,8 +253,8 @@ console.log('Transaction ID:', txid)
 console.log('Success:', success)`;
 
 const EXTERNAL_WALLET_PAYMENT_SOURCE = `// No mnemonic or private key enters this demo.
-const recipient = localStorage.getItem('address-1')
-const network = localStorage.getItem('network')
+const network = document.querySelector('#network').value
+const recipient = localStorage.getItem(network + '-wallet-1-address')
 const amountSats = 100
 
 // BIP21 stores Bitcoin values, so 100 sats is 0.000001 BTC.
@@ -269,8 +277,8 @@ window.location.assign(wallet)`;
 const RECEIVE_PAYMENT_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
-const address1 = localStorage.getItem('address-1')
-const network = localStorage.getItem('network')
+const network = document.querySelector('#network').value
+const address1 = localStorage.getItem(network + '-wallet-1-address')
 const { vtxoTaprootKey } = ArkAddress.decode(address1)
 const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
 const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
@@ -294,9 +302,9 @@ console.log('Success:', success)`;
 const PAYMENT_HISTORY_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const mnemonic3 = localStorage.getItem('mnemonic-3')
-const network = localStorage.getItem('network')
-const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
@@ -317,10 +325,10 @@ activities.forEach((activity, index) => console.log(\`\${index + 1}:\`, activity
 const MINT_ASSET_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const mnemonic3 = localStorage.getItem('mnemonic-3')
-const assetLabel = localStorage.getItem('asset-id')
-const network = localStorage.getItem('network')
-const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const assetLabel = localStorage.getItem(network + '-asset-id')
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
@@ -333,7 +341,7 @@ const { assetId } = await wallet.assetManager.issue({
   amount: 1n,
   metadata: { ticker: assetLabel },
 })
-localStorage.setItem('asset-id-' + assetLabel, assetId)
+localStorage.setItem(network + '-asset-id-' + assetLabel, assetId)
 
 // Assert
 const success = Boolean(assetId)
@@ -345,12 +353,12 @@ console.log('Success:', success)`;
 const SEND_ASSET_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const mnemonic3 = localStorage.getItem('mnemonic-3')
-const address1 = localStorage.getItem('address-1')
-const assetLabel = localStorage.getItem('asset-id')
-const assetId = localStorage.getItem('asset-id-' + assetLabel)
-const network = localStorage.getItem('network')
-const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const address1 = localStorage.getItem(network + '-wallet-1-address')
+const assetLabel = localStorage.getItem(network + '-asset-id')
+const assetId = localStorage.getItem(network + '-asset-id-' + assetLabel)
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
@@ -374,10 +382,10 @@ console.log('Success:', success)`;
 const RECEIVE_ASSET_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
-const address1 = localStorage.getItem('address-1')
-const assetLabel = localStorage.getItem('asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem('asset-id-' + assetLabel)
-const network = localStorage.getItem('network')
+const network = document.querySelector('#network').value
+const address1 = localStorage.getItem(network + '-wallet-1-address')
+const assetLabel = localStorage.getItem(network + '-asset-id')
+const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem(network + '-asset-id-' + assetLabel)
 const { vtxoTaprootKey } = ArkAddress.decode(address1)
 const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
 const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
@@ -401,11 +409,11 @@ console.log('Success:', success)`;
 const ASSET_HISTORY_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const mnemonic3 = localStorage.getItem('mnemonic-3')
-const assetLabel = localStorage.getItem('asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem('asset-id-' + assetLabel)
-const network = localStorage.getItem('network')
-const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false })
+const network = document.querySelector('#network').value
+const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const assetLabel = localStorage.getItem(network + '-asset-id')
+const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem(network + '-asset-id-' + assetLabel)
+const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
@@ -428,10 +436,10 @@ matching.forEach((activity, index) => console.log(\`\${index + 1}:\`, activity.t
 const PUBLIC_ASSET_HISTORY_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
-const address1 = localStorage.getItem('address-1')
-const assetLabel = localStorage.getItem('asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem('asset-id-' + assetLabel)
-const network = localStorage.getItem('network')
+const network = document.querySelector('#network').value
+const address1 = localStorage.getItem(network + '-wallet-1-address')
+const assetLabel = localStorage.getItem(network + '-asset-id')
+const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem(network + '-asset-id-' + assetLabel)
 const { vtxoTaprootKey } = ArkAddress.decode(address1)
 const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
 const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
@@ -507,11 +515,12 @@ function SourceCodeField({ id, source }) {
 
 const ASSET_IDS = ['all', ...Array.from({ length: 10 }, (_, index) => String(index).padStart(4, '0'))];
 
-function AssetSelector({ value, onChange, includeAll = false }) {
+function AssetSelector({ network, value, onChange, includeAll = false }) {
   const options = includeAll ? ASSET_IDS : ASSET_IDS.slice(1);
-  return <label className="sandbox-inline-input" htmlFor="asset-id">
+  const id = `${network}-asset-id`;
+  return <label className="sandbox-inline-input" htmlFor={id}>
     <span>Asset ID</span>
-    <select id="asset-id" value={value} onChange={event => onChange(event.target.value)}>
+    <select id={id} value={value} onChange={event => onChange(event.target.value)}>
       {options.map(option => <option key={option} value={option}>{option === 'all' ? 'All' : option}</option>)}
     </select>
   </label>;
@@ -536,31 +545,45 @@ function OperationDemo({ demoTitle, docsHref, docsTopic, input, sourceId, source
   </>;
 }
 
-function useAssetSelection(includeAll = false) {
+function assetSelectionStorageKey(network) {
+  return `${network}-asset-id`;
+}
+
+function mintedAssetStorageKey(network, assetLabel) {
+  return `${network}-asset-id-${assetLabel}`;
+}
+
+function useAssetSelection(network, includeAll = false) {
   const [assetId, setAssetId] = useState(() => {
-    const stored = window.localStorage.getItem('asset-id');
+    const stored = window.localStorage.getItem(assetSelectionStorageKey(network));
     const allowed = includeAll ? ASSET_IDS : ASSET_IDS.slice(1);
     const selected = allowed.includes(stored) ? stored : (includeAll ? 'all' : '0000');
-    window.localStorage.setItem('asset-id', selected);
+    window.localStorage.setItem(assetSelectionStorageKey(network), selected);
     return selected;
   });
+  useEffect(() => {
+    const stored = window.localStorage.getItem(assetSelectionStorageKey(network));
+    const allowed = includeAll ? ASSET_IDS : ASSET_IDS.slice(1);
+    const selected = allowed.includes(stored) ? stored : (includeAll ? 'all' : '0000');
+    window.localStorage.setItem(assetSelectionStorageKey(network), selected);
+    setAssetId(selected);
+  }, [network, includeAll]);
   function changeAssetId(value) {
-    window.localStorage.setItem('asset-id', value);
+    window.localStorage.setItem(assetSelectionStorageKey(network), value);
     setAssetId(value);
   }
   return [assetId, changeAssetId];
 }
 
 function DemoCreateWallet({ network }) {
-  const [mnemonic, setMnemonic] = useState(() => setupMnemonicValues().mnemonic3);
+  const walletProfile = setupWalletProfileValues(network);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
 
   async function execute() {
-    const currentMnemonic = window.localStorage.getItem('mnemonic-3') ?? mnemonic;
-    setMnemonic(currentMnemonic);
+    const currentMnemonic = setupWalletProfileValues(network).mnemonic2;
     if (!currentMnemonic.trim()) {
-      setOutput('Enter Wallet 3 Mnemonic on Setup Input first.\nSuccess: false');
+      setOutput('Enter Wallet 2 Mnemonic on Setup Input first.\nSuccess: false');
       return;
     }
     const startedAt = begin();
@@ -585,8 +608,8 @@ function DemoCreateWallet({ network }) {
     <section className="sandbox-demo-input prototype-section" aria-label="Input">
       <div className="prototype-title-bar"><h2>Input</h2></div>
       <div className="sandbox-demo-input-body">
-        <label htmlFor="demo-mnemonic-3">Wallet 3 Mnemonic</label>
-        <input id="demo-mnemonic-3" value={maskMnemonic(mnemonic)} readOnly spellCheck="false" aria-label="Wallet 3 Mnemonic input value" />
+        <label htmlFor="demo-wallet-2-mnemonic">Wallet 2 Mnemonic</label>
+        <input id="demo-wallet-2-mnemonic" value={maskMnemonic(walletProfile.mnemonic2)} readOnly spellCheck="false" aria-label="Wallet 2 Mnemonic input value" />
       </div>
     </section>
     <section className="sandbox-demo prototype-section" aria-label="Demo">
@@ -602,15 +625,14 @@ function DemoCreateWallet({ network }) {
 }
 
 function DemoGetBalancePrivate({ network }) {
-  const [mnemonic, setMnemonic] = useState(() => setupMnemonicValues().mnemonic3);
+  const walletProfile = setupWalletProfileValues(network);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
 
   async function execute() {
-    const currentMnemonic = window.localStorage.getItem('mnemonic-3') ?? mnemonic;
-    setMnemonic(currentMnemonic);
+    const currentMnemonic = setupWalletProfileValues(network).mnemonic2;
     if (!currentMnemonic.trim()) {
-      setOutput('Enter Wallet 3 Mnemonic on Setup Input first.\nSuccess: false');
+      setOutput('Enter Wallet 2 Mnemonic on Setup Input first.\nSuccess: false');
       return;
     }
     const startedAt = begin();
@@ -643,8 +665,8 @@ function DemoGetBalancePrivate({ network }) {
     <section className="sandbox-demo-input prototype-section" aria-label="Input">
       <div className="prototype-title-bar"><h2>Input</h2></div>
       <div className="sandbox-demo-input-body">
-        <label htmlFor="private-balance-mnemonic">Wallet 3 Mnemonic</label>
-        <input id="private-balance-mnemonic" value={maskMnemonic(mnemonic)} readOnly spellCheck="false" aria-label="Wallet 3 Mnemonic input value" />
+        <label htmlFor="private-balance-mnemonic">Wallet 2 Mnemonic</label>
+        <input id="private-balance-mnemonic" value={maskMnemonic(walletProfile.mnemonic2)} readOnly spellCheck="false" aria-label="Wallet 2 Mnemonic input value" />
       </div>
     </section>
     <section className="sandbox-demo prototype-section" aria-label="Demo">
@@ -660,14 +682,13 @@ function DemoGetBalancePrivate({ network }) {
 }
 
 function DemoGetBalancePublic({ network }) {
-  const [address, setAddress] = useState(() => setupStorageValues().address1);
+  const walletProfile = setupWalletProfileValues(network);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
 
   async function execute() {
     const startedAt = begin();
-    const currentAddress = window.localStorage.getItem('address-1') || address;
-    setAddress(currentAddress);
+    const currentAddress = setupWalletProfileValues(network).address1;
     setRunning(true);
     setOutput('');
     try {
@@ -700,7 +721,7 @@ function DemoGetBalancePublic({ network }) {
       <div className="prototype-title-bar"><h2>Input</h2></div>
       <div className="sandbox-demo-input-body">
         <label htmlFor="demo-address-1">Wallet 1 Address</label>
-        <input id="demo-address-1" value={address} readOnly spellCheck="false" aria-label="Wallet 1 Address input value" />
+        <input id="demo-address-1" value={walletProfile.address1} readOnly spellCheck="false" aria-label="Wallet 1 Address input value" />
       </div>
     </section>
     <section className="sandbox-demo prototype-section" aria-label="Demo">
@@ -716,16 +737,16 @@ function DemoGetBalancePublic({ network }) {
 }
 
 async function createDemoWallet(network) {
-  const mnemonic3 = window.localStorage.getItem('mnemonic-3') || '';
-  if (!mnemonic3.trim()) throw new Error('Enter Wallet 3 Mnemonic on Setup Input first.');
-  const identity = MnemonicIdentity.fromMnemonic(mnemonic3, { isMainnet: false });
+  const wallet2Mnemonic = setupWalletProfileValues(network).mnemonic2;
+  if (!wallet2Mnemonic.trim()) throw new Error('Enter Wallet 2 Mnemonic on Setup Input first.');
+  const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false });
   const wallet = await Wallet.create({ identity, arkServerUrl: NETWORKS[network].operator, settlementConfig: false });
   await wallet.getVtxos();
   return wallet;
 }
 
-function getMintedAssetId(assetLabel) {
-  return assetLabel === 'all' ? 'all' : window.localStorage.getItem(`asset-id-${assetLabel}`) || '';
+function getMintedAssetId(network, assetLabel) {
+  return assetLabel === 'all' ? 'all' : window.localStorage.getItem(mintedAssetStorageKey(network, assetLabel)) || '';
 }
 
 function DemoSendPayment({ network }) {
@@ -736,17 +757,17 @@ function DemoSendPayment({ network }) {
     setRunning(true); setOutput('');
     try {
       const wallet = await createDemoWallet(network);
-      const address1 = window.localStorage.getItem('address-1') || '';
+      const address1 = setupWalletProfileValues(network).address1;
       const txid = await wallet.send({ address: address1, amount: 100 });
       setOutput([`Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'));
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
   return <OperationDemo demoTitle="Send Payment" docsHref={DOCS_URLS.sendPayment} docsTopic="Sending payments" sourceId="send-payment-source" source={SEND_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
-    <label htmlFor="send-payment-mnemonic">Wallet 3 Mnemonic</label>
-    <input id="send-payment-mnemonic" value={maskMnemonic(window.localStorage.getItem('mnemonic-3') || '')} readOnly />
+    <label htmlFor="send-payment-mnemonic">Wallet 2 Mnemonic</label>
+    <input id="send-payment-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <label htmlFor="send-payment-address">Wallet 1 Address</label>
-    <input id="send-payment-address" value={window.localStorage.getItem('address-1') || ''} readOnly />
+    <input id="send-payment-address" value={setupWalletProfileValues(network).address1} readOnly />
     <label htmlFor="send-payment-amount">Amount</label>
     <input id="send-payment-amount" value="100 sats" readOnly />
   </>} />;
@@ -779,7 +800,7 @@ function DemoExternalWalletPayment({ network }) {
     setRunning(true);
     setOutput('');
     try {
-      const address = window.localStorage.getItem('address-1') || '';
+      const address = setupWalletProfileValues(network).address1;
       const provider = new RestArkProvider(NETWORKS[network].operator);
       const info = await provider.getInfo();
       validateArkadeAddress(address, info, network);
@@ -794,7 +815,7 @@ function DemoExternalWalletPayment({ network }) {
 
   return <OperationDemo demoTitle="External Wallet Payment" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-payment-source" source={EXTERNAL_WALLET_PAYMENT_SOURCE} output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Open Arkade Wallet" runningLabel="Checking recipient…" input={<>
     <label htmlFor="external-wallet-address">Wallet 1 Address</label>
-    <input id="external-wallet-address" value={window.localStorage.getItem('address-1') || ''} readOnly spellCheck="false" />
+    <input id="external-wallet-address" value={setupWalletProfileValues(network).address1} readOnly spellCheck="false" />
     <label htmlFor="external-wallet-amount">Amount in sats</label>
     <input id="external-wallet-amount" value={amount} onChange={event => setAmount(event.target.value)} inputMode="numeric" spellCheck="false" autoComplete="off" />
   </>} />;
@@ -807,7 +828,7 @@ function DemoReceivePayment({ network }) {
     const startedAt = begin();
     setRunning(true); setOutput('');
     try {
-      const address1 = window.localStorage.getItem('address-1') || '';
+      const address1 = setupWalletProfileValues(network).address1;
       const response = await fetch(`${getBaseURL(network, address1)}&spendableOnly=true`);
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'The receive request failed.');
@@ -819,7 +840,7 @@ function DemoReceivePayment({ network }) {
   }
   return <OperationDemo demoTitle="Receive Payment" docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments" sourceId="receive-payment-source" source={RECEIVE_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="receive-payment-address">Wallet 1 Address</label>
-    <input id="receive-payment-address" value={window.localStorage.getItem('address-1') || ''} readOnly />
+    <input id="receive-payment-address" value={setupWalletProfileValues(network).address1} readOnly />
   </>} />;
 }
 
@@ -845,13 +866,13 @@ function DemoPaymentHistory({ network }) {
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
   return <OperationDemo demoTitle="Payment History" docsHref={DOCS_URLS.paymentHistory} docsTopic="Payment history" sourceId="payment-history-source" source={PAYMENT_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
-    <label htmlFor="payment-history-mnemonic">Wallet 3 Mnemonic</label>
-    <input id="payment-history-mnemonic" value={maskMnemonic(window.localStorage.getItem('mnemonic-3') || '')} readOnly />
+    <label htmlFor="payment-history-mnemonic">Wallet 2 Mnemonic</label>
+    <input id="payment-history-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
   </>} />;
 }
 
 function DemoMintAsset({ network }) {
-  const [assetId, setAssetId] = useAssetSelection();
+  const [assetId, setAssetId] = useAssetSelection(network);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
   async function execute() {
@@ -860,20 +881,20 @@ function DemoMintAsset({ network }) {
     try {
       const wallet = await createDemoWallet(network);
       const result = await wallet.assetManager.issue({ amount: 1n, metadata: { ticker: assetId } });
-      window.localStorage.setItem(`asset-id-${assetId}`, result.assetId);
+      window.localStorage.setItem(mintedAssetStorageKey(network, assetId), result.assetId);
       setOutput([`Asset label: ${assetId}`, `Asset ID: ${result.assetId}`, `Success: ${Boolean(result.assetId)}`].join('\n'));
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
   return <OperationDemo demoTitle="Mint Asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" sourceId="mint-asset-source" source={MINT_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
-    <label htmlFor="mint-asset-mnemonic">Wallet 3 Mnemonic</label>
-    <input id="mint-asset-mnemonic" value={maskMnemonic(window.localStorage.getItem('mnemonic-3') || '')} readOnly />
-    <AssetSelector value={assetId} onChange={setAssetId} />
+    <label htmlFor="mint-asset-mnemonic">Wallet 2 Mnemonic</label>
+    <input id="mint-asset-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <AssetSelector network={network} value={assetId} onChange={setAssetId} />
   </>} />;
 }
 
 function DemoSendAsset({ network }) {
-  const [assetId, setAssetId] = useAssetSelection();
+  const [assetId, setAssetId] = useAssetSelection(network);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
   async function execute() {
@@ -881,8 +902,8 @@ function DemoSendAsset({ network }) {
     setRunning(true); setOutput('');
     try {
       const wallet = await createDemoWallet(network);
-      const address1 = window.localStorage.getItem('address-1') || '';
-      const actualAssetId = getMintedAssetId(assetId);
+      const address1 = setupWalletProfileValues(network).address1;
+      const actualAssetId = getMintedAssetId(network, assetId);
       if (!actualAssetId) throw new Error('Use Mint Asset demo first.');
       const txid = await wallet.send({ address: address1, assets: [{ assetId: actualAssetId, amount: 1n }] });
       setOutput([`Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'));
@@ -890,28 +911,28 @@ function DemoSendAsset({ network }) {
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
   return <OperationDemo demoTitle="Send Asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" source={SEND_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
-    <label htmlFor="send-asset-mnemonic">Wallet 3 Mnemonic</label>
-    <input id="send-asset-mnemonic" value={maskMnemonic(window.localStorage.getItem('mnemonic-3') || '')} readOnly />
+    <label htmlFor="send-asset-mnemonic">Wallet 2 Mnemonic</label>
+    <input id="send-asset-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <label htmlFor="send-asset-address">Wallet 1 Address</label>
-    <input id="send-asset-address" value={window.localStorage.getItem('address-1') || ''} readOnly />
-    <AssetSelector value={assetId} onChange={setAssetId} />
+    <input id="send-asset-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <AssetSelector network={network} value={assetId} onChange={setAssetId} />
   </>} />;
 }
 
 function DemoReceiveAsset({ network }) {
-  const [assetId, setAssetId] = useAssetSelection(true);
+  const [assetId, setAssetId] = useAssetSelection(network, true);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
   async function execute() {
     const startedAt = begin();
     setRunning(true); setOutput('');
     try {
-      const address1 = window.localStorage.getItem('address-1') || '';
+      const address1 = setupWalletProfileValues(network).address1;
       const response = await fetch(`${getBaseURL(network, address1)}&spendableOnly=true`);
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'The receive request failed.');
       const vtxos = result.vtxos ?? [];
-      const actualAssetId = getMintedAssetId(assetId);
+      const actualAssetId = getMintedAssetId(network, assetId);
       const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === actualAssetId);
       if (matching.length === 0) throw new Error('Use Send Asset demo first.');
       setOutput([`Address: ${address1}`, `Asset filter: ${assetId}`, `VTXOs: ${matching.length}`, `Success: ${response.ok}`].join('\n'));
@@ -919,13 +940,13 @@ function DemoReceiveAsset({ network }) {
   }
   return <OperationDemo demoTitle="Receive Asset" docsHref={DOCS_URLS.receiveAsset} docsTopic="Check asset balance" sourceId="receive-asset-source" source={RECEIVE_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="receive-asset-address">Wallet 1 Address</label>
-    <input id="receive-asset-address" value={window.localStorage.getItem('address-1') || ''} readOnly />
-    <AssetSelector value={assetId} onChange={setAssetId} includeAll />
+    <input id="receive-asset-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
   </>} />;
 }
 
 function DemoAssetHistory({ network }) {
-  const [assetId, setAssetId] = useAssetSelection(true);
+  const [assetId, setAssetId] = useAssetSelection(network, true);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
   async function execute() {
@@ -934,7 +955,7 @@ function DemoAssetHistory({ network }) {
     try {
       const wallet = await createDemoWallet(network);
       const activities = await wallet.getActivityHistory();
-      const actualAssetId = getMintedAssetId(assetId);
+      const actualAssetId = getMintedAssetId(network, assetId);
       const matching = assetId === 'all' ? activities : activities.filter(activity => activity.assetId === actualAssetId);
       setOutput([
         `Asset filter: ${assetId}`,
@@ -946,26 +967,26 @@ function DemoAssetHistory({ network }) {
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
   return <OperationDemo demoTitle="Asset History - Private Wallet" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="asset-history-source" source={ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
-    <label htmlFor="asset-history-mnemonic">Wallet 3 Mnemonic</label>
-    <input id="asset-history-mnemonic" value={maskMnemonic(window.localStorage.getItem('mnemonic-3') || '')} readOnly />
-    <AssetSelector value={assetId} onChange={setAssetId} includeAll />
+    <label htmlFor="asset-history-mnemonic">Wallet 2 Mnemonic</label>
+    <input id="asset-history-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
   </>} />;
 }
 
 function DemoAssetHistoryPublic({ network }) {
-  const [assetId, setAssetId] = useAssetSelection(true);
+  const [assetId, setAssetId] = useAssetSelection(network, true);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
   async function execute() {
     const startedAt = begin();
     setRunning(true); setOutput('');
     try {
-      const address1 = window.localStorage.getItem('address-1') || '';
+      const address1 = setupWalletProfileValues(network).address1;
       const response = await fetch(`${getBaseURL(network, address1)}&spendableOnly=true`);
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'The asset history request failed.');
       const vtxos = result.vtxos ?? [];
-      const actualAssetId = getMintedAssetId(assetId);
+      const actualAssetId = getMintedAssetId(network, assetId);
       const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === actualAssetId);
       setOutput([
         `Address: ${address1}`,
@@ -978,8 +999,8 @@ function DemoAssetHistoryPublic({ network }) {
   }
   return <OperationDemo demoTitle="Asset History - Public Address" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="public-asset-history-source" source={PUBLIC_ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="public-asset-history-address">Wallet 1 Address</label>
-    <input id="public-asset-history-address" value={window.localStorage.getItem('address-1') || ''} readOnly />
-    <AssetSelector value={assetId} onChange={setAssetId} includeAll />
+    <input id="public-asset-history-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
   </>} />;
 }
 
@@ -1015,13 +1036,11 @@ export function App({ pathname = window.location.pathname }) {
   useEffect(() => {
     document.title = `BIS - Prototype Interactive Docs${activeTitle ? ` - ${activeTitle}` : ''}`;
   }, [activeTitle]);
-  setupStorageValues();
-  // The supplied example address belongs to Signet. Keep the selector editable,
-  // but make the initial request match the address that ships in Setup.
   const [network, setNetwork] = useState(() => setupNetworkValue());
+  setupWalletProfileValues(network);
   function changeNetwork(nextNetwork) {
     if (nextNetwork === network) return;
-    if (!window.confirm('This will reset all data on the page')) return;
+    if (!window.confirm(`Switch to ${NETWORKS[nextNetwork].label}? Its separate wallet profile will be used.`)) return;
     window.localStorage.setItem(NETWORK_STORAGE_KEY, nextNetwork);
     setNetwork(nextNetwork);
   }
