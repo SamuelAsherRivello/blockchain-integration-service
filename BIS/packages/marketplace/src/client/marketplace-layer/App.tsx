@@ -6,6 +6,7 @@ import { readPublicInventory } from '../inventory-layer/inventory';
 import { marketplaceGameInventoryAddress } from '../inventory-layer/inventory-source';
 import { createMarketplaceInventoryCoordinator, type MarketplaceInventorySource } from '../inventory-layer/inventory-cache';
 import {createCheckoutSession, type CheckoutScope} from './checkout-session';
+import { publishMarketplaceDeliveryToast } from './checkout-delivery-toasts';
 import {walletAddressLabel} from './wallet-label';
 import { version } from '../../../package.json';
 import arkadeLogo from '../../../../integration-admin/src/client/ui-layer-react/assets/arkade-logo.png';
@@ -292,6 +293,16 @@ function MarketplaceContent(){
       if(pending)setCheckout(pending);
     } catch {}
   },[selected?.assetId]);
+  const itemForCheckout=(record:BisMarketplaceCheckoutRecord)=>itemSnapshots[record.request.assetId]
+    ??(selected?.assetId===record.request.assetId?selected:undefined)
+    ??previousPlayerItems.find(item=>item.assetId===record.request.assetId)
+    ??previousGameItems.find(item=>item.assetId===record.request.assetId);
+  const publishCheckoutDeliveryToast=(record:BisMarketplaceCheckoutRecord)=>{
+    if(!network||!playerSessionActive||!playerState.profileId)return;
+    const item=itemForCheckout(record);if(!item)return;
+    publishMarketplaceDeliveryToast({record,item,playerProfileId:playerState.profileId,network,show:(message,options)=>player.showToast(message,options)});
+  };
+  useEffect(()=>{if(pendingCheckout)publishCheckoutDeliveryToast(pendingCheckout);},[pendingCheckout?.request.id,pendingCheckout?.phase,pendingCheckout?.deliveryTransactionId,itemSnapshots,selected?.assetId,network,playerSessionActive,playerState.profileId]);
   async function advanceCheckout(record:BisMarketplaceCheckoutRecord,scope:CheckoutScope,alive:()=>boolean=()=>true) {
     const current=()=>alive()&&checkoutSession.current(scope);
     if(!current())return;
@@ -314,7 +325,7 @@ function MarketplaceContent(){
           ?await gameWallet.deliverAsset({operationId:record.request.id,assetId,quantity,recipient})
           :await player.deliverAsset({operationId:record.request.id,assetId,quantity,recipient});
         return result.status==='delivered'||result.status==='already-delivered'
-          ?{status:'delivered' as const,transactionId:result.transactionId}:{status:'pending' as const};
+          ?{status:'delivered' as const,transactionId:result.transactionId}:{status:'pending' as const,...(result.transactionId?{transactionId:result.transactionId}:{})};
       },
     });
     if(!current())return;
@@ -336,6 +347,7 @@ function MarketplaceContent(){
         void inventory.invalidate(inventorySourcesRef.current).finally(()=>setIsCheckoutInventorySettling(false));
       },CHECKOUT_INVENTORY_SETTLE_MS);
     }
+    publishCheckoutDeliveryToast(next);
   }
   async function beginCheckout(direction:'buy'|'sell') {
     if(!selected||!salesEnabled||!gameState.profileId||!sessionGameAddress) return;

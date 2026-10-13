@@ -250,7 +250,7 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
     if(prior) {
       if(JSON.stringify(prior.request)!==JSON.stringify(request))throw new AssetDeliveryError('invalid-input','The item delivery request changed.');
       if(prior.status==='succeeded')return deliveryResult(prior);
-      return {status:'error',code:'outcome-unknown',message:'This item delivery is pending confirmation.',profileId:account.profileId,operationId:request.operationId};
+      return {status:'error',code:'outcome-unknown',message:'This item delivery is pending confirmation.',profileId:account.profileId,operationId:request.operationId,...(prior.transactionId?{transactionId:prior.transactionId}:{})};
     }
     const deadline=AbortSignal.any([signal,AbortSignal.timeout(30000)]),p=providers(deadline,undefined,undefined,network);
     return await useSigningWallet(account,deadline,{arkProvider:p.arkProvider,indexerProvider:p.indexerProvider,settlementConfig:false,storage:storage()},async wallet=>{
@@ -264,7 +264,7 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
       const transactionId=await wallet.send({recipients:[{address:destination.address,amount:Number(wallet.dustAmount),assets:[{assetId:request.assetId,amount:BigInt(request.quantity)}]}],selectedVtxos:selected});
       if(!/^[a-f0-9]{64}$/i.test(transactionId))throw new AssetDeliveryError('outcome-unknown','Item delivery acknowledgement could not be verified.');
       if(isCurrent()&&!deadline.aborted&&readAssetDeliveryRecord(account.profileId,record.id,network))writeAssetDeliveryRecord({...record,transactionId});
-      return {status:'error',code:'outcome-unknown',message:'Item delivery confirmation is pending.',profileId:account.profileId,operationId:request.operationId};
+      return {status:'error',code:'outcome-unknown',message:'Item delivery confirmation is pending.',profileId:account.profileId,operationId:request.operationId,transactionId};
     },session,30000);
   } catch(error) {
     if(error instanceof AssetDeliveryError)return {status:'error',code:error.code,message:error.message,profileId:account.profileId,operationId:request.operationId};

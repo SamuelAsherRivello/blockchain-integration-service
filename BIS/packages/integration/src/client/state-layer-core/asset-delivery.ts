@@ -1,7 +1,7 @@
 export type BisAssetDeliveryRequest = Readonly<{operationId:string; assetId:string; quantity:string; recipient:string}>;
 import type { BisMintAssetRequest } from './assets.ts';
 export type BisAssetDeliveryResult = Readonly<{status:'delivered'|'already-delivered'; profileId:string; operationId:string; assetId:string; quantity:string; recipient:string; transactionId:string}>
-  | Readonly<{status:'error'; code:'invalid-input'|'unavailable'|'outcome-unknown'|'account-changed'; message:string; profileId?:string; operationId?:string}>;
+  | Readonly<{status:'error'; code:'invalid-input'|'unavailable'|'outcome-unknown'|'account-changed'; message:string; profileId?:string; operationId?:string; transactionId?:string}>;
 export type BisPendingAssetDeliveryResult = Readonly<{status:'success'; profileId:string; request:BisAssetDeliveryRequest|null; mintRequest?:BisMintAssetRequest}> | Readonly<{status:'error'; code:'outcome-unknown'|'unavailable'; message:string; profileId?:string}>;
 export type AssetDeliveryInput = Readonly<{txid:string;vout:number}>;
 export type AssetDeliveryAsset = Readonly<{assetId:string;quantity:string}>;

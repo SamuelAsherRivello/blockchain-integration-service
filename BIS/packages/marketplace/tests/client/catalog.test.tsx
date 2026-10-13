@@ -77,6 +77,14 @@ test('Marketplace restores the pending exact-item checkout after a page reload',
   assert.doesNotMatch(app, /checkout-status|Checkout complete\.|Checkout recovery status/);
 });
 
+test('Marketplace publishes evidence-backed Player Wallet item-transfer toasts without changing payment observation', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /publishMarketplaceDeliveryToast/);
+  assert.match(app, /result\.transactionId\?\{transactionId:result\.transactionId\}/);
+  assert.match(app, /publishCheckoutDeliveryToast\(next\)/);
+  assert.doesNotMatch(app, /createPaymentNotifications/);
+});
+
 test('Marketplace represents a pending transfer inline and disables both trade actions', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /const pendingTransferFor=\(item:BisEquipmentItem\)=>pendingCheckout\?\.request\.assetId===item\.assetId\?pendingCheckout:undefined/);

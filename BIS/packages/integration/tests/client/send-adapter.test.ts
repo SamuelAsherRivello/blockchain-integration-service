@@ -35,6 +35,18 @@ test('automatic fixed-price selection avoids a dust remainder without spending a
  assert.deepEqual(selectExactSendInputs([other,remainder,asset,exact],1000),[exact,other]);
  assert.equal(selectExactSendInputs([other,remainder,asset],1000),undefined);
 });
+test('asset-preserving Marketplace payments accept valid carrier sats outside the liquid balance',async t=>{
+ const values=new Map();
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)} });
+ const point=Uint8Array.from(Buffer.from(publicPoints[0],'hex'));
+ const own=new ArkAddress(point,point,'tark').encode(),recipient=new ArkAddress(point,Uint8Array.from(Buffer.from(publicPoints[1],'hex')),'tark').encode();
+ const liquid={txid:'a'.repeat(64),vout:0,value:1000};
+ const carrier={txid:'b'.repeat(64),vout:0,value:330,assets:[{assetId:'c'.repeat(68),amount:1n}]};
+ t.mock.method(RestArkProvider.prototype,'getInfo',async()=>({network:'signet',fees:{txFeeRate:'0',intentFee:{}},vtxoMinAmount:330n,vtxoMaxAmount:0n}));
+ t.mock.method(ReadonlyWallet,'create',async()=>({getAddress:async()=>own,getSpendableVtxos:async()=>[liquid,carrier],getBalance:async()=>({available:1000,total:1330,boarding:{confirmed:0,total:0}}),getProviderConnectionState:()=>({mode:'online',source:'live'}),dustAmount:330n,dispose:async()=>{}}));
+ const quote=await quoteSend({profileId:'p',phrase:'abandon '.repeat(11)+'about'},recipient,500,new AbortController().signal,true);
+ assert.equal(quote.maxSats,1330);
+});
 function fixture(){
  const coin={txid:'a'.repeat(64),vout:0,value:1000};const cp=new Transaction({version:3});cp.addInput({txid:coin.txid,index:0,witnessUtxo:{script:script(1),amount:1000n}});cp.addOutput({script:script(2),amount:1000n});cp.addOutput({script:Uint8Array.from([0x51,0x02,0x4e,0x73]),amount:0n});
  const tx=new Transaction({version:3});tx.addInput({txid:cp.id,index:0,witnessUtxo:{script:script(2),amount:1000n}});tx.addOutput({script:script(3),amount:500n});tx.addOutput({script:script(4),amount:500n});tx.addOutput({script:Uint8Array.from([0x51,0x02,0x4e,0x73]),amount:0n});

@@ -90,6 +90,7 @@ export async function advanceLocalMarketplaceCheckout(record:BisMarketplaceCheck
     current=pending(current,'delivery-submitted','Completing checkout.');
     const result=await deps.deliver({recipient:current.request.direction==='buy'?current.request.player.address:current.request.game.address,assetId:current.request.assetId,quantity:current.request.quantity});
     if(deps.isCurrent?.()===false)return current;
+    if(result.transactionId&&/^[a-f0-9]{64}$/i.test(result.transactionId))current=write({...current,deliveryTransactionId:result.transactionId});
     if(result.status!=='delivered'||!result.transactionId||!/^[a-f0-9]{64}$/i.test(result.transactionId))return current;
     current=current.request.direction==='buy'
       ?completed({...current,...(result.transactionId?{deliveryTransactionId:result.transactionId}:{})})

@@ -72,7 +72,14 @@ async function funds(wallet:ReadonlyWallet,preserveAssets=false,profileId?:strin
  const balance=await readFreshBalance(wallet);
  const total=coins.reduce((sum,c)=>sum+c.value,0);
  const eligibleTotal=candidates.reduce((sum,c)=>sum+c.value,0);
- if(!Number.isSafeInteger(eligibleTotal)||eligibleTotal<0||eligibleTotal>balance.availableSats||!Number.isSafeInteger(total)||total<0||candidates.some(c=>!Number.isSafeInteger(c.value)||c.value<=0))throw new SendError('Live send data is unavailable.');
+ // The live liquid balance can exclude sats carried by asset VTXOs. Marketplace
+ // purchases deliberately retain those assets in a change output, so comparing
+ // every selected carrier value with that liquid-only figure rejects a valid
+ // buy before it can prepare its payment. Validate the unencumbered subtotal
+ // against the live balance instead; the selected inputs and retained assets
+ // are still verified again before submission.
+ const liquidTotal=candidates.filter(c=>!c.assets?.length).reduce((sum,c)=>sum+c.value,0);
+ if(!Number.isSafeInteger(eligibleTotal)||eligibleTotal<0||!Number.isSafeInteger(liquidTotal)||liquidTotal<0||liquidTotal>balance.availableSats||!Number.isSafeInteger(total)||total<0||candidates.some(c=>!Number.isSafeInteger(c.value)||c.value<=0))throw new SendError('Live send data is unavailable.');
  const outpoints=new Set(candidates.map(c=>`${c.txid}:${c.vout}`));
  const blocking=reservations.filter(r=>r.inputs?.some(i=>outpoints.has(`${i.txid}:${i.vout}`)));
  return {info,policy,coins,total,reservedSats:eligibleTotal-total,blocking,dust:Math.max(Number(wallet.dustAmount),Number(info.vtxoMinAmount),1)};

@@ -59,9 +59,10 @@ test('a sell-back delivers before it pays and never completes without transactio
 test('a confirmed purchase payment with interrupted delivery and an interrupted sell delivery stay pending',async()=>{
   memory();
   const buy=beginLocalMarketplaceCheckout(request);let buyDeliveries=0;
-  const buyPending=await advanceLocalMarketplaceCheckout(buy,{pay:async()=>({status:'succeeded',transactionId:'b'.repeat(64)}),deliver:async()=>{buyDeliveries++;return {status:'pending'};}});
+  const buyPending=await advanceLocalMarketplaceCheckout(buy,{pay:async()=>({status:'succeeded',transactionId:'b'.repeat(64)}),deliver:async()=>{buyDeliveries++;return {status:'pending',transactionId:'c'.repeat(64)};}});
   assert.equal(buyPending.phase,'delivery-submitted');
   assert.equal(buyPending.status,'pending');
+  assert.equal(buyPending.deliveryTransactionId,'c'.repeat(64));
   assert.equal(buyDeliveries,1);
   const sell=beginLocalMarketplaceCheckout({...request,id:'00000000-0000-4000-8000-000000000006',direction:'sell',assetId:'f'.repeat(64)+'0000'});let payments=0;
   const sellPending=await advanceLocalMarketplaceCheckout(sell,{deliver:async()=>({status:'pending'}),pay:async()=>{payments++;return {status:'succeeded',transactionId:'b'.repeat(64)};}});
