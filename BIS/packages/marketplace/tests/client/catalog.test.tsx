@@ -32,10 +32,11 @@ test('public Marketplace uses a read-only address query and live local-sales act
   assert.doesNotMatch(inventory, /MnemonicIdentity|Wallet\.create|mint|send/i);
 });
 
-test('Marketplace never treats the published Game Wallet as active without a Player Wallet', async () => {
+test('Marketplace never reuses the published Game Wallet without a connected local Game Wallet', async () => {
   const app = await text('src/client/marketplace-layer/App.tsx');
-  assert.match(app, /const activeGameWallet=Boolean\(playerState\.profileId&&gameState\.profileId&&gameState\.network===network&&gameState\.addresses\?\.arkadeAddress\)/);
-  assert.match(app, /const publicGameAddress=playerState\.profileId&&registeredGameAddress\?marketplaceGameInventoryAddress/);
+  assert.match(app, /const hasConnectedGameWallet=Boolean\(playerState\.profileId&&gameState\.profileId&&gameState\.profileId!==playerState\.profileId&&gameState\.network===network&&gameState\.addresses\?\.arkadeAddress\)/);
+  assert.match(app, /const publicGameAddress=hasConnectedGameWallet&&registeredGameAddress\?marketplaceGameInventoryAddress/);
+  assert.match(app, /const activeGameWallet=hasConnectedGameWallet;/);
   assert.match(app, /const inventoryAddress=isCatalogLoading\?undefined:publicGameAddress/);
   assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
   assert.match(app, /const gameItemsForSession=previousGameItems/);
@@ -195,7 +196,7 @@ test('an unconfigured game cannot expose another game wallet inventory', async (
   const app = await text('src/client/marketplace-layer/App.tsx');
   assert.match(app, /game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
   assert.match(app, /const registeredGameAddress=game==='all'\?defaultGame\?\.gameWalletAddress:selectedGame\?\.gameWalletAddress/);
-  assert.match(app, /const publicGameAddress=playerState\.profileId&&registeredGameAddress\?marketplaceGameInventoryAddress/);
+  assert.match(app, /const publicGameAddress=hasConnectedGameWallet&&registeredGameAddress\?marketplaceGameInventoryAddress/);
   assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
   assert.match(app, /owned item\(s\) have legacy metadata/);
   assert.doesNotMatch(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);

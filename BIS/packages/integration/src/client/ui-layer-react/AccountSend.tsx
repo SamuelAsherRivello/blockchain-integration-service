@@ -17,7 +17,7 @@ import {FormTooltip, formatBalanceSats} from './FormTooltip';
 import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
 export function AccountSendView({context}:{context:BisContext}) {
- const [recipient,setRecipient]=useState(''),[amount,setAmount]=useState(''),[funds,setFunds]=useState<number>();
+ const [recipient,setRecipient]=useState(''),[amount,setAmount]=useState('0'),[funds,setFunds]=useState<number>();
  const [quote,setQuote]=useState<BisSendQuote>(),[busy,setBusy]=useState(true),[error,setError]=useState('');
  const [clipboardError,setClipboardError]=useState('');
  const [operationLabel,setOperationLabel]=useState('Loading ...');
@@ -57,10 +57,12 @@ export function AccountSendView({context}:{context:BisContext}) {
  }
  async function confirm(){
   if(!quote||expired||working.current)return;working.current=true;const request=++revision.current;setBusy(true);setOperationLabel('Sending ...');setError('');
-  let refresh=false;
-  try{const next=await context.confirmAccountSend(quote);if(alive.current&&request===revision.current){setRecipient('');setAmount('');setQuote(undefined);setFunds(undefined);refresh=next.status==='succeeded'||next.status==='pending';}}
+  try{const next=await context.confirmAccountSend(quote);if(alive.current&&request===revision.current){
+   if(next.status==='succeeded'||next.status==='pending'){context.closeAccount();return;}
+   setQuote(undefined);
+  }}
   catch(e){if(alive.current&&request===revision.current){setQuote(undefined);setError(fail(e));setFunds(undefined);}}
-  finally{if(alive.current&&request===revision.current){working.current=false;setBusy(false);if(refresh)void loadFunds();}}
+  finally{if(alive.current&&request===revision.current){working.current=false;setBusy(false);}}
  }
  const network=networkLabel(context.getState().network);
  const validAddress=recipient.trim().startsWith('tark1'),validAmount=/^\d+$/.test(amount)&&Number.isSafeInteger(Number(amount))&&Number(amount)>0&&funds!==undefined&&Number(amount)<=funds;
@@ -81,6 +83,7 @@ export function AccountSendView({context}:{context:BisContext}) {
    <input id={recipientId} ref={recipientInput} aria-label="Recipient address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>
    <AmountChooserRow value={amount} onChange={value=>edit(value,'amount')} onMax={()=>void review(true)} disabled={busy} maxDisabled={!validAddress||!funds}/>
    {recipient&&!validAddress&&<p role="status">Enter an Arkade test address.</p>}
+   {funds!==undefined&&funds>0&&amount==='0'&&<p className="bis-transfer-help bis-transfer-status" role="status">Set amount above</p>}
   </div>}
   {clipboardError&&<p role="status">{clipboardError}</p>}
   <div className="bis-actions">

@@ -9,7 +9,7 @@
     "test": "node --test --test-isolation=none tests/client/*.test.ts"
   },
   "dependencies": {
-    "@arkade-os/sdk": "0.4.72",
+    "@arkade-os/sdk": "0.4.79",
     "@scure/bip39": "2.4.0",
     "react": "19.3.0"
   },

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { getControls, type BisContext } from '../state-layer-core/context';
 import type { ToastEntry } from '../state-layer-core/toasts';
 import { startToastPlayback, TOAST_MOTION_MS, type ToastPhase } from './toast-playback';
@@ -17,15 +17,25 @@ function subscribeReducedMotion(listener: () => void) {
 function ToastCard({ entry, reducedMotion, complete, imageUrl }: { entry: ToastEntry; reducedMotion: boolean; complete(id: number): void; imageUrl?: string }) {
   const [phase, setPhase] = useState<ToastPhase>(reducedMotion ? 'visible' : 'entering');
   const [imageFailed, setImageFailed] = useState(false);
+  const [durationMs, setDurationMs] = useState(entry.durationMs);
+  const textRef = useRef<HTMLSpanElement>(null);
   const showImage = !!imageUrl && !imageFailed;
   const showLightning = !showImage && entry.icon === 'lightning';
-  useLayoutEffect(() => startToastPlayback(entry.durationMs, reducedMotion, setPhase, () => complete(entry.id)), [entry, reducedMotion, complete]);
+  const showStatusIcon = !showImage && !showLightning;
+  useLayoutEffect(() => {
+    if (!entry.automaticDuration || !textRef.current) return;
+    const style = getComputedStyle(textRef.current);
+    const lineHeight = Number.parseFloat(style.lineHeight);
+    const lines = Number.isFinite(lineHeight) && lineHeight > 0 ? Math.max(1, Math.ceil(textRef.current.getBoundingClientRect().height / lineHeight - 0.01)) : 1;
+    setDurationMs(lines >= 3 ? 7000 : 4000 + (lines - 1) * 1000);
+  }, [entry.automaticDuration, entry.message]);
+  useLayoutEffect(() => startToastPlayback(durationMs, reducedMotion, setPhase, () => complete(entry.id)), [durationMs, reducedMotion, complete]);
   return <div className="bis-toast bis-toast-with-image" data-message-type={entry.messageType} data-phase={phase} data-toast-id={entry.id} aria-hidden="true"
     style={{'--bis-toast-motion': `${TOAST_MOTION_MS}ms`} as CSSProperties}>
-    <StatusTypeIcon type={entry.messageType} className="bis-toast-type-icon" />
+    {showStatusIcon && <StatusTypeIcon type={entry.messageType} className="bis-toast-type-icon" />}
     {showImage && <img className="bis-toast-image" src={imageUrl} alt="" width="48" height="48" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} />}
     {showLightning && <span className="bis-bolt bis-toast-lightning" aria-hidden="true">⚡</span>}
-    <span className="bis-toast-text">{entry.message}</span>
+    <span ref={textRef} className="bis-toast-text">{entry.message}</span>
   </div>;
 }
 

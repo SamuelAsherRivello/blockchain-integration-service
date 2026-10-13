@@ -13,9 +13,9 @@ function continueDisabledReason(reason: string | undefined) {
   if (reason === 'Awaiting Game Wallet') return 'Disabled. Game Wallet must be logged in and ready to receive the payment.';
   return reason ? `Disabled. ${reason}.` : 'Disabled. Payment availability is still being checked.';
 }
-export function AdminPanelView({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, gameWalletBoard, contracts, marketplace, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, canShowToast = false, network }: {
+export function AdminPanelView({ continueReason, mintAvailable = false, mintReason, playerActive = false, gameWallet, gameWalletBoard, contracts, marketplace, continueAvailable = true, selected, accountOpen, canReset, onSelect, onReset, canFund, funding, onFund, onExplorer, onOpenOnboarding, onMint, onCompleteLevel, completionOpen, assetBusy, consoleOutput, onContinue, continueBusy, onShowToast, onShowToastWithIcon, onShowLimitedTimeOfferToast, onShowTreasureClaimToast, canShowToast = false, network }: {
   continueReason?: string; mintAvailable?: boolean; mintReason?: string; playerActive?: boolean; gameWallet?: ReactNode; gameWalletBoard?: ReactNode; contracts?:ReactNode; marketplace?: ReactNode; continueAvailable?: boolean;
-  onShowToast?(): void; onShowToastWithIcon?(): void; canShowToast?: boolean;
+  onShowToast?(): void; onShowToastWithIcon?(): void; onShowLimitedTimeOfferToast?(): void; onShowTreasureClaimToast?(): void; canShowToast?: boolean;
   onContinue?():void; continueBusy?:boolean;
   selected: string | null; accountOpen: boolean; canReset: boolean; onSelect(id: string): void; onReset(): void;
   canFund: boolean; funding: boolean; onFund(): void; onExplorer(): void;
@@ -39,8 +39,10 @@ export function AdminPanelView({ continueReason, mintAvailable = false, mintReas
         {category.name === 'Contracts' && contracts}
         {category.name === 'Integrations' && <>
           <StoryButton label="F.P.1. UI Toast">
-            <button type="button" aria-label="F.P.1. Show" disabled={!canShowToast} onClick={onShowToast}>Show</button>
-            <button type="button" aria-label="F.P.1. Show With Icon" disabled={!canShowToast} onClick={onShowToastWithIcon}>Show With Icon</button>
+            <button type="button" aria-label="F.P.1. EX1" disabled={!canShowToast} onClick={onShowToast}>EX1</button>
+            <button type="button" aria-label="F.P.1. EX2" disabled={!canShowToast} onClick={onShowToastWithIcon}>EX2</button>
+            <button type="button" aria-label="F.P.1. EX3" disabled={!canShowToast} onClick={onShowLimitedTimeOfferToast}>EX3</button>
+            <button type="button" aria-label="F.P.1. EX4" disabled={!canShowToast} onClick={onShowTreasureClaimToast}>EX4</button>
           </StoryButton>
         </>}
         {category.name === 'Payments/Transfers' && <><StoryAction id="B.P.1" label={`"Pay ${getContinuePriceSats()} Sats To Continue" (Player->Game)`} disabled={continueBusy || !continueAvailable} disabledReason={!continueBusy && !continueAvailable ? continueDisabledReason(continueReason) : undefined} onClick={onContinue} /><StoryAction id="B.P.8" label="Open Onboarding" disabled={!playerActive || !onOpenOnboarding} onClick={onOpenOnboarding} /></>}

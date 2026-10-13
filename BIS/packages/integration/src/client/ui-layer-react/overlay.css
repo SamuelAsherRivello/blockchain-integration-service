@@ -172,7 +172,7 @@
 .bis-transfer-balances .bis-account-balances { display: grid; gap: 12.8px; margin-bottom: 0; }
 .bis-transfer-balances .bis-address-row { margin-bottom: 0; }
 .bis-transfer-balances .bis-copy-status:empty { display: none; }
-.bis-transfer-form { text-align: left; font-size: 9.6px; }
+.bis-transfer-form { margin-bottom: 11.2px; text-align: left; font-size: 9.6px; }
 .bis-transfer-direction { min-width: 0; border: 0; padding: 0; margin: 0 0 12.8px; }
 .bis-transfer-direction legend { padding: 0; margin-bottom: 3.2px; }
 .bis-transfer-directions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4.8px; }
@@ -181,10 +181,11 @@
 .bis-transfer-direction:disabled .bis-button { opacity: .6; cursor: not-allowed; }
 .bis-amount-chooser { display: grid; gap: 4.8px; min-width: 0; text-align: left; }
 .bis-amount-controls { display: grid; grid-template-columns: 20.8px minmax(0, 1fr) 20.8px 33.6px; gap: 4px; }
-.bis-amount-controls :is(.bis-button, input) { min-height: 0; }
+.bis-amount-controls :is(.bis-button, input) { box-sizing: border-box; height: 20.8px; min-height: 20.8px; }
 .bis-amount-controls .bis-button { width: 100%; padding: 3.84px 1.6px; border-radius: 4.8px; font-size: 8.8px; }
 .bis-amount-controls input { min-width: 0; width: 100%; padding: 3.84px 6.4px; border: 0.8px solid #c8d7dc; border-radius: 4.8px; font: 8.8px ui-monospace, monospace; text-align: center; background: #fff; color: #294650; }
 .bis-amount-controls input:focus-visible { outline: 1.6px solid #30977f; }
+.bis-card .bis-transfer-form .bis-transfer-help { margin-bottom: 0; }
 .bis-card .bis-transfer-help { font-size: 8px; margin: 4.8px 0 11.2px; }
 .bis-card .bis-transfer-direction-help { height: 2lh; min-height: 2lh; max-height: 2lh; overflow-y: auto; }
 .bis-card .bis-transfer-status { max-height: 1.2em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -201,8 +202,8 @@
 .bis-send { min-width: 0; text-align: left; font-size: 9.6px; }
 .bis-send-form { display: grid; gap: 8px; margin-bottom: 12.8px; }
 .bis-send-form label { display: grid; gap: 4.8px; }
-.bis-send-form input { box-sizing: border-box; min-width: 0; width: 100%; padding: 8px; border: 0.8px solid #c8d7dc; border-radius: 5.6px; background: white; color: #294650; font: inherit; }
-.bis-send-form input:focus-visible { outline: 1.6px solid #30977f; }
+.bis-send-form > input { box-sizing: border-box; min-width: 0; width: 100%; padding: 8px; border: 0.8px solid #c8d7dc; border-radius: 5.6px; background: white; color: #294650; font: inherit; }
+.bis-send-form > input:focus-visible { outline: 1.6px solid #30977f; }
 .bis-send-form > .bis-button { justify-self: end; padding: 5.6px 11.2px; }
 .bis-send .bis-send-address { overflow-wrap: anywhere; user-select: text; text-align: left; font: 8.8px/1.6 ui-monospace, monospace; padding: 7.2px; background: #edf5f1; border-radius: 5.6px; }
 .bis-send-status { overflow-wrap: anywhere; }

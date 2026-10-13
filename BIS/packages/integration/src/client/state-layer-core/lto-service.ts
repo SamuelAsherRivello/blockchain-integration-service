@@ -125,7 +125,9 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
     notifications.add(key);
     const label = record.operation.kind === 'fund' ? 'Offer funding' : record.operation.kind === 'claim' ? 'Contract claim' : 'Contract refund';
     if (feedback === 'active' && !['confirmed','not-submitted'].includes(phase) && record.operation.kind === 'fund') return;
-    const message = phase === 'confirmed' ? record.operation.kind === 'fund' && (record.ended || Date.now() >= record.expiresAt) ? 'Offer funded; return pending' : `${label} confirmed: ${record.amountSats.toLocaleString('en-US')} sats`
+    const message = phase === 'confirmed' ? record.operation.kind === 'fund' && (record.ended || Date.now() >= record.expiresAt) ? 'Offer funded; return pending'
+      : record.operation.kind === 'fund' && record.purpose === 'treasureLTO' ? `Limited Time Offer: Find & claim treasure (${record.amountSats} sats) within 90 secs.`
+      : `${label} confirmed: ${record.amountSats.toLocaleString('en-US')} sats`
       : phase === 'not-submitted' ? `${label} was not submitted${record.operation.failure?`: ${contractFailureMessages[record.operation.failure]}`:''}` : `${label} pending`;
     context.showToast(message,{messageType:phase==='confirmed'?'success':phase==='not-submitted'?'warning':'info',icon:'lightning'});
   }

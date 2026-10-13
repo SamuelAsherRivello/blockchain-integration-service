@@ -75,6 +75,23 @@ test('cold Marketplace and reload show both real SDK addresses in under one seco
   assert.equal(f.counts().mutations,0);assert.deepEqual(f.errors,[]);
 });
 
+test('Player-only restoration never reuses the catalog Game Wallet address',{timeout:60000},async t=>{
+  const f=await setup(t);
+  // Keep the Player Wallet record exactly as a user who logs in with Player
+  // only, after previously having used both local wallets.
+  await f.page.goto(`${f.base}/__wallet_label_seed__`);
+  await f.page.evaluate(async()=>await new Promise((resolve,reject)=>{
+    const request=indexedDB.deleteDatabase('bis-game-wallet-signet-v1');
+    request.onsuccess=resolve;request.onerror=()=>reject(request.error);
+  }));
+  await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});
+  await f.page.waitForFunction(expected=>document.querySelector('[data-testid="player-wallet-label"]')?.getAttribute('title')===expected,f.expected[0]);
+  await f.page.waitForFunction(()=>document.querySelector('[data-testid="game-wallet-label"]')?.textContent==='Not connected');
+  assert.equal(await f.page.getByTestId('game-wallet-label').getAttribute('title'),null);
+  assert.notEqual(await f.page.getByTestId('game-wallet-label').getAttribute('title'),f.expected[1]);
+  assert.equal(f.counts().mutations,0);assert.deepEqual(f.errors,[]);
+});
+
 test('slow, unavailable, mismatched and logged-out address labels remain truthful',{timeout:90000},async t=>{
   const f=await setup(t);
   f.setMode('slow');await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});

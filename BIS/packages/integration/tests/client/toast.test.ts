@@ -45,11 +45,11 @@ test('public toasts work before account initialization, normalize durations, and
     first.context.showToast('<b>Plain text</b>', {durationMs});
     const entry = first.queue.getSnapshot();
     assert.equal(entry.message, '<b>Plain text</b>');
-    assert.equal(entry.durationMs, 3000);
+    assert.equal(entry.durationMs, 4000);
     first.queue.complete(entry.id);
   }
   first.context.showToast('Longer', {durationMs: 5000});
-  assert.equal(first.queue.getSnapshot().durationMs, 5000);
+  assert.equal(first.queue.getSnapshot().durationMs, 6000);
   assert.equal(second.queue.getSnapshot(), null);
   await first.context.readyAsync();
   assert.equal(first.context.getState().view, 'empty');
@@ -58,6 +58,18 @@ test('public toasts work before account initialization, normalize durations, and
   first.context.dispose(); second.context.dispose();
   assert.equal(first.queue.getSnapshot(), null);
   assert.throws(() => first.context.showToast('After disposal'), /disposed/);
+});
+
+test('default duration is marked for viewport line-count measurement', () => {
+  const {context, queue} = setup();
+  context.showToast('A default toast');
+  assert.equal(queue.getSnapshot()?.durationMs, 4000);
+  assert.equal(queue.getSnapshot()?.automaticDuration, true);
+  queue.complete(queue.getSnapshot()!.id);
+  context.showToast('An explicitly timed toast', {durationMs: 5000});
+  assert.equal(queue.getSnapshot()?.durationMs, 6000);
+  assert.equal(queue.getSnapshot()?.automaticDuration, false);
+  context.dispose();
 });
 
 test('FIFO accepts duplicate messages and stale completion cannot skip the next entry', () => {
@@ -127,7 +139,7 @@ test('entry and exit exclude the hold; arrivals in every phase do not restart th
   assert.deepEqual(phases, ['entering']);
   context.showToast('During entry'); time.tick(199); assert.equal(queue.getSnapshot(), first);
   time.tick(1); assert.deepEqual(phases, ['entering','visible']);
-  context.showToast('During hold'); time.tick(2999); assert.equal(phases.at(-1), 'visible');
+  context.showToast('During hold'); time.tick(3999); assert.equal(phases.at(-1), 'visible');
   time.tick(1); assert.equal(phases.at(-1), 'exiting');
   context.showToast('During exit'); time.tick(199); assert.equal(queue.getSnapshot(), first);
   time.tick(1); assert.equal(queue.getSnapshot().message, 'During entry');

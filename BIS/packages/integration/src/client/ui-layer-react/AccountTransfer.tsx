@@ -140,9 +140,8 @@ export function AccountTransferView({ context, balance, onBack }: { context: Bis
       const next=await context.confirmAccountTransfer(quote,acknowledged.current);
       if(!alive.current||current!==request.current)return;
       setStatus(next);setQuote(undefined);setStatusChecked(true);
-      if(next.status==='succeeded')await context.refreshBalance();
-      else if(next.status==='pending')setSubmitted(true);
-      else setError('Transfer was not submitted. Review a fresh transfer.');
+      if(next.status==='succeeded'||next.status==='pending'){context.closeAccount();return;}
+      setError('Transfer was not submitted. Review a fresh transfer.');
     }catch(cause){if(alive.current&&current===request.current){
       if(cause instanceof PendingTransferConfirmationError){setStatusChecked(true);setWarning(context.getPendingAccountTransfers());}
       else setError(failure(cause));

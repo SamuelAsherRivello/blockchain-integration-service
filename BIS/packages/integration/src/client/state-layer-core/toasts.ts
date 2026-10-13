@@ -1,7 +1,10 @@
 export const MessageType = {Info:'info', Warning:'warning', Error:'error', Success:'success'} as const;
 export type MessageType = typeof MessageType[keyof typeof MessageType];
 export type BisToastOptions = Readonly<{ messageType?: MessageType; durationMs?: number; imageUrl?: string; icon?: 'lightning' }>;
-export type ToastEntry = Readonly<{ id: number; messageType: MessageType; message: string; durationMs: number; imageUrl?: string; icon?: 'lightning' }>;
+export type ToastEntry = Readonly<{ id: number; messageType: MessageType; message: string; durationMs: number; automaticDuration: boolean; imageUrl?: string; icon?: 'lightning' }>;
+const DEFAULT_TOAST_DURATION_MS = 4000;
+const TOAST_DURATION_EXTENSION_MS = 1000;
+const MAX_TIMEOUT_MS = 2147483647;
 
 function toastImageUrl(value?: string): string | undefined {
   if (typeof value !== 'string' || !value.trim()) return;
@@ -29,8 +32,11 @@ export function createToastQueue() {
     enqueue(message: string, options: BisToastOptions = {}) {
       if (disposed || !message.trim()) return;
       const duration = options.durationMs;
-      const durationMs = typeof duration === 'number' && Number.isFinite(duration) && duration > 0 && duration <= 2147483647 ? duration : 3000;
-      entries.push(Object.freeze({id: ++nextId, messageType: Object.values(MessageType).includes(options.messageType!) ? options.messageType! : MessageType.Info, message, durationMs, imageUrl: toastImageUrl(options.imageUrl), ...(options.icon === 'lightning' ? {icon: 'lightning' as const} : {})}));
+      const explicitDuration = typeof duration === 'number' && Number.isFinite(duration) && duration > 0 && duration <= MAX_TIMEOUT_MS - TOAST_DURATION_EXTENSION_MS;
+      // Automatic duration is finalized after the viewport measures the
+      // rendered line count. Explicit caller durations retain the extension.
+      const durationMs = explicitDuration ? duration + TOAST_DURATION_EXTENSION_MS : DEFAULT_TOAST_DURATION_MS;
+      entries.push(Object.freeze({id: ++nextId, messageType: Object.values(MessageType).includes(options.messageType!) ? options.messageType! : MessageType.Info, message, durationMs, automaticDuration: !explicitDuration, imageUrl: toastImageUrl(options.imageUrl), ...(options.icon === 'lightning' ? {icon: 'lightning' as const} : {})}));
       if (entries.length === 1) publish();
     },
     complete(id: number) {

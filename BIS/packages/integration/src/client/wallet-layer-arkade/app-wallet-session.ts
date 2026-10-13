@@ -1,4 +1,4 @@
-import { Wallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, EsploraProvider } from '@arkade-os/sdk';
+import { Wallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, InMemoryIntentRepository, IndexedDBIntentRepository, EsploraProvider } from '@arkade-os/sdk';
 import {testNetwork} from '../state-layer-core/test-network.ts';
 import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
@@ -17,10 +17,23 @@ type Slot<W> = {
   cleanup?: Promise<void>; lane: Promise<void>; users: number; drained?: () => void;
 };
 
+// Arkade persists the signed settlement intent before registering it with the
+// operator.  Keeping that record only in a session-local repository turns a
+// refresh, tab crash, or interrupted callback into an unrecoverable "unknown"
+// operation even though the operator may still settle it.  Use a dedicated
+// database: the SDK explicitly prohibits sharing its intent schema with the
+// wallet/contract repositories.  The name contains only public local scope.
+function settlementIntentRepository(role: Role, account: AccountSecret) {
+  const network=account.network ?? 'signet';
+  if(typeof indexedDB==='undefined')return new InMemoryIntentRepository();
+  return new IndexedDBIntentRepository(`bis-settlement-intents-v1:${network}:${role}:${encodeURIComponent(account.profileId)}`);
+}
+
 /** Private, app-local resource owner. No process-global identity/phrase cache.
  * Borrowers must not dispose or retain wallets beyond their callback. Navigation
  * cancellation detaches a borrower, not initialization. Only retirement disposes.
- * Signing material and repositories stay ephemeral; do not log these objects.
+ * Signing material remains ephemeral; the SDK intent journal is the sole
+ * durable recovery record and contains no recovery phrase. Do not log either.
  * Automatic SDK transactions are disabled, not merely hidden from the UI.
  */
 export function createAppWalletSession<W extends Disposable = Wallet>(options: {
@@ -101,7 +114,11 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
         identity,
         arkProvider, indexerProvider: shareIndexerReads(new RestIndexerProvider(operator), operator),
         onchainProvider:new EsploraProvider(testNetwork(network).explorerApiUrl,{forcePolling:true,pollingInterval:15000}),
-        storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
+        storage: {
+          walletRepository: new InMemoryWalletRepository(),
+          contractRepository: new InMemoryContractRepository(),
+          intentRepository: settlementIntentRepository(role,account),
+        },
         settlementConfig: false,
         watcherConfig: { failsafePollIntervalMs: 60000, reconnectDelayMs: 60000, maxReconnectAttempts: 1 },
       };

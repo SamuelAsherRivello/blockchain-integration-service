@@ -20,8 +20,9 @@ document.getElementById('run')!.onclick=async()=>{
  await c.readyAsync();c.openAccountDialog();c.openAccountSend();await tick();
  check(!host.textContent?.includes('Coming soon'),'Placeholder removed');check(!host.querySelector('select')&&!host.querySelector('input[type="radio"]'),'No unsupported source choices');
  check(!!input('Arkade balance')&&host.textContent?.includes('1,000 sats'),'Arkade balance uses the copyable balance layout');
- check(button('Review Send').disabled,'Empty review disabled');
+  check(input('Amount (sats)').value==='0'&&button('Review Send').disabled,'Empty review starts at zero and is disabled');
   check(!!host.querySelector('.bis-amount-chooser'),'Shared amount chooser');
+  check(host.textContent?.includes('Set amount above'),'Zero amount prompts for an amount when funds are available');
   button('Increase amount').click();await tick();check(input('Amount (sats)').value==='1','Increase by one');
   button('Decrease amount').click();await tick();check(input('Amount (sats)').value==='0'&&button('Decrease amount').disabled,'Decrease stops at zero');
   check(!!button('Paste from Clipboard').querySelector('svg'),'Clipboard icon');
@@ -38,10 +39,10 @@ document.getElementById('run')!.onclick=async()=>{
   check(button('Confirm Send').disabled && submissions===0,'Expired send cannot submit');
   button('Back').click();await tick();quoteLifetime=60000;button('Review Send').click();await tick();check(!button('Confirm Send').disabled,'Fresh send quote enables confirmation');
   button('Confirm Send').click();button('Confirm Send')?.click();await tick();
-  check(submissions===1,'No duplicate click submission');check(!host.querySelector('.bis-send-status')&&!input('Recipient address').value&&input('Amount (sats)').value==='0','Successful send returns to a fresh compose form');
+  check(submissions===1,'No duplicate click submission');check(!host.querySelector('.bis-send')&&!!button('⚡ Send'),'Successful send returns to the account actions');
   c.confirmAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test',verification:'unavailable'});
-  fill('Recipient address','tark1'+'q'.repeat(120));fill('Amount (sats)','500');await tick();button('Review Send').click();await tick();button('Confirm Send').click();await tick();
-  check(!!button('Review Send')&&!host.querySelector('.bis-send-status')&&!input('Recipient address').value&&input('Amount (sats)').value==='0','Pending send returns to a fresh compose form');
+  button('⚡ Send').click();await tick();fill('Recipient address','tark1'+'q'.repeat(120));fill('Amount (sats)','500');await tick();button('Review Send').click();await tick();button('Confirm Send').click();await tick();
+  check(!host.querySelector('.bis-send')&&!!button('⚡ Send'),'Pending send returns to the account actions');
   c.closeAccount();c.checkAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test'});c.openAccountSend();await tick();check(!host.textContent?.includes('Do not send again')&&!host.querySelector('.bis-send-status'),'Reopening Send never shows transaction history');
   const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No overflow');
   result.textContent='PASS: entry, no unsupported routes, clipboard race/denial, exact review, focus, Back, Max, duplicate click, success, pending/reopen, 320px layout. Isolated test doubles; no live payment.';

@@ -29,14 +29,13 @@ test('requested admin navigation controls use an arrow-only affordance', async (
     selected: null, accountOpen: false, canReset: false, onSelect() {}, onReset() {},
     canFund: true, funding: false, onFund() {}, onExplorer() {},
     onMint() {}, mintAvailable: true, assetBusy: false, consoleOutput: '',
-    continueAvailable: true, canShowToast: true, onShowToast() {}, onShowToastWithIcon() {},
+    continueAvailable: true, canShowToast: true, onShowToast() {}, onShowToastWithIcon() {}, onShowLimitedTimeOfferToast() {}, onShowTreasureClaimToast() {},
     playerActive: true, onOpenOnboarding() {},
   }));
   for (const id of ['A.P.1', 'A.P.4', 'B.P.1', 'B.P.8', 'C.G.1', 'E.P.1']) {
     assert.match(html, new RegExp(`<button\\b[^>]*aria-label="${id}\\.[^"]*"[^>]*>↗</button>`), `${id} is arrow-only`);
   }
-  assert.match(html, /aria-label="F\.P\.1\. Show"[^>]*>Show</);
-  assert.match(html, /aria-label="F\.P\.1\. Show With Icon"[^>]*>Show With Icon</);
+  for (const example of ['EX1', 'EX2', 'EX3', 'EX4']) assert.match(html, new RegExp(`aria-label="F\\.P\\.1\\. ${example}"[^>]*>${example}<`));
   assert.doesNotMatch(html, /F\.P\.2/);
 
   const gameWalletSource = await readFile(new URL('../../src/client/admin-layer/GameWalletPanel.tsx', import.meta.url), 'utf8');
@@ -182,7 +181,7 @@ test('F.P.1 UI Toast subbuttons and B.P.8 retain availability and exact action r
     selected: null, accountOpen: true, canReset: false, onSelect: id => calls.push(id), onReset() {},
     canFund: true, funding: false, onFund: () => calls.push('fund'), onExplorer: () => calls.push('explorer'),
     onMint() {}, assetBusy: true, consoleOutput: '', playerActive: true, onOpenOnboarding() {},
-    canShowToast: true, onShowToast: () => calls.push('toast'), onShowToastWithIcon: () => calls.push('toast-icon'),
+    canShowToast: true, onShowToast: () => calls.push('toast'), onShowToastWithIcon: () => calls.push('toast-icon'), onShowLimitedTimeOfferToast: () => calls.push('offer'), onShowTreasureClaimToast: () => calls.push('claim'),
   };
   function buttons(element, found = []) {
     if (!element || typeof element !== 'object') return found;
@@ -193,17 +192,14 @@ test('F.P.1 UI Toast subbuttons and B.P.8 retain availability and exact action r
     return found;
   }
   const enabled = buttons(AdminPanelView(props));
-  const show = enabled.find(button => button.props['aria-label'] === 'F.P.1. Show');
-  const showWithIcon = enabled.find(button => button.props['aria-label'] === 'F.P.1. Show With Icon');
+  const examples = ['EX1', 'EX2', 'EX3', 'EX4'].map(example => enabled.find(button => button.props['aria-label'] === `F.P.1. ${example}`));
   const onboarding = enabled.find(button => button.props['aria-label']?.startsWith('B.P.8.'));
-  assert.equal(show?.props.disabled, false); show?.props.onClick();
-  assert.equal(showWithIcon?.props.disabled, false); showWithIcon?.props.onClick();
+  for (const example of examples) { assert.equal(example?.props.disabled, false); example?.props.onClick(); }
   assert.equal(onboarding?.props.disabled, false);
-  assert.deepEqual(calls, ['toast','toast-icon']);
+  assert.deepEqual(calls, ['toast','toast-icon','offer','claim']);
   const markup = renderToStaticMarkup(createElement(AdminPanelView, props));
   assert.match(markup, />F\. Integrations</); assert.match(markup, /F\.P\.1\. UI Toast/);
-  assert.match(markup, /aria-label="F\.P\.1\. Show"[^>]*>Show</);
-  assert.match(markup, /aria-label="F\.P\.1\. Show With Icon"[^>]*>Show With Icon</);
+  for (const example of ['EX1', 'EX2', 'EX3', 'EX4']) assert.match(markup, new RegExp(`aria-label="F\\.P\\.1\\. ${example}"[^>]*>${example}<`));
   assert.doesNotMatch(markup, /F\.P\.2/);
   assert.match(markup, />X\. Appendix</);
   assert.match(markup, /B\.P\.8\. Open Onboarding/);
@@ -211,9 +207,7 @@ test('F.P.1 UI Toast subbuttons and B.P.8 retain availability and exact action r
   assert.doesNotMatch(markup, /X\.N\.1\. Open Onboarding/);
   for (const options of [{canFund: false}, {funding: true}]) {
     const disabled = buttons(AdminPanelView({...props,...options}));
-    assert.equal(disabled.find(button => button.props['aria-label'] === 'F.P.1. Show')?.props.disabled, false);
-    assert.equal(disabled.find(button => button.props['aria-label'] === 'F.P.1. Show With Icon')?.props.disabled, false);
+    for (const example of ['EX1', 'EX2', 'EX3', 'EX4']) assert.equal(disabled.find(button => button.props['aria-label'] === `F.P.1. ${example}`)?.props.disabled, false);
   }
-  assert.equal(buttons(AdminPanelView({...props, canShowToast: false})).find(button => button.props['aria-label'] === 'F.P.1. Show')?.props.disabled, true);
-  assert.equal(buttons(AdminPanelView({...props, canShowToast: false})).find(button => button.props['aria-label'] === 'F.P.1. Show With Icon')?.props.disabled, true);
+  for (const example of ['EX1', 'EX2', 'EX3', 'EX4']) assert.equal(buttons(AdminPanelView({...props, canShowToast: false})).find(button => button.props['aria-label'] === `F.P.1. ${example}`)?.props.disabled, true);
 });

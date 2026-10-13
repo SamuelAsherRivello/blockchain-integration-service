@@ -141,7 +141,7 @@ test('same session submits once; funded slot stays reserved and duplicate notifi
   const s=setup();const first=s.service.start(s.request),second=s.service.start(s.request);
   assert.equal(first,second);assert.equal((await first).status,'confirmed');
   await delay();await s.service.reconcile();
-  assert.deepEqual(s.calls,['fund']);assert.equal(s.toasts.filter(text=>text.includes('confirmed')).length,1);
+  assert.deepEqual(s.calls,['fund']);assert.equal(s.toasts.filter(text=>text==='Limited Time Offer: Find & claim treasure (1000 sats) within 90 secs.').length,1);
   assert.equal((await s.storage.load()).ledger.contracts.length,1);
 });
 test('same-key active calls share one promise but settled unavailable does not poison a fresh session',async()=>{

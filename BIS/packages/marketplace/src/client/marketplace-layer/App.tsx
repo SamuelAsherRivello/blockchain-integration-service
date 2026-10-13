@@ -105,10 +105,10 @@ function MarketplaceContent(){
   const selectedGame=game==='all'?undefined:catalog.games.find(entry=>entry.gameId===game);
   const defaultGame=catalog.games.find(entry=>entry.gameId==='stealth-and-steel');
   const registeredGameAddress=game==='all'?defaultGame?.gameWalletAddress:selectedGame?.gameWalletAddress;
-  // The catalog address is only a read-only inventory source for an active
-  // Player Wallet session. Otherwise it can survive Player logout visually,
-  // even after the local Game Wallet has been cleared.
-  const publicGameAddress=playerState.profileId&&registeredGameAddress?marketplaceGameInventoryAddress({registeredAddress:registeredGameAddress,playerProfileId:playerState.profileId,gameProfileId:gameState.profileId,sessionAddress:gameState.addresses?.arkadeAddress,network,gameNetwork:gameState.network}):undefined;
+  // Catalog inventory belongs to a connected local Game Wallet. A Player-only
+  // session must neither display nor read the published Game Wallet address.
+  const hasConnectedGameWallet=Boolean(playerState.profileId&&gameState.profileId&&gameState.profileId!==playerState.profileId&&gameState.network===network&&gameState.addresses?.arkadeAddress);
+  const publicGameAddress=hasConnectedGameWallet&&registeredGameAddress?marketplaceGameInventoryAddress({registeredAddress:registeredGameAddress,playerProfileId:playerState.profileId,gameProfileId:gameState.profileId,sessionAddress:gameState.addresses?.arkadeAddress,network,gameNetwork:gameState.network}):undefined;
   useEffect(()=>{
     try {
       const pending=readLocalMarketplaceCheckouts().find(record=>record.status==='pending');
@@ -136,9 +136,9 @@ function MarketplaceContent(){
   const playerArkadeAddress=playerState.addresses.status==='ready'?playerState.addresses.arkadeAddress:undefined;
   const scopedPlayerDisplay=playerDisplay?.profileId===playerState.profileId&&playerDisplay?.network===network?playerDisplay:undefined;
   const playerLabel=walletAddressLabel({address:playerState.profileId?(playerArkadeAddress??scopedPlayerDisplay?.address):undefined,selected:!!playerState.profileId,loading:playerState.phase==='loading',unavailable:playerState.phase==='error'||scopedPlayerDisplay?.unavailable});
-  const connectedGameAddress=playerState.profileId&&gameState.profileId&&gameState.profileId!==playerState.profileId&&gameState.network===network?sessionGameAddress:undefined;
-  const gameLabel=walletAddressLabel({address:connectedGameAddress??(gameState.status==='empty'&&playerState.phase!=='loading'&&!isCatalogLoading?publicGameAddress:undefined),selected:!!playerState.profileId&&!!gameState.profileId,loading:gameState.status==='loading'||isCatalogLoading,unavailable:!!playerState.profileId&&gameState.status==='unavailable'&&!connectedGameAddress});
-  const activeGameWallet=Boolean(playerState.profileId&&gameState.profileId&&gameState.network===network&&gameState.addresses?.arkadeAddress);
+  const connectedGameAddress=hasConnectedGameWallet?sessionGameAddress:undefined;
+  const gameLabel=walletAddressLabel({address:connectedGameAddress,selected:!!playerState.profileId&&!!gameState.profileId,loading:gameState.status==='loading'||isCatalogLoading,unavailable:!!playerState.profileId&&gameState.status==='unavailable'&&!connectedGameAddress});
+  const activeGameWallet=hasConnectedGameWallet;
   const inventoryAddress=isCatalogLoading?undefined:publicGameAddress;
   const salesEnabled=Boolean(playerState.profileId&&gameState.profileId&&playerState.profileId!==gameState.profileId&&(game==='all'||game==='stealth-and-steel'));
   const gameListingEnabled=Boolean(playerState.profileId&&gameState.profileId&&inventoryAddress);

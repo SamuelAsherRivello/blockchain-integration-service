@@ -22,7 +22,7 @@ import { RecoveryPhrasePanel, TestWalletWarning } from './RecoveryPhrasePanel';
 import { GameWalletLoginView } from './GameWalletLogin';
 import { createBisGameWallet } from '../state-layer-core/game-wallet';
 import { networkLabel } from '../state-layer-core/test-network';
-import { assetMintingSupportAvailable, assetMintingSupportFeedback, contractSupportAvailable, contractSupportFeedback, itemSupportAvailable, itemSupportFeedback, paymentSupportAvailable, paymentSupportFeedback } from '../state-layer-core/capabilities';
+import { assetMintingSupportAvailable, contractSupportAvailable, itemSupportAvailable, paymentSupportAvailable } from '../state-layer-core/capabilities';
 import { FormRowBoolean } from './FormRowBoolean';
 import { ViewTransition } from './ViewTransition';
 import { defaultViewLoadingPolicy, useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
@@ -31,6 +31,18 @@ import { ConfirmationDialog } from './ConfirmationDialog';
 type GameWallet = ReturnType<typeof createBisGameWallet>;
 const emptySubscribe = () => () => {};
 const emptySnapshot = () => undefined;
+
+// Keep this one template editable: feature and state values are substituted at render time.
+export const DEVELOPER_SUPPORT_TOOLTIP_TEMPLATE = '{feature} {status}. Game Wallet {walletState} and funded.';
+export const DEVELOPER_ITEMS_TOOLTIP_TEMPLATE = 'Items {status}. Player Wallet {walletState}.';
+
+export function developerSupportTooltip(feature: string, supported: boolean): string {
+  const template = feature === 'Items' ? DEVELOPER_ITEMS_TOOLTIP_TEMPLATE : DEVELOPER_SUPPORT_TOOLTIP_TEMPLATE;
+  return template
+    .replace('{feature}', feature)
+    .replace('{status}', supported ? 'enabled' : 'disabled')
+    .replace('{walletState}', supported ? 'present' : 'not present');
+}
 
 const networkOptions = [
   { value: 'signet' as const, label: 'Signet' },
@@ -176,19 +188,10 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const contractSupported = supportLoading ? undefined : hostContractSupport ?? (!!walletSnapshot && contractSupportAvailable(state, walletSnapshot));
   const itemsSupported = supportLoading ? undefined : hostItemSupport ?? itemSupportAvailable(state);
   const paymentsSupported = supportLoading ? undefined : hostPaymentSupport ?? (!!walletSnapshot && paymentSupportAvailable(state, walletSnapshot));
-  const hostFeedback = (capability: string, supported: boolean | undefined) => supported === undefined ? undefined : supported
-    ? `Current status: available. ${capability} is enabled by the host capability check.`
-    : `${capability} is unavailable because the host capability check returned false.`;
-  const assetMintingTooltip = hostFeedback('Asset Minting', hostAssetMintingSupport) ?? (walletSnapshot
-    ? assetMintingSupportFeedback(state, walletSnapshot)
-    : 'Asset Minting is unavailable: select or create a Game Wallet.');
-  const contractTooltip = hostFeedback('Contracts', hostContractSupport) ?? (walletSnapshot
-    ? contractSupportFeedback(state, walletSnapshot)
-    : 'Contracts are unavailable: select or create a Game Wallet.');
-  const itemsTooltip = hostFeedback('Items', hostItemSupport) ?? itemSupportFeedback(state);
-  const paymentsTooltip = hostFeedback('Payments', hostPaymentSupport) ?? (walletSnapshot
-    ? paymentSupportFeedback(state, walletSnapshot)
-    : 'Payments are unavailable: select or create a Game Wallet.');
+  const assetMintingTooltip = developerSupportTooltip('Asset Minting', assetMintingSupported === true);
+  const contractTooltip = developerSupportTooltip('Contracts', contractSupported === true);
+  const itemsTooltip = developerSupportTooltip('Items', itemsSupported === true);
+  const paymentsTooltip = developerSupportTooltip('Payments', paymentsSupported === true);
   useEffect(() => {
     if (state.accountRecovery) void getControls(context).revealRecovery();
   }, [context, state.accountRecovery]);

@@ -18,7 +18,7 @@ function fixture(options = {}) {
   return {session,wallets,configs};
 }
 
-test('lazy app-local two-role budget, same read/sign object and memory-only safe SDK config', async () => {
+test('lazy app-local two-role budget keeps a recoverable SDK settlement journal', async () => {
   const {session,wallets,configs}=fixture();
   assert.equal(wallets.length,0);
   const first=await session.read('player',account(),signal(),async w=>w);
@@ -26,11 +26,26 @@ test('lazy app-local two-role budget, same read/sign object and memory-only safe
   await session.read('game',account('game'),signal(),async()=>{});
   await session.read('player',account(),signal(),async()=>{});
   assert.equal(wallets.length,2);
-  assert.ok(configs.every(config=>config.settlementConfig===false && config.storage.walletRepository && config.storage.contractRepository));
+  assert.ok(configs.every(config=>config.settlementConfig===false && config.storage.walletRepository && config.storage.contractRepository && config.storage.intentRepository));
   const other=fixture();await other.session.read('player',account(),signal(),async()=>{});
   assert.notEqual(other.wallets[0],first);
   await Promise.all([session.dispose(),other.session.dispose()]);
   assert.ok(wallets.every(wallet=>wallet.disposed===1));
+});
+
+test('browser sessions scope persistent settlement intents by network, role, and account', async () => {
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'indexedDB');
+  Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:{}});
+  try {
+    const {session,configs}=fixture();
+    await session.read('player',account('player','signet'),signal(),async()=>{});
+    await session.read('game',account('game','mutinynet'),signal(),async()=>{});
+    assert.deepEqual(configs.map(config=>config.storage.intentRepository.constructor.name),['IndexedDBIntentRepository','IndexedDBIntentRepository']);
+    await session.dispose();
+  } finally {
+    if(previous)Object.defineProperty(globalThis,'indexedDB',previous);
+    else Reflect.deleteProperty(globalThis,'indexedDB');
+  }
 });
 
 test('concurrent acquisition survives first caller cancellation without disposing shared wallet',async()=>{
