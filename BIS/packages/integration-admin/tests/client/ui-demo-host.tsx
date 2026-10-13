@@ -65,7 +65,7 @@ document.getElementById('run')!.onclick=async()=>{
    host().querySelector<HTMLButtonElement>('.bis-visibility-toggle')!.click();await tick();context.closeAccount();await tick();context.closeAccount();await tick();
    context.openAccountReceive();await wait(()=>context.getState().addresses.status==='ready');await tick();geometry();context.closeAccount();await tick();
    context.openAccountSend();await wait(()=>!host().querySelector('.bis-pending-dialog'));await tick();geometry();
-   const recipient=host().querySelector<HTMLInputElement>('[aria-label="Recipient address"]')!;
+   const recipient=host().querySelector<HTMLInputElement>('[aria-label="Recipient Arkade address"]')!;
    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(recipient,'tark1fixture');recipient.dispatchEvent(new Event('input',{bubbles:true}));await tick();
    await click('Max');await click('Review Send');geometry();check(host().querySelectorAll('.bis-review-details dt').length===6,'Send review rows');context.closeAccount();await tick();
    context.openAccountTransfer();await wait(()=>!host().querySelector('.bis-pending-dialog'));await tick();geometry();await click('Max');await click('Review Transfer');geometry();check(host().querySelectorAll('.bis-review-details dt').length===6,'Transfer review rows');context.closeAccount();await tick();context.closeAccount();await tick();

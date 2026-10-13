@@ -28,10 +28,10 @@ document.getElementById('run')!.onclick=async()=>{
   check(!!button('Paste from Clipboard').querySelector('svg'),'Clipboard icon');
   let pasted:(s:string)=>void=()=>{};const originalClipboard=Object.getOwnPropertyDescriptor(navigator,'clipboard');
   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{readText:()=>new Promise<string>(r=>{pasted=r;})}});
-  button('Paste from Clipboard').click();fill('Recipient address','tark1newer');await tick();pasted('tark1older');await tick();check(input('Recipient address').value==='tark1newer','Late clipboard preserves edits');
+  button('Paste from Clipboard').click();fill('Recipient Arkade address','tark1newer');await tick();pasted('tark1older');await tick();check(input('Recipient Arkade address').value==='tark1newer','Late clipboard preserves edits');
   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{readText:async()=>{throw Error('denied');}}});button('Paste from Clipboard').click();await tick();check(host.textContent?.includes('Clipboard unavailable'),'Clipboard denial has manual fallback');
   if(originalClipboard)Object.defineProperty(navigator,'clipboard',originalClipboard);else Reflect.deleteProperty(navigator,'clipboard');
-  fill('Recipient address','tark1'+'q'.repeat(120));fill('Amount (sats)','500');await tick();button('Review Send').click();await tick();
+  fill('Recipient Arkade address','tark1'+'q'.repeat(120));fill('Amount (sats)','500');await tick();button('Review Send').click();await tick();
   check(host.textContent?.includes('Review Send')&&host.textContent?.includes('500 sats'),'Review exact terms');check(document.activeElement?.textContent==='Review Send','Review focus');
   button('Back').click();await tick();check(input('Amount (sats)').value==='500','Back preserves draft');
   button('Max').click();await tick();check(input('Amount (sats)').value==='1000','Max amount');
@@ -41,7 +41,7 @@ document.getElementById('run')!.onclick=async()=>{
   button('Confirm Send').click();button('Confirm Send')?.click();await tick();
   check(submissions===1,'No duplicate click submission');check(!host.querySelector('.bis-send')&&!!button('⚡ Send'),'Successful send returns to the account actions');
   c.confirmAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test',verification:'unavailable'});
-  button('⚡ Send').click();await tick();fill('Recipient address','tark1'+'q'.repeat(120));fill('Amount (sats)','500');await tick();button('Review Send').click();await tick();button('Confirm Send').click();await tick();
+  button('⚡ Send').click();await tick();fill('Recipient Arkade address','tark1'+'q'.repeat(120));fill('Amount (sats)','500');await tick();button('Review Send').click();await tick();button('Confirm Send').click();await tick();
   check(!host.querySelector('.bis-send')&&!!button('⚡ Send'),'Pending send returns to the account actions');
   c.closeAccount();c.checkAccountSend=async()=>({status:'pending',transactionId:'c'.repeat(64),amountSats:500,recipient:'tark1test'});c.openAccountSend();await tick();check(!host.textContent?.includes('Do not send again')&&!host.querySelector('.bis-send-status'),'Reopening Send never shows transaction history');
   const card=host.querySelector('.bis-card')!;check(card.scrollWidth<=card.clientWidth,'No overflow');

@@ -37,12 +37,7 @@ test('Admin mint burn remint creates nine new assets and interrupted retries reu
 function chainAssets() {
   return marketplaceCatalogItems.map((item, index) => ({
     assetId: `asset-${index + 1}`, quantity: '1', iconUrl: item.iconUrl,
-    metadata: {
-      bisSchemaVersion:'1', bisGameId:'stealth-and-steel', bisAssetType:'item',
-      bisCatalogId:item.id, bisEquipmentFamily:item.family,
-      bisTier:String(item.tier), bisPriceSats:String(item.priceSats),
-      bisDescription:item.description, bisAttributeDeltas:item.attributeDeltas,
-    },
+    metadata: {...marketplaceMintRequest(item).metadata, bisSchemaVersion:'1'},
   }));
 }
 

@@ -71,7 +71,7 @@ test('C.G.2, C.G.3, and C.G.4 report Marketplace progress and results only throu
   assert.doesNotMatch(panel, /\{message && <p role="status">\{message\}<\/p>\}/);
   assert.doesNotMatch(panel, /busy \? 'Working…'/);
   assert.match(panel, /onLog\(\{operation:'C.G.2\. Marketplace mint'/);
-  assert.match(panel, /status:'pending', message:'Preparing catalog issuance…'/);
+  assert.match(panel, /status:'pending', message:'Preparing latest-format catalog issuance…'/);
   assert.match(panel, /Minting \$\{progress\.itemName\}/);
   assert.match(panel, /Verifying fresh marketplace inventory/);
   assert.match(panel, /status:'verified', message:'Nine verified catalog items are now available from this Game Wallet’s live inventory\.'/);
@@ -92,12 +92,7 @@ test('fresh chain holdings must contain exactly one fully classified asset per c
     assetId: `asset-${index + 1}`,
     quantity: '1',
     iconUrl: item.iconUrl,
-    metadata: {
-      bisSchemaVersion: '1', bisGameId: 'stealth-and-steel', bisAssetType: 'item',
-      bisCatalogId: item.id, bisEquipmentFamily: item.family,
-      bisTier: String(item.tier), bisPriceSats: String(item.priceSats),
-      bisDescription: item.description, bisAttributeDeltas: item.attributeDeltas,
-    },
+    metadata: {...marketplaceMintRequest(item).metadata, bisSchemaVersion: '1'},
   }));
   assert.equal(verifiedMarketplaceRecordsFromAssets(assets).length, 9);
   assert.equal(verifiedMarketplaceRecordsFromAssets(assets.slice(0, 8)), null);

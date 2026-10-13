@@ -197,8 +197,6 @@
 .bis-send { min-width: 0; text-align: left; font-size: 9.6px; }
 .bis-send-form { display: grid; gap: 8px; margin-bottom: 12.8px; }
 .bis-send-form label { display: grid; gap: 4.8px; }
-.bis-send-form > input { box-sizing: border-box; min-width: 0; width: 100%; padding: 8px; border: 0.8px solid #c8d7dc; border-radius: 5.6px; background: white; color: #294650; font: inherit; }
-.bis-send-form > input:focus-visible { outline: 1.6px solid #30977f; }
 .bis-send-form > .bis-button { justify-self: end; padding: 5.6px 11.2px; }
 .bis-send .bis-send-address { overflow-wrap: anywhere; user-select: text; text-align: left; font: 8.8px/1.6 ui-monospace, monospace; padding: 7.2px; background: #edf5f1; border-radius: 5.6px; }
 .bis-send-status { overflow-wrap: anywhere; }

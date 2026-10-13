@@ -66,7 +66,7 @@ export function AccountSendView({context}:{context:BisContext}) {
  }
  const network=networkLabel(context.getState().network);
  const validAddress=recipient.trim().startsWith('tark1'),validAmount=/^\d+$/.test(amount)&&Number.isSafeInteger(Number(amount))&&Number(amount)>0&&funds!==undefined&&Number(amount)<=funds;
- const fieldStatus=clipboardError||(recipient&&!validAddress?'Enter an Arkade test address.':funds!==undefined&&funds>0&&amount==='0'?'Set amount above.':'');
+ const fieldStatus=clipboardError||(recipient&&!validAddress?'Enter valid Arkade recipient address.':funds!==undefined&&funds>0&&amount==='0'?'Set amount above.':'');
  const loadingNotice=useEntryLoadingGate(busy,initialLoad.current,viewLoadingPolicies.send);
  usePendingNotice(loadingNotice,operationLabel,error||undefined,()=>context.closeAccount());
  return <div className="bis-send">
@@ -80,8 +80,10 @@ export function AccountSendView({context}:{context:BisContext}) {
    {expired&&<p role="status">Quote expired. Go Back for a fresh review.</p>}
   </div>:<div className="bis-send-form">
    <FormValue label="Arkade balance" value={funds===undefined?'':sats(funds)} copyable disabled={funds===undefined} tooltipName="Arkade balance" tooltip={<FormTooltip title="Arkade balance" balance={formatBalanceSats(funds)} available={formatBalanceSats(funds)} />} />
-   <FormHeading htmlFor={recipientId} label="Recipient address"><PasteButton disabled={busy} onClick={() => void paste()} /></FormHeading>
-   <input id={recipientId} ref={recipientInput} aria-label="Recipient address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>
+   <div className="bis-address-row">
+    <FormHeading htmlFor={recipientId} label="Recipient Arkade address"><PasteButton disabled={busy} onClick={() => void paste()} /></FormHeading>
+    <input id={recipientId} ref={recipientInput} aria-label="Recipient Arkade address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>
+   </div>
    <AmountChooserRow value={amount} onChange={value=>edit(value,'amount')} onMax={()=>void review(true)} disabled={busy} maxDisabled={!validAddress||!funds}/>
    {fieldStatus&&<p className="bis-field-status-line" role="status">{fieldStatus}</p>}
   </div>}
