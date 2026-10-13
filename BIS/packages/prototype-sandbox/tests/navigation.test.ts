@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_ADDRESS, DEFAULT_NETWORK, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues } from '../src/client/navigation.ts';
+import { DEFAULT_ADDRESS, DEFAULT_NETWORK, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, formatSatsAsBitcoin, getActiveDemo, isHomePath, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues, walletCallbackUrl, walletPaymentUrl, walletUrl } from '../src/client/navigation.ts';
 
-test('defines eleven labeled demo routes', () => {
-  assert.equal(DEMOS.length, 11);
-  assert.deepEqual(DEMOS.map(demo => demo.path), Array.from({ length: 11 }, (_, index) => `/prototype-interactive-docs/demo-${index + 1}/`));
+test('defines twelve labeled demo routes', () => {
+  assert.equal(DEMOS.length, 12);
+  assert.deepEqual(DEMOS.map(demo => demo.path), Array.from({ length: 12 }, (_, index) => `/prototype-interactive-docs/demo-${index + 1}/`));
   assert.equal(DEMOS[0].subject, 'Get Wallet');
   assert.equal(DEMOS[1].subject, 'Get Balance');
   assert.equal(DEMOS[1].title, 'Private Wallet');
@@ -13,6 +13,8 @@ test('defines eleven labeled demo routes', () => {
   assert.equal(DEMOS[9].subject, 'Asset History');
   assert.equal(DEMOS[9].title, 'Private Wallet');
   assert.equal(DEMOS[10].title, 'Public Address');
+  assert.equal(DEMOS[11].subject, 'External Wallet');
+  assert.equal(DEMOS[11].title, 'Approve Payment');
 });
 
 test('derives active demo from direct paths and defaults safely', () => {
@@ -21,6 +23,7 @@ test('derives active demo from direct paths and defaults safely', () => {
   assert.equal(getActiveDemo('/prototype-interactive-docs/demo-10/'), 10);
   assert.equal(getActiveDemo('/prototype-interactive-docs/'), 1);
   assert.equal(getActiveDemo('/prototype-interactive-docs/demo-11/'), 11);
+  assert.equal(getActiveDemo('/prototype-interactive-docs/demo-12/'), 12);
 });
 
 test('recognizes the home route separately from setup', () => {
@@ -58,5 +61,19 @@ test('setup initializes mnemonic slots without default values', () => {
   assert.deepEqual(setupMnemonicValues(storage), { mnemonic3: '', mnemonic4: '' });
   assert.equal(values.get('mnemonic-3'), '');
   assert.equal(values.get('mnemonic-4'), '');
+});
+
+test('builds a network-specific Arkade Wallet payment link with an encoded BIP21 request', () => {
+  const callback = walletCallbackUrl('http://127.0.0.1:5174/prototype-interactive-docs/demo-12/?status=sent#ignored');
+  const link = new URL(walletPaymentUrl({ network: 'signet', address: 'tark1recipient', amountSats: 100, callback }));
+  assert.equal(walletUrl('signet'), 'https://signet.arkade.money/');
+  assert.equal(walletUrl('mutinynet'), 'https://mutinynet.arkade.money/');
+  assert.equal(callback, 'http://127.0.0.1:5174/prototype-interactive-docs/demo-12/');
+  assert.equal(link.origin, 'https://signet.arkade.money');
+  assert.equal(link.searchParams.get('action'), 'send');
+  assert.equal(link.searchParams.get('request'), 'bitcoin:tark1recipient?amount=0.000001');
+  assert.equal(link.searchParams.get('callback'), callback);
+  assert.equal(formatSatsAsBitcoin(100_000_000), '1');
+  assert.throws(() => walletCallbackUrl('http://example.test/demo-12/'), /HTTPS or localhost/);
 });
 

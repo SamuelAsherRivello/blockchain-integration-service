@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk';
+import { MnemonicIdentity, RestArkProvider, Wallet } from '@arkade-os/sdk';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.ts';
-import { decodeArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
-import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues } from './navigation.ts';
+import { decodeArkadeAddress, validateArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
+import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupMnemonicValues, setupNetworkValue, setupStorageValues, walletCallbackUrl, walletPaymentUrl, walletUrl } from './navigation.ts';
 import './style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
 
@@ -26,6 +26,7 @@ const DOCS_URLS = Object.freeze({
   sendAsset: 'https://docs.arkadeos.com/wallets/operations/assets/send-assets',
   receiveAsset: 'https://docs.arkadeos.com/wallets/operations/assets/check-balance',
   assetHistory: 'https://docs.arkadeos.com/wallets/operations/assets/check-balance',
+  externalWallet: 'https://github.com/arkade-os/wallet#app-links',
 });
 
 function DocsSection({ href, topic, description, subheading, mainLink = false, linkLabel }) {
@@ -107,10 +108,14 @@ function SetupSection({ network }) {
     ['mnemonic3', 'Wallet 3 Mnemonic'], ['mnemonic4', 'Wallet 4 Mnemonic'],
   ];
   return <div className="sandbox-setup">
-    <DocsSection href="https://mutinynet.arkade.money/" description="Need to set up a wallet?" linkLabel="Open the Mutinynet Arkade wallet to create or restore one." />
     <section className="prototype-section" aria-label="Setup Input">
       <div className="prototype-title-bar"><h2>Setup Input</h2></div>
       <div className="sandbox-setup-fields">
+      <div className="sandbox-setup-guidance">
+        <p>To use all of the demos, enter all of the following fields using wallets you own.</p>
+        <p><a href={walletUrl(network)} target="_blank" rel="noreferrer">Open the {NETWORKS[network].label} Arkade Wallet to create or restore one.</a> This link updates when the network selection changes.</p>
+        <p>Use addresses and mnemonics with the selected network only. A wallet created from the same mnemonic can have a different Arkade address on Signet and Mutinynet because each network uses a different operator context.</p>
+      </div>
       {fields.map(([key, label]) => <form key={key} className="sandbox-setup-field" onSubmit={event => submit(key, event)}>
         <label htmlFor={key}>{label}</label>
         <div className="sandbox-setup-control">
@@ -238,6 +243,28 @@ const success = Boolean(txid)
 console.log('Send Payment')
 console.log('Transaction ID:', txid)
 console.log('Success:', success)`;
+
+const EXTERNAL_WALLET_PAYMENT_SOURCE = `// No mnemonic or private key enters this demo.
+const recipient = localStorage.getItem('address-1')
+const network = localStorage.getItem('network')
+const amountSats = 100
+
+// BIP21 stores Bitcoin values, so 100 sats is 0.000001 BTC.
+const request = 'bitcoin:' + recipient + '?amount=0.000001'
+const callback = new URL(window.location.href)
+callback.search = ''
+callback.hash = ''
+
+// Arkade Wallet shows the prefilled payment and asks the wallet owner to approve.
+const wallet = new URL(network === 'signet'
+  ? 'https://signet.arkade.money/'
+  : 'https://mutinynet.arkade.money/')
+wallet.search = new URLSearchParams({
+  action: 'send',
+  request,
+  callback: callback.toString(),
+})
+window.location.assign(wallet)`;
 
 const RECEIVE_PAYMENT_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
@@ -490,7 +517,7 @@ function AssetSelector({ value, onChange, includeAll = false }) {
   </label>;
 }
 
-function OperationDemo({ demoTitle, docsHref, docsTopic, input, sourceId, source, output, elapsedMs, running, onExecute }) {
+function OperationDemo({ demoTitle, docsHref, docsTopic, input, sourceId, source, output, elapsedMs, running, onExecute, actionLabel = 'Execute', runningLabel = 'Executing…' }) {
   return <>
     <DocsSection href={docsHref} topic={docsTopic} />
     <section className="sandbox-demo-input prototype-section" aria-label="Input">
@@ -502,7 +529,7 @@ function OperationDemo({ demoTitle, docsHref, docsTopic, input, sourceId, source
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor={sourceId}>Source code</label>
         <SourceCodeField id={sourceId} source={source} />
-        <button className="sandbox-action-button" type="button" onClick={onExecute} disabled={running}>{running ? 'Executing…' : 'Execute'}</button>
+        <button className="sandbox-action-button" type="button" onClick={onExecute} disabled={running}>{running ? runningLabel : actionLabel}</button>
       </div>
     </section>
     <OutputSection title={demoTitle} output={output} elapsedMs={elapsedMs} />
@@ -722,6 +749,54 @@ function DemoSendPayment({ network }) {
     <input id="send-payment-address" value={window.localStorage.getItem('address-1') || ''} readOnly />
     <label htmlFor="send-payment-amount">Amount</label>
     <input id="send-payment-amount" value="100 sats" readOnly />
+  </>} />;
+}
+
+function externalWalletPaymentResult(search) {
+  const result = new URLSearchParams(search);
+  if (result.get('status') === 'sent') {
+    const txid = result.get('txid');
+    return [`Wallet result: sent`, ...(txid ? [`Transaction ID: ${txid}`] : []), 'Success: true'].join('\n');
+  }
+  if (result.has('error')) return [`Wallet result: ${result.get('error')}`, 'Success: false'].join('\n');
+  return 'Open Arkade Wallet, review the payment there, then approve or decline it. This page will show the wallet callback after it returns.';
+}
+
+function DemoExternalWalletPayment({ network }) {
+  const [amount, setAmount] = useState('100');
+  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
+  const [running, setRunning] = useState(false);
+  const [callbackResult, setCallbackResult] = useState(() => externalWalletPaymentResult(window.location.search));
+
+  useEffect(() => {
+    const updateResult = () => setCallbackResult(externalWalletPaymentResult(window.location.search));
+    window.addEventListener('popstate', updateResult);
+    return () => window.removeEventListener('popstate', updateResult);
+  }, []);
+
+  async function openWallet() {
+    const startedAt = begin();
+    setRunning(true);
+    setOutput('');
+    try {
+      const address = window.localStorage.getItem('address-1') || '';
+      const provider = new RestArkProvider(NETWORKS[network].operator);
+      const info = await provider.getInfo();
+      validateArkadeAddress(address, info, network);
+      const link = walletPaymentUrl({ network, address, amountSats: amount, callback: walletCallbackUrl(window.location.href) });
+      window.location.assign(link);
+    } catch (error) {
+      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
+      finish(startedAt);
+      setRunning(false);
+    }
+  }
+
+  return <OperationDemo demoTitle="External Wallet Payment" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-payment-source" source={EXTERNAL_WALLET_PAYMENT_SOURCE} output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Open Arkade Wallet" runningLabel="Checking recipient…" input={<>
+    <label htmlFor="external-wallet-address">Wallet 1 Address</label>
+    <input id="external-wallet-address" value={window.localStorage.getItem('address-1') || ''} readOnly spellCheck="false" />
+    <label htmlFor="external-wallet-amount">Amount in sats</label>
+    <input id="external-wallet-amount" value={amount} onChange={event => setAmount(event.target.value)} inputMode="numeric" spellCheck="false" autoComplete="off" />
   </>} />;
 }
 
@@ -973,6 +1048,7 @@ export function App({ pathname = window.location.pathname }) {
         {!homeActive && !setupActive && activeDemo === 9 && <DemoReceiveAsset network={network} />}
         {!homeActive && !setupActive && activeDemo === 10 && <DemoAssetHistory network={network} />}
         {!homeActive && !setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
+        {!homeActive && !setupActive && activeDemo === 12 && <DemoExternalWalletPayment network={network} />}
       </main>
     </div>
     <footer className="spike-footer" aria-label="Footer" />

@@ -52,6 +52,10 @@ button, input, select { font: inherit; }
 .sandbox-docs-body a { color: #a9d9c3; font-size: 12px; }
 .sandbox-docs-body a:hover, .sandbox-docs-body a:focus-visible { color: #c2ebd6; }
 .sandbox-setup-fields { display: grid; gap: 12px; padding: 16px; }
+.sandbox-setup-guidance { display: grid; gap: 8px; padding-bottom: 4px; color: #bec9d7; font-size: 12px; line-height: 1.55; }
+.sandbox-setup-guidance p { margin: 0; }
+.sandbox-setup-guidance a { color: #a9d9c3; }
+.sandbox-setup-guidance a:hover, .sandbox-setup-guidance a:focus-visible { color: #c2ebd6; }
 .sandbox-setup-field { display: grid; gap: 6px; }
 .sandbox-setup-field > label { color: #bec9d7; font-size: 12px; font-weight: 550; }
 .sandbox-setup-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
