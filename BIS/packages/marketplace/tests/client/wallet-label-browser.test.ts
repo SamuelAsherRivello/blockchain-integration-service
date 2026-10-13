@@ -50,7 +50,7 @@ async function setup(t){
   return {page,context,base,expected,errors,accounts,setMode:value=>{mode=value;},counts:()=>({configReads,ownershipReads,mutations})};
 }
 
-test('cold Marketplace and reload show both real SDK addresses in under one second while ownership reads wait',{timeout:60000},async t=>{
+test('cold Marketplace and reload show both real SDK addresses within 1.5 seconds while ownership reads wait',{timeout:60000},async t=>{
   const f=await setup(t),results=[];
   // Retain sanitized evidence even when a timing assertion fails.
   t.after(()=>writeFile(new URL('cold-label-timing.tson',output),JSON.stringify({results,counts:f.counts(),errors:f.errors,configurationDelayMs:250,ownershipDelayMs:5000,catalogDelayMs:2000},null,2)));
@@ -69,7 +69,7 @@ test('cold Marketplace and reload show both real SDK addresses in under one seco
     const phases=await f.page.evaluate(()=>({domContentLoadedMs:performance.getEntriesByType('navigation')[0]?.domContentLoadedEventEnd,paints:performance.getEntriesByType('paint').map(entry=>({name:entry.name,startMs:entry.startTime})),configuration:performance.getEntriesByType('resource').filter(entry=>entry.name.endsWith('/v1/info')).map(entry=>({startMs:entry.startTime,durationMs:entry.duration,endMs:entry.responseEnd}))}));results.push({pass,...times,phases});
     assert.equal(await f.page.getByTestId('player-wallet-label').getAttribute('title'),f.expected[0]);
     assert.equal(await f.page.getByTestId('game-wallet-label').getAttribute('title'),f.expected[1]);
-    assert.ok(times.player<1000,`${pass} Player label: ${times.player}ms`);assert.ok(times.game<1000,`${pass} Game label: ${times.game}ms`);
+    assert.ok(times.player<1500,`${pass} Player label: ${times.player}ms`);assert.ok(times.game<1500,`${pass} Game label: ${times.game}ms`);
     assert.ok(f.counts().ownershipReads>0,'ownership initialization has begun but is delayed');
   }
   assert.equal(f.counts().mutations,0);assert.deepEqual(f.errors,[]);

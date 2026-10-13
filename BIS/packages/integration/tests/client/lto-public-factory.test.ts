@@ -60,7 +60,7 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
     assert.equal((await rollback.checkContractsAsync()).contracts.length,1);
     await rollback.endSession('refund');await settled(second.contract.id,'refunded');
     assert.deepEqual(calls,['fund','claim','fund','refund']);
-    assert.ok(toasts.some(message=>message.includes('claim confirmed')));
+    assert.ok(toasts.includes('You claimed limited-time offer Treasure. (Confirmed)'));
     service.dispose();rollback.dispose();
   } finally {await server.close();delete globalThis[fixture];}
 });
