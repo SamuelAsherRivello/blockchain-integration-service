@@ -7,7 +7,7 @@
 # YouTube
 
 <p>
-<a href="https://www.youtube.com/watch?v=-hZ7I68h7BI"><img src="https://img.youtube.com/vi/-hZ7I68h7BI/maxresdefault.jpg" alt="Watch the Blockchain Integration Service video on YouTube" width="600" /></a>
+<a href="https://www.youtube.com/watch?v=-hZ7I68h7BI"><img src="docs/marketing/youtube-bitcoin-for-game-dev.png" alt="Watch the Blockchain Integration Service video on YouTube" width="600" /></a>
 </p>
 
 # Blockchain Integration Service (BIS)
