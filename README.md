@@ -12,6 +12,10 @@
 
 # Blockchain Integration Service (BIS)
 
+[![Bitcoin](https://img.shields.io/badge/Bitcoin-F7931A?style=flat-square&logo=bitcoin&logoColor=white)](https://bitcoin.org/)
+[![Lightning Labs](https://img.shields.io/badge/Lightning%20Labs-792EE5?style=flat-square)](https://lightning.engineering/)
+[![Arkade](https://img.shields.io/badge/Arkade-1A1A1A?style=flat-square)](https://arkadeos.com/)
+
 <!-- AI: Replace {PROJECT_NAME} with the requested project display name. Write one short introduction sentence explaining what the project does and who it is for, based on implemented behavior. -->
 This is a proof-of-concept (POC) demonstrating Blockchain use cases for gaming.
 
