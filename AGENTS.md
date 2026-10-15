@@ -1,5 +1,10 @@
 # Project workflow
 
+## Commit quality
+
+- Make only purposeful commits. Each commit must be atomic: include one coherent, well-designed change and every file required for it.
+- Write a concise commit message that accurately describes the change's purpose and outcome.
+
 ## Generated output
 
 - Put temporary generated artifacts, including logs, screenshots, test reports, and diagnostic dumps, under repository-root `output/<category>/<task>/`.
