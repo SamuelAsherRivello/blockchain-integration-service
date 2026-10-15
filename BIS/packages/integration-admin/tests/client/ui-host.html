@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>BIS plain host verification</title></head><body>
+<div id="host" style="position:relative;width:300px;height:540px"></div>
+<script type="module">
+import {createBisContext,createBisUi} from '@bis/integration';
+import '@bis/integration/style.css';
+const context=createBisContext(); const ui=createBisUi(context);
+ui.mount(document.getElementById('host')); ui.mount(document.getElementById('host'));
+ui.unmount(); ui.mount(document.getElementById('host')); ui.showAccountButton();
+</script></body></html>

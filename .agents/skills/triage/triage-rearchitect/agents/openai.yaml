@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triage Rearchitect"
+  short_description: "Plan and apply a selected architecture refactor"
+  default_prompt: "Use $triage-rearchitect to plan one selected architecture candidate. Optionally include a short focus or exclusion."

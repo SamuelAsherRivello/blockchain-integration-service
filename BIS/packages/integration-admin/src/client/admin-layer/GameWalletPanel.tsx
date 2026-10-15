@@ -1,0 +1,160 @@
+import { StoryButton } from './StoryButton';
+import { useEffect, useState } from 'react';
+import { FormTooltip, createBisGameWallet, formatBalanceSats, type BisGameWalletState } from '@bis/integration';
+
+export function AdminGameWalletView({controller, onDetails, onRecipientChange, onOpenDeveloper, mode = 'all'}: {
+  controller?: ReturnType<typeof createBisGameWallet>;
+  onRecipientChange?(recipient: string | undefined): void;
+  onOpenDeveloper(): void;
+  onDetails(details: unknown): void;
+  mode?: 'all' | 'account' | 'board';
+}) {
+  const [state, setState] = useState<BisGameWalletState>({status:'loading',selectionVersion:0});
+  const [entry, setEntry] = useState(false), [phrase, setPhrase] = useState('');
+  const [importing, setImporting] = useState(false), [importMessage, setImportMessage] = useState('');
+  useEffect(() => {
+    const address = state.addresses?.arkadeAddress;
+    if (mode !== 'board') onRecipientChange?.(state.profileId ? address : undefined);
+  }, [mode, onRecipientChange, state.addresses?.arkadeAddress, state.profileId]);
+  const [boardingBusy, setBoardingBusy] = useState(false);
+  const [boardingState, setBoardingState] = useState<'loading' | 'ready' | 'waiting' | 'boarded' | 'provider-unavailable'>('loading');
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    setBoardingState('loading');
+    if (mode === 'account' || !controller || !state.profileId || state.status !== 'ready') return;
+    const check = async () => {
+      try {
+        const result = await controller.checkLiveBoardingState();
+        if (!stopped) setBoardingState(result === 'unknown' ? 'provider-unavailable' : result);
+      } catch {
+        // A failed read is not live proof that boarding is waiting or complete.
+        if (!stopped) {
+          setBoardingState('provider-unavailable');
+          onDetails({operation:'A.G.3 Boarding Status', status:'unavailable', category:'provider-read', message:'Fresh boarding transaction evidence is unavailable. Retry Details when the provider is reachable.'});
+        }
+      }
+      if (!stopped) timer = setTimeout(() => void check(), 15000);
+    };
+    void check();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [controller, mode, onDetails, state.profileId, state.status, boardingBusy]);
+  const [quote, setQuote] = useState<Awaited<ReturnType<ReturnType<typeof createBisGameWallet>['quoteBoarding']>>>();
+  const setBoardingMessage = (message: string) => { if (message) onDetails({operation:'Board Game Wallet', message}); };
+  useEffect(() => { setQuote(undefined); }, [state.profileId]);
+  // A disconnected Player Wallet is normal on arrival, not an operation result.
+  useEffect(() => { if (state.message && state.playerConnected !== false) onDetails({operation:'Game Wallet', message:state.message}); }, [state.message, state.playerConnected]);
+  useEffect(() => {
+    if (!controller) { setState({status:'loading',selectionVersion:0}); return; }
+    const update = () => setState(controller.getState());
+    update();
+    return controller.subscribe(update);
+  }, [controller]);
+  const busy = !controller || state.status === 'loading' || importing || boardingBusy;
+  const playerReady = state.playerConnected === true;
+  async function boardingAction(action: 'review' | 'confirm' | 'check') {
+    if (!controller || boardingBusy) return;
+    if (action !== 'check' && boardingState !== 'ready') return;
+    const scope = controller.getOperationScope?.();
+    setBoardingBusy(true); setBoardingMessage('Checking game wallet boarding…');
+    try {
+      if (action === 'check') {
+        const status = await controller.checkBoarding();
+        onDetails({operation:'A.G.3 Boarding Status', ...status});
+        await controller.refresh();
+        return;
+      }
+      if (await controller.checkLiveBoardingState() !== 'ready') { setQuote(undefined); return; }
+      if (scope && controller.isOperationScopeCurrent && !controller.isOperationScopeCurrent(scope)) throw Error('The Player Wallet, Game Wallet, or network changed. Review the operation again.');
+      if (action === 'review' || (action === 'confirm' && !quote)) {
+        setQuote(undefined);
+        const status = await controller.checkBoarding();
+        onDetails(status);
+        if (status.status === 'pending') { setBoardingMessage('Boarding is pending. Check status before trying again.'); onDetails(status); return; }
+        const next = await controller.quoteBoarding();
+        setQuote(next);
+        onDetails({operation:'Board Game Wallet', ...next, message:'Review this amount and fee, then click Board Wallet to confirm.'});
+      } else {
+        const status = action === 'confirm' && quote ? await controller.board(quote) : await controller.checkBoarding();
+        setQuote(undefined);
+        setBoardingMessage(status.status === 'succeeded' ? 'Boarding completed.' : status.status === 'pending' ? 'Boarding pending. Keep this tab open while signing completes. Use Details to verify receipt.' : 'No pending boarding transfer.');
+        onDetails(status);
+        if (status.status !== 'pending') await controller.refresh();
+      }
+    } catch {
+      setQuote(undefined);
+      setBoardingMessage('Boarding unavailable. Check the A.G.3 Details category and retry only after the current wallet and provider are ready. If already submitted, do not submit again while pending.');
+    } finally { setBoardingBusy(false); }
+  }
+  async function details() {
+    if (!controller) return;
+    onDetails({operation:'A.G.3 Wallet Status', status:'loading'});
+    await controller.refresh();
+    const current = controller.getState();
+    const availability = controller.getOperationAvailability?.();
+    onDetails({
+      operation:'A.G.3 Wallet Status',
+      status: current.status, profileId: current.profileId,
+      walletScope: controller.getOperationScope?.(),
+      availability,
+      boardingStatus: boardingState === 'provider-unavailable' ? {status:'unavailable', category:'provider-read'} : {status:boardingState},
+      paymentStatus: controller.getPlayerPaymentBlockReason?.() ?? 'Ready',
+      paymentBalanceSats: controller.getPlayerPaymentBalance?.() ?? 'Unavailable',
+      bitcoin: {
+        balanceSats: current.balance?.bitcoinSats ?? 'Unavailable',
+        address: current.addresses?.bitcoinAddress ?? 'Unavailable',
+      },
+      arkade: {
+        balanceSats: current.balance?.arkadeSats ?? 'Unavailable',
+        address: current.addresses?.arkadeAddress ?? 'Unavailable',
+      },
+      // Keep the explicit legacy fields while consumers migrate to the grouped
+      // funding details above.
+      arkadeReceivingAddress: current.addresses?.arkadeAddress ?? 'Unavailable',
+      bitcoinReceivingAddress: current.addresses?.bitcoinAddress ?? 'Unavailable',
+      balance: current.balance ?? 'Unavailable',
+      continueRecipient: current.addresses?.arkadeAddress || 'Not configured',
+      ...(current.readStatus ? {readCategory:current.readStatus} : {}),
+      ...(current.message ? {readStatus:current.message} : {}),
+    });
+  }
+  return <div className="game-wallet-panel">
+    {mode !== 'board' && <><StoryButton label="A.G.1. Game Wallet (Admin-facing)">
+        {state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
+          : <button disabled={busy || !playerReady} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
+    </StoryButton>
+    <StoryButton label="A.G.2. Game Wallet (User-facing)">
+      <button aria-label="A.G.2. Game Wallet (User-facing)" disabled={!controller || !playerReady} onClick={onOpenDeveloper}>↗</button>
+    </StoryButton></>}
+    {mode !== 'account' && <StoryButton label="A.G.3. Board Game Wallet" sublabel={<>{state.balance && <span className="bis-balance-tooltip" data-bis-balance-tooltip="A.G.3 Board Game Wallet balance" tabIndex={0}>
+      <span>Balance: {state.balance.availableSats.toLocaleString()} sats</span>
+      <span className="bis-balance-tooltip-panel" role="tooltip"><FormTooltip title="A.G.3 Board Game Wallet balance" balance={formatBalanceSats(state.balance.availableSats)} available={formatBalanceSats(state.balance.availableSats)} /></span>
+    </span>}{boardingState === 'boarded' && <span role="status">Boarded</span>}
+    </>}>
+      <button disabled={busy || !state.profileId} onClick={() => void details()}>Details</button>
+      {boardingState !== 'boarded' && <button disabled={busy || !state.profileId || boardingState !== 'ready'} onClick={() => void boardingAction('confirm')}>Board Wallet{boardingState === 'waiting' ? ' (Awaiting Confirmation)' : boardingState === 'provider-unavailable' && state.profileId ? ' (Provider Status Unavailable)' : boardingState === 'loading' && state.profileId ? ' (Checking Status)' : ''}</button>}
+    </StoryButton>}
+    {mode !== 'board' && entry && playerReady && !state.profileId && <form onSubmit={async event => {
+      event.preventDefault();
+      if (!controller || importing) return;
+      const input=phrase;setImporting(true);setImportMessage('');
+      try {
+        if(await controller.importWallet(input)){setPhrase('');setEntry(false);}
+        else setImportMessage(controller.getState().message ?? 'Game wallet login failed. Check the recovery phrase and connection.');
+      } catch {
+        setImportMessage('Game wallet login failed. Check the recovery phrase and connection.');
+      } finally {setImporting(false);}
+    }}>
+      <label htmlFor="game-wallet-phrase">Recovery phrase</label>
+      <input id="game-wallet-phrase" type="password" autoComplete="off" spellCheck={false} value={phrase} onChange={event => setPhrase(event.target.value)} />
+      <button className="story-button" type="submit" disabled={!phrase.trim() || busy}>{importing ? 'Restoring ...' : 'Import'}</button>
+      {importing && <p role="status">Restoring ...</p>}
+      {importMessage && <p role="alert">{importMessage}</p>}
+    </form>}
+  </div>;
+}
+
+
+
+
+

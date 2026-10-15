@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { bisMarketplaceItems, classifyBisEquipmentAsset, inspectBisEquipmentAsset, marketplaceItemMetadata, migrateMarketplaceAssetFormat001 } from '../../src/client/state-layer-core/equipment.ts';
+
+test('the shared catalog defines exactly nine approved items, prices, structured effects, and immutable URLs', () => {
+  assert.deepEqual(bisMarketplaceItems.map(item => item.name), [
+    'Shoes I', 'Shoes II', 'Shoes III',
+    'Dagger I', 'Dagger II', 'Dagger III',
+    'Shield I', 'Shield II', 'Shield III',
+  ]);
+  assert.deepEqual(bisMarketplaceItems.map(item => item.priceSats), [1000, 2000, 3000, 1100, 2100, 3100, 1200, 2200, 3200]);
+  assert.deepEqual(bisMarketplaceItems.map(item => item.attributeDeltas[0].bisAttributeDelta), [10, 20, 30, 10, 20, 30, -10, -20, -30]);
+  assert.equal(bisMarketplaceItems[2].description, 'Increases movement speed by 30%.');
+  for (const item of bisMarketplaceItems) {
+    assert.equal(item.iconUrl, `https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/${item.family.toLowerCase()}-${item.tier}.png`);
+  }
+});
+
+test('the classifier accepts matching item metadata and preserves the chain icon URL', () => {
+  const definition = bisMarketplaceItems[0];
+  const metadata = { bisSchemaVersion: '1', ...marketplaceItemMetadata(definition) };
+  const iconUrl = 'https://cdn.example.com/from-chain.png';
+  const asset = { assetId: 'asset-shoes-1', quantity: '1', name: 'Untrusted display name', iconUrl, metadata };
+  assert.deepEqual(classifyBisEquipmentAsset(asset), { ...definition, assetId: asset.assetId, quantity: '1', iconUrl });
+  assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: { ...metadata, bisAssetType: 'trophy' } }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: { ...metadata, bisPriceSats: '999' } }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: { ...metadata, bisEquipmentFamily: 'Shield' } }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: { ...metadata, bisSchemaVersion: '2' } }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: { ...metadata, bisAttributeDeltas: [{ bisAttribute: 'movementSpeed', bisAttributeDelta: 10 }, { bisAttribute: 'movementSpeed', bisAttributeDelta: 20 }] } }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: { ...metadata, bisAttributeDeltas: [{ bisAttribute: 'movementSpeed', bisAttributeDelta: 101 }] } }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, iconUrl: 'http://example.com/icon.png' }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, quantity: '0' }), null);
+  assert.equal(classifyBisEquipmentAsset({ ...asset, metadata: undefined }), null);
+});
+
+test('the classifier rejects legacy items that omit authoritative metadata', () => {
+  const definition = bisMarketplaceItems[0];
+  const metadata = { bisSchemaVersion: '1', ...marketplaceItemMetadata(definition) };
+  const legacyMetadata = { ...metadata };
+  delete legacyMetadata.bisDescription;
+  delete legacyMetadata.bisAttributeDeltas;
+  const asset = { assetId: 'legacy-shoes-1', quantity: '1', iconUrl: definition.iconUrl, metadata: legacyMetadata };
+  assert.equal(classifyBisEquipmentAsset(asset), null);
+  assert.equal(inspectBisEquipmentAsset(asset), 'migration-required');
+});
+
+test('the default classifier admits only the latest format while admin can explicitly inspect a predecessor', () => {
+  const definition = bisMarketplaceItems[0];
+  const latestMetadata = { bisSchemaVersion: '1', ...marketplaceItemMetadata(definition) };
+  const legacyAsset = { assetId: 'legacy-complete-shoes-1', quantity: '1', iconUrl: definition.iconUrl, metadata: { ...latestMetadata, bisAssetFormatVersion: '0.0.1' } };
+  assert.equal(classifyBisEquipmentAsset(legacyAsset), null);
+  assert.equal(inspectBisEquipmentAsset(legacyAsset), 'migration-required');
+  assert.equal(classifyBisEquipmentAsset(legacyAsset, '0.0.1')?.catalogId, definition.catalogId);
+});
+
+test('a recognized legacy catalog envelope receives a complete immutable replacement plan', () => {
+  const definition=bisMarketplaceItems[0],metadata={bisSchemaVersion:'1',...marketplaceItemMetadata(definition)};
+  delete metadata.bisDescription;delete metadata.bisAttributeDeltas;delete metadata.bisAssetFormatVersion;
+  const plan=migrateMarketplaceAssetFormat001({assetId:'legacy-shoes-1',quantity:'1',metadata});
+  assert.deepEqual(plan,{name:definition.name,ticker:definition.ticker,amount:'1',decimals:0,iconUrl:definition.iconUrl,metadata:marketplaceItemMetadata(definition)});
+  assert.throws(()=>migrateMarketplaceAssetFormat001({assetId:'bad',quantity:'1',metadata:{...metadata,bisPriceSats:'999'}}));
+});
+
+test('generic and malformed holdings retain safe, explicit classification diagnostics', () => {
+  assert.equal(inspectBisEquipmentAsset({ assetId:'generic', quantity:'1', metadata:{communityTag:'external'} }), 'generic');
+  const item = bisMarketplaceItems[0];
+  const metadata = { bisSchemaVersion:'1', ...marketplaceItemMetadata(item) };
+  assert.equal(inspectBisEquipmentAsset({ assetId:'invalid', quantity:'1', iconUrl:item.iconUrl, metadata:{...metadata,bisPriceSats:'999'} }), 'invalid-metadata');
+  assert.equal(inspectBisEquipmentAsset({ assetId:'ready', quantity:'1', iconUrl:item.iconUrl, metadata }), 'ready');
+});

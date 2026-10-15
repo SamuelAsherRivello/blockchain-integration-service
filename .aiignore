@@ -1,0 +1,11 @@
+# Repository-wide AI exclusions.
+# Add only paths that every AI-assisted workflow must avoid.
+
+# Local faucet credentials. The faucet server may load this file, but AI tools
+# must not read, quote, index, or include its contents in generated output.
+BIS/packages/prototype-faucet/.env.local
+
+# Canonical developer secrets. Runtime loaders may consume selected keys only;
+# AI tools must not read, quote, index, or dump the populated file.
+BIS/packages/shared/.env.local
+**/.env.local

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Bis Package Release Import"
+  short_description: "Import a verified local BIS package into Stealth & Steel"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenSpec Explore"
+  short_description: "Explore and clarify OpenSpec changes"
+  default_prompt: "Use $openspec-explore to investigate an OpenSpec change before implementation."

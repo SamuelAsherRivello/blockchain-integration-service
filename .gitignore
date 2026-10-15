@@ -1,0 +1,13 @@
+.setup/
+.env
+.env.*
+!BIS/packages/shared/.env.local.template
+node_modules/
+dist/
+
+.playwright-cli/
+output/playwright/
+/.cache
+/output
+/.playwright-mcp
+/BIS/packages/prototype-sandbox/output

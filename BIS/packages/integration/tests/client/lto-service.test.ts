@@ -1,0 +1,276 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createLtoService} from '../../src/client/state-layer-core/lto-service.ts';
+import {createContractStorage} from '../../src/client/state-layer-core/contract-storage.ts';
+import {markContractSubmission,finishContractOperation} from '../../src/client/state-layer-core/contracts.ts';
+import {testLocks} from './locks-fixture.ts';
+import {walletReservations} from '../../src/client/state-layer-core/wallet-reservations.ts';
+
+const delay=()=>new Promise(resolve=>setTimeout(resolve,5));
+async function until(check) { for(let i=0;i<100;i++){if(await check())return;await delay();}assert.fail('operation did not finish'); }
+function setup(overrides={}) {
+  const values=new Map();
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key),key:i=>[...values.keys()][i]??null,get length(){return values.size;}}});
+  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks:testLocks()}});
+  let envelope;
+  const storage=createContractStorage({read:async()=>structuredClone(envelope),write:async(next,revision)=>{assert.equal(envelope?.revision??0,revision);envelope=structuredClone(next);}});
+  const player=overrides.player??{profileId:'player',phrase:'test-only-placeholder',network:'signet'},game=overrides.game??{profileId:'game',phrase:'test-only-placeholder',network:'signet'};
+  const playerState={profileId:'player',phase:'active'},gameState={profileId:'game',status:'ready'};
+  const calls=[],toasts=[];
+  const context={getState:()=>playerState,showToast:text=>toasts.push(text),refreshBalance:async()=>{}},gameWallet={getState:()=>gameState,refresh:async()=>{}};
+  const recovery={secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'};
+  const dependencies={storage,playerStorage:{load:async()=>({generation:0,account:player})},gameStorage:{load:async()=>game,dispose(){}},poll:false,
+    prepare:overrides.prepare??(async()=>recovery),reconcile:async(record,recovery)=>({record,recovery}),resume:async(record,recovery)=>({record,recovery}),
+    submit:async(record,recovery,account,commit,isCurrent)=>{
+      assert.ok(isCurrent());calls.push(record.operation.kind);
+      const transactionId=(record.operation.kind==='fund'?'b':'c').repeat(64);
+      const material={...recovery,spend:{operationId:record.operation.id,transactionId,inputs:[recovery.fundingOutput??{txid:'a'.repeat(64),vout:0,value:1000}],destinationScript:'00',amountSats:1000}};
+      record=markContractSubmission(record,record.operation.id,Date.now());await commit(record,material);
+      assert.ok(walletReservations('game',record.scope.network).some(operation=>operation.id===`contract:${record.id}`),'reserved before completion');
+      await overrides.wait?.(record.operation.kind);
+      if(overrides.unknown===record.operation.kind){record=markContractSubmission(record,record.operation.id,Date.now(),true);await commit(record,material);return{record,recovery:material};}
+      record=finishContractOperation(record,{operationId:record.operation.id,kind:record.operation.kind,outcome:'confirmed'});
+      if(record.operation.kind==='fund')material.fundingOutput={txid:transactionId,vout:0,value:1000};
+      await commit(record,material);return{record,recovery:material};
+    }};
+  const service=createLtoService({context,gameWallet},dependencies);
+  const now=Date.now(),request={sessionId:'session',purpose:'treasureLTO',hostReference:'chest',exclusivityKey:'treasure',amountSats:1000,startedAt:now,expiresAt:now+90000};
+  return{service,storage,calls,toasts,request,playerState,gameState,dependencies,context,gameWallet};
+}
+
+test('contract observers receive durable progress and throwing observers cannot interrupt funding',async()=>{
+  const s=setup();let changes=0;
+  const unsubscribe=s.service.subscribe(()=>{changes++;throw Error('isolated observer');});
+  const result=await s.service.start(s.request);
+  assert.equal(result.status,'confirmed');assert.ok(changes>=2);assert.deepEqual(s.calls,['fund']);
+  unsubscribe();const previous=changes;await s.service.reconcile();assert.equal(changes,previous);
+});
+
+test('local reset invalidates preparation before it can persist or submit an offer',async()=>{
+  let release,prepared=false;
+  const gate=new Promise(resolve=>{release=resolve;});
+  const s=setup(),prepare=s.dependencies.prepare;
+  s.dependencies.prepare=async(...args)=>{prepared=true;await gate;return prepare(...args);};
+  const work=s.service.start(s.request);await until(()=>prepared);
+  await s.service.reset();release();
+  assert.equal((await work).status,'unavailable');await delay();
+  assert.equal((await s.storage.load()).ledger.contracts.length,0);
+  assert.deepEqual(s.calls,[]);assert.deepEqual(s.toasts,[]);
+});
+
+test('late remote completion after reset cannot restore local contracts or notifications',async()=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const s=setup({wait:kind=>kind==='fund'?gate:undefined});
+  const work=s.service.start(s.request);await until(()=>s.calls.length===1);
+  await s.service.reset();const notifications=s.toasts.length;release();
+  assert.equal((await work).status,'unavailable');await delay();
+  assert.equal((await s.storage.load()).ledger.contracts.length,0);
+  assert.equal(s.toasts.length,notifications);assert.deepEqual(s.calls,['fund']);
+});
+
+test('reset drains an already-started local write before clearing its result',async()=>{
+  const s=setup(),save=s.storage.save.bind(s.storage);let release,writing=false;
+  const gate=new Promise(resolve=>{release=resolve;});
+  s.storage.save=async document=>{writing=true;await gate;return save(document);};
+  const work=s.service.start(s.request);await until(()=>writing);
+  let resetFinished=false;const reset=s.service.reset().then(()=>{resetFinished=true;});
+  await delay();assert.equal(resetFinished,false);release();await reset;
+  assert.equal((await work).status,'unavailable');await delay();
+  assert.equal((await s.storage.load()).ledger.contracts.length,0);assert.deepEqual(s.calls,[]);
+});
+
+test('controller recreation is silent and waits for explicit reconciliation',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const before=(await s.storage.load()).ledger.contracts[0];
+  let reconciliations=0;
+  s.dependencies.reconcile=async(record,recovery)=>{reconciliations++;return {record,recovery};};
+  const worker=createLtoService({context:s.context,gameWallet:s.gameWallet},{...s.dependencies,poll:true});
+  await delay();
+  assert.equal(reconciliations,0);
+ assert.equal(s.toasts.some(text=>text==='The limited-time offer Treasure funding was submitted. (Pending)'),false);
+  await worker.reconcile({contractId:before.id,feedback:'explicit'});
+  assert.equal(reconciliations,1);
+  worker.dispose();
+});
+
+test('game-role Refund reports its pending and confirmed feedback to the inspecting game account',async()=>{
+  const s=setup(),funded=await s.service.start(s.request);await delay();
+  s.playerState.profileId='game';assert.equal((await s.service.refund(funded.contract.id)).status,'pending');
+  await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
+  assert.ok(s.toasts.includes('Game Wallet refunded limited-time offer Treasure. (Pending)'));assert.ok(s.toasts.includes('Game Wallet refunded limited-time offer Treasure. (Confirmed)'));
+});
+
+test('visibility recovery refunds an elapsed offer once without extending its original deadline',async t=>{
+  const s=setup(),page=new EventTarget();page.visibilityState='hidden';
+  Object.defineProperty(globalThis,'document',{configurable:true,value:page});
+  t.mock.method(globalThis,'setInterval',()=>1);t.mock.method(globalThis,'clearInterval',()=>{});
+  const worker=createLtoService({context:s.context,gameWallet:s.gameWallet},{...s.dependencies,poll:true});
+  await delay();await worker.start(s.request);await delay();
+  t.mock.method(Date,'now',()=>s.request.expiresAt+1);
+  page.visibilityState='visible';page.dispatchEvent(new Event('visibilitychange'));
+  await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
+  page.dispatchEvent(new Event('visibilitychange'));await delay();
+  const record=(await s.storage.load()).ledger.contracts[0];
+  assert.equal(record.expiresAt,s.request.expiresAt);assert.deepEqual(s.calls,['fund','refund']);
+  worker.dispose();
+});
+
+test('creation-disabled rollback keeps query and refund recovery available',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const recovery=createLtoService({context:s.context,gameWallet:s.gameWallet,creationEnabled:false},s.dependencies);
+  assert.equal((await recovery.start({...s.request,sessionId:'disabled'})).status,'unavailable');
+  await s.service.endSession(s.request.sessionId);await recovery.reconcile();
+  await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
+  assert.deepEqual(s.calls,['fund','refund']);
+  assert.equal((await recovery.start({...s.request,sessionId:'disabled-after-refund'})).status,'unavailable');
+  assert.deepEqual(s.calls,['fund','refund']);
+});
+
+test('reload recovers a prepared operation as never submitted under the mutation lock',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const document=await s.storage.load(),record=document.ledger.contracts[0];
+  const {beginContractOperation}=await import('../../src/client/state-layer-core/contracts.ts');
+  const prepared=beginContractOperation(record,'claim','prepared-claim',Date.now());
+  await s.storage.save({...document,ledger:{...document.ledger,contracts:[prepared]},recovery:{[record.id]:{...document.recovery[record.id],spend:undefined,finalization:undefined}}});
+  await s.service.endSession(s.request.sessionId);await s.service.reconcile();
+  await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
+  assert.deepEqual(s.calls,['fund','refund']);
+});
+
+test('same session submits once; funded slot stays reserved and duplicate notifications are suppressed',async()=>{
+  const s=setup();const first=s.service.start(s.request),second=s.service.start(s.request);
+  assert.equal(first,second);assert.equal((await first).status,'confirmed');
+  await delay();await s.service.reconcile();
+ assert.deepEqual(s.calls,['fund']);assert.equal(s.toasts.filter(text=>text==='The limited-time offer Treasure funding was submitted. (Confirmed)').length,1);
+  assert.equal((await s.storage.load()).ledger.contracts.length,1);
+});
+test('same-key active calls share one promise but settled unavailable does not poison a fresh session',async()=>{
+  let release;const wait=new Promise(resolve=>{release=resolve;});
+  const s=setup({wait:kind=>kind==='fund'?wait:undefined});
+  const first=s.service.start(s.request),second=s.service.start(s.request);
+  assert.equal(first,second);await until(()=>s.calls.length===1);
+  release();assert.equal((await first).status,'confirmed');await delay();
+
+  const skipped=setup();skipped.gameState.status='loading';
+  assert.equal((await skipped.service.start(skipped.request)).status,'unavailable');
+  skipped.gameState.status='ready';
+  assert.equal((await skipped.service.start({...skipped.request,sessionId:'fresh'})).status,'confirmed');
+  assert.deepEqual(skipped.calls,['fund']);
+});
+test('end during funding immediately persists forfeiture, then refunds late success',async()=>{
+  let release;const wait=new Promise(resolve=>{release=resolve;});
+  const s=setup({wait:kind=>kind==='fund'?wait:undefined});
+  const funding=s.service.start(s.request);await until(()=>s.calls.length===1);
+  await s.service.endSession(s.request.sessionId);release();const funded=await funding;
+  await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='refunded'&&!walletReservations('game').some(operation=>operation.id===`contract:${funded.contract.id}`));
+  assert.deepEqual(s.calls,['fund','refund']);
+  assert.ok(!walletReservations('game').some(operation=>operation.id===`contract:${funded.contract.id}`));
+ assert.ok(!s.toasts.some(text=>text==='The limited-time offer Treasure funding was submitted. (Confirmed)'));
+});
+test('new session waits for prior offer cleanup, then creates one replacement',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const next={...s.request,sessionId:'next'};
+  assert.equal((await s.service.start(next)).status,'confirmed');
+  await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='refunded');
+  assert.equal((await s.service.start(next)).status,'confirmed');
+  assert.deepEqual(s.calls,['fund','refund','fund']);
+});
+
+test('claim emits one pending and one confirmed toast without creating a replacement',async()=>{
+  const s=setup(),funded=await s.service.start(s.request);await delay();
+  assert.equal((await s.service.claim(funded.contract.id)).status,'pending');
+  await until(async()=> (await s.storage.load()).ledger.contracts[0]?.financial==='claimed');
+  assert.deepEqual(s.calls,['fund','claim']);
+ assert.equal(s.toasts.filter(text=>text==='You claimed limited-time offer Treasure. (Pending)').length,1);
+ assert.equal(s.toasts.filter(text=>text==='You claimed limited-time offer Treasure. (Confirmed)').length,1);
+  assert.equal((await s.storage.load()).ledger.contracts.length,1);
+});
+test('Claim returns pending after durable acceptance; unknown outcome prevents competing refund after logout',async()=>{
+  const s=setup({unknown:'claim'});const funded=await s.service.start(s.request);await delay();
+  const action=await s.service.claim(funded.contract.id);assert.equal(action.status,'pending');
+  await until(async()=> (await s.storage.load()).ledger.contracts[0].financial==='unknown');
+  s.playerState.profileId=undefined;await s.service.endSession(s.request.sessionId);await s.service.reconcile();
+  assert.deepEqual(s.calls,['fund','claim']);assert.equal(walletReservations('game').length,1);
+});
+test('readiness failure never starts late and cooperating controllers cannot create overlapping offers',async()=>{
+  const s=setup();s.gameState.status='loading';assert.equal((await s.service.start(s.request)).status,'unavailable');
+  s.gameState.status='ready';assert.equal((await s.service.start(s.request)).status,'unavailable');assert.equal(s.calls.length,0);
+  const other=createLtoService({context:s.context,gameWallet:s.gameWallet},s.dependencies);
+  const result=await Promise.all([s.service.start({...s.request,sessionId:'one'}),other.start({...s.request,sessionId:'two'})]);
+  assert.equal(result.filter(r=>r.status==='confirmed').length,1);assert.deepEqual(s.calls,['fund']);
+});
+
+test('legacy player record without network can start an offer on the active network',async()=>{
+  const s=setup({player:{profileId:'player',phrase:'test-only-placeholder'}});
+  assert.equal((await s.service.start(s.request)).status,'confirmed');
+  assert.deepEqual(s.calls,['fund']);
+});
+test('legacy accounts without network are passed to LTO adapters with the active network',async()=>{
+  const s=setup({
+    player:{profileId:'player',phrase:'test-only-placeholder'},
+    game:{profileId:'game',phrase:'test-only-placeholder'},
+    prepare:async(game,player)=>{
+      assert.equal(game.network,'mutinynet');
+      assert.equal(player.network,'mutinynet');
+      return {secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'};
+    },
+  });
+  s.playerState.network='mutinynet';
+  assert.equal((await s.service.start(s.request)).status,'confirmed');
+  assert.deepEqual(s.calls,['fund']);
+});
+test('explicit player or game network mismatch remains unavailable',async()=>{
+  for (const mismatch of ['player','game']) {
+    const s=setup(mismatch==='player'?{player:{profileId:'player',phrase:'test-only-placeholder',network:'mutinynet'}}:{game:{profileId:'game',phrase:'test-only-placeholder',network:'mutinynet'}});
+    assert.equal((await s.service.start({...s.request,sessionId:`mismatch-${mismatch}`})).status,'unavailable');
+    assert.deepEqual(s.calls,[]);
+  }
+});
+
+test('public inspection filters exact host reference, exposes roles and never signs',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const read=await s.service.checkContractsAsync({hostReference:'chest'});
+  assert.equal(read.contracts[0].role,'player');assert.equal(read.contracts[0].canRefund,false);
+  assert.equal(read.contracts[0].canClaim,true);assert.equal('secretHex' in read.contracts[0],false);
+  assert.equal((await s.service.checkContractsAsync({hostReference:'other'})).contracts.length,0);
+  s.playerState.profileId='game';const game=await s.service.checkContractsAsync();
+  assert.equal(game.contracts[0].role,'game');assert.equal(game.contracts[0].canClaim,false);assert.equal(game.contracts[0].canRefund,true);
+  assert.deepEqual(s.calls,['fund']);
+});
+
+test('player cannot use the game Refund action and logout preserves game contract recovery',async()=>{
+  const s=setup();const result=await s.service.start(s.request);await delay();
+  assert.equal((await s.service.refund(result.contract.id)).status,'unavailable');
+  const {pendingLogoutOperations,clearBrowserPreferences,assertLogoutResolvable}=await import('../../src/client/state-layer-core/logout-cleanup.ts');
+  assert.equal(pendingLogoutOperations().count,1);assert.throws(()=>assertLogoutResolvable());
+  clearBrowserPreferences(localStorage);
+  assert.equal(walletReservations('game').length,1);assert.equal((await s.storage.load()).ledger.contracts.length,1);
+  s.playerState.profileId=undefined;await s.service.endSession(s.request.sessionId);await s.service.reconcile();
+  await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
+  assert.equal(walletReservations('game').length,0);
+});
+
+test('known reserved outpoints leave independent funds available and switching games preserves old recovery',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const {eligibleUnreservedCoins}=await import('../../src/client/state-layer-core/wallet-reservations.ts');
+  const coins=[{txid:'b'.repeat(64),vout:0},{txid:'d'.repeat(64),vout:0}];
+  assert.deepEqual(eligibleUnreservedCoins(coins,walletReservations('game')),[coins[1]]);
+  s.gameState.profileId='different-game';s.dependencies.gameStorage.load=async()=>({profileId:'different-game'});
+  await s.service.endSession(s.request.sessionId);await s.service.reconcile();
+  assert.equal((await s.storage.load()).ledger.contracts[0].financial,'funded');assert.equal(walletReservations('game').length,1);
+});
+
+test('Admin Reset cannot clear either participant while a contract is unresolved',async()=>{
+  const s=setup();await s.service.start(s.request);await delay();
+  const {createAccountStorage}=await import('../../src/client/state-layer-core/account-storage.ts');
+  const before=await s.storage.load();
+  for(const profileId of ['player','game']) {
+    const accountStorage=createAccountStorage();
+    accountStorage.load=async()=>({generation:0,account:{profileId}});
+    await assert.rejects(accountStorage.reset(),/contract.*unresolved/i);
+  }
+  assert.deepEqual(await s.storage.load(),before);
+  assert.equal(walletReservations('game').length,1);
+  assert.deepEqual(s.calls,['fund']);
+});
+

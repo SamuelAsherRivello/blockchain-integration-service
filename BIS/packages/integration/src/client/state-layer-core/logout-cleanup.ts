@@ -1,0 +1,145 @@
+import {assertNoPendingContinue,continuationPrefix,readContinuations} from './continuation.ts';
+import {readContractReservations} from './contract-reservations.ts';
+import {onboardingKey,readOnboardingRecord} from './onboarding-record.ts';
+import {testNetworks} from './test-network.ts';
+export const browserMutationLock = 'bis-signet-browser-mutation';
+export type LogoutOperations = Readonly<{ count: number; fingerprint: string }>;
+type WebStorage = Pick<Storage, 'length' | 'key' | 'getItem' | 'removeItem'>;
+const burnPrefixes = testNetworks.map(network => `bis-${network.id}-burn-operation-v1`);
+const journalPrefixes = testNetworks.flatMap(network => [`bis-${network.id}-boarding-operation-v1`,`bis-${network.id}-send-operation-v1`,`bis-${network.id}-mints-v1`,`bis-${network.id}-asset-delivery-v1`,`bis-${network.id}-wallet-operations-v2`]).concat(burnPrefixes,'bis-signet-onboarding-v1');
+const cleanupPrefixes = [...journalPrefixes];
+const gameOwnerPrefixes = ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:', 'bis-game-wallet-delivery-owner:'];
+function owns(key: string, storage: WebStorage) {
+  if (key.startsWith(continuationPrefix)) {
+    try { readContinuations(decodeURIComponent(key.slice(continuationPrefix.length)), storage); return false; }
+    catch { return true; }
+  }
+  return cleanupPrefixes.some(prefix => key === prefix || key.startsWith(`${prefix}:`)) ||
+    ['bis.integration-demo.admin-split-percent', 'bis.integration-demo.preview-scale'].includes(key);
+}
+function keys(storage: WebStorage) {
+  return Array.from({length: storage.length}, (_, i) => storage.key(i)).filter((key): key is string => key !== null);
+}
+function gameBoarding(key: string, storage: WebStorage) {
+  const sharedPrefix = [...testNetworks.flatMap(network => [`bis-${network.id}-wallet-operations-v2:`,`bis-${network.id}-asset-delivery-v1:`,`bis-${network.id}-mints-v1:`,`bis-${network.id}-send-operation-v1:`,`bis-${network.id}-boarding-operation-v1:`]), 'bis-signet-continuations-v1:', ...burnPrefixes.map(prefix => `${prefix}:`)].find(prefix => key.startsWith(prefix));
+  if (sharedPrefix) {
+    const owner = key.slice(sharedPrefix.length).split(':')[0];
+    return ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:', 'bis-game-wallet-delivery-owner:'].some(prefix => storage.getItem(prefix + owner) === '1');
+  }
+  const mintPrefix=testNetworks.map(network=>`bis-${network.id}-mints-v1:`).find(prefix=>key.startsWith(prefix));
+  if(mintPrefix&&storage.getItem('bis-game-wallet-mint-owner:'+key.slice(mintPrefix.length))==='1')return true;
+  const sendPrefix = testNetworks.map(network=>`bis-${network.id}-send-operation-v1:`).find(prefix=>key.startsWith(prefix));
+  if (sendPrefix && storage.getItem('bis-game-wallet-send-owner:' + key.slice(sendPrefix.length).split(':operation:')[0]) === '1') return true;
+  const prefix = testNetworks.map(network=>`bis-${network.id}-boarding-operation-v1:`).find(prefix=>key.startsWith(prefix));
+  if (!prefix) return false;
+  const owner = key.slice(prefix.length).split(':operation:')[0];
+  return storage.getItem('bis-game-wallet-boarding-owner:' + owner) === '1';
+}
+export function pendingLogoutOperations(storage: WebStorage | undefined = globalThis.localStorage, profileId?:string): LogoutOperations {
+  const pending = new Set<string>();
+  for (const network of testNetworks) for (const contract of readContractReservations(network.id,storage)) if (contract.pending&&(!profileId||contract.playerId===profileId||contract.gameId===profileId)) pending.add(`contract:${network.id}:${contract.playerId}:${contract.id}`);
+  if (storage) for (const key of keys(storage)) {
+    if (gameBoarding(key, storage)) continue;
+    if(key.startsWith(continuationPrefix))assertNoPendingContinue(decodeURIComponent(key.slice(continuationPrefix.length)),storage);
+    const prefix = journalPrefixes.find(prefix => key === prefix || key.startsWith(`${prefix}:`));
+    if (!prefix) continue;
+    if(prefix==='bis-signet-onboarding-v1'&&key.includes(':archive:'))continue;
+    const raw = storage.getItem(key);
+    if (raw === null) continue;
+    const record = JSON.parse(raw);
+    if(profileId&&!prefix.endsWith('-mints-v1')&&record?.profileId!==profileId)continue;
+    if(prefix==='bis-signet-onboarding-v1'){
+      if(onboardingKey(record)!==key||!readOnboardingRecord(record,storage))throw Error('Pending operations could not be counted.');
+      if(record.status==='pending')pending.add(`${prefix}:${record.profileId}:${record.id}`);
+    } else if (prefix.endsWith('-wallet-operations-v2')) {
+      // This is a reservation container, not a status-bearing legacy record.
+      // Retained reservations remain conservative recovery evidence even if
+      // their originating journal is missing. An empty valid container is not
+      // an unreadable operation and must not disable readiness inspection.
+      if(record?.version!==2||typeof record.profileId!=='string'||!record.profileId||
+        key!==`${prefix}:${encodeURIComponent(record.profileId)}`||!Array.isArray(record.operations))throw Error('Pending operations could not be counted.');
+      const ids=new Set<string>();
+      for(const operation of record.operations){
+        if(!operation||typeof operation.id!=='string'||!operation.id||ids.has(operation.id)||
+          (operation.transactionId!==undefined&&!/^[a-f0-9]{64}$/i.test(operation.transactionId))||
+          ['inputs','independent'].some(field=>operation[field]!==undefined&&(!Array.isArray(operation[field])||(field==='inputs'&&!operation[field].length)||operation[field].some((input:{txid:string;vout:number})=>!input||!/^[a-f0-9]{64}$/i.test(input.txid)||!Number.isSafeInteger(input.vout)||input.vout<0))))throw Error('Pending operations could not be counted.');
+        ids.add(operation.id);
+        pending.add(`${prefix}:${record.profileId}:${operation.id}`);
+      }
+    } else if (prefix.endsWith('-mints-v1')) {
+      if(profileId&&!key.startsWith(`${prefix}:${encodeURIComponent(profileId)}`))continue;
+      if (!Array.isArray(record?.operations)) throw Error('Pending operations could not be counted.');
+      for (const op of record.operations) {
+        if (!['pending','succeeded'].includes(op?.status) || typeof op.request?.operationId !== 'string') throw Error('Pending operations could not be counted.');
+        if (op.status === 'pending') pending.add(`${key}:${op.request.operationId}`);
+      }
+    } else {
+      if (!['pending','succeeded','not-submitted'].includes(record?.status) || typeof record.id !== 'string' || typeof record.profileId !== 'string') throw Error('Pending operations could not be counted.');
+      if (record.status === 'pending') pending.add(`${prefix}:${record.profileId}:${record.id}`);
+    }
+  }
+  return {count: pending.size, fingerprint: JSON.stringify([...pending].sort())};
+}
+export function clearBrowserPreferences(storage: WebStorage | undefined) {
+  if (!storage) return;
+
+  for (const key of keys(storage).filter(key => owns(key, storage))) {
+    if (gameBoarding(key, storage)) continue;
+    storage.removeItem(key);
+    if (storage.getItem(key) !== null) throw Error('Browser cleanup could not be verified.');
+  }
+}
+export function clearBrowserProfilePreferences(profileId:string, storage:WebStorage|undefined) {
+  if(!storage)return;
+  const encoded=encodeURIComponent(profileId);
+  const profilePrefixes=[
+    ...testNetworks.flatMap(network=>[`bis-${network.id}-boarding-operation-v1:${encoded}`,`bis-${network.id}-send-operation-v1:${encoded}`,`bis-${network.id}-mints-v1:${encoded}`,`bis-${network.id}-asset-delivery-v1:${encoded}`,`bis-${network.id}-wallet-operations-v2:${encoded}`]),
+    ...burnPrefixes.map(prefix => `${prefix}:${encoded}`),
+    `bis-signet-onboarding-v1:${encoded}`,
+    `bis-signet-wallet-operations-v2:${encoded}`,
+    `bis-signet-continuations-v1:${encoded}`,
+    `bis-signet-equipment-v1:${encoded}`,
+  ];
+  for(const key of keys(storage).filter(key=>profilePrefixes.some(prefix=>key===prefix||key.startsWith(`${prefix}:`)))) {
+    if(gameBoarding(key,storage))continue;
+    storage.removeItem(key);
+    if(storage.getItem(key)!==null)throw Error('Profile cleanup could not be verified.');
+  }
+}
+/**
+ * Clears every local record owned by a Game Wallet session. Unlike Player
+ * profile cleanup this intentionally removes all retained Game Wallet
+ * identities at the session boundary, so a later Player login cannot
+ * rehydrate an old Game Wallet or its recovery/cache state.
+ */
+export function clearBrowserGameWalletPreferences(storage: WebStorage | undefined) {
+  if (!storage) return;
+  const owned = keys(storage).filter(key =>
+    gameOwnerPrefixes.some(prefix => key.startsWith(prefix)) ||
+    key.startsWith('bis-game-wallet-') ||
+    gameBoarding(key, storage) ||
+    key.startsWith('bis-local-marketplace-checkout-v1:') ||
+    key.startsWith('bis-marketplace-inventory-v1:game:'));
+  for (const key of owned) {
+    storage.removeItem(key);
+    if (storage.getItem(key) !== null) throw Error('Game Wallet cleanup could not be verified.');
+  }
+}
+/** Force-reset cleanup used by a consuming game. It intentionally has no
+ * acknowledgement gate, but remains limited to BIS-owned browser keys. */
+export function clearBrowserForceReset(storage: WebStorage | undefined) {
+  if (!storage) return;
+  for (const key of keys(storage).filter(key => key.startsWith('bis-') || key.startsWith('bis:') || key.startsWith('bis.'))) {
+    storage.removeItem(key);
+    if (storage.getItem(key) !== null) throw Error('BIS reset could not be verified.');
+  }
+}
+export function assertLogoutResolvable(storage: WebStorage | undefined = globalThis.localStorage) {
+  if(pendingLogoutOperations(storage).count>0)throw Error('Wallet operations are unresolved. Open Account → Transactions and check recovery status before logging out.');
+}
+
+// Exclusive logout waits behind an SDK mutation from any wallet on this origin.
+export function withBrowserMutation<T>(work: () => Promise<T>, exclusive = false): Promise<T> {
+  if (!globalThis.navigator?.locks) return Promise.reject(Error('This browser cannot safely coordinate wallet operations.'));
+  return navigator.locks.request(browserMutationLock, {mode: exclusive ? 'exclusive' : 'shared'}, () => work());
+}
