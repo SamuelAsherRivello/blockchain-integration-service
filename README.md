@@ -2,7 +2,12 @@
 <!-- AI: Preserve the creator banner unless a replacement is requested. Update its relative path if assets move and verify the file exists with matching filename capitalization. -->
 <p>
 <img src="BIS/documentation/samuel-asher-rivello-banner.png" alt="Samuel Asher Rivello" width="600" /><br /><br />
-<img src="BIS/documentation/bis-marketing.png" alt="Blockchain Integration Service marketing image" width="600" />
+</p>
+
+# YouTube
+
+<p>
+<a href="https://www.youtube.com/watch?v=-hZ7I68h7BI"><img src="https://img.youtube.com/vi/-hZ7I68h7BI/maxresdefault.jpg" alt="Watch the Blockchain Integration Service video on YouTube" width="600" /></a>
 </p>
 
 # Blockchain Integration Service (BIS)
