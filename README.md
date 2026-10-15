@@ -7,12 +7,7 @@
 # YouTube
 
 <p>
-<a href="https://www.youtube.com/watch?v=-hZ7I68h7BI" style="position: relative; display: inline-block; line-height: 0;">
-<img src="https://img.youtube.com/vi/-hZ7I68h7BI/maxresdefault.jpg" alt="Watch the Blockchain Integration Service video on YouTube" width="600" style="display: block; border: 1px solid lightgray;" />
-<span aria-hidden="true" style="position: absolute; top: 50%; left: 50%; width: 150px; height: 105px; background: rgba(255, 0, 0, 0.8); border-radius: 20px; box-shadow: 0 6px 10px rgba(0, 0, 0, 0.55); transform: translate(-50%, -50%);">
-<span style="position: absolute; top: 22px; left: 57px; width: 0; height: 0; border-top: 30px solid transparent; border-bottom: 30px solid transparent; border-left: 45px solid white;"></span>
-</span>
-</a>
+<a href="https://www.youtube.com/watch?v=-hZ7I68h7BI"><img src="docs/marketing/youtube-bitcoin-for-game-dev.png" alt="Watch the Blockchain Integration Service video on YouTube" width="600" /></a>
 </p>
 
 # Blockchain Integration Service (BIS)
