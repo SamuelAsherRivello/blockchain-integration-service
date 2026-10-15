@@ -27,7 +27,9 @@ test('public integration boundary exposes the shared accessible pending dialog',
   assert.match(dialog, /aria-hidden=\{open \|\| undefined\}/);
   assert.match(dialog, /aria-label="Pending Operation Dialog"/);
   assert.match(dialog, /event\.key==='Tab'/);
-  assert.match(dialog, /\{failed\?'Error':current\.info\?\.title\?\?displayLabel\}/);
+  assert.match(dialog, /\{failed\?'Error':current\.info\?\.title\?\?\(pending\?'Loading \.\.\.'\:displayLabel\)\}/);
+  assert.match(dialog, /: <p id=\{description\}>\{displayLabel\}<\/p>/);
+  assert.doesNotMatch(dialog, /: <span className="bis-bolt/);
   assert.match(dialog, /<FormValue id=\{description\} className="bis-pending-error-field" label="Message" value=\{current\.error \?\? ''\} copyable/);
   assert.match(dialog, /className="bis-pending-error-field" label="Message" value=/);
   assert.match(dialog, /useClipboardCopy\(\(\)=>current\?\.error, current\?\.error\)/);

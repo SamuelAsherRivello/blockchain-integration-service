@@ -73,6 +73,10 @@ button, input, select { font: inherit; }
 .sandbox-action-button { padding: 8px 14px; border: 1px solid #a9d9c3; border-radius: 6px; color: #19362a; background: #a9d9c3; font-weight: 700; cursor: pointer; }
 .sandbox-action-button:hover, .sandbox-action-button:focus-visible { background: #c2ebd6; }
 .sandbox-action-button:disabled { cursor: wait; opacity: .65; }
+.sandbox-loading-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgb(8 14 20 / 72%); }
+.sandbox-loading-prompt { width: min(320px, 100%); padding: 24px; border: 1px solid #a9d9c3; border-radius: 12px; background: #171e28; box-shadow: 0 16px 44px #0008; color: #eef1f6; text-align: center; }
+.sandbox-loading-prompt h2 { margin: 0 0 12px; font-size: 18px; }
+.sandbox-loading-prompt p { margin: 0; color: #c8d2dc; }
 .sandbox-demo-input-body { display: grid; grid-template-columns: 80px minmax(0, 1fr); align-items: center; gap: 10px; padding: 16px; }
 .sandbox-demo-input-body label { color: #bec9d7; font-size: 12px; font-weight: 550; }
 .sandbox-demo-input-body input { min-width: 0; width: 100%; padding: 8px 10px; border: 1px solid #2c3947; border-radius: 6px; color: #dce5ee; background: #11151c; font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }

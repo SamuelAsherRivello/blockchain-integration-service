@@ -1,15 +1,15 @@
 export const DEMOS = Object.freeze([
   { number: 1, subject: 'Get Wallet', title: 'Get Wallet', path: '/prototype-interactive-docs/demo-1/' },
-  { number: 2, subject: 'Get Balance (2 views)', title: 'Private wallet', path: '/prototype-interactive-docs/demo-2/' },
-  { number: 3, subject: 'Get Balance (2 views)', title: 'Public address', path: '/prototype-interactive-docs/demo-3/' },
+  { number: 2, subject: 'Get Balance', title: 'Private wallet', path: '/prototype-interactive-docs/demo-2/' },
+  { number: 3, subject: 'Get Balance', title: 'Public address', path: '/prototype-interactive-docs/demo-3/' },
   { number: 4, subject: 'Send Payment', title: 'Send Payment', path: '/prototype-interactive-docs/demo-4/' },
   { number: 5, subject: 'Receive Payment', title: 'Receive Payment', path: '/prototype-interactive-docs/demo-5/' },
   { number: 6, subject: 'Payment History', title: 'Payment History', path: '/prototype-interactive-docs/demo-6/' },
   { number: 7, subject: 'Mint Asset', title: 'Mint Asset', path: '/prototype-interactive-docs/demo-7/' },
   { number: 8, subject: 'Send Asset', title: 'Send Asset', path: '/prototype-interactive-docs/demo-8/' },
   { number: 9, subject: 'Receive Asset', title: 'Receive Asset', path: '/prototype-interactive-docs/demo-9/' },
-  { number: 10, subject: 'Asset History (2 views)', title: 'Private wallet', path: '/prototype-interactive-docs/demo-10/' },
-  { number: 11, subject: 'Asset History (2 views)', title: 'Public address', path: '/prototype-interactive-docs/demo-11/' },
+  { number: 10, subject: 'Asset History', title: 'Private wallet', path: '/prototype-interactive-docs/demo-10/' },
+  { number: 11, subject: 'Asset History', title: 'Public address', path: '/prototype-interactive-docs/demo-11/' },
   { number: 12, subject: 'External Wallet', title: 'Send Payment', path: '/prototype-interactive-docs/demo-12/' },
   { number: 13, subject: 'External Wallet', title: 'Receive Payment', path: '/prototype-interactive-docs/demo-13/' },
 ]);
@@ -19,6 +19,10 @@ export const HOME_PATH = '/prototype-interactive-docs/';
 export const LANDING_VISITED_STORAGE_KEY = 'prototype-interactive-docs-visited';
 export const NETWORK_STORAGE_KEY = 'network';
 export const DEFAULT_NETWORK = 'signet';
+export const DEFAULT_WALLET_1_ADDRESSES = Object.freeze({
+  signet: 'tark1qz9l2ctqalrkjyftxcw7gytm83cm3r9pdudmna4v0gncry56h30x5ed2dhy7mznkeslw938rjntn48qgyecc54hus9n4hdnjemw3qygmxk6ghu',
+  mutinynet: 'tark1qqcpq7yq3e8hhsx6ml3fud93m7827qggaurtzu3zwsr4a0qs0gf84ml7mvm4kmfds2kluhkpem2c68jdc3klmt5kmuw70nfesdwqxy8jmcttk9',
+});
 
 export const WALLET_URLS = Object.freeze({
   signet: 'https://signet.arkade.money/',
@@ -60,10 +64,6 @@ export function walletPaymentUrl({ network, address, amountSats, callback }) {
   return wallet.toString();
 }
 
-export function walletProfileStorageKey(network, field) {
-  if (!['signet', 'mutinynet'].includes(network)) throw new Error('Choose Signet or Mutinynet.');
-  if (!['wallet-1-address', 'wallet-2-mnemonic'].includes(field)) throw new Error('Choose a wallet profile field.');
-  return `${network}-${field}`;
 export function walletConnectUrl({ network, callback }) {
   const callbackUrl = new URL(callback);
   const wallet = new URL(walletUrl(network));
@@ -71,15 +71,21 @@ export function walletConnectUrl({ network, callback }) {
   return wallet.toString();
 }
 
+export function walletProfileStorageKey(network, field) {
+  if (!['signet', 'mutinynet'].includes(network)) throw new Error('Choose Signet or Mutinynet.');
+  if (!['wallet-1-address', 'wallet-2-mnemonic'].includes(field)) throw new Error('Choose a wallet profile field.');
+  return `${network}-${field}`;
 }
 
 export function setupWalletProfileValues(network, storage = globalThis.localStorage) {
+  const addressKey = walletProfileStorageKey(network, 'wallet-1-address');
+  const mnemonicKey = walletProfileStorageKey(network, 'wallet-2-mnemonic');
   const values = {
-    address1: storage.getItem(walletProfileStorageKey(network, 'wallet-1-address')) ?? '',
-    mnemonic2: storage.getItem(walletProfileStorageKey(network, 'wallet-2-mnemonic')) ?? '',
+    address1: storage.getItem(addressKey) ?? DEFAULT_WALLET_1_ADDRESSES[network],
+    mnemonic2: storage.getItem(mnemonicKey) ?? '',
   };
-  storage.setItem(walletProfileStorageKey(network, 'wallet-1-address'), values.address1);
-  storage.setItem(walletProfileStorageKey(network, 'wallet-2-mnemonic'), values.mnemonic2);
+  storage.setItem(addressKey, values.address1);
+  storage.setItem(mnemonicKey, values.mnemonic2);
   return values;
 }
 
@@ -87,6 +93,14 @@ export function setupNetworkValue(storage = globalThis.localStorage) {
   const value = storage.getItem(NETWORK_STORAGE_KEY) || DEFAULT_NETWORK;
   storage.setItem(NETWORK_STORAGE_KEY, value);
   return value;
+}
+
+export function localStorageGetItem(field, storage = globalThis.localStorage) {
+  const network = setupNetworkValue(storage);
+  if (field === 'network') return network;
+  if (field === 'wallet-1-address') return setupWalletProfileValues(network, storage).address1;
+  if (field === 'wallet-2-mnemonic') return setupWalletProfileValues(network, storage).mnemonic2;
+  return storage.getItem(`${network}-${field}`) ?? '';
 }
 
 export function getActiveDemo(pathname = '') {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MnemonicIdentity, RestArkProvider, Wallet } from '@arkade-os/sdk';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.ts';
 import { decodeArkadeAddress, validateArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
-import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
+import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, localStorageGetItem, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
 import './style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
 
@@ -163,9 +163,9 @@ function SetupNetworkProfile({ network }) {
 const BALANCE_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
-// No wallet or mnemonic is needed for a public address lookup.
-const network = document.querySelector('#network').value
-const address1 = localStorage.getItem(network + '-wallet-1-address')
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const address1 = localStorageGetItem('wallet-1-address')
 
 const bytesToHex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
 function getBaseURL(network, address) {
@@ -196,8 +196,8 @@ console.log('Success:', success)`;
 const CREATE_WALLET_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 
 const wallet = await Wallet.create({
@@ -218,8 +218,8 @@ console.log('Success:', success)`;
 const PRIVATE_BALANCE_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 
 const wallet = await Wallet.create({
@@ -245,9 +245,9 @@ console.log('Success:', success)`;
 const SEND_PAYMENT_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
-const address1 = localStorage.getItem(network + '-wallet-1-address')
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const address1 = localStorageGetItem('wallet-1-address')
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
@@ -308,8 +308,9 @@ console.log('Success:', Boolean(txid))`;
 const RECEIVE_PAYMENT_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const address1 = localStorage.getItem(network + '-wallet-1-address')
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const address1 = localStorageGetItem('wallet-1-address')
 const { vtxoTaprootKey } = ArkAddress.decode(address1)
 const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
 const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
@@ -333,8 +334,8 @@ console.log('Success:', success)`;
 const PAYMENT_HISTORY_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
@@ -356,9 +357,9 @@ activities.forEach((activity, index) => console.log(\`\${index + 1}:\`, activity
 const MINT_ASSET_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
-const assetLabel = localStorage.getItem(network + '-asset-id')
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const assetLabel = localStorageGetItem('asset-id')
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
@@ -384,11 +385,11 @@ console.log('Success:', success)`;
 const SEND_ASSET_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
-const address1 = localStorage.getItem(network + '-wallet-1-address')
-const assetLabel = localStorage.getItem(network + '-asset-id')
-const assetId = localStorage.getItem(network + '-asset-id-' + assetLabel)
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const address1 = localStorageGetItem('wallet-1-address')
+const assetLabel = localStorageGetItem('asset-id')
+const assetId = localStorageGetItem('asset-id-' + assetLabel)
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
@@ -413,10 +414,11 @@ console.log('Success:', success)`;
 const RECEIVE_ASSET_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const address1 = localStorage.getItem(network + '-wallet-1-address')
-const assetLabel = localStorage.getItem(network + '-asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem(network + '-asset-id-' + assetLabel)
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const address1 = localStorageGetItem('wallet-1-address')
+const assetLabel = localStorageGetItem('asset-id')
+const assetId = assetLabel === 'all' ? 'all' : localStorageGetItem('asset-id-' + assetLabel)
 const { vtxoTaprootKey } = ArkAddress.decode(address1)
 const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
 const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
@@ -440,10 +442,10 @@ console.log('Success:', success)`;
 const ASSET_HISTORY_SOURCE = `import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
-const assetLabel = localStorage.getItem(network + '-asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem(network + '-asset-id-' + assetLabel)
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const assetLabel = localStorageGetItem('asset-id')
+const assetId = assetLabel === 'all' ? 'all' : localStorageGetItem('asset-id-' + assetLabel)
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
   identity,
@@ -467,10 +469,11 @@ matching.forEach((activity, index) => console.log(\`\${index + 1}:\`, activity.t
 const PUBLIC_ASSET_HISTORY_SOURCE = `import { ArkAddress } from '@arkade-os/sdk'
 
 // Arrange
-const network = document.querySelector('#network').value
-const address1 = localStorage.getItem(network + '-wallet-1-address')
-const assetLabel = localStorage.getItem(network + '-asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorage.getItem(network + '-asset-id-' + assetLabel)
+const network = localStorageGetItem('network')
+const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
+const address1 = localStorageGetItem('wallet-1-address')
+const assetLabel = localStorageGetItem('asset-id')
+const assetId = assetLabel === 'all' ? 'all' : localStorageGetItem('asset-id-' + assetLabel)
 const { vtxoTaprootKey } = ArkAddress.decode(address1)
 const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
 const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
@@ -557,8 +560,9 @@ function AssetSelector({ network, value, onChange, includeAll = false }) {
   </label>;
 }
 
-function OperationDemo({ demoTitle, docsHref, docsTopic, input, sourceId, source, output, elapsedMs, running, onExecute, actionLabel = 'Execute', runningLabel = 'Executing…' }) {
+function OperationDemo({ demoTitle, docsHref, docsTopic, input, sourceId, source, output, elapsedMs, running, onExecute, actionLabel = 'Execute', loadingText = demoTitle }) {
   return <>
+    <LoadingPrompt open={running} bodyText={loadingText} />
     <DocsSection href={docsHref} topic={docsTopic} />
     <section className="sandbox-demo-input prototype-section" aria-label="Input">
       <div className="prototype-title-bar"><h2>Input</h2></div>
@@ -569,11 +573,30 @@ function OperationDemo({ demoTitle, docsHref, docsTopic, input, sourceId, source
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor={sourceId}>Source code</label>
         <SourceCodeField id={sourceId} source={source} />
-        <button className="sandbox-action-button" type="button" onClick={onExecute} disabled={running}>{running ? runningLabel : actionLabel}</button>
+        <button className="sandbox-action-button" type="button" onClick={onExecute} disabled={running}>{actionLabel}</button>
       </div>
     </section>
     <OutputSection title={demoTitle} output={output} elapsedMs={elapsedMs} />
   </>;
+}
+
+function LoadingPrompt({ open, bodyText }) {
+  const [dots, setDots] = useState('.');
+  useEffect(() => {
+    if (!open) {
+      setDots('.');
+      return;
+    }
+    const timer = window.setInterval(() => setDots(previous => previous.length === 3 ? '.' : `${previous}.`), 1000);
+    return () => window.clearInterval(timer);
+  }, [open]);
+  if (!open) return null;
+  return <div className="sandbox-loading-backdrop" role="presentation">
+    <section className="sandbox-loading-prompt" role="dialog" aria-modal="true" aria-labelledby="sandbox-loading-title" aria-describedby="sandbox-loading-body">
+      <h2 id="sandbox-loading-title">Calling {dots}</h2>
+      <p id="sandbox-loading-body">{bodyText}</p>
+    </section>
+  </div>;
 }
 
 function assetSelectionStorageKey(network) {
@@ -635,6 +658,7 @@ function DemoCreateWallet({ network }) {
   }
 
   return <>
+    <LoadingPrompt open={running} bodyText="Create Wallet 2" />
     <DocsSection href={DOCS_URLS.wallet} topic="Create your wallet" />
     <section className="sandbox-demo-input prototype-section" aria-label="Input">
       <div className="prototype-title-bar"><h2>Input</h2></div>
@@ -648,7 +672,7 @@ function DemoCreateWallet({ network }) {
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="create-wallet-source">Source code</label>
         <SourceCodeField id="create-wallet-source" source={CREATE_WALLET_SOURCE} />
-        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>{running ? 'Executing…' : 'Execute'}</button>
+        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>Execute</button>
       </div>
     </section>
     <OutputSection title="Get Wallet" output={output} elapsedMs={elapsedMs} />
@@ -692,6 +716,7 @@ function DemoGetBalancePrivate({ network }) {
   }
 
   return <>
+    <LoadingPrompt open={running} bodyText="Get balance for Wallet 2" />
     <DocsSection href={DOCS_URLS.balance} topic="Checking balances" />
     <section className="sandbox-demo-input prototype-section" aria-label="Input">
       <div className="prototype-title-bar"><h2>Input</h2></div>
@@ -705,7 +730,7 @@ function DemoGetBalancePrivate({ network }) {
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="private-balance-source">Source code</label>
         <SourceCodeField id="private-balance-source" source={PRIVATE_BALANCE_SOURCE} />
-        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>{running ? 'Executing…' : 'Execute'}</button>
+        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>Execute</button>
       </div>
     </section>
     <OutputSection title="Get Balance - Private Wallet" output={output} elapsedMs={elapsedMs} />
@@ -748,6 +773,7 @@ function DemoGetBalancePublic({ network }) {
   }
 
   return <>
+    <LoadingPrompt open={running} bodyText="Get balance for public address" />
     <section className="sandbox-demo-input prototype-section" aria-label="Input">
       <div className="prototype-title-bar"><h2>Input</h2></div>
       <div className="sandbox-demo-input-body">
@@ -760,7 +786,7 @@ function DemoGetBalancePublic({ network }) {
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="balance-source">Source code</label>
         <SourceCodeField id="balance-source" source={BALANCE_SOURCE} />
-        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>{running ? 'Executing…' : 'Execute'}</button>
+        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>Execute</button>
       </div>
     </section>
     <OutputSection title="Get Balance - Public Address" output={output} elapsedMs={elapsedMs} />
@@ -794,7 +820,7 @@ function DemoSendPayment({ network }) {
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Send Payment" docsHref={DOCS_URLS.sendPayment} docsTopic="Sending payments" sourceId="send-payment-source" source={SEND_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Send Payment" loadingText="Send payment" docsHref={DOCS_URLS.sendPayment} docsTopic="Sending payments" sourceId="send-payment-source" source={SEND_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="send-payment-mnemonic">Wallet 2 Mnemonic</label>
     <input id="send-payment-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <label htmlFor="send-payment-address">Wallet 1 Address</label>
@@ -844,7 +870,7 @@ function DemoExternalWalletPayment({ network }) {
     }
   }
 
-  return <OperationDemo demoTitle="Send Payment from External Wallet" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-payment-source" source={EXTERNAL_WALLET_PAYMENT_SOURCE} output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Send Payment from External Wallet" runningLabel="Checking recipient…" input={<>
+  return <OperationDemo demoTitle="Send Payment from External Wallet" loadingText="Get payment recipient" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-payment-source" source={EXTERNAL_WALLET_PAYMENT_SOURCE} output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Send Payment from External Wallet" input={<>
     <label htmlFor="external-wallet-address">Recipient: Wallet 1 Address</label>
     <input id="external-wallet-address" value={setupWalletProfileValues(network).address1} readOnly spellCheck="false" />
     <label htmlFor="external-wallet-amount">Amount in sats</label>
@@ -852,9 +878,6 @@ function DemoExternalWalletPayment({ network }) {
   </>} />;
 }
 
-function DemoReceivePayment({ network }) {
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
 function externalWalletAddressResult(search) {
   const result = new URLSearchParams(search);
   if (result.has('error')) return { error: result.get('error') || 'denied' };
@@ -911,7 +934,7 @@ function DemoExternalWalletReceivePayment({ network }) {
     }
   }
 
-  return <OperationDemo demoTitle="Receive Payment to External Wallet" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-receive-source" source={EXTERNAL_WALLET_RECEIVE_SOURCE} output={output || 'Click Receive Payment to External Wallet. Arkade Wallet will share its address, then Wallet 2 sends it 100 sats.'} elapsedMs={elapsedMs} running={running} onExecute={receivePayment} actionLabel="Receive Payment to External Wallet" runningLabel="Waiting for external wallet…" input={<>
+  return <OperationDemo demoTitle="Receive Payment to External Wallet" loadingText="Get external wallet address" docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" sourceId="external-wallet-receive-source" source={EXTERNAL_WALLET_RECEIVE_SOURCE} output={output || 'Click Receive Payment to External Wallet. Arkade Wallet will share its address, then Wallet 2 sends it 100 sats.'} elapsedMs={elapsedMs} running={running} onExecute={receivePayment} actionLabel="Receive Payment to External Wallet" input={<>
     <label htmlFor="external-wallet-receive-address">External Wallet Address</label>
     <input id="external-wallet-receive-address" value={externalAddress} readOnly placeholder="Choose an external wallet" spellCheck="false" />
     <label htmlFor="external-wallet-receive-mnemonic">Wallet 2 Mnemonic</label>
@@ -921,6 +944,9 @@ function DemoExternalWalletReceivePayment({ network }) {
   </>} />;
 }
 
+function DemoReceivePayment({ network }) {
+  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
+  const [running, setRunning] = useState(false);
   async function execute() {
     const startedAt = begin();
     setRunning(true); setOutput('');
@@ -935,7 +961,7 @@ function DemoExternalWalletReceivePayment({ network }) {
       setOutput([`Address: ${address1}`, `Total: ${total} sats`, `VTXOs: ${vtxos.length}`, `Success: ${response.ok}`].join('\n'));
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Receive Payment" docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments" sourceId="receive-payment-source" source={RECEIVE_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Receive Payment" loadingText="Get payment address" docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments" sourceId="receive-payment-source" source={RECEIVE_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="receive-payment-address">Wallet 1 Address</label>
     <input id="receive-payment-address" value={setupWalletProfileValues(network).address1} readOnly />
   </>} />;
@@ -962,7 +988,7 @@ function DemoPaymentHistory({ network }) {
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Payment History" docsHref={DOCS_URLS.paymentHistory} docsTopic="Payment history" sourceId="payment-history-source" source={PAYMENT_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Payment History" loadingText="Get payment history" docsHref={DOCS_URLS.paymentHistory} docsTopic="Payment history" sourceId="payment-history-source" source={PAYMENT_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="payment-history-mnemonic">Wallet 2 Mnemonic</label>
     <input id="payment-history-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
   </>} />;
@@ -983,7 +1009,7 @@ function DemoMintAsset({ network }) {
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Mint Asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" sourceId="mint-asset-source" source={MINT_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Mint Asset" loadingText="Mint asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" sourceId="mint-asset-source" source={MINT_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="mint-asset-mnemonic">Wallet 2 Mnemonic</label>
     <input id="mint-asset-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} />
@@ -1007,7 +1033,7 @@ function DemoSendAsset({ network }) {
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Send Asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" source={SEND_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Send Asset" loadingText="Send asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" source={SEND_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="send-asset-mnemonic">Wallet 2 Mnemonic</label>
     <input id="send-asset-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <label htmlFor="send-asset-address">Wallet 1 Address</label>
@@ -1035,7 +1061,7 @@ function DemoReceiveAsset({ network }) {
       setOutput([`Address: ${address1}`, `Asset filter: ${assetId}`, `VTXOs: ${matching.length}`, `Success: ${response.ok}`].join('\n'));
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Receive Asset" docsHref={DOCS_URLS.receiveAsset} docsTopic="Check asset balance" sourceId="receive-asset-source" source={RECEIVE_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Receive Asset" loadingText="Get asset balance" docsHref={DOCS_URLS.receiveAsset} docsTopic="Check asset balance" sourceId="receive-asset-source" source={RECEIVE_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="receive-asset-address">Wallet 1 Address</label>
     <input id="receive-asset-address" value={setupWalletProfileValues(network).address1} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
@@ -1063,7 +1089,7 @@ function DemoAssetHistory({ network }) {
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Asset History - Private Wallet" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="asset-history-source" source={ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Asset History - Private Wallet" loadingText="Get asset history for Wallet 2" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="asset-history-source" source={ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="asset-history-mnemonic">Wallet 2 Mnemonic</label>
     <input id="asset-history-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
@@ -1094,7 +1120,7 @@ function DemoAssetHistoryPublic({ network }) {
       ].join('\n'));
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
-  return <OperationDemo demoTitle="Asset History - Public Address" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="public-asset-history-source" source={PUBLIC_ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Asset History - Public Address" loadingText="Get asset history for public address" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="public-asset-history-source" source={PUBLIC_ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="public-asset-history-address">Wallet 1 Address</label>
     <input id="public-asset-history-address" value={setupWalletProfileValues(network).address1} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
@@ -1165,10 +1191,10 @@ export function App({ pathname = window.location.pathname }) {
         {!homeActive && !setupActive && activeDemo === 10 && <DemoAssetHistory network={network} />}
         {!homeActive && !setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
         {!homeActive && !setupActive && activeDemo === 12 && <DemoExternalWalletPayment network={network} />}
+        {!homeActive && !setupActive && activeDemo === 13 && <DemoExternalWalletReceivePayment network={network} />}
       </main>
     </div>
     <footer className="spike-footer" aria-label="Footer" />
-        {!homeActive && !setupActive && activeDemo === 13 && <DemoExternalWalletReceivePayment network={network} />}
   </div>;
 }
 

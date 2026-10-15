@@ -47,7 +47,7 @@ document.getElementById('run')!.onclick = async () => {
     button('Paste from Clipboard').click(); await tick();
     check(!button('⚡ Restore Wallet').disabled, 'Valid phrase enables Game Wallet restore');
     button('⚡ Restore Wallet').click(); await tick();
-    check(host.querySelector('.bis-pending-dialog h2')?.textContent === 'Restoring ...', 'Restore shows the blocking restore loader');
+    check(host.querySelector('.bis-pending-dialog h2')?.textContent === 'Loading ...' && host.querySelector('.bis-pending-dialog p')?.textContent === 'Restoring ...', 'Restore shows the blocking restore loader');
     check(button('⚡ Restore Wallet').disabled, 'Restore remains disabled while login is pending');
     releaseImport(); await tick(); await tick();
     check(imported === phrase && host.textContent?.includes('Game wallet configured.'), 'Restore delegates only to Game Wallet import');
@@ -68,7 +68,7 @@ document.getElementById('run')!.onclick = async () => {
     button('Copy Arkade address').click(); await tick();
     check(copied === address, 'Copy uses the complete Arkade address');
     button('Log Out Game Wallet').click(); await tick();
-    check(button('Log Out Game Wallet').disabled && host.querySelector('.bis-pending-dialog h2')?.textContent === 'Logging out ...', 'Logout shows the blocking loader');
+    check(button('Log Out Game Wallet').disabled && host.querySelector('.bis-pending-dialog h2')?.textContent === 'Loading ...' && host.querySelector('.bis-pending-dialog p')?.textContent === 'Logging out ...', 'Logout shows the blocking loader');
     check(host.querySelectorAll('.bis-pending-dialog').length === 1, 'Logout uses one loader');
     releaseLogout(); await tick(); await tick(); await tick(); await tick();
     check(!!button('⚡ Create Wallet') && !host.querySelector('.bis-pending-dialog'), 'Logout returns to the unconfigured start');
