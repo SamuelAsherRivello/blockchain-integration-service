@@ -1,0 +1,17 @@
+.setup/
+.env
+.env.*
+!BIS/packages/shared/.env.local.template
+node_modules/
+dist/
+
+.playwright-cli/
+output/playwright/
+/.cache
+# Keep durable triage packets under version control. Other generated output remains local.
+/output/**
+!/output/reports/
+!/output/reports/triage-analyze/
+!/output/reports/triage-analyze/**
+/.playwright-mcp
+/BIS/packages/prototype-sandbox/output

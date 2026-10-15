@@ -1,0 +1,7 @@
+# Triage-only scope exclusions. These do not restrict non-triage AI workflows.
+BIS/documentation/slidev/
+
+# Populated local secrets are never part of source triage. Templates remain visible.
+BIS/packages/shared/.env.local
+BIS/packages/prototype-faucet/.env.local
+**/.env.local

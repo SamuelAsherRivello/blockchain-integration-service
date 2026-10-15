@@ -1,0 +1,1427 @@
+import {startOnboarding,type OnboardingAdapter,type OnboardingView} from './onboarding-service.ts';
+import {readAccountOnboarding} from './onboarding-record.ts';
+import { queryAccountContracts, contractController, type BisContractFilter, type BisContractsResult, type BisContractActionResult } from './lto-service.ts';
+import {eligibleUnreservedCoins, walletReservations} from './wallet-reservations.ts';
+import { createPaymentNotifications } from './payment-notifications.ts';
+import { paymentSender, type BisPlayerRecipient } from './game-player-payment.ts';
+import {validateContinue,readContinuations,type BisContinueRequest,type BisContinueResult} from './continuation.ts';
+import { validContinueRecipient as coreValidContinueRecipient } from './continue-recipient.ts';
+import { readWithRetry } from './pending-read.ts';
+import { createToastQueue, type BisToastOptions } from './toasts.ts';
+import { createSharedWalletObserver } from './shared-wallet-observer.ts';
+import { createAssetViewLifecycle } from './asset-view-lifecycle.ts';
+import { pendingLogoutOperations, type LogoutOperations } from './logout-cleanup.ts';
+import { assertNoPendingSend, readSendRecord, readSendRecords, sendStatus, SendError, type BisSendQuote, type BisSendStatus } from './sending.ts';
+import { assertNoPendingBurn, BurnError, validateBurn, type BisBurnAssetRequest, type BisBurnAssetResult } from './burning.ts';
+import { AssetDeliveryError, validateAssetDelivery, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from './asset-delivery.ts';
+import type { BisAssets } from './asset-presentation';
+import { AssetError, assetError, validateMint, readAssetRecords, type BisMintAssetRequest, type BisMintAssetResult, type BisListAssetsResult, type BisPendingMintResult } from './assets.ts';
+import { diagnoseAssetFailure } from './asset-operation-diagnostics.ts';
+import type { WalletOperationAvailability } from './wallet-network-policy.ts';
+import { assertNoPendingBoarding, assertPendingTransfersAcknowledged, withWalletMutation, BoardingBlockedError, readBoardingRecord, readBoardingRecords } from './boarding-record.ts';
+import { boardingSubmissionEnabled, type BoardingQuote, type BitcoinFundingDestination } from './boarding-quote.ts';
+import { transferStatus } from './boarding-status.ts';
+import type { BoardingRecord } from './boarding-record.ts';
+export type BisTransferStatus = Readonly<{status:'idle'|'pending'|'succeeded'|'not-submitted'; amountSats?:number; commitmentTxid?:string; operationId?:string; intentId?:string; direction?:BoardingQuote['direction']; phase?:BoardingRecord['phase']; diagnostic?:BoardingRecord['diagnostic'];failure?:BoardingRecord['failure']; verification?:'live'|'unavailable';stage?:NonNullable<BoardingRecord['progress']>['stage'];execution?:'running'|'awaiting-confirmation'|'interrupted'|'unknown'|'complete';observedAt?:number;action?:NonNullable<BoardingRecord['progress']>['action']} >;
+import { unavailableInvoiceReceiving, type BisInvoiceReceiving } from './invoice-receiving.ts';
+import { withTransferActivity, withMintActivity, withSendActivity, type BisActivity, type BisTransaction } from './activity.ts';
+import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
+import { phraseWords, validRecovery } from './recovery-validation.ts';
+import type { AccountStorage, StoredAccount } from './account-storage.ts';
+import { WalletRoleConflictError, withWalletRoleSelection } from './wallet-role.ts';
+import type { BalanceAmounts } from '../wallet-layer-arkade/balance.ts';
+import type { AccountAddresses } from '../wallet-layer-arkade/addresses.ts';
+import type { TestNetwork } from './test-network.ts';
+import { createReadCoordinator, type ReadKey } from './read-coordinator.ts';
+import { createBackgroundCache } from './background-cache.ts';
+import { rememberSharedAssetInventory, invalidateSharedAssetInventory, prepareSharedAssetInventory } from './shared-asset-inventory.ts';
+export type BisAddresses = Readonly<{ status: 'idle' | 'loading' | 'unavailable' }> | Readonly<{ status: 'ready' } & AccountAddresses>;
+import type { BisContextDependencies } from './context-dependencies.ts';
+import type { BisGameLogoutAuthorization, BisGameLogoutRecheck } from './bis-game.ts';
+export type BisBalanceReadStatus = 'wallet-read' | 'storage';
+export type BisBalance = Readonly<{ status: 'idle' | 'loading' }> | Readonly<{ status: 'unavailable'; readStatus?: BisBalanceReadStatus }> | Readonly<{ status: 'ready' } & BalanceAmounts>;
+export type BisState = Readonly<{
+  view: 'empty' | 'account-button' | 'account'; hasProfile: boolean;
+  savedProfiles: readonly string[];
+  profileChooser: boolean;
+  phase: 'loading' | 'idle' | 'creating' | 'recovery' | 'saving' | 'active' | 'error' | 'resetting' | 'logout-confirmation' | 'logging-out' | 'logout-error' | 'restore-entry' | 'restoring' | 'restore-confirmation' | 'restore-saving' | 'restore-error';
+  logoutBackupAcknowledged: boolean;
+  logoutPendingCount: number | null;
+  logoutPendingAcknowledged: boolean;
+  logoutGameWalletAcknowledged: boolean;
+  logoutGameConfirmationBody?: string;
+  logoutGameAuthorizationId?: string;
+  logoutOverrideAcknowledged: boolean;
+  logoutOverrideRequired: boolean;
+  hasGameWallet: boolean;
+  network?: TestNetwork;
+  accountRecovery: boolean;
+  recoveryStatus: 'hidden' | 'loading' | 'ready' | 'unavailable';
+  profileId?: string; error?: string; canReset: boolean;
+  balance: BisBalance;
+  addresses: BisAddresses;
+  invoiceReceiving: BisInvoiceReceiving;
+  accountReceive: boolean;
+  accountSend: boolean;
+  accountDetails: boolean;
+  accountTransfer: boolean;
+  accountActivity: boolean;
+  accountAssets: boolean;
+  accountContracts?: boolean;
+  accountOnboarding?: boolean;
+  onboarding?: OnboardingView;
+  assets: BisAssets;
+  activity: BisActivity;
+}>;
+export type BisEvent = Readonly<{ type: 'accountConnected' | 'accountDisconnected'; profileId: string }> | Readonly<{ type: 'restartRequested'; reason: 'logout'; logoutId: string }>;
+export interface BisContext {
+  openAccountOnboarding?():void;
+  refreshOnboarding?():void;
+  checkContractsAsync?(filter?:BisContractFilter, force?:boolean):Promise<BisContractsResult>;
+  openAccountContracts?():void;
+  claimContractAsync?(id:string):Promise<BisContractActionResult>;
+  rejectContractAsync?(id:string):Promise<BisContractActionResult>;
+  refundContract?(id:string):Promise<BisContractActionResult>;
+  getWalletOperations?():Promise<import('./activity-operations').WalletOperationsReport>;
+  discardPreparedTransfer?(id:string):Promise<void>;
+  getContinueAvailability?(): Promise<{canPay:boolean;reason?:string;availableSats?:number}>;
+  getPaymentRecipient?(): Promise<BisPlayerRecipient>;
+  getContinueRecipient?(): string | undefined;
+  showToast(message: string, options?: BisToastOptions): void;
+  requestContinue(request:BisContinueRequest):Promise<BisContinueResult>;
+  getContinueStatus(operationId?:string):Promise<readonly BisContinueResult[]>;
+  burnAsset(request:BisBurnAssetRequest):Promise<BisBurnAssetResult>;
+  deliverAsset(request:BisAssetDeliveryRequest):Promise<BisAssetDeliveryResult>;
+  checkAssetDelivery(operationId:string):Promise<BisAssetDeliveryResult>;
+  getMintAvailability(): Promise<{canMint:boolean;reason?:string;availableSats?:number;minimumSats?:number}>;
+  mintAsset(request: BisMintAssetRequest): Promise<BisMintAssetResult>;
+  listAssets(): Promise<BisListAssetsResult>;
+  /** Presentation-only inventory reuse; ownership mutations still call listAssets. */
+  prepareAssetInventory?(force?: boolean): Promise<BisListAssetsResult>;
+  getPendingAssetMint(): Promise<BisPendingMintResult>;
+  getState(): BisState;
+  subscribe(listener: () => void): () => void;
+  onEvent(listener: (event: BisEvent) => void): () => void;
+  readyAsync(): Promise<void>;
+  openAccountDialog(): void;
+  openAccountReceive(): void;
+  openAccountSend(): void;
+  getSendSpendable(preserveAssets?:boolean): Promise<number>;
+  getCachedArkBalance?(): number | undefined;
+  /** Returns cached transfer policy evidence without starting a read. */
+  peekAccountTransferAvailability?(direction?: BoardingQuote['direction']): WalletOperationAvailability | undefined;
+  /** Internal presentation readiness; never authorizes spending. */
+  prepareArkBalance?(): Promise<number>;
+  quoteAccountSend(recipient:string, amountSats?:number, preserveAssets?:boolean): Promise<BisSendQuote>;
+  confirmAccountSend(quote:BisSendQuote): Promise<BisSendStatus>;
+  checkAccountSend(): Promise<BisSendStatus>;
+  openAccountDetails(): void;
+  openAccountTransfer(): void;
+  quoteAccountTransfer(amountSats?: number, direction?: BoardingQuote['direction'], destination?: BitcoinFundingDestination): Promise<BoardingQuote>;
+  getAccountTransferAvailability(direction?: BoardingQuote['direction']): Promise<WalletOperationAvailability>;
+  confirmAccountTransfer(quote: BoardingQuote, acknowledgedPendingIds?: readonly string[]): Promise<BisTransferStatus>;
+  getPendingAccountTransfers(): readonly BisTransferStatus[];
+  checkAccountTransfer(): Promise<BisTransferStatus>;
+  openAccountActivity(): void;
+  openAccountAssets(): void;
+  refreshAssets(): Promise<void>;
+  openAccountRecovery(): void;
+  refreshActivity(force?:boolean): Promise<void>;
+  closeAccount(): void;
+  refreshBalance(): Promise<void>;
+  createAccount(): Promise<void>;
+  openRestoreAccount(): void;
+  openProfileChooser():void;
+  selectProfile(profileId:string):Promise<void>;
+  continueAccount(): Promise<void>;
+  openLogoutConfirmation(): void;
+  setLogoutBackupAcknowledged(acknowledged: boolean): void;
+  setLogoutPendingAcknowledged(acknowledged: boolean): void;
+  setLogoutGameWalletAcknowledged(acknowledged: boolean): void;
+  setLogoutOverrideAcknowledged(acknowledged: boolean): void;
+  selectNetwork(network: TestNetwork): void;
+  confirmLogout(): Promise<void>;
+  cancelLogout(): void;
+  retry(): Promise<void>;
+  dispose(): void;
+}
+export function accountDestination(hasProfile: boolean) { return hasProfile ? 'account-menu' : 'account-chooser'; }
+type Controls = { toasts: ReturnType<typeof createToastQueue>; dismissOperationError(): void; assetSession(): number; hideAssets(session?: number): void; present(): void; reset(): Promise<void>; forceReset(resetId?: string): Promise<void>; fund(): Promise<string>; fundingAddress(): Promise<string>; assertAlive(): void; recovery(): string | undefined; revealRecovery(): Promise<void>; hideRecovery(): void; restore(phrase: string): Promise<void>; confirmRestoration(): Promise<void>; cancelRestoration(): void };
+const controls = new WeakMap<BisContext, Controls>();
+const presentationReads=new WeakMap<BisContext,ReturnType<typeof createReadCoordinator>>();
+const foregroundWork=new WeakMap<BisContext,<T>(work:()=>Promise<T>,mutation:boolean)=>Promise<T>>();
+/** Contract evidence owners call this; passive projection never reconciles. */
+export function invalidateContractPresentation(context:BisContext) { presentationReads.get(context)?.invalidate('contracts'); }
+/** Internal bridge for explicit operations owned outside the context facade. */
+export function withContextForegroundWork<T>(context:BisContext,work:()=>Promise<T>,mutation=false):Promise<T> {
+  return foregroundWork.get(context)?.(work,mutation) ?? work();
+}
+export function getControls(context: BisContext): Controls {
+  const result = controls.get(context);
+  if (!result) throw new Error('Expected a BIS context.');
+  return result;
+}
+// Internal construction options shared with the outer composition façade.
+export type BisContextOptions = {continueRecipient?: string; gameWalletProfileId?: () => string | undefined; hasGameWallet?:()=>boolean; resetGameWallet?:()=>Promise<boolean>; authorizeLogout?:(profileId:string)=>Promise<BisGameLogoutAuthorization>; recheckLogout?:(authorizationId:string)=>Promise<BisGameLogoutRecheck>; getNetwork?:()=>TestNetwork|undefined; selectNetwork?:(network:TestNetwork)=>void; requireNetworkSelection?:boolean};
+const playerGameWalletConflict = 'This wallet is already configured as the Game Wallet. Use a different Player Wallet.';
+const unavailableOperation = () => { throw new Error('A wallet operation dependency is required.'); };
+const unavailableDependencies = (): BisContextDependencies => ({
+  create: unavailableOperation as BisContextDependencies['create'],
+  identifyAccount: unavailableOperation as BisContextDependencies['identifyAccount'],
+  restore: unavailableOperation as BisContextDependencies['restore'],
+  readBalance: unavailableOperation as BisContextDependencies['readBalance'],
+  fund: unavailableOperation as BisContextDependencies['fund'],
+  readAddresses: unavailableOperation as BisContextDependencies['readAddresses'],
+  observeActivity: unavailableOperation as BisContextDependencies['observeActivity'],
+  transfers: { quote: unavailableOperation as BisContextDependencies['transfers']['quote'], submit: unavailableOperation as BisContextDependencies['transfers']['submit'], reconcile: unavailableOperation as BisContextDependencies['transfers']['reconcile'] },
+  assets: { list: unavailableOperation as BisContextDependencies['assets']['list'], mint: unavailableOperation as BisContextDependencies['assets']['mint'] },
+  deliverAsset: unavailableOperation as BisContextDependencies['deliverAsset'],
+  reconcileAssetDelivery: unavailableOperation as BisContextDependencies['reconcileAssetDelivery'],
+  loadMintAvailability: unavailableOperation as BisContextDependencies['loadMintAvailability'],
+  sends: { funds: unavailableOperation as BisContextDependencies['sends']['funds'], quote: unavailableOperation as BisContextDependencies['sends']['quote'], submit: unavailableOperation as BisContextDependencies['sends']['submit'], reconcile: unavailableOperation as BisContextDependencies['sends']['reconcile'] },
+  burn: unavailableOperation as BisContextDependencies['burn'],
+  continuation: { submit: unavailableOperation as BisContextDependencies['continuation']['submit'], reconcile: unavailableOperation as BisContextDependencies['continuation']['reconcile'] },
+  onboardingScope: unavailableOperation as BisContextDependencies['onboardingScope'],
+  reconstructWalletReservations: unavailableOperation as BisContextDependencies['reconstructWalletReservations'],
+  validContinueRecipient: coreValidContinueRecipient,
+});
+
+/** Preferred named dependency seam for production composition and focused tests. */
+export function createContextWithDependencies(storage: AccountStorage, dependencies: BisContextDependencies, options: BisContextOptions = {}): BisContext {
+  const { create, identifyAccount, restore, readBalance, fund, readAddresses, transfers, assets, sends, burn, continuation, observeAssets, onboardingFactory, onboardingScope, reconstructWalletReservations, validContinueRecipient, deliverAsset, reconcileAssetDelivery, loadMintAvailability } = dependencies;
+  let observeActivity = dependencies.observeActivity;
+  let observePayments = dependencies.observePayments;
+  const toasts = createToastQueue();
+  let warmer: ReturnType<typeof createBackgroundCache> | undefined;
+  let foregroundOperations=0, assetsInterest=false;
+  const reads=createReadCoordinator({changed:()=>warmer?.wake()});
+  const mutationReads=new Set<string>(['confirmAccountSend','confirmAccountTransfer','requestContinue','burnAsset','deliverAsset','mintAsset','claimContractAsync','rejectContractAsync','refundContract']);
+  const sharedWallet = observePayments === observeActivity ? createSharedWalletObserver(observeActivity) : undefined;
+  if (sharedWallet) { observeActivity = sharedWallet.observe; observePayments = sharedWallet.observe; }
+  const historyWallet=sharedWallet ?? createSharedWalletObserver(observeActivity);
+  if(!sharedWallet)observeActivity=historyWallet.observe;
+  let issuedSend:BisSendQuote|undefined,issuedSendPreservesAssets=false,sendRevision=0;
+  const guardIndependentSpend=()=>{if(state.profileId&&globalThis.localStorage)eligibleUnreservedCoins([],walletReservations(state.profileId));};
+  const guardSend=()=>{if(globalThis.localStorage){assertNoPendingSend(state.profileId);assertNoPendingBurn(state.profileId);}};
+  const idleAssets: BisAssets = Object.freeze({status:'idle'});
+  const assetsVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && s.accountAssets;
+  const idleActivity: BisActivity = Object.freeze({status:'idle'});
+  let activityVersion = 0;
+  let activityOperation = new AbortController();
+  const cancelActivity = () => { activityVersion++; activityOperation.abort(); activityOperation = new AbortController(); };
+  const activityVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && s.accountActivity;
+  const idleBalance: BisBalance = Object.freeze({status:'idle'});
+  const idleAddresses: BisAddresses = Object.freeze({status:'idle'});
+  let state: BisState = Object.freeze({view:'empty',hasProfile:false,savedProfiles:Object.freeze([]),profileChooser:false,phase:'loading',canReset:false,logoutBackupAcknowledged:false,logoutPendingCount:0,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:false,hasGameWallet:false,network:options.getNetwork?.() ?? (options.requireNetworkSelection ? undefined : 'signet'),balance:idleBalance,addresses:idleAddresses,invoiceReceiving:unavailableInvoiceReceiving,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,assets:idleAssets,activity:idleActivity,accountRecovery:false,recoveryStatus:'hidden'});
+  const readKey = (dataType: string, query?: unknown): ReadKey => ({dataType,profileId:state.profileId ?? '',network:state.network ?? 'signet',generation:version,query});
+  let revealedPhrase: string | undefined;
+  let recoveryVersion = 0;
+  let recoveryOperation = new AbortController();
+  let recoveryReturn: { phase: BisState['phase']; accountDetails?: boolean; error?: string } = { phase: 'active' };
+  const clearRecovery = () => { revealedPhrase = undefined; recoveryVersion++; recoveryOperation.abort(); recoveryOperation=new AbortController(); };
+  let previous: BisState['view'] = 'empty';
+  let disposed = false, version = 0, generation = 0;
+  const assetView = createAssetViewLifecycle({
+    getState: () => state,
+    getIdentity: () => ({version, profileId: state.profileId}),
+    isDisposed: () => disposed,
+    isVisible: () => assetsVisible(state),
+    readSnapshot: (_signal, force) => prepareAssets(force,true).then(entry=>entry.value),
+    invalidate: () => reads.invalidate('assets'),
+    setAssets: assets => update({assets}),
+    loadAccount: () => storage.load(),
+    observeAssets,
+  });
+  let transferTimer:ReturnType<typeof setTimeout>|undefined;
+  function scheduleTransferCheck() {
+    if(disposed||transferTimer)return;
+    transferTimer=setTimeout(async()=>{
+      transferTimer=undefined;
+      try {
+        if(!state.hasProfile||!context.getPendingAccountTransfers().length)return;
+        await context.checkAccountTransfer();
+        if(state.activity.status==='ready'||state.activity.status==='unavailable') {
+          const transactions=readBoardingRecords(state.profileId,state.network??'signet').reduce((rows,record)=>withTransferActivity(rows,record,state.profileId!),state.activity.transactions??[]);
+          update({activity:Object.freeze({...state.activity,transactions})});
+        }
+      }catch {/* Durable records stay pending when verification is unavailable. */}
+      if(!disposed)scheduleTransferCheck();
+    },10000);
+    (transferTimer as unknown as {unref?:()=>void}).unref?.();
+  }
+  let paymentProfile: string | undefined;
+  let onboardingProfile:string|undefined,onboardingGeneration=-1;
+  let onboardingOperation=new AbortController(),onboardingWorker:ReturnType<typeof startOnboarding>|undefined;
+  function syncOnboarding(){
+    const profile=state.hasProfile&&['active','logout-confirmation'].includes(state.phase)?state.profileId:undefined;
+    if(profile===onboardingProfile&&generation===onboardingGeneration)return;
+    onboardingOperation.abort();onboardingWorker=undefined;onboardingOperation=new AbortController();
+    onboardingProfile=profile;onboardingGeneration=generation;
+    state=Object.freeze({...state,onboarding:undefined});
+    if(!profile||!onboardingFactory)return;
+    const signal=onboardingOperation.signal,expected=generation;
+    const current=()=>!disposed&&!signal.aborted&&state.profileId===profile&&state.hasProfile&&generation===expected;
+    queueMicrotask(()=>void (async()=>{
+      const saved=await storage.load();if(!current()||saved.account?.profileId!==profile||saved.generation!==expected)return;
+      const network=saved.account.network??state.network??'signet',account={...saved.account,network};
+      onboardingWorker=startOnboarding(onboardingScope(profile,network),onboardingFactory(account,current),view=>{if(current())update({onboarding:view});},work=>withWalletMutation(work,profile),signal,()=>{if(current())walletChanged(profile,true,true);});
+    })().catch(()=>{if(current())update({onboarding:{status:'pending',detail:'Account storage could not be read. Onboarding is paused safely.',transactions:[]}});}));
+  }
+  let paymentGeneration = -1;
+  let paymentVersion = -1;
+  let paymentOperation = new AbortController();
+  let paymentRetry: ReturnType<typeof setTimeout> | undefined;
+  function syncPaymentObserver() {
+    const profile = state.hasProfile ? state.profileId : undefined;
+    if (profile === paymentProfile && generation === paymentGeneration && version === paymentVersion) return;
+    paymentOperation.abort(); clearTimeout(paymentRetry); toasts.clear();
+    paymentProfile = profile;
+    paymentGeneration = generation;
+    paymentVersion = version;
+    receiptBalanceLoading = false;
+    paymentOperation = new AbortController();
+    if (!profile || !observePayments) return;
+    const signal = paymentOperation.signal;
+    let previousSnapshot: string | undefined;
+    const notifications = createPaymentNotifications((message, messageType) => {
+      if (!disposed && !signal.aborted && state.profileId === profile) {
+        toasts.enqueue(message, {messageType});
+      }
+    }, row => paymentSender(row, profile), () => options.gameWalletProfileId?.());
+    const run = async () => {
+      try {
+        const saved = await storage.load();
+        if (signal.aborted || disposed || saved.account?.profileId !== profile) return;
+        const network=saved.account.network??state.network??'signet';
+        await observePayments(saved.account, signal, rows => {
+          if (signal.aborted || disposed) return;
+          const merged = globalThis.localStorage ? readBoardingRecords(profile,network).reduce((items, record) => withTransferActivity(items, record, profile), rows) : rows;
+          const receipt = notifications.observe(merged);
+          const snapshot = JSON.stringify(merged);
+          // The initial snapshot establishes a baseline, not evidence of a
+          // wallet change since an already-running presentation read.
+          if(previousSnapshot!==undefined) walletChanged(profile, false, receipt.newArkadeReceipt && state.accountDetails, snapshot === previousSnapshot);
+          if(sharedWallet) {
+            const source=sharedWallet.snapshot();
+            if(source)reads.publish(readKey('activity'),source,source.fetchedAt);
+          }
+          if(snapshot!==previousSnapshot)onboardingWorker?.refresh();
+          previousSnapshot = snapshot;
+          if (sharedWallet && activityVisible(state) && state.activity.status === 'unavailable') {
+            // Reattach a foreground consumer that ended while the source was offline.
+            update({activity:idleActivity});
+            void context.refreshActivity();
+          }
+        });
+      } catch { /* Preserve baseline on reconnect; never fabricate receipts. */ }
+      if (!signal.aborted && !disposed) {
+        paymentRetry = setTimeout(() => void run(), 10000);
+        (paymentRetry as unknown as {unref?:()=>void}).unref?.();
+      }
+    };
+    queueMicrotask(() => void run());
+  }
+  let funding: number | undefined;
+  let pending: AccountSecret | undefined;
+  let restorePhrase: string | undefined;
+  let operation = new AbortController();
+  let failure: 'load' | 'create' | 'save' | undefined;
+  let confirmedProfile: string | undefined, profileHydrated=false;
+  const publishedLogouts = new Set<string>();
+  let logoutTarget: { profileId: string; generation: number } | undefined;
+  let logoutOperations: LogoutOperations | undefined;
+  let logoutAuthorizing = false;
+  let forceResetPromise: Promise<void> | undefined;
+  let storageRevision = 0;
+  let balanceVersion = 0;
+  let balanceOperation = new AbortController();
+  const balanceVisible = (s: BisState) => s.view === 'account' && s.phase === 'active' && s.hasProfile && (s.accountDetails || s.accountReceive || s.accountTransfer || s.accountOnboarding || s.accountSend);
+  const cancelBalance = () => { balanceVersion++; balanceOperation.abort(); balanceOperation=new AbortController(); };
+  const listeners = new Set<() => void>();
+  const events = new Set<(event: BisEvent)=>void>();
+  const assertAlive = () => { if(disposed) throw new Error('BIS context is disposed.'); };
+  const update = (patch: Partial<BisState>) => {
+    if(disposed) return;
+    const before=state;
+    state=Object.freeze({...state,...patch});
+    if(state.accountOnboarding&&(state.view!=='account'||state.phase!=='active'||!state.hasProfile||before.profileId!==state.profileId||patch.accountAssets||patch.accountContracts||patch.accountActivity||patch.accountDetails||patch.accountTransfer||patch.accountReceive||patch.accountSend||patch.accountRecovery))state=Object.freeze({...state,accountOnboarding:false});
+    if(state.accountContracts&&(state.view!=='account'||state.phase!=='active'||!state.hasProfile||before.profileId!==state.profileId||patch.accountAssets||patch.accountActivity||patch.accountDetails||patch.accountTransfer||patch.accountReceive||patch.accountSend||patch.accountRecovery))state=Object.freeze({...state,accountContracts:false});
+    if (!['logout-confirmation','logging-out','logout-error'].includes(state.phase)) {
+      logoutOperations=undefined;
+      state=Object.freeze({...state,logoutPendingCount:0,logoutPendingAcknowledged:false});
+    }
+    if (state.view !== 'account' || !state.hasProfile || !['active','logout-confirmation','logout-error'].includes(state.phase)) state=Object.freeze({...state,accountRecovery:false});
+    if (!state.accountRecovery || before.profileId !== state.profileId) {
+      clearRecovery();
+      state=Object.freeze({...state,accountRecovery:false,recoveryStatus:'hidden'});
+    }
+    if(state.view!=='account'||state.phase!=='active'||!state.hasProfile) state=Object.freeze({...state,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false});
+    // Other account pages replace the asset flow; unrelated state updates do not.
+    if (patch.accountActivity || patch.accountDetails || patch.accountTransfer || patch.accountReceive || patch.accountSend || patch.accountRecovery || state.view !== 'account' || state.phase !== 'active' || !state.hasProfile) {
+      state = Object.freeze({...state, accountAssets:false});
+    }
+    const enteringAssets = assetsVisible(state) && (!assetsVisible(before) || before.profileId !== state.profileId);
+    if (!assetsVisible(state) || enteringAssets) { assetView.reset(); state = Object.freeze({...state, assets:idleAssets}); }
+    if (enteringAssets) { assetsInterest=true; assetView.beginVisibleSession(); }
+    const enteringActivity = activityVisible(state) && (!activityVisible(before) || before.profileId !== state.profileId);
+    if (!activityVisible(state) || enteringActivity) { cancelActivity(); state=Object.freeze({...state,activity:idleActivity}); }
+    const entering=balanceVisible(state) && (!balanceVisible(before) || before.accountReceive!==state.accountReceive || before.accountTransfer!==state.accountTransfer || before.accountDetails!==state.accountDetails || before.accountSend!==state.accountSend || before.profileId!==state.profileId);
+    const retainReceivedAddressForOnboarding=state.accountOnboarding&&before.accountReceive&&before.addresses.status==='ready';
+    if ((!balanceVisible(state) || entering) && !retainReceivedAddressForOnboarding) {
+      cancelBalance();
+      const cachedBalance=entering && !state.accountReceive ? reads.peek<BalanceAmounts>(readKey('balance')) : undefined;
+      const cachedAddresses=entering && (state.accountReceive || state.accountOnboarding || state.accountDetails) ? reads.peek<AccountAddresses>(readKey('addresses')) : undefined;
+      state=Object.freeze({...state,
+        balance:cachedBalance ? {status:'ready' as const,...cachedBalance.value} : idleBalance,
+        addresses:cachedAddresses ? {status:'ready' as const,...cachedAddresses.value} : idleAddresses,
+      });
+    }
+    if (enteringActivity) queueMicrotask(() => { if (!disposed && activityVisible(state) && state.activity.status === 'idle') void context.refreshActivity(); });
+    syncPaymentObserver();
+    syncOnboarding();
+    syncWarmer();
+    for(const listener of [...listeners]) if(listeners.has(listener)) listener();
+    // A cached primitive must not suppress preparation of another dependency.
+    // refreshBalanceView adopts cached/pending reads without duplicating them.
+    if(entering&&!retainReceivedAddressForOnboarding) queueMicrotask(()=>{if(!disposed && balanceVisible(state)) void refreshBalanceView();});
+  };
+  const invalidate = () => {pendingStableRead=undefined;warmer?.dispose();warmer=undefined;assetsInterest=false;reads.invalidate();invalidateSharedAssetInventory();issuedSend=undefined;sendRevision++;version++;operation.abort();operation=new AbortController();pending=undefined;restorePhrase=undefined;funding=undefined;};
+  const fail = (kind: typeof failure, error: string) => {failure=kind;update({phase:'error',error,canReset:true});};
+  const emit = (event: BisEvent, current: number) => {
+    for (const listener of [...events]) {
+      if (disposed || current !== version) break;
+      if (events.has(listener)) {
+        try { listener(Object.freeze(event)); }
+        catch { console.error('BIS host event handler failed. Account storage state is unchanged.'); }
+      }
+    }
+  };
+  let pendingStableRead: {version:number;revision:number;promise:Promise<StoredAccount>} | undefined;
+  function readStable(current: number): Promise<StoredAccount> {
+    // Compatible concurrent consumers share decryption/identity validation,
+    // never a completed account snapshot. Storage changes start a new read.
+    if(pendingStableRead?.version===current&&pendingStableRead.revision===storageRevision)return pendingStableRead.promise;
+    const entry={version:current,revision:storageRevision,promise:readStableAccount(current)};
+    entry.promise=entry.promise.finally(()=>{if(pendingStableRead===entry)pendingStableRead=undefined;});
+    pendingStableRead=entry;
+    return entry.promise;
+  }
+  async function readStableAccount(current: number): Promise<StoredAccount> {
+    let loaded: StoredAccount, revision: number;
+    do {
+      revision = storageRevision;
+      loaded = await storage.load();
+      if (loaded.account && await identifyAccount(loaded.account.phrase) !== loaded.account.profileId) throw new Error('Invalid account.');
+    } while (!disposed && version === current && revision !== storageRevision);
+    return loaded;
+  }
+  function acceptLoaded(loaded: StoredAccount, current: number, closeOnAbsence = false, suppressConnectionEvent = false) {
+    if (disposed || version !== current) return;
+    const former = confirmedProfile;
+    const previouslyHydrated=profileHydrated;profileHydrated=true;
+    const logout = !loaded.account && loaded.logout && loaded.logout.profileId === former && loaded.logout.generation === loaded.generation ? loaded.logout : undefined;
+    if (logout) invalidate();
+    current = version;
+    confirmedProfile = loaded.account?.profileId;
+    generation = loaded.generation; failure = undefined; logoutTarget = undefined;
+    // Logout is a transition within Account, not a dismissal of BIS. Keep the
+    // signed-out account screen open so the player can create or restore an
+    // account immediately.
+    update({...(logout ? {view:'account' as const} : closeOnAbsence && !loaded.account ? {view:previous} : {}),phase:loaded.account?'active':'idle',hasProfile:!!loaded.account,profileId:loaded.account?.profileId,network:loaded.account?.network ?? state.network,canReset:!!loaded.account,error:undefined,logoutBackupAcknowledged:false});
+    if (former && former!==loaded.account?.profileId) emit({type:'accountDisconnected',profileId:former}, current);
+    if (!suppressConnectionEvent && previouslyHydrated&&loaded.account && former!==loaded.account.profileId) emit({type:'accountConnected',profileId:loaded.account.profileId},current);
+    if (logout && !publishedLogouts.has(logout.id)) {
+      publishedLogouts.add(logout.id);
+      emit({type:'restartRequested',reason:'logout',logoutId:logout.id},current);
+    }
+  }
+  function withActiveWalletMutation<T>(work: () => Promise<T>, network:TestNetwork = state.network ?? 'signet'): Promise<T> {
+    const current = version, profileId = state.profileId;
+    return withWalletMutation(async () => {
+      if (disposed || current !== version || profileId !== state.profileId) throw Error('The account changed.');
+      return work();
+    }, profileId, network);
+  }
+  async function activeTransferAccount() {
+    assertAlive();
+    if(state.phase!=='active'||!state.hasProfile)throw Error('An active account is required.');
+    const current=version, profileId=state.profileId, expectedGeneration=generation;
+    const saved=await readStable(current);
+    if(disposed||version!==current||!saved.account||saved.account.profileId!==profileId||saved.generation!==expectedGeneration)throw Error('The account changed. Review again.');
+    return {...saved.account,network:saved.account.network ?? state.network ?? 'signet'};
+  }
+  async function readAssetSnapshot(signal: AbortSignal) {
+    const account = await activeTransferAccount();
+    signal.throwIfAborted();
+    const holdings = await assets.list(account, signal);
+    signal.throwIfAborted();
+    const result={profileId: account.profileId, assets: Object.freeze(holdings.map(asset => Object.freeze({...asset})).sort((a,b) => a.assetId.localeCompare(b.assetId)))};
+    rememberSharedAssetInventory('player',account.profileId,account.network ?? state.network ?? 'signet',result.assets);
+    return result;
+  }
+  async function hydrate(suppressConnectionEvent = false) {
+    invalidate(); const current=version;
+    logoutTarget=undefined;
+    update({phase:'loading',error:undefined,logoutBackupAcknowledged:false});
+    try {
+      const loaded=await readWithRetry(() => readStable(current), operation.signal);
+      const profiles=typeof storage.listProfiles==='function'?await storage.listProfiles():{profiles:loaded.account?[loaded.account.profileId]:[],generation:loaded.generation};
+      acceptLoaded(loaded, current, false, suppressConnectionEvent);
+      if(!disposed&&version===current)update({savedProfiles:Object.freeze([...profiles.profiles]),profileChooser:false});
+      try {
+        if(globalThis.localStorage&&readBoardingRecords(state.profileId,state.network??'signet').some(r=>r.status==='pending'))scheduleTransferCheck();
+      } catch { /* The transfer and clearing guards report corrupt/unavailable storage. */ }
+    } catch {if(!disposed&&version===current) fail('load','Your saved account could not be opened. ');}
+  }
+  let initialization: Promise<void>;
+  const commitPlayerRole = <T>(account: AccountSecret, work: () => Promise<T>) => withWalletRoleSelection(account.profileId, () => options.gameWalletProfileId?.(), playerGameWalletConflict, work);
+  function activateRestored(account: AccountSecret, current: number) {
+    if (disposed || version !== current) return;
+    pending=undefined; restorePhrase=undefined; failure=undefined; confirmedProfile=account.profileId;
+    update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
+    emit({type:'accountConnected',profileId:account.profileId},current);
+  }
+  async function saveRestored(current: number) {
+    const account=pending;
+    if (!account || disposed || version!==current) return;
+    update({phase:'restore-saving',error:undefined});
+    try {
+      await commitPlayerRole(account, async()=>{
+        // Live restore evidence controls this one UI decision only; never
+        // persist it alongside the recovery phrase.
+        const {networkAccountFound: _networkAccountFound, ...storedAccount}=account;
+        await storage.save(storedAccount,generation,operation.signal);
+        if(disposed||version!==current)return;
+        const saved=await readStable(current);
+        if(disposed||version!==current) return;
+        if(saved.generation!==generation || saved.account?.profileId!==account.profileId) {
+          pending=undefined;restorePhrase=undefined;acceptLoaded(saved,current);return;
+        }
+        activateRestored(account,current);
+        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
+      });
+    } catch (error) {
+      if(!disposed&&version===current) update({phase:'restore-error',error:error instanceof WalletRoleConflictError?error.message:'Your account could not be confirmed saved.'});
+    }
+  }
+  async function runRestore(input: string) {
+    assertAlive();
+    if (!['restore-entry','restore-error'].includes(state.phase) || !validRecovery(input)) return;
+    restorePhrase=phraseWords(input).join(' ');
+    const current=version;
+    update({phase:pending?'restore-saving':'restoring',error:undefined,canReset:true});
+    try {
+      // Reconcile an uncertain prior save or another tab's account before any new work.
+      const loaded=await readStable(current);
+      if(disposed||version!==current) return;
+      if(loaded.generation!==generation || loaded.account?.profileId!==state.profileId) {
+        if(loaded.generation===generation && pending && loaded.account?.profileId===pending.profileId) activateRestored(pending,current);
+        else { pending=undefined;restorePhrase=undefined;acceptLoaded(loaded,current); }
+        return;
+      }
+      if(!pending) {
+        const restored=await restore(restorePhrase,operation.signal);
+        if(disposed||version!==current) return;
+        pending=restored;
+      }
+      const profiles=typeof storage.listProfiles==='function' ? await storage.listProfiles() : {profiles:loaded.account?[loaded.account.profileId]:[]};
+      if(disposed||version!==current) return;
+      // A missing browser profile is normal after a restore and is never proof
+      // that the mnemonic is absent from this network.  Only ask to create a
+      // new network account after the live restore lookup found no funds/assets.
+      if(!profiles.profiles.includes(pending.profileId) && !pending.networkAccountFound) { update({phase:'restore-confirmation',error:undefined}); return; }
+      await saveRestored(current);
+    } catch (error) {
+      if(!disposed&&version===current) update({phase:'restore-error',error:error instanceof WalletRoleConflictError?error.message:(pending?'Your account could not be confirmed saved.':'The test service could not be reached.')});
+    }
+  }
+  let walletRefreshQueued = false;
+  let assetInventoryRevision = 0;
+  let receiptBalanceLoading = false;
+  function walletChanged(profileId: string, refreshSource = true, foregroundBalance = false, sameSnapshot = false) {
+    if (disposed || state.profileId !== profileId || state.phase !== 'active' || sameSnapshot && !refreshSource && !foregroundBalance) return;
+    // Addresses are identity-derived and independent of ownership/payment evidence.
+    reads.invalidate('balance'); reads.invalidate('transfer-availability'); reads.invalidate('contracts');
+    if(refreshSource)reads.invalidate('activity');
+    if (refreshSource) { assetInventoryRevision++; reads.invalidate('assets'); invalidateSharedAssetInventory(profileId, state.network ?? 'signet', 'player'); }
+    cancelBalance();
+    if (foregroundBalance) receiptBalanceLoading=true;
+    if (walletRefreshQueued) return;
+    walletRefreshQueued=true;
+    const current=version;
+    queueMicrotask(()=>{
+      walletRefreshQueued=false;
+      if(disposed || current!==version || state.profileId!==profileId || state.phase!=='active')return;
+      if(balanceVisible(state)) void refreshBalanceView(!refreshSource && !foregroundBalance);
+      if(refreshSource) {
+        void assetView.refresh(true);
+        historyWallet.refresh();
+        if(!sharedWallet && activityVisible(state))void context.refreshActivity(false);
+      }
+    });
+  }
+  function refreshAfterContinue(result: BisContinueResult, current: number) {
+    if (result.status !== 'succeeded' || disposed || current !== version || state.profileId !== result.profileId || state.phase !== 'active') return;
+    walletChanged(result.profileId);
+  }
+  const publishedTransferResolutions=new Set<string>();
+  async function reconcileAccountTransfers(account:AccountSecret,signal:AbortSignal) {
+    const current=version;
+    const pending=new Set(readBoardingRecords(account.profileId,account.network??'signet').filter(record=>record.status==='pending').map(record=>record.id));
+    try {return await transfers.reconcile(account,signal);}
+    finally {
+      // Reconciliation may resolve an older record before a later check fails.
+      // Publish only saved outcomes, once, never a provider return value alone.
+      if(!disposed&&version===current&&state.profileId===account.profileId&&state.phase==='active') {
+        try {
+          const completed=readBoardingRecords(account.profileId,account.network??'signet').filter(record=>pending.has(record.id)&&record.status==='succeeded');
+          let changed=false;
+          for(const record of completed) {
+            const key=JSON.stringify([account.profileId,account.network??'signet',record.id]);
+            if(!publishedTransferResolutions.has(key)){publishedTransferResolutions.add(key);changed=true;}
+          }
+          if(changed)walletChanged(account.profileId);
+        }catch { /* Unreadable persistence cannot establish released inputs. */ }
+      }
+    }
+  }
+  async function presentationAccount(signal:AbortSignal) {
+    const current=version, profile=state.profileId, expected=generation;
+    let saved:StoredAccount;
+    try { saved=await readStable(current); }
+    catch { throw Object.assign(new Error('Saved account unavailable.'),{storageRead:true}); }
+    signal.throwIfAborted();
+    if(disposed || current!==version || saved.generation!==expected || !saved.account || saved.account.profileId!==profile) throw Error('Account changed.');
+    return {...saved.account,network:saved.account.network ?? state.network ?? 'signet'};
+  }
+  const prepareBalance=(force=false,foreground=false)=>reads.read(readKey('balance'),async signal=>readBalance(await presentationAccount(signal),signal),{force,foreground,timeout:10000});
+  const prepareTransferAvailability=(direction: BoardingQuote['direction'],force=false,foreground=false)=>reads.read(readKey('transfer-availability',direction),async signal=>{
+    const account=await activeTransferAccount();
+    signal.throwIfAborted();
+    const availability=transfers.availability ? await transfers.availability(account,signal,direction) : Object.freeze({available:true as const});
+    if(disposed||account.profileId!==state.profileId)throw Error('The account changed.');
+    return availability;
+  },{force,foreground,timeout:10000});
+  const prepareAddresses=(force=false,foreground=false)=>reads.read(readKey('addresses'),async signal=>readAddresses(await presentationAccount(signal),signal),{force,foreground,timeout:10000});
+  const prepareAssets=(force=false,foreground=false)=> {
+    assetsInterest=true;
+    return reads.read(readKey('assets'),async signal=>{
+      const account=await presentationAccount(signal);
+      const result=await prepareSharedAssetInventory({role:'player',profileId:account.profileId,network:account.network ?? state.network ?? 'signet',force,load:sharedSignal=>readAssetSnapshot(sharedSignal).then(snapshot=>snapshot.assets)});
+      signal.throwIfAborted();
+      if(result.status!=='success')throw Error('Assets are unavailable. Try again.');
+      return {profileId:result.profileId!,assets:result.assets};
+    },{force,foreground,timeout:35000,attempts:1});
+  };
+  function mergedActivity(rows:readonly BisTransaction[],profile=state.profileId!) {
+    return globalThis.localStorage ? withSendActivity(withMintActivity(readBoardingRecords(profile,state.network??'signet').reduce((items,record)=>withTransferActivity(items,record,profile),rows),readAssetRecords(profile)),readSendRecord(profile),profile) : rows;
+  }
+  function prepareActivity(force=false,foreground=false) {
+    const key=readKey('activity'), profile=state.profileId!;
+    if(force && !reads.isPending(key)) historyWallet.refresh();
+    return reads.read(key,async signal=>{
+      const account=await presentationAccount(signal);
+      return historyWallet.first(account,signal);
+    },{force,foreground,timeout:75000,timestamp:value=>value.fetchedAt}).then(entry=>({...entry,value:mergedActivity(entry.value.rows,profile)}));
+  }
+  function syncWarmer() {
+    if(warmer || disposed || state.phase!=='active' || !state.hasProfile || !state.profileId || !state.network)return;
+    // A queued warmer cannot grant extra automatic retries after foreground
+    // preparation has already consumed the same evidence generation's budget.
+    const warm=(type:string,run:()=>Promise<unknown>,query?:unknown)=>{
+      const key=readKey(type,query);
+      return reads.existing(key) ?? (reads.wasAttempted(key) ? Promise.resolve() : run());
+    };
+    warmer=createBackgroundCache({
+      paused:()=>disposed || state.phase!=='active' || foregroundOperations>0 || reads.hasForeground(),
+      jobs:[
+        {run:()=>Promise.allSettled([warm('balance',()=>prepareBalance()),warm('addresses',()=>prepareAddresses())])},
+        {run:()=>warm('activity',()=>prepareActivity())},
+        {run:()=>warm('contracts',()=>passiveContracts({includeResolved:true,includeOtherNetworks:true}),contractQuery({includeResolved:true,includeOtherNetworks:true}))},
+        {eligible:()=>assetsInterest,run:()=>warm('assets',()=>prepareAssets())},
+      ],
+    });
+    warmer.wake();
+  }
+  async function refreshBalanceView(background = false, force = false) {
+    assertAlive();
+    if(!balanceVisible(state))return;
+    cancelBalance();
+    const request=balanceVersion, accountVersion=version;
+    const current=()=>!disposed && request===balanceVersion && accountVersion===version && balanceVisible(state);
+    const needsAddresses=state.accountReceive || state.accountOnboarding || state.accountDetails;
+    const needsBalance=!state.accountReceive;
+    const details=state.accountDetails && !force ? reads.compose<[BalanceAmounts,AccountAddresses]>([readKey('balance'),readKey('addresses')]) : undefined;
+    const balance=details ? {value:details.value[0]} : needsBalance && !force ? reads.peek<BalanceAmounts>(readKey('balance')) : undefined;
+    const addresses=details ? {value:details.value[1]} : needsAddresses && !force ? reads.peek<AccountAddresses>(readKey('addresses')) : undefined;
+    update({
+      ...(!background || state.balance.status!=='ready' ? {balance:needsBalance ? (balance ? {status:'ready' as const,...balance.value} : {status:'loading' as const}) : idleBalance} : {}),
+      ...(!background || state.addresses.status!=='ready' ? {addresses:needsAddresses ? (addresses ? {status:'ready' as const,...addresses.value} : {status:'loading' as const}) : idleAddresses} : {}),
+    });
+    // Dependencies settle independently: Receive and Send never wait for unrelated fields.
+    await Promise.all([
+      needsBalance ? prepareBalance(force,true).then(entry=>{if(current())update({balance:{status:'ready',...entry.value}});},error=>{
+        if(!current())return;
+        if(error?.storageRead)fail('load','Your saved account could not be opened.');
+        else update({balance:{status:'unavailable',readStatus:'wallet-read'}});
+      }) : undefined,
+      needsAddresses ? prepareAddresses(force,true).then(entry=>{if(current())update({addresses:{status:'ready',...entry.value}});},()=>{
+        if(current())update({addresses:{status:'unavailable'}});
+      }) : undefined,
+    ]);
+    if(current())receiptBalanceLoading=false;
+    // Details is exactly the pair of current primitives, with the older timestamp.
+  }
+  const contractQuery=(filter?:BisContractFilter)=>({...filter,includeResolved:filter?.includeResolved ?? false,includeOtherNetworks:filter?.includeOtherNetworks ?? false});
+  async function passiveContracts(filter?:BisContractFilter,force=false,foreground=false):Promise<BisContractsResult> {
+    if(!state.profileId || state.phase!=='active')return {status:'unavailable',contracts:[]};
+    const profile=state.profileId, network=state.network ?? 'signet';
+    try {
+      const entry=await reads.read(readKey('contracts',contractQuery(filter)),async signal=>{
+        signal.throwIfAborted();
+        const result=await (contractController(context)?.checkContractsAsync?.(filter) ?? queryAccountContracts(profile,filter,network));
+        if(result.status!=='ready')throw Error('Contracts unavailable.');
+        return result;
+      },{force,foreground});
+      return {...entry.value,contracts:entry.value.contracts.map(contract=>Date.now()>=contract.expiresAt && contract.eligibility==='within-window' ? {...contract,eligibility:'expired' as const,canClaim:false,canReject:false} : contract)};
+    } catch {return {status:'unavailable',contracts:[]};}
+  }
+  const context: BisContext = {
+    getCachedArkBalance() { return reads.peek<BalanceAmounts>(readKey('balance'))?.value.availableSats; },
+    prepareArkBalance:()=>prepareBalance(false,true).then(entry=>entry.value.availableSats),
+    getContinueRecipient: () => validContinueRecipient(options.continueRecipient) ? options.continueRecipient!.trim() : undefined,
+    async getPaymentRecipient() {
+      assertAlive();
+      if(state.phase!=='active'||!state.hasProfile)throw Error('An active account is required.');
+      const current = version;
+      const [account,entry] = await Promise.all([activeTransferAccount(),prepareAddresses()]);
+      const addresses = entry.value;
+      if (disposed || current !== version || state.phase !== 'active' || state.profileId !== account.profileId) throw Error('The player changed.');
+      return {profileId:account.profileId, address:addresses.arkadeAddress};
+    },
+    showToast(message, options) { assertAlive(); toasts.enqueue(message, options); },
+    async requestContinue(request) {
+      validateContinue(request);
+      const input=Object.freeze({operationId:request.operationId,sats:request.sats,context:request.context,...(request.recipient !== undefined ? {recipient:request.recipient} : {})});
+      const requestedVersion=version,requestedAccount=await activeTransferAccount();
+      // Refresh transfer reservations before selecting payment inputs. Recovery
+      // takes its own wallet/record locks, so run it outside the payment lock.
+      if(readBoardingRecords(requestedAccount.profileId,requestedAccount.network??'signet').some(record=>record.status==='pending')) {
+        try {await reconcileAccountTransfers(requestedAccount,operation.signal);}
+        catch { /* Unverified transfers keep their reservations. */ }
+      }
+      return withActiveWalletMutation(async()=>{
+        if(requestedVersion!==version||requestedAccount.profileId!==state.profileId)throw Error('The account changed.');
+        const account=await activeTransferAccount(),current=version;
+        const existing=readContinuations(account.profileId).find(r=>r.request.operationId===input.operationId);
+        if(existing) {
+          if(existing.request.sats!==input.sats || existing.request.context!==input.context || (input.recipient !== undefined && existing.request.recipient!==input.recipient))throw Error('Continuation identity was reused with changed inputs.');
+          const result = await continuation.reconcile(account,existing,operation.signal);
+          refreshAfterContinue(result,current);
+          return result;
+        }
+        const recipient = context.getContinueRecipient?.();
+        if (!recipient || (input.recipient !== undefined && input.recipient !== recipient)) throw Error('Configure a valid game wallet recipient before paying.');
+        const bound = Object.freeze({...input, recipient});
+        guardIndependentSpend();
+        if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw Error('An asset operation is unresolved.');
+        const result = await continuation.submit(account,{request:bound,profileId:account.profileId,status:'pending'},operation.signal,()=>!disposed && current===version && state.profileId===account.profileId && state.phase==='active');
+        refreshAfterContinue(result,current);
+        return result;
+      });
+    },
+    async getContinueAvailability() {
+      if(disposed||!state.hasProfile||state.phase!=='active'||!state.profileId)return {canPay:false,reason:'Awaiting Player Wallet'};
+      if(!context.getContinueRecipient?.())return {canPay:false,reason:'Awaiting Game Wallet'};
+      try {
+        const funds = await context.getWalletOperations?.();
+        if (funds?.availableSats === undefined) return {canPay:false,reason:'Balance unavailable'};
+        if (funds.availableSats < 1000) return {canPay:false,reason:'Insufficient balance',availableSats:funds.availableSats};
+        return {canPay:true,availableSats:funds.availableSats};
+      } catch { return {canPay:false,reason:'Balance unavailable'}; }
+    },
+    async getWalletOperations() {
+      const account=await activeTransferAccount(),current=version;
+      try {await reconstructWalletReservations(account,operation.signal);}catch {/* Preserve unknown reservations. */}
+      const records=walletReservations(account.profileId,account.network??'signet');
+      const operations=records.map(record=>{
+        const transfer=record.id.startsWith('transfer:')?readBoardingRecord(account.profileId,record.id.slice(9),account.network??'signet'):undefined;
+        const send=record.id.startsWith('send:')?readSendRecords(account.profileId).find(r=>r.id===record.id.slice(5)):record.id.startsWith('continue:')?readContinuations(account.profileId).find(r=>r.request.operationId===record.id.slice(9))?.send:undefined;
+        return {id:record.id,transactionId:send?.transactionId??record.transactionId,direction:transfer?(transfer.quote.direction==='to-arkade'?'Bitcoin → Arkade' as const:'Arkade → Bitcoin' as const):undefined,amountSats:transfer?.quote.amountSats??send?.quote.amountSats,reservedInputSats:transfer?(transfer.quote.inputSats??transfer.quote.maxSats):send?.quote.maxSats,inputsKnown:!!record.inputs?.length,canDiscard:transfer?.phase==='prepared'};
+      });
+      const outpoints=records.flatMap(r=>r.inputs?.map(i=>`${i.txid}:${i.vout}`)??[]);
+      const reservedInputSats=operations.every(op=>op.reservedInputSats!==undefined)&&new Set(outpoints).size===outpoints.length?operations.reduce((sum,op)=>sum+op.reservedInputSats!,0):undefined;
+      try {
+        const [availableSats,balance]=await Promise.all([sends.funds(account,operation.signal,true),readBalance(account,operation.signal)]);
+        if(disposed||current!==version)throw Error('Account changed.');
+        return {availableSats,totalSats:balance.totalSats,reservedInputSats,operations};
+      } catch {return {operations,reason:'Independent spendable funds could not be verified. Receiving and inspection remain available.'};}
+    },
+    async discardPreparedTransfer(id) {
+      await withActiveWalletMutation(async()=>{
+        const account=await activeTransferAccount();
+        const record=readBoardingRecord(account.profileId,id,account.network??'signet');
+        if(!record||record.status!=='pending'||record.phase!=='prepared')throw Error('Only a draft proven not submitted can be discarded.');
+        const {recoverPreparedBoarding}=await import('./boarding-record.ts');
+        recoverPreparedBoarding(record);
+      });
+    },
+    async getContinueStatus(operationId) {
+      return withActiveWalletMutation(async()=>{
+        const account=await activeTransferAccount(),current=version;
+        const records=readContinuations(account.profileId).filter(r=>operationId===undefined || r.request.operationId===operationId);
+        const results:BisContinueResult[]=[];
+        for(const record of records)results.push(await continuation.reconcile(account,record,operation.signal));
+        const succeeded = results.find(result=>result.status==='succeeded');
+        if(succeeded)refreshAfterContinue(succeeded,current);
+        return Object.freeze(results);
+      });
+    },
+    async getSendSpendable(preserveAssets=false) {
+      guardIndependentSpend();const account=await activeTransferAccount(),current=version;
+      if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
+      const amount=await sends.funds(account,operation.signal,preserveAssets);
+      if(disposed||current!==version)throw new SendError('The account changed.');return amount;
+    },
+    async quoteAccountSend(recipient,amountSats,preserveAssets=false) {
+      issuedSend=undefined;issuedSendPreservesAssets=false;const request=++sendRevision;
+      guardIndependentSpend();const account=await activeTransferAccount(),current=version;
+      if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
+      const quote=await sends.quote(account,recipient,amountSats,operation.signal,preserveAssets);
+      if(disposed||current!==version||request!==sendRevision)throw new SendError('Send details changed. Review again.');
+      issuedSendPreservesAssets=preserveAssets;issuedSend=Object.freeze({...quote});return issuedSend;
+    },
+    async confirmAccountSend(quote) {
+      assertAlive();
+      if(!issuedSend||quote!==issuedSend||quote.expiresAt<=Date.now())throw new SendError('Review a fresh send before confirming.');
+      const preserveAssets=issuedSendPreservesAssets;issuedSend=undefined;issuedSendPreservesAssets=false;sendRevision++;
+      return withActiveWalletMutation(async()=>{
+        guardIndependentSpend();const account=await activeTransferAccount(),current=version;
+        if(account.profileId!==quote.profileId)throw new SendError('The account changed.');
+        if(readAssetRecords(account.profileId,account.network ?? 'signet').some(r=>r.status==='pending'))throw new SendError('An asset operation is unresolved.');
+        const result=await sends.submit(account,quote,()=>!disposed&&current===version&&state.profileId===account.profileId&&state.phase==='active',undefined,preserveAssets);
+        if(disposed||current!==version)throw new SendError('The account changed.');
+        if(result.status==='succeeded')walletChanged(account.profileId);
+        return sendStatus(result);
+      });
+    },
+    async checkAccountSend() {
+      return withActiveWalletMutation(async()=>{
+        const account=await activeTransferAccount(),current=version;let record,verification:'live'|'unavailable'='live';
+        try {record=await sends.reconcile(account,operation.signal);}
+        catch {record=readSendRecord(account.profileId);if(!record||record.profileId!==account.profileId)throw new SendError('Send status is unavailable.');verification='unavailable';}
+        if(disposed||current!==version)throw new SendError('The account changed.');
+        if(verification==='live' && record?.status==='succeeded')walletChanged(account.profileId);
+        return sendStatus(record,verification);
+      });
+    },
+    async burnAsset(input) {
+      const profileId=state.profileId,current=version;
+      const isCurrent=()=>!disposed&&version===current&&state.profileId===profileId&&state.hasProfile&&state.phase==='active';
+      try {
+        const request=validateBurn(input);
+        if(!isCurrent())throw new BurnError('account-changed','An active account is required.');
+        const selectedAccount=await activeTransferAccount();
+        return await withActiveWalletMutation(async()=>{
+          assertNoPendingSend(profileId,selectedAccount.network ?? 'signet');assertNoPendingBoarding(profileId,selectedAccount.network ?? 'signet');
+          if(readAssetRecords(profileId!,selectedAccount.network ?? 'signet').some(record=>record.status==='pending'))throw new BurnError('unavailable','An asset mint is unresolved.');
+          const account=await activeTransferAccount();
+          if(!isCurrent())throw new BurnError('account-changed','The account changed.');
+          const result=await burn(account,request,operation.signal,isCurrent);
+          if(!isCurrent())throw new BurnError('account-changed','The account changed during the burn.');
+          if(result.status==='burned')walletChanged(account.profileId);
+          return result;
+        }, selectedAccount.network ?? 'signet');
+      } catch(error) {
+        return {status:'error',code:error instanceof BurnError?error.code:'unavailable',message:error instanceof BurnError?error.message:'Burn unavailable. Check spendable funds and pending wallet operations, then try again.'};
+      }
+    },
+    async deliverAsset(input) {
+      const profileId=state.profileId,current=version;
+      const isCurrent=()=>!disposed&&version===current&&state.profileId===profileId&&state.hasProfile&&state.phase==='active';
+      try {
+        const request=validateAssetDelivery(input);
+        if(!isCurrent())throw new AssetDeliveryError('account-changed','An active account is required.');
+        const selectedAccount=await activeTransferAccount();
+        return await withActiveWalletMutation(async()=>{
+          assertNoPendingSend(profileId,selectedAccount.network ?? 'signet');assertNoPendingBoarding(profileId,selectedAccount.network ?? 'signet');
+          if(readAssetRecords(profileId!,selectedAccount.network ?? 'signet').some(record=>record.status==='pending'))throw new AssetDeliveryError('unavailable','An asset mint is unresolved.');
+          const account=await activeTransferAccount();
+          if(!isCurrent())throw new AssetDeliveryError('account-changed','The account changed.');
+          const result=await deliverAsset(account,request,operation.signal,isCurrent);
+          if((result.status==='delivered'||result.status==='already-delivered')&&isCurrent())walletChanged(account.profileId);
+          return result;
+        }, selectedAccount.network ?? 'signet');
+      } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery unavailable.',profileId,operationId:input.operationId};}
+    },
+    async checkAssetDelivery(operationId) {
+      try {
+        return await withActiveWalletMutation(async()=>{
+          const account=await activeTransferAccount(),current=version;
+          const result=await reconcileAssetDelivery(account,operationId,operation.signal);
+          if((result.status==='delivered'||result.status==='already-delivered')&&!disposed&&current===version)walletChanged(account.profileId);
+          return result;
+        });
+      } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status unavailable.',profileId:state.profileId,operationId};}
+    },
+    async getMintAvailability() {
+      const profileId=state.profileId,current=version;
+      try {
+        const result=await loadMintAvailability(await activeTransferAccount(),operation.signal);
+        return disposed||current!==version||state.profileId!==profileId?{canMint:false,reason:'The player wallet changed.'}:result;
+      } catch {return {canMint:false,reason:state.hasProfile?'Mint balance unavailable. Check eligible funds and pending operations.':'Log in to a player wallet first.'};}
+    },
+    async mintAsset(input) {
+      const profileId = state.profileId, current = version;
+      let request: BisMintAssetRequest;
+      if (disposed) return assetError('disposed', profileId);
+      if (!state.hasProfile || state.phase !== 'active') return assetError('account-required');
+      try { request = validateMint(input); } catch { return assetError('invalid-input', profileId); }
+      if (!globalThis.navigator?.locks) return assetError('unsupported-environment', profileId, request.operationId);
+      const isCurrent = () => !disposed && current === version && state.profileId === profileId && state.hasProfile && state.phase === 'active';
+      try {
+        const selectedAccount = await activeTransferAccount();
+        return await withActiveWalletMutation(async () => {
+          eligibleUnreservedCoins([],walletReservations(profileId!, selectedAccount.network ?? 'signet'));
+          const account = await activeTransferAccount();
+          if (!isCurrent()) return assetError('account-changed', profileId, request.operationId);
+          const result = await assets.mint(account, request, operation.signal, isCurrent);
+          if(isCurrent() && (result.status==='minted' || result.status==='already-minted'))walletChanged(account.profileId);
+          return isCurrent() ? result : assetError(disposed ? 'disposed' : 'account-changed', profileId, request.operationId);
+        }, selectedAccount.network ?? 'signet');
+      } catch (error) { const code=error instanceof AssetError ? error.code : error instanceof BoardingBlockedError ? 'busy' : !isCurrent() ? (disposed ? 'disposed' : 'account-changed') : 'unavailable'; return assetError(code, profileId, request.operationId, diagnoseAssetFailure({phase:'mint',error,profileId,operationId:request.operationId,network:state.network ?? 'signet'})); }
+    },
+    async listAssets() {
+      const profileId = state.profileId, current = version;
+      if (disposed) return assetError('disposed', profileId);
+      if (!state.hasProfile || state.phase !== 'active') return assetError('account-required');
+      try {
+        const result = await readAssetSnapshot(operation.signal);
+        if (disposed || current !== version || profileId !== state.profileId) return assetError(disposed ? 'disposed' : 'account-changed', profileId);
+        return {status: 'success', ...result};
+      } catch { return assetError(disposed ? 'disposed' : current !== version ? 'account-changed' : 'unavailable', profileId); }
+    },
+    async prepareAssetInventory(force = false) {
+      const profileId=state.profileId,current=version;
+      if(disposed)return assetError('disposed',profileId);
+      // A host can adopt the selected profile while its account is hydrating.
+      // Let hydrate() publish its promise before joining that validation.
+      if(state.phase==='loading') { await Promise.resolve(); await initialization; }
+      if(disposed || current!==version || profileId!==state.profileId)return assetError(disposed?'disposed':'account-changed',profileId);
+      if(!state.hasProfile || state.phase!=='active')return assetError('account-required');
+      const deadline=Date.now()+30000;
+      try {
+        for(let first=true;;first=false) {
+          const revision=assetInventoryRevision;
+          const result=await prepareSharedAssetInventory({role:'player',profileId:profileId!,network:state.network ?? 'signet',force:first&&force,timeoutMs:Math.max(1,deadline-Date.now()),load:signal=>readAssetSnapshot(signal).then(snapshot=>snapshot.assets)});
+          if(disposed || current!==version || profileId!==state.profileId)return assetError(disposed?'disposed':'account-changed',profileId);
+          // Wallet evidence supersedes a pending snapshot, not its consumers.
+          // Adopt the replacement/cache within the original attempt's budget.
+          if(result.status==='error' && revision!==assetInventoryRevision && Date.now()<deadline)continue;
+          return result;
+        }
+      }
+      catch {return assetError('unavailable',profileId);}
+    },
+    async getPendingAssetMint() {
+      const profileId = state.profileId, current = version;
+      if (disposed) return assetError('disposed', profileId);
+      if (!state.hasProfile || state.phase !== 'active') return assetError('account-required');
+      try {
+        const account = await activeTransferAccount();
+        if (disposed || current !== version) return assetError('account-changed', profileId);
+        return {status: 'success', profileId: account.profileId, request: readAssetRecords(account.profileId,account.network ?? 'signet').find(r => r.status === 'pending')?.request ?? null};
+      } catch { return assetError('outcome-unknown', profileId); }
+    },
+    getState:()=>state,
+    subscribe(listener) {assertAlive();listeners.add(listener);return ()=>{listeners.delete(listener);};},
+    onEvent(listener) {assertAlive();events.add(listener);return ()=>{events.delete(listener);};},
+    readyAsync:()=>initialization,
+    openAccountDialog() {assertAlive();if(state.view==='account') return;previous=state.view;update({view:'account'});if(state.phase==='error'&&!state.error)initialization=hydrate();},
+    openAccountReceive() {
+      assertAlive();
+      if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountReceive) update({accountReceive:true,accountSend:false,accountTransfer:false,accountDetails:false,accountActivity:false,accountRecovery:false});
+    },
+    openAccountSend() {
+      assertAlive();
+      if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountSend) update({accountSend:true,accountReceive:false,accountTransfer:false,accountDetails:false,accountActivity:false,accountRecovery:false});
+    },
+    async quoteAccountTransfer(amountSats, direction='to-arkade', destination) {
+      guardIndependentSpend();
+      const account=await activeTransferAccount();
+      const accountVersion=version;
+      const quote=await transfers.quote(account,amountSats,operation.signal,direction,undefined,destination);
+      if(disposed||accountVersion!==version||account.profileId!==state.profileId)throw Error('The account changed.');
+      return quote;
+    },
+    async getAccountTransferAvailability(direction='to-arkade') {
+      try { return (await prepareTransferAvailability(direction)).value; }
+      catch (cause) {
+        if (cause instanceof Error && cause.message === 'The account changed.') return Object.freeze({available:false as const,reason:'policy-unavailable' as const,message:'The account changed. Account Transfer is unavailable.'});
+        throw cause;
+      }
+    },
+    peekAccountTransferAvailability(direction='to-arkade') {
+      return reads.peek<WalletOperationAvailability>(readKey('transfer-availability',direction))?.value;
+    },
+    getPendingAccountTransfers() {
+      assertAlive();
+      return readBoardingRecords(state.profileId,state.network??'signet').filter(r=>r.status==='pending').map(r=>transferStatus(r));
+    },
+    async confirmAccountTransfer(quote, acknowledgedPendingIds=[]) {
+      if (!boardingSubmissionEnabled) throw Error('Transfer submission is disabled until interrupted-transfer recovery is verified.');
+      return withActiveWalletMutation(async()=>{
+        guardIndependentSpend();
+        const account=await activeTransferAccount();
+        assertPendingTransfersAcknowledged(account.profileId,acknowledgedPendingIds,account.network??'signet');
+        const current=version;
+        const record=await transfers.submit(account,quote,()=>!disposed && version===current && state.profileId===account.profileId);
+        if(disposed||current!==version||account.profileId!==state.profileId)throw Error('The account changed.');
+        scheduleTransferCheck();
+        if(record?.status==='succeeded')walletChanged(account.profileId);
+        return transferStatus(record);
+      });
+    },
+    async checkAccountTransfer() {
+      {
+        const account=await activeTransferAccount();
+        const current=version;
+        let record:BoardingRecord|undefined;
+        let verification:'live'|'unavailable'='live';
+        try {record=await reconcileAccountTransfers(account,operation.signal);}
+        catch {
+          // A network failure must not hide the durable operation on first open.
+          record=readBoardingRecords(account.profileId,account.network??'signet').find(r=>r.status==='pending')??readBoardingRecord(account.profileId,undefined,account.network??'signet');
+          if(!record||record.profileId!==account.profileId||record.status!=='pending')throw Error('Transfer status could not be verified. Try Check Status again.');
+          verification='unavailable';
+        }
+        if(disposed||current!==version||account.profileId!==state.profileId)throw Error('The account changed.');
+        return transferStatus(record,verification);
+      }
+    },
+    openAccountTransfer() {
+      assertAlive();
+      if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountTransfer) update({accountDetails:false,accountActivity:false,accountRecovery:false,accountReceive:false,accountSend:false,accountTransfer:true});
+    },
+    openAccountDetails() {
+      assertAlive();
+      if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountDetails) update({accountTransfer:false,accountDetails:true,accountActivity:false,accountRecovery:false,accountReceive:false,accountSend:false});
+    },
+    openAccountOnboarding(){
+      assertAlive();if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountOnboarding:true,accountDetails:false,accountAssets:false,accountContracts:false,accountActivity:false,accountTransfer:false,accountReceive:false,accountSend:false,accountRecovery:false});
+    },
+    refreshOnboarding(){assertAlive();onboardingWorker?.refresh();},
+    checkContractsAsync:(filter,force=false)=>passiveContracts(filter,force,true),
+    openAccountContracts() {
+      assertAlive();
+      if(state.view==='account'&&state.phase==='active'&&state.hasProfile)update({accountContracts:true,accountAssets:false,accountActivity:false,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
+    },
+    async claimContractAsync(id){const result=await (contractController(context)?.claim(id)??{status:'unavailable' as const});reads.invalidate('contracts');return result;},
+    async rejectContractAsync(id){const result=await (contractController(context)?.reject(id)??{status:'unavailable' as const});reads.invalidate('contracts');return result;},
+    async refundContract(id){const result=await (contractController(context)?.refund(id)??{status:'unavailable' as const});reads.invalidate('contracts');return result;},
+    openAccountActivity() {
+      assertAlive();
+      if(state.view==='account' && state.phase==='active' && state.hasProfile && !state.accountActivity) update({accountActivity:true,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
+    },
+    openAccountAssets() {
+      assertAlive();
+      if (state.view === 'account' && state.phase === 'active' && state.hasProfile && !state.accountAssets) {
+        update({accountAssets:true,accountActivity:false,accountTransfer:false,accountDetails:false,accountRecovery:false,accountReceive:false,accountSend:false});
+      }
+    },
+    async refreshAssets() {
+      assertAlive();
+      return assetView.refresh(false,true);
+    },
+    openAccountRecovery() {
+      assertAlive();
+      if (state.view !== 'account' || !state.hasProfile || state.accountRecovery || !['active','logout-confirmation','logout-error'].includes(state.phase)) return;
+      recoveryReturn = { phase: state.phase, accountDetails: state.accountDetails, error: state.error };
+      clearRecovery();
+      update({accountRecovery:true,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,recoveryStatus:'hidden',error:undefined,logoutBackupAcknowledged:false});
+    },
+    async refreshActivity(force = activityVisible(state) && state.activity.status !== 'idle') {
+      assertAlive();
+      if(!activityVisible(state) || !state.profileId)return;
+      cancelActivity();
+      const request=activityVersion,currentVersion=version,profile=state.profileId;
+      const current=()=>!disposed && request===activityVersion && currentVersion===version && activityVisible(state);
+      const cached=!force ? reads.peek<{rows:readonly BisTransaction[];fetchedAt:number}>(readKey('activity')) : undefined;
+      update({activity:cached ? {status:'ready',transactions:mergedActivity(cached.value.rows,profile)} : {status:'loading'}});
+      try {
+        const entry=await prepareActivity(force,true);
+        if(!current())return;
+        update({activity:{status:'ready',transactions:entry.value}});
+        // Presentation observation is distinct from first-snapshot readiness.
+        const signal=activityOperation.signal, account=await presentationAccount(signal);
+        const unavailable=()=>{
+          if(!current())return;
+          reads.invalidate('activity');
+          update({activity:{status:'unavailable',transactions:state.activity.status==='ready'?state.activity.transactions:undefined}});
+        };
+        void observeActivity(account,signal,rows=>{
+          if(!current())return;
+          const source=historyWallet.snapshot();
+          if(source)reads.publish(readKey('activity'),source,source.fetchedAt);
+          update({activity:{status:'ready',transactions:mergedActivity(rows,profile)}});
+        }).then(unavailable,unavailable);
+      } catch {if(current())update({activity:{status:'unavailable'}});}
+    },
+    refreshBalance:()=>refreshBalanceView(false,true),
+    openProfileChooser(){
+      assertAlive();if(state.phase!=='active'&&state.phase!=='idle')return;
+      context.openAccountDialog();
+      update({profileChooser:true,accountOnboarding:false,accountContracts:false,accountTransfer:false,accountDetails:false,accountActivity:false,accountReceive:false,accountSend:false,accountAssets:false,accountRecovery:false});
+    },
+    async selectProfile(profileId){
+      assertAlive();
+      if(!state.savedProfiles.includes(profileId)||typeof storage.selectProfile!=='function')throw Error('Select a saved profile.');
+      if(state.profileId===profileId){update({profileChooser:false});return;}
+      const current=version,expected=generation;
+      try {await withWalletRoleSelection(profileId,()=>options.gameWalletProfileId?.(),playerGameWalletConflict,()=>storage.selectProfile!(profileId,expected,operation.signal));}
+      catch(error) {if(error instanceof WalletRoleConflictError)update({error:error.message});throw error;}
+      if(disposed)return;
+      if(version!==current){await initialization;return;}
+      initialization=hydrate();await initialization;
+    },
+    openRestoreAccount() {
+      assertAlive();if(!state.network||!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser)return;
+      context.openAccountDialog();invalidate();failure=undefined;
+      update({phase:'restore-entry',error:undefined,canReset:true});
+    },
+    closeAccount() {
+      assertAlive();if(state.view!=='account'||state.phase==='resetting'||state.phase==='logging-out'||state.phase==='restore-saving') return;
+      if(state.accountOnboarding){context.openAccountDetails();return;}
+      if(state.accountContracts) {update({accountContracts:false,accountDetails:true});return;}
+      if(state.accountTransfer) {context.openAccountDetails();return;}
+      if(state.accountRecovery) {update({accountRecovery:false,...recoveryReturn});return;}
+      if(state.accountReceive || state.accountSend) {update({accountReceive:false,accountSend:false});return;}
+      if(state.accountAssets) {update({accountAssets:false,accountDetails:true});return;}
+      if(state.accountActivity) {update({accountActivity:false,accountDetails:true});return;}
+      if(state.accountDetails) {update({accountTransfer:false,accountDetails:false});return;}
+      if(['restore-entry','restoring','restore-confirmation','restore-error'].includes(state.phase)) {
+        invalidate();initialization=hydrate();return;
+      }
+      if(state.phase==='logout-confirmation'||state.phase==='logout-error') {context.cancelLogout();return;}
+      if(pending||state.phase==='creating'||state.phase==='saving'||failure==='create'||failure==='save') {
+        invalidate();failure=undefined;update({phase:'idle',error:undefined,canReset:false});
+        // A cancelled commit might already be durable; reconcile before another creation.
+        initialization=hydrate();return;
+      }
+      update({view:previous});
+    },
+    async createAccount() {
+      assertAlive();if(!state.network||!['idle','active'].includes(state.phase)||state.hasProfile&&!state.profileChooser) return;
+      const current=++version;operation.abort();operation=new AbortController();
+      update({phase:'creating',canReset:true,error:undefined});
+      try {
+        const account=await create(operation.signal);
+        if(disposed||version!==current)return;
+        pending=account;update({phase:'recovery'});
+      }catch {if(!disposed&&version===current)fail('create','The test account could not be created.');}
+    },
+    async continueAccount() {
+      assertAlive();if(!pending || (state.phase!=='recovery' && !(state.phase==='error'&&failure==='save'))) return;
+      const current=version;const account=pending;
+      update({phase:'saving',error:undefined});
+      try {
+        await commitPlayerRole(account,async()=>{
+          await storage.save(account,generation,operation.signal);
+          if(disposed)return;
+          if(version!==current){await initialization;return;}
+          pending=undefined;failure=undefined;
+          confirmedProfile=account.profileId;
+          update({phase:'active',hasProfile:true,profileId:account.profileId,error:undefined,canReset:true});
+          if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
+          emit({type:'accountConnected',profileId:account.profileId},current);
+        });
+      }catch(error) {if(!disposed&&version===current){if(error instanceof WalletRoleConflictError)update({phase:'recovery',error:error.message});else fail('save','Your account could not be saved.');}}
+    },
+    async openLogoutConfirmation() {
+      assertAlive();
+      if (logoutAuthorizing || state.phase !== 'active' || !state.profileId) return;
+      context.openAccountDialog();
+      const target = {profileId:state.profileId!,generation}; logoutTarget = target; logoutAuthorizing=true;
+      let authorization: BisGameLogoutAuthorization = {decision:'allow'}, authorizationUnavailable=false;
+      if (options.authorizeLogout) {
+        try { authorization=await options.authorizeLogout(target.profileId); }
+        catch { authorizationUnavailable=true; }
+      }
+      if(disposed || generation!==target.generation || logoutTarget!==target) { logoutAuthorizing=false; return; }
+      logoutAuthorizing=false;
+      if(authorization.decision==='deny') {
+        logoutTarget=undefined;
+        update({phase:'active',error:authorization.message ?? 'The game did not allow logout from its current state.'});
+        return;
+      }
+      try {
+        logoutOperations=pendingLogoutOperations(globalThis.localStorage,state.profileId);
+        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:authorizationUnavailable,logoutGameConfirmationBody:authorization.decision==='confirm'?authorization.body:undefined,logoutGameAuthorizationId:authorization.decision==='confirm'?authorization.authorizationId:undefined,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:logoutOperations.count,error:undefined});
+      } catch {
+        logoutOperations=undefined;
+        // Counting is advisory. A malformed journal must not open an error
+        // modal and make the logout controls inert.
+        update({phase:'logout-confirmation',accountRecovery:false,logoutBackupAcknowledged:false,logoutPendingAcknowledged:false,logoutGameWalletAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:authorizationUnavailable,logoutGameConfirmationBody:authorization.decision==='confirm'?authorization.body:undefined,logoutGameAuthorizationId:authorization.decision==='confirm'?authorization.authorizationId:undefined,hasGameWallet:options.hasGameWallet?.()===true,logoutPendingCount:null,error:undefined});
+      }
+    },
+    setLogoutBackupAcknowledged(acknowledged) {
+      assertAlive();
+      if (!state.accountRecovery && (state.phase === 'logout-confirmation' || state.phase === 'logout-error')) update({logoutBackupAcknowledged:acknowledged === true});
+    },
+    setLogoutPendingAcknowledged(acknowledged) {
+      assertAlive();
+      if (!state.accountRecovery && ['logout-confirmation','logout-error'].includes(state.phase) && state.logoutPendingCount !== null && state.logoutPendingCount > 0) update({logoutPendingAcknowledged:acknowledged === true});
+    },
+    setLogoutGameWalletAcknowledged(acknowledged) {
+      assertAlive();
+      if (!state.accountRecovery && ['logout-confirmation','logout-error'].includes(state.phase) && state.hasGameWallet) update({logoutGameWalletAcknowledged:acknowledged === true});
+    },
+    setLogoutOverrideAcknowledged(acknowledged) {
+      assertAlive();
+      if (!state.accountRecovery && ['logout-confirmation','logout-error'].includes(state.phase) && state.logoutOverrideRequired) update({logoutOverrideAcknowledged:acknowledged === true});
+    },
+    selectNetwork(network) {
+      assertAlive();
+      if (state.hasProfile || !['idle','active'].includes(state.phase)) return;
+      options.selectNetwork?.(network);
+      if (state.network === network) return;
+      // Account storage is scoped by network.  Treat a selection change as a
+      // new session rather than merely repainting the chooser: otherwise the
+      // first restore can still reconcile against the previous network's
+      // generation and discard its own result as a stale session.
+      update({network,error:undefined});
+      initialization=hydrate();
+    },
+    cancelLogout() {
+      assertAlive();
+      if (state.phase === 'logout-error') { initialization=hydrate();return; }
+      if (state.phase !== 'logout-confirmation') return;
+      logoutTarget=undefined;
+      update({phase:'active',accountRecovery:false,logoutBackupAcknowledged:false,logoutOverrideAcknowledged:false,logoutOverrideRequired:false,logoutGameConfirmationBody:undefined,logoutGameAuthorizationId:undefined,error:undefined});
+    },
+    async confirmLogout() {
+      assertAlive();
+      if (state.accountRecovery || !logoutTarget || !['logout-confirmation','logout-error'].includes(state.phase)) return;
+      if(state.logoutOverrideRequired && !state.logoutOverrideAcknowledged) return;
+      // Warning acknowledgements are informational; Player logout always remains available.
+      const target=logoutTarget;
+      if (state.logoutGameAuthorizationId && !state.logoutOverrideRequired) {
+        let recheck: BisGameLogoutRecheck;
+        try { recheck=options.recheckLogout ? await options.recheckLogout(state.logoutGameAuthorizationId) : {decision:'deny',message:'The game logout confirmation is unavailable.'}; }
+        catch {
+          if(!disposed && generation===target.generation && logoutTarget===target) update({logoutOverrideRequired:true,logoutOverrideAcknowledged:false,logoutGameAuthorizationId:undefined,error:'The game could not recheck this logout. Confirm the BIS override to continue.'});
+          return;
+        }
+        if(disposed || generation!==target.generation || logoutTarget!==target) return;
+        if(recheck.decision==='deny') {
+          logoutTarget=undefined;
+          update({phase:'active',logoutGameAuthorizationId:undefined,logoutGameConfirmationBody:undefined,error:recheck.message ?? 'The game no longer allows logout from its current state.'});
+          return;
+        }
+      }
+      dependencies.retireWallet?.();
+      invalidate(); const current=version;
+      update({phase:'logging-out',error:undefined});
+      try {
+        const loaded=await readStable(current);
+        if (disposed || version!==current) return;
+        if (!loaded.account || loaded.generation!==target.generation || loaded.account.profileId!==target.profileId) {
+          acceptLoaded(loaded,current); return;
+        }
+        if (state.hasGameWallet && options.resetGameWallet && !await options.resetGameWallet()) throw new Error('Game Wallet cleanup did not finish.');
+        await storage.reset(target.generation, {purpose:'logout',profileId:target.profileId,operations:logoutOperations ?? {count:0,fingerprint:''}});
+        if (disposed || version!==current) return;
+        const after=await readStable(current);
+        if (disposed || version!==current) return;
+        if (after.account?.profileId===target.profileId && after.generation===target.generation) throw new Error('Clearing not confirmed.');
+        acceptLoaded(after,current);
+        if(typeof storage.listProfiles==='function')update({savedProfiles:Object.freeze([...(await storage.listProfiles()).profiles]),profileChooser:false});
+      } catch (error) {
+        if (!disposed && version===current) {
+          try {logoutOperations=pendingLogoutOperations(globalThis.localStorage,target.profileId);} catch {logoutOperations=undefined;}
+          update({phase:'logout-error',logoutPendingCount:logoutOperations?.count ?? null,error:error instanceof BoardingBlockedError ? error.message : 'Log out did not finish. Browser cleanup could not be confirmed.'});
+        }
+      }
+    },
+    async retry() {
+      assertAlive();if(state.phase==='restore-error'&&restorePhrase){await runRestore(restorePhrase);return;}
+      assertAlive();if(state.phase==='logout-error'){await context.confirmLogout();return;}
+      assertAlive();if(state.phase!=='error')return;
+      if(failure==='load'){initialization=hydrate();await initialization;}
+      else if(failure==='save')await context.continueAccount();
+      else {failure=undefined;update({phase:'idle',error:undefined});await context.createAccount();}
+    },
+    dispose() {if(disposed)return;dependencies.disposeWallets?.();onboardingOperation.abort();paymentOperation.abort();clearTimeout(paymentRetry);clearTimeout(transferTimer);transferTimer=undefined;toasts.dispose();clearRecovery();update({view:'empty',accountRecovery:false});cancelActivity();cancelBalance();state=Object.freeze({...state,balance:idleBalance,addresses:idleAddresses,activity:idleActivity,accountActivity:false});disposed=true;invalidate();reads.dispose();unsubscribeStorage();listeners.clear();events.clear();},
+  };
+  controls.set(context,{
+    toasts,
+    dismissOperationError() {
+      if(state.view==='account')context.closeAccount();
+      else update({error:undefined});
+    },
+    assetSession: () => assetView.session(),
+    hideAssets(session) { if (!disposed && state.accountAssets && (session === undefined || session === assetView.session())) update({accountAssets:false}); },
+    assertAlive,
+    async fundingAddress() {
+      assertAlive();
+      if (!state.hasProfile || state.phase !== 'active') throw new Error('An active account is required.');
+      const current = version, profileId = state.profileId, expectedGeneration = generation;
+      const loaded = await readStable(current);
+      const valid = () => !disposed && version === current && state.profileId === profileId && state.phase === 'active';
+      if (!valid() || !loaded.account || loaded.account.profileId !== profileId || loaded.generation !== expectedGeneration) throw new Error('Account changed.');
+      const addresses = await readAddresses(loaded.account, operation.signal);
+      if (!valid()) throw new Error('Account changed.');
+      return addresses.bitcoinAddress;
+    },
+    async fund() {
+      assertAlive();
+      if (funding !== undefined) throw new Error('Funding request already in progress.');
+      if (!state.hasProfile || state.phase !== 'active') throw new Error('An active account is required.');
+      const current = version, profileId = state.profileId, expectedGeneration = generation;
+      const isCurrent = () => !disposed && version === current && state.profileId === profileId && state.phase === 'active';
+      funding = current;
+      try {
+        const loaded = await readStable(current);
+        if (!isCurrent() || !loaded.account || loaded.account.profileId !== profileId || loaded.generation !== expectedGeneration) throw new Error('Account changed.');
+        await fund(loaded.account, operation.signal, isCurrent);
+        if (!isCurrent()) throw new Error('Account changed.');
+        return 'Funding request accepted for 1000 Signet sats. Refresh Account Details to check receipt.';
+      } catch {
+        throw new Error('Funding was not confirmed. The faucet may be unavailable or the account changed. Check Account Details before trying again.');
+      } finally { if (funding === current) funding = undefined; }
+    },
+    restore:runRestore,
+    async confirmRestoration() {
+      assertAlive();
+      if(state.phase!=='restore-confirmation'||!pending)return;
+      await saveRestored(version);
+    },
+    cancelRestoration() {
+      assertAlive();
+      if(state.phase!=='restore-confirmation')return;
+      pending=undefined;restorePhrase=undefined;failure=undefined;
+      update({phase:'idle',error:undefined,canReset:false});
+    },
+    recovery:()=>state.accountRecovery && state.recoveryStatus === 'ready' ? revealedPhrase : pending?.phrase,
+    hideRecovery() {
+      clearRecovery();
+      if (state.recoveryStatus !== 'hidden') update({recoveryStatus:'hidden'});
+    },
+    async revealRecovery() {
+      assertAlive();
+      if (!state.accountRecovery || !['hidden','unavailable'].includes(state.recoveryStatus)) return;
+      const request = ++recoveryVersion, accountVersion = version, profileId = state.profileId, expectedGeneration = generation;
+      const current = () => !disposed && request === recoveryVersion && version === accountVersion && state.accountRecovery && state.profileId === profileId;
+      update({recoveryStatus:'loading'});
+      try {
+        const loaded = await readWithRetry(() => readStable(accountVersion), AbortSignal.any([operation.signal,recoveryOperation.signal]));
+        if (!current()) return;
+        if (!loaded.account || loaded.account.profileId !== profileId || loaded.generation !== expectedGeneration) {initialization=hydrate();return;}
+        revealedPhrase = loaded.account.phrase;
+        update({recoveryStatus:'ready'});
+      } catch { if(current()) update({recoveryStatus:'unavailable'}); }
+    },
+    present() {assertAlive();if(state.view!=='account')update({view:'account-button'});},
+    async reset() {
+      assertAlive();if(state.phase==='resetting')return;
+      guardSend();
+      if(state.profileId&&globalThis.localStorage&&readAccountOnboarding(state.profileId).some(r=>r.status==='pending'))throw new BoardingBlockedError('Onboarding is unresolved. Open Account → Balance → Onboarding before resetting this account.');
+      dependencies.retireWallet?.();
+      invalidate();logoutTarget=undefined;update({phase:'resetting',error:undefined,logoutBackupAcknowledged:false});
+      try {await storage.reset();if(disposed)return;previous='empty';update({view:'empty'});initialization=hydrate();await initialization;}
+      catch (error) {const message=error instanceof BoardingBlockedError?error.message:'Reset did not finish. Your account has not been confirmed cleared.';if(!disposed)fail('load',message);throw new Error(message);}
+    },
+    async forceReset(resetId?: string) {
+      assertAlive();
+      if (forceResetPromise) return forceResetPromise;
+      const id = resetId ?? crypto.randomUUID();
+      forceResetPromise = (async () => {
+        dependencies.retireWallet?.();
+        invalidate();
+        logoutTarget = undefined;
+        update({view:'empty', phase:'resetting', hasProfile:false, profileId:undefined, canReset:false, savedProfiles:Object.freeze([]), error:undefined, logoutBackupAcknowledged:false, logoutPendingAcknowledged:false, logoutGameWalletAcknowledged:false, hasGameWallet:false});
+        try {
+          if (storage.forceReset) await storage.forceReset(id);
+          else await storage.reset();
+          if (disposed) return;
+          previous = 'empty';
+          generation++;
+          update({view:'empty', phase:'idle', hasProfile:false, profileId:undefined, canReset:false, savedProfiles:Object.freeze([]), error:undefined});
+        } catch (error) {
+          if (!disposed) fail('load', error instanceof Error ? error.message : 'BIS reset did not finish.');
+          throw error instanceof Error ? error : Error('BIS reset did not finish.');
+        } finally {
+          forceResetPromise = undefined;
+        }
+      })();
+      return forceResetPromise;
+    },
+  });
+  const unsubscribeStorage=storage.subscribe(()=> {
+    storageRevision++;
+    // A restore owns the commit window after the account has been connected.
+    // Hydrating from a cross-context notification here would invalidate the
+    // restore operation and can briefly read the pre-commit empty state,
+    // sending the UI back to the logged-out Account menu. The post-save
+    // readStable() check below is the authoritative reconciliation for this
+    // operation; notifications during the earlier network phase still need
+    // to invalidate the stale restore as usual.
+    if(!disposed&&!['resetting','logging-out','logout-error','restore-saving'].includes(state.phase)){initialization=hydrate(state.phase==='restoring');}
+  });
+  // Explicit wallet work pauses NEW speculative jobs, never cancels adopted reads.
+  for(const key of ['getSendSpendable','quoteAccountSend','confirmAccountSend','checkAccountSend','quoteAccountTransfer','getAccountTransferAvailability','confirmAccountTransfer','checkAccountTransfer','requestContinue','burnAsset','deliverAsset','checkAssetDelivery','mintAsset','claimContractAsync','rejectContractAsync','refundContract'] as const) {
+    const original=context[key];
+    if(!original)continue;
+    Object.defineProperty(context,key,{value:(...args:unknown[])=>{
+      foregroundOperations++;
+      if(mutationReads.has(key)) { reads.invalidate('balance');reads.invalidate('transfer-availability');reads.invalidate('activity');reads.invalidate('assets');reads.invalidate('contracts'); }
+      const done=()=>{foregroundOperations--;warmer?.wake();};
+      try {return Promise.resolve(Reflect.apply(original,context,args)).finally(done);}
+      catch(error){done();throw error;}
+    }});
+  }
+  presentationReads.set(context,reads);
+  foregroundWork.set(context,async(work,mutation)=>{
+    const current=version;
+    foregroundOperations++;
+    if(mutation) {cancelBalance();reads.invalidate('balance');reads.invalidate('transfer-availability');reads.invalidate('activity');reads.invalidate('assets');reads.invalidate('contracts');}
+    try {return await work();} finally {
+      foregroundOperations--;
+      if(mutation && !disposed && current===version && balanceVisible(state))void refreshBalanceView(true);
+      warmer?.wake();
+    }
+  });
+  initialization=hydrate();
+  return context;
+}
+
+/**
+ * Legacy source-level test seam. Production composition uses the named
+ * `createContextWithDependencies` contract; this wrapper avoids a behavior-risky
+ * all-at-once migration of focused tests that inject one operation at a time.
+ */
+export function createContext(storage: AccountStorage, create = unavailableOperation as BisContextDependencies['create'], identifyAccount = unavailableOperation as BisContextDependencies['identifyAccount'], restore = unavailableOperation as BisContextDependencies['restore'], readBalance = unavailableOperation as BisContextDependencies['readBalance'], fund = unavailableOperation as BisContextDependencies['fund'], readAddresses = unavailableOperation as BisContextDependencies['readAddresses'], observeActivity = unavailableOperation as BisContextDependencies['observeActivity'], transfers = unavailableDependencies().transfers, assets = unavailableDependencies().assets, sends = unavailableDependencies().sends, burn = unavailableOperation as BisContextDependencies['burn'], continuation = unavailableDependencies().continuation, options: BisContextOptions = {}, observePayments: BisContextDependencies['observePayments'] = undefined, observeAssets: BisContextDependencies['observeAssets'] = undefined, onboardingFactory: BisContextDependencies['onboardingFactory'] = undefined): BisContext {
+  const defaults = unavailableDependencies();
+  return createContextWithDependencies(storage, {
+    ...defaults,
+    create,
+    identifyAccount,
+    restore,
+    readBalance,
+    fund,
+    readAddresses,
+    observeActivity,
+    transfers,
+    assets,
+    sends,
+    burn,
+    continuation,
+    observePayments,
+    observeAssets,
+    onboardingFactory,
+  }, options);
+}
+export function createBisAdminContext(context: BisContext) {
+  const internal=getControls(context);internal.assertAlive();
+  return Object.freeze({resetClient:()=>internal.reset(), fund1000Sats:()=>internal.fund(), getFundingAddress:()=>internal.fundingAddress()});
+}

@@ -1,0 +1,3 @@
+# Local presentation-runtime support and validation output
+build/node_modules/
+build/.codex-finalizer/

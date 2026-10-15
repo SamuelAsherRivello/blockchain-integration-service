@@ -1,0 +1,378 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const root = new URL('../../', import.meta.url);
+const text = path => readFile(new URL(path, root), 'utf8');
+
+test('public catalog contains only the versioned publisher trust anchor and no wallet secret fields', async () => {
+  const catalog = JSON.parse(await text('public/catalog.json'));
+  assert.equal(catalog.version, 2);
+  assert.deepEqual(catalog.games.map(game => game.gameId), ['stealth-and-steel', "Rogue's Dungeon"]);
+  assert.deepEqual(catalog.games.map(game => game.displayName), ['Stealth & Steel', "Rogue's Dungeon"]);
+  assert.equal(typeof catalog.games[0].gameWalletAddress, 'string');
+  assert.equal('gameWalletAddress' in catalog.games[1], false);
+  assert.equal('items' in catalog, false);
+  assert.equal(Object.keys(catalog).sort().join(','), 'games,version');
+  assert.equal(JSON.stringify(catalog).match(/phrase|private|secret|seed/i), null);
+});
+
+test('public Marketplace uses a read-only address query and live local-sales action eligibility', async () => {
+  const [app, inventory] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/inventory-layer/inventory.ts')]);
+  assert.match(app, /fetch\(`\$\{import\.meta\.env\.BASE_URL\}catalog\.json`/);
+  assert.match(app, /next\.version!==2/);
+  assert.doesNotMatch(app, /next\.items/);
+  assert.match(app, /beginLocalMarketplaceCheckout/);
+  assert.match(app, /advanceLocalMarketplaceCheckout/);
+  assert.match(app, /className="trade-action trade-action-buy" disabled=\{!canBuy\}/);
+  assert.match(app, /className="trade-action trade-action-sell" disabled=\{!canSell\}/);
+  assert.doesNotMatch(app,/getBisMarketplaceTradingAvailability/);
+  assert.match(inventory, /preparePublicAssetInventory\(request,force\)/);
+  assert.doesNotMatch(inventory, /@arkade-os\/sdk|RestIndexerProvider/);
+  assert.doesNotMatch(inventory, /MnemonicIdentity|Wallet\.create|mint|send/i);
+});
+
+test('Marketplace never reuses the published Game Wallet without a connected local Game Wallet', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /const hasConnectedGameWallet=Boolean\(playerSessionActive&&gameSessionActive&&playerState\.profileId&&gameState\.profileId&&gameState\.profileId!==playerState\.profileId&&gameState\.network===network&&gameState\.addresses\?\.arkadeAddress\)/);
+  assert.match(app, /const publicGameAddress=hasConnectedGameWallet&&registeredGameAddress\?marketplaceGameInventoryAddress/);
+  assert.match(app, /const activeGameWallet=hasConnectedGameWallet;/);
+  assert.match(app, /const inventoryAddress=isCatalogLoading\?undefined:publicGameAddress/);
+  assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
+  assert.match(app, /const gameItemsForSession=previousGameItems/);
+  assert.match(app, /if\(event\.type==='accountDisconnected'\)void gameWallet\.logout\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(app, /listenForWalletSessionNotifications/);
+  assert.match(app, /VITE_BIS_WALLET_SESSION_ORIGIN/);
+  assert.match(app, /playerSessionActive&&gameSessionActive/);
+});
+
+test('Marketplace reads Game Wallet display inventory from the published public address', async () => {
+  const [app, inventory] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/inventory-layer/inventory.ts')]);
+  assert.match(app, /readPublicInventory/);
+  assert.match(app, /marketplaceGameInventoryAddress\(\{registeredAddress:registeredGameAddress/);
+  assert.match(app, /readPublicInventory\(publicInventoryRequest,force\)/);
+  assert.match(inventory, /preparePublicAssetInventory/);
+  assert.doesNotMatch(inventory, /@arkade-os\/sdk|RestIndexerProvider/);
+});
+
+test('Marketplace enables exactly the action offered by the selected owner only after both local wallet sessions are active', async () => {
+  const [app, style, session] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/square-grid.css'), text('src/client/marketplace-layer/checkout-session.ts')]);
+  assert.match(app, /const gameOwnsSelected=Boolean\(activeGameWallet&&selected&&gameItems\?\.some\(item=>item\.assetId===selected\.assetId\)\)/);
+  assert.match(app, /const gameListingEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&inventoryAddress\)/);
+  assert.match(app, /const playerOwnsSelected=Boolean\(selected&&playerItems\.some\(item=>item\.assetId===selected\.assetId\)\)/);
+  assert.match(app, /const canBuy=salesEnabled&&gameOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;/);
+  assert.match(app, /const canSell=salesEnabled&&playerOwnsSelected&&!checkoutIsPending&&!pendingTransferIsSelected;/);
+  assert.match(app, /disabled=\{!canBuy\}/);
+  assert.match(app, /disabled=\{!canSell\}/);
+  assert.match(session, /player\.getSendSpendable\(true\)/);
+  assert.match(app, /player\.quoteAccountSend\(recipient,amountSats,true\)/);
+  assert.match(session, /game\.getPlayerPaymentBalance\(\)/);
+  assert.match(app, /const \[operationError,setOperationError\]=useState<string>\(\);/);
+  assert.match(session, /if\(funds<intent\.priceSats\)throw Error\(`Insufficient/);
+  assert.match(session, /intent\.direction==='buy'\?'Player Wallet':'Game Wallet'/);
+  assert.match(session, /sats available; \$\{intent\.priceSats\} sats required/);
+  assert.match(style, /\.trade-action-sell\{background:#487d66/);
+});
+
+test('Marketplace restores the pending exact-item checkout after a page reload', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /readLocalMarketplaceCheckouts\(\)\.find\(record=>record\.status==='pending'&&record\.request\.assetId===selected\.assetId\)/);
+  assert.doesNotMatch(app, /checkout-status|Checkout complete\.|Checkout recovery status/);
+});
+
+test('Marketplace publishes evidence-backed Player Wallet item-transfer toasts without changing payment observation', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /publishMarketplaceDeliveryToast/);
+  assert.match(app, /gameWalletProfileId:\(\)=>gameWalletRef\.current\?\.getState\(\)\.profileId/);
+  assert.match(app, /result\.transactionId\?\{transactionId:result\.transactionId\}/);
+  assert.match(app, /publishCheckoutDeliveryToast\(next\)/);
+  assert.match(app, /Your Player Wallet could not prepare payment for this item\. Refresh and try again\./);
+  assert.doesNotMatch(app, /createPaymentNotifications/);
+});
+
+test('Marketplace represents a pending transfer inline and disables both trade actions', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /const pendingTransferFor=\(item:BisEquipmentItem\)=>pendingCheckout\?\.request\.assetId===item\.assetId\?pendingCheckout:undefined/);
+  assert.match(app, /Pending transfer/);
+  assert.match(app, /Transfer from Game Wallet to Player Wallet is pending \.\.\./);
+  assert.match(app, /!checkoutIsPending&&!pendingTransferIsSelected/);
+  assert.match(app, /className=\{`asset-card\$\{pending\?' asset-card-pending':''\}`\}/);
+});
+
+test('item detail uses the active local-sales session state and never asks users to reconcile checkout', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /className="detail-actions"><button className="trade-action trade-action-buy" disabled=\{!canBuy\}/);
+  assert.match(app, /id="sales-disabled-reason"/);
+  assert.doesNotMatch(app, /Reconcile checkout|pending checkout\. Reconcile|awaiting fresh ownership confirmation/);
+  assert.match(app, /setTimeout\(run,2500\)/);
+  assert.match(app, /title=\{pendingTransferTitle\?\?\(checkoutIsPending\?'Pending transaction':undefined\)\}/);
+  assert.match(app, /className="trade-action trade-action-sell" disabled=\{!canSell\} title=\{pendingTransferTitle\?\?\(checkoutIsPending\?'Pending transaction':undefined\)\}/);
+  assert.doesNotMatch(app, /Buying and selling are not enabled/);
+});
+
+test('Marketplace opens a separate Blockchain Benefits dialog from the clickable before link', async () => {
+  const [app, polish] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/player-polish.css')]);
+  assert.match(app, /const \[isBenefitsOpen,setIsBenefitsOpen\]=useState\(false\)/);
+  assert.match(app, /className="benefits-trigger" onClick=\{\(\)=>setIsBenefitsOpen\(true\)\}\>before<\/button>/);
+  assert.match(app, /isBenefitsOpen&&<div className="backdrop blockchain-benefits-backdrop"/);
+  assert.match(app, /className="detail blockchain-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="blockchain-benefits-title"/);
+  assert.match(app, /<h2 id="blockchain-benefits-title">Blockchain Benefits<\/h2>/);
+  assert.match(app, /const blockchainBenefitsImageUrl = 'https:\/\/github\.com\/SamuelAsherRivello\/blockchain-integration-service\/blob\/main\/BIS\/documentation\/bitcoin-ark-arkade-bis-game\.png\?raw=1';/);
+  assert.match(app, /<img className="blockchain-benefits-image" src=\{blockchainBenefitsImageUrl\} width="2161" height="728" alt="Bitcoin Ark Arkade BIS game" \/>/);
+  assert.doesNotMatch(app, /className="blockchain-benefits-category">Marketplace<\/p>/);
+  for (const heading of ['Account / Wallet', 'Assets', 'Contracts', 'Marketplace', 'Payments']) {
+    assert.match(app, new RegExp(`<strong>${heading}<\\/strong>`));
+  }
+  assert.match(app, /<strong>Account \/ Wallet<\/strong>[\s\S]*<strong>Assets<\/strong>[\s\S]*<strong>Contracts<\/strong>[\s\S]*<strong>Marketplace<\/strong>[\s\S]*<strong>Payments<\/strong>/);
+  assert.match(app, /Players securely trade a Dagger III between wallets\./);
+  assert.match(app, /aria-label="Close Blockchain Benefits"/);
+  assert.match(polish, /\.benefits-trigger/);
+  assert.match(polish, /\.blockchain-benefits-image \{[^}]*aspect-ratio: 2161 \/ 728[^}]*max-height: 210px/);
+  assert.doesNotMatch(polish, /\.blockchain-benefits-dialog \{[^}]*(?:width|aspect-ratio|overflow|padding):/);
+  assert.match(polish, /\.marketplace-benefits-list li \{[^}]*padding: 12px 0/);
+  assert.match(polish, /\.marketplace-benefits-list li \{[^}]*grid-template-columns: 136px minmax\(0, 1fr\); gap: 8px/);
+});
+
+test('Marketplace detail pages provide an explicit Back action', async () => {
+  const [app, redesign] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/marketplace-redesign.css')]);
+  assert.match(app, /className="marketplace-dialog-back" onClick=\{\(\)=>setSelected\(undefined\)\}>Back<\/button>/);
+  assert.match(app, /className="marketplace-dialog-back" onClick=\{\(\)=>setIsBenefitsOpen\(false\)\}>Back<\/button>/);
+  assert.match(redesign, /\.marketplace-page \.marketplace-dialog-back\s*\{[\s\S]*?width: 100%;[\s\S]*?min-height: 40px;/);
+});
+
+test('item detail provides the selected valid Arkade asset with a bottom explorer action', async () => {
+  const [app, squareGrid] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/square-grid.css')]);
+  assert.match(app, /const explorerUrl=selected&&\/\^\[a-f0-9\]\{68\}\$\/i\.test\(selected\.assetId\)\?arkExplorerAssetUrl\(network,selected\.assetId\):undefined/);
+  assert.match(app, /className="detail-explorer-action" disabled=\{!explorerUrl\}/);
+  assert.match(app, /window\.open\(explorerUrl, '_blank', 'noopener,noreferrer'\)/);
+  assert.match(app, />Open On Explorer<\/button>/);
+  assert.match(squareGrid, /\.detail-explorer-action\{[\s\S]*?width:100%/);
+});
+
+test('item detail identity shows only the selected item name and formatted sats price', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /<div><h2 id="item-title">\{selected\.name\}<\/h2><strong>\{selected\.priceSats\.toLocaleString\(\)\} sats<\/strong><\/div>/);
+  assert.doesNotMatch(app, /<p className="eyebrow">\{selected\.family\} · TIER \{selected\.tier\}<\/p>/);
+  assert.doesNotMatch(app, /<p className="detail-effect">\{selected\.effect\}<\/p>/);
+});
+
+test('item detail shows copyable generic and gameplay values without decimals or temporary release copy', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /Generic asset/);
+  assert.match(app, /FormValue label="Asset ID" value=\{selected\.assetId\} copyable className="marketplace-detail-field marketplace-asset-id"/);
+  assert.match(app, /FormValue label="Ticker" value=\{selected\.ticker\} copyable className="marketplace-detail-field"/);
+  assert.match(app, /FormValue label="Quantity" value=\{String\(selected\.quantity\)\} copyable className="marketplace-detail-field"/);
+  assert.doesNotMatch(app, /Decimals/);
+  assert.match(app, /Gameplay metadata/);
+  assert.match(app, /gameplayMetadata\(selected\)\.map\(stat=><FormValue key=\{stat\.label\} label=\{stat\.label\} value=\{stat\.value\}/);
+  assert.match(app, /item\.attributeDeltas/);
+  assert.doesNotMatch(app, /Trading is not available/);
+  assert.doesNotMatch(app, /later Marketplace account flow/);
+});
+
+test('item detail gives every metadata value the shared labeled, copyable field treatment', async () => {
+  const [app, polish] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/player-polish.css')]);
+  assert.match(app, /@bis\/integration/);
+  assert.match(polish, /\.detail \.marketplace-detail-field \{ display: flex; flex-wrap: wrap;/);
+  assert.match(polish, /\.marketplace-detail-field \.bis-copy-field-heading/);
+  assert.match(polish, /\.marketplace-detail-field input \{ width: 100%;/);
+  assert.match(polish, /\.marketplace-detail-field \{[^}]*font: 600 13px\/1\.2 Inter/);
+  assert.match(polish, /\.detail \.marketplace-detail-field \.bis-copy-field-heading \{ gap: 4px; \}/);
+  assert.doesNotMatch(polish, /\.marketplace-detail-field \.bis-copy-field-heading \{[^}]*font: inherit;/);
+  assert.match(polish, /\.marketplace-detail-field input \{[^}]*font: inherit; text-align: left;/);
+  assert.match(polish, /\.marketplace-gameplay-fields input \{ text-align: left;/);
+});
+
+test('inventory scopes the selected game and nonzero gameplay metadata independently', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /catalog\.games\.find\(entry=>entry\.gameId===game\)/);
+  assert.match(app, /const source=game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
+  assert.match(app, /source\.filter\(item=>\(game==='all'\|\|game==='stealth-and-steel'\)\&\&\(type==='all'\|\|gameplayMetadata\(item\)/);
+  assert.match(app, /Rogue's Dungeon/);
+  assert.match(app, /aria-label="Type"/);
+  assert.match(app, />Speed<\/button>/);
+  assert.match(app, />Offense<\/button>/);
+  assert.match(app, />Defense<\/button>/);
+  assert.match(app, /stat\.value!==['"]0['"]/);
+});
+
+test('Marketplace opens with the Game Wallet, Stealth & Steel, and all item types selected', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /aria-label="Game"/);
+  assert.match(app, /catalog\.games\.map\(entry=>/);
+  assert.match(app, /const \[owner,setOwner\]=useState<'all'\|'game'\|'player'>\('game'\)/);
+  assert.match(app, /\[game,setGame\]=useState<string>\('stealth-and-steel'\)/);
+  assert.match(app, /\[type,setType\]=useState<'all'\|'speed'\|'offense'\|'defense'>\('all'\)/);
+});
+
+test('an unconfigured game cannot expose another game wallet inventory', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /game!=='all'&&game!=='stealth-and-steel'\?\[\]:/);
+  assert.match(app, /const registeredGameAddress=game==='all'\?defaultGame\?\.gameWalletAddress:selectedGame\?\.gameWalletAddress/);
+  assert.match(app, /const publicGameAddress=hasConnectedGameWallet&&registeredGameAddress\?marketplaceGameInventoryAddress/);
+  assert.match(app, /if\(publicInventoryRequest\)sources\.push\(\{role:'game'/);
+  assert.match(app, /owned item\(s\) have legacy metadata/);
+  assert.doesNotMatch(app, /if\(playerState\.profileId&&\(game==='all'\|\|selectedGame\?\.gameWalletAddress\)\)void gameWallet\.refresh\(\)/);
+  assert.match(app, /const selectedGameIsEmpty=game!== 'all'&&game!== 'stealth-and-steel'/);
+});
+
+
+test('Marketplace derives item identity, price, and artwork from fresh chain asset metadata',async()=>{
+  const [app,inventory]=await Promise.all([text('src/client/marketplace-layer/App.tsx'),text('src/client/inventory-layer/inventory.ts')]);
+  assert.match(inventory,/preparePublicAssetInventory/);assert.match(app,/classifyBisEquipmentAsset/);
+  assert.match(app,/src=\{item\.iconUrl\}/);assert.match(app,/item\.priceSats\.toLocaleString\(\)/);
+  assert.doesNotMatch(app,/artworkFor|assets\/equipment|item\.artwork/);
+  assert.match(app,/Image unavailable/);
+});
+
+test('Player Wallet inventory reuses the shared BIS Assets read without retrying when selected', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /const result=player\.prepareAssetInventory\?await player\.prepareAssetInventory\(force\):await player\.listAssets\(\)/);
+  assert.doesNotMatch(app, /prepared\?\.status==='success'\?prepared:await player\.listAssets\(\)/);
+  assert.match(app, /const chooseOwner=\(next:'all'\|'game'\|'player'\)=>/);
+  assert.doesNotMatch(app, /if\(next==='player'\)/);
+  assert.doesNotMatch(app, /const source=inventorySources\.find\(candidate=>candidate\.role==='player'\)/);
+});
+
+test('Marketplace refreshes the receiving Player Wallet and Game Wallet inventories after a completed checkout without exposing a manual refresh control', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.doesNotMatch(app, />Refresh listings<\/button>/);
+  assert.match(app, /inventory\.retry\(source\)/);
+  assert.match(app, /const CHECKOUT_INVENTORY_SETTLE_MS=3000/);
+  assert.match(app, /setIsCheckoutInventorySettling\(true\)/);
+  assert.match(app, /void gameWallet\.refresh\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(app, /void player\.refreshAssets\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(app, /inventory\.invalidate\(inventorySourcesRef\.current\)/);
+  assert.match(app, /isCheckoutInventorySettling\?undefined:rawInventoryError/);
+});
+
+test('Marketplace delegates visible Marketplace loading to the shared pending prompt', async () => {
+  const app = await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app, /const \[isCatalogLoading,setIsCatalogLoading\]=useState\(true\)/);
+  assert.match(app, /createMarketplaceInventoryCoordinator/);
+  assert.match(app, /const selectedInventoryLoading=owner==='all'/);
+  assert.match(app, /const isMarketplaceLoading=isCatalogLoading\|\|selectedInventoryLoading/);
+  assert.match(app, /const MARKETPLACE_INITIAL_LOADING_MAX_MS=500/);
+  assert.match(app, /const \[initialLoadingBudgetExpired,setInitialLoadingBudgetExpired\]=useState\(false\)/);
+  assert.match(app, /setInitialLoadingBudgetExpired\(true\),MARKETPLACE_INITIAL_LOADING_MAX_MS/);
+  assert.match(app, /const promptBusy=!!operationLabel\|\|\(isMarketplaceLoading&&\(!initialLandingRef\.current\|\|initialLandingLoading\)\)/);
+  assert.match(app, /const MARKETPLACE_LOADING_SETTLE_MS=1000/);
+  assert.match(app, /setTimeout\(\(\)=>setLoadingPromptVisible\(false\),MARKETPLACE_LOADING_SETTLE_MS\)/);
+  assert.match(app, /rawInventoryError=owner==='all'/);
+  assert.match(app, /<MarketplacePendingNotice busy=\{loadingPromptVisible\} label=\{operationLabel\?\?'Loading \.\.\.'\}/);
+  assert.doesNotMatch(app, /isMarketplaceLoading&&owner!=='player'\?'Loading\.\.\.'/);
+    assert.match(app, /Item inventory is unavailable/);
+});
+
+test('Marketplace renders its Wallets and Instructions as left-aligned lists in one panel',async()=>{
+  const app=await text('src/client/marketplace-layer/App.tsx');
+  assert.match(app,/createBisContext\(\{hasGameWallet:/);assert.match(app,/createBisGameWallet/);assert.match(app,/createBisUi/);
+  assert.match(app,/className="marketplace-info"/);assert.match(app,/This marketplace requires the player wallet for item display and items sales\./);assert.match(app,/In production the game wallet will be controlled by the server\. However, for this simple POC, you must also login the game wallet which has balance and has any items to display\./);
+  assert.match(app,/<div className="marketplace-info-group"><h2>Wallets<\/h2><ul>/);assert.match(app,/Player Wallet:/);assert.match(app,/Game Wallet:/);
+  assert.match(app,/<hr\/>/);assert.match(app,/<div className="marketplace-info-group"><h2>Instructions<\/h2><ol>/);assert.match(app,/Enable Item Listing: \{gameListingEnabled\?/);
+  assert.match(app,/const salesEnabled=Boolean\(playerState\.profileId&&gameState\.profileId&&playerState\.profileId!==gameState\.profileId&&\(game==='all'\|\|game==='stealth-and-steel'\)\)/);
+  assert.match(app,/Enable Item Sales: \{salesEnabled\?<><strong title="Requirement complete: different Player and Game Wallets are logged in\.">Enabled ℹ️<\/strong><\/>:<span title="Requirement: log in to different Player and Game Wallets from Account\.">Disabled ℹ️<\/span>\}/);
+  assert.doesNotMatch(app,/>Enable Item Sales<\/button>/);assert.doesNotMatch(app,/upper-right Account button/);
+  assert.doesNotMatch(app,/>Player Wallet Login<\/button>/);assert.doesNotMatch(app,/>Game Wallet Login<\/button>/);
+  assert.match(app,/>Player Wallet<\/button>/);
+  assert.doesNotMatch(app,/recovery phrase|MnemonicIdentity|player-to-player/i);
+});
+
+test('Marketplace requirement tooltip targets use the pointer cursor', async () => {
+  const polish = await text('src/client/ui-layer-react/player-polish.css');
+  assert.match(polish, /\.marketplace-info-group li strong\[title\],\.marketplace-info-group li span\[title\]\{cursor:pointer\}/);
+});
+
+test('Marketplace places version and project resources in the selected-network bar without device-specific presentation logic', async () => {
+  const [app, utilities, redesign] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/marketplace-utilities.css'), text('src/client/ui-layer-react/marketplace-redesign.css')]);
+  assert.match(app, /<div className="network-banner">\s*<span role="status">Network: \{networkLabel\(network\)\}<\/span>\s*<div className="marketplace-utilities" role="navigation" aria-label="Marketplace resources">[\s\S]*?<div className="marketplace-bis-host bis-account-launcher-anchor"/);
+  assert.match(app, /v\{version\}/);
+  assert.match(app, /https:\/\/github\.com\/SamuelAsherRivello\/blockchain-integration-service/);
+  assert.match(app, /https:\/\/docs\.arkadeos\.com\//);
+  assert.match(redesign, /\.marketplace-page \.network-banner\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);[\s\S]*?padding: 0 clamp\(12px, 2vw, 18px\);[\s\S]*?background: #fff0ba/);
+  assert.match(redesign, /\.marketplace-page \.marketplace-utilities\s*\{[\s\S]*?position: static;/);
+  assert.match(utilities, /\.marketplace-utilities\s*\{\s*position: absolute;/);
+  assert.doesNotMatch(app, /devicePixelRatio/);
+});
+
+test('Marketplace uses fluid layout primitives without viewport or device-specific branching', async () => {
+  const [app, style, redesign, launcher] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/style.css'), text('src/client/ui-layer-react/marketplace-redesign.css'), text('src/client/ui-layer-react/account-launcher.css')]);
+  assert.match(app, /<header className="marketplace-heading">[\s\S]*?<section className="catalog-toolbar"[\s\S]*?<section className="wallet-strip"[\s\S]*?<section className="catalog-scroll"/);
+  assert.match(app, /className="catalog-scroll"/);
+  assert.match(style, /html, body, #root \{ height: 100%; \}/);
+  assert.match(redesign, /\.marketplace-page\s*\{[\s\S]*?container: marketplace \/ inline-size;/);
+  assert.match(redesign, /\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?display: grid;[\s\S]*?grid-template-areas:[\s\S]*?"heading toolbar"[\s\S]*?"wallet catalog"[\s\S]*?min-height: 0;/);
+  assert.match(redesign, /\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?padding: clamp\(16px, 1\.8vw, 28px\) clamp\(12px, 1\.5vw, 18px\)/);
+  assert.match(redesign, /\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?padding: 2px clamp\(14px, 1\.2vw, 20px\) 18px 2px;[\s\S]*?overflow-y: scroll;[\s\S]*?overscroll-behavior: contain;[\s\S]*?scrollbar-gutter: stable;/);
+  assert.match(redesign, /\.marketplace-page \.catalog-grid\s*\{[\s\S]*?grid-template-columns: repeat\(auto-fill, minmax/);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)/);
+  assert.match(launcher, /@container marketplace \(max-width: 767px\)/);
+  assert.doesNotMatch(app, /devicePixelRatio/);
+  for (const source of [style, redesign, launcher]) assert.doesNotMatch(source, /@media\s*\(max-(?:width|height)|@media\s*\(min-(?:width|height)/);
+});
+
+test('Marketplace container reflows to a touch-sized vertical flow when its space narrows', async () => {
+  const [redesign, style] = await Promise.all([text('src/client/ui-layer-react/marketplace-redesign.css'), text('src/client/ui-layer-react/style.css')]);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.marketplace-shell\s*\{[\s\S]*?grid-template-areas:[\s\S]*?"heading"[\s\S]*?"toolbar"[\s\S]*?"wallet"[\s\S]*?"catalog"/);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.catalog-scroll\s*\{[\s\S]*?overflow: visible;/);
+  assert.match(redesign, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?\.marketplace-page \.filter-row button\s*\{[\s\S]*?min-height: 44px;/);
+  assert.match(style, /@container marketplace \(max-width: 767px\)\s*\{[\s\S]*?html\s*\{[\s\S]*?overflow-y: auto;[\s\S]*?body\s*\{[\s\S]*?overflow: visible;/);
+});
+
+test('closed BIS account launcher is anchored below the Marketplace banner without intercepting the catalog', async () => {
+  const [app, style, launcherStyle, sharedStyle] = await Promise.all([
+    text('src/client/marketplace-layer/App.tsx'),
+    text('src/client/ui-layer-react/style.css'),
+    text('src/client/ui-layer-react/account-launcher.css'),
+    text('../integration/src/client/ui-layer-react/overlay.css'),
+  ]);
+  assert.match(app, /className="marketplace-bis-host bis-account-launcher-anchor"/);
+  assert.match(style, /\.marketplace-bis-host \.bis-runtime \{ pointer-events: none; \}/);
+  assert.match(launcherStyle, /--bis-launcher-offset/);
+  assert.match(sharedStyle, /\.bis-account-launcher-anchor \{ position: absolute; inset: 100% 0 auto;/);
+  assert.match(sharedStyle, /\.bis-account-launcher-anchor \.bis-layer\.bis-layer-open \{ position: fixed; inset: 0;/);
+});
+
+test('equipment artwork containers stay square when card content flexes at browser zoom', async () => {
+  const squareGrid = await text('src/client/ui-layer-react/square-grid.css');
+  assert.match(squareGrid, /\.art\{[^}]*flex:0 0 auto/);
+  assert.match(squareGrid, /\.art\{[^}]*aspect-ratio:1\s*\/\s*1/);
+});
+
+test('listing cards pair artwork and price with their identity, effect, and distinct poetic copy', async () => {
+  const [app, style, redesign] = await Promise.all([text('src/client/marketplace-layer/App.tsx'), text('src/client/ui-layer-react/square-grid.css'), text('src/client/ui-layer-react/marketplace-redesign.css')]);
+  for (const name of ['Shoes I', 'Shoes II', 'Shoes III', 'Dagger I', 'Dagger II', 'Dagger III', 'Shield I', 'Shield II', 'Shield III']) {
+    assert.match(app, new RegExp(`'${name}'`));
+  }
+  assert.match(app, /function poeticQuoteFor\(item:BisEquipmentItem\)/);
+  assert.match(app, /className="asset-card-layout"/);
+  assert.match(app, /className="asset-card-title"/);
+  assert.match(app, /className="asset-card-lore"/);
+  assert.match(app, /className="asset-card-effect"/);
+  assert.match(app, /className="poetic-quote"/);
+  assert.match(style, /\.asset-card\{[\s\S]*?aspect-ratio:auto/);
+  assert.match(style, /\.asset-card-identity\{display:flex/);
+  assert.match(redesign, /\.marketplace-page \.poetic-quote\s*\{[\s\S]*?text-align: center/);
+});
+
+test('Marketplace catalog uses compact square cells while allowing the mobile reflow', async () => {
+  const redesign = await text('src/client/ui-layer-react/marketplace-redesign.css');
+  assert.match(redesign, /\.marketplace-page \.catalog-grid\s*\{[\s\S]*?grid-template-columns: repeat\(auto-fill, minmax/);
+  assert.match(redesign, /\.marketplace-page \.asset-card\s*\{[\s\S]*?aspect-ratio: 1;[\s\S]*?min-height: 0;/);
+  assert.match(redesign, /\.marketplace-page \.list-art\s*\{\s*width: clamp\(42px/);
+});
+
+test('Marketplace popup sheets stay compact at the measured browser viewport', async () => {
+  const [squareGrid, redesign] = await Promise.all([text('src/client/ui-layer-react/square-grid.css'), text('src/client/ui-layer-react/marketplace-redesign.css')]);
+  assert.match(redesign, /\.marketplace-page \.detail\s*\{[\s\S]*?width: min\(30rem, calc\(100vw - clamp\(24px, 6vw, 56px\)\)\);[\s\S]*?max-height: calc\(100dvh - clamp\(24px, 6vw, 56px\)\);[\s\S]*?aspect-ratio: auto;[\s\S]*?overflow-y: auto;/);
+  assert.match(redesign, /\.marketplace-page \.detail-identity\s*\{[\s\S]*?grid-template-columns: clamp\(76px, 8vw, 100px\) minmax\(0, 1fr\);/);
+  assert.match(redesign, /\.marketplace-page \.detail-actions\s*\{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(redesign, /\.marketplace-page \.blockchain-benefits-dialog\s*\{[\s\S]*?width: min\(31rem, calc\(100vw - clamp\(24px, 6vw, 56px\)\)\);[\s\S]*?aspect-ratio: auto;[\s\S]*?overflow: hidden;[\s\S]*?padding: clamp\(12px, 1\.4vw, 16px\);/);
+  assert.match(redesign, /\.marketplace-page \.blockchain-benefits-image \{ width: 100%; height: auto; max-height: none; margin-bottom: 8px; \}/);
+  assert.match(redesign, /\.marketplace-page \.blockchain-benefits-dialog h2 \{ max-width: none; white-space: nowrap;/);
+  assert.match(redesign, /\.marketplace-page \.marketplace-benefits-list li \{[\s\S]*?padding: 5px 0;[\s\S]*?font-size: 12px;[\s\S]*?line-height: 1\.3;/);
+  assert.match(squareGrid, /\.trade-action-buy\{.*background:#487d66/);
+  assert.match(squareGrid, /\.trade-action-sell\{.*background:#487d66/);
+  assert.match(squareGrid, /\.detail-actions \.trade-action:disabled\{.*cursor:not-allowed/);
+  assert.doesNotMatch(squareGrid, /detail-footer|detail-status/);
+});

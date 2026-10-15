@@ -1,0 +1,4 @@
+interface:
+  display_name: "BIS Package Release Export"
+  short_description: "Export a verified BIS package for the game"
+  default_prompt: "Use $bis-package-release-export to export the latest verified BIS package for Stealth & Steel."

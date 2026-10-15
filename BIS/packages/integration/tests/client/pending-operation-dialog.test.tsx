@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const root = new URL('../../', import.meta.url);
+const text = path => readFile(new URL(path, root), 'utf8');
+
+test('public integration boundary exposes the shared accessible pending dialog', async () => {
+  const [index, client, services, dialog, style] = await Promise.all([
+    text('src/index.ts'),
+    text('src/client/ui-layer-react/client.tsx'),
+    text('src/client/integration-layer/bis-service.ts'),
+    text('src/client/ui-layer-react/PendingOperationDialog.tsx'),
+    text('src/client/ui-layer-react/overlay.css'),
+  ]);
+  assert.match(index, /export \{ PendingOperations, usePendingNotice \} from '\.\/client\/ui-layer-react\/PendingOperationDialog';/);
+  assert.match(dialog, /export function PendingOperations\(\{children, overlay, className, hostLoading, onBisVisibilityChange, loadingContext, hostContextNotices = false\}/);
+  assert.match(dialog, /const hostEntry: Notice \| undefined = hostPending \? HOST_LOADING_NOTICE : undefined;/);
+  assert.match(dialog, /\[\.\.\.notices\.values\(\), \.\.\.\(hostEntry \? \[hostEntry\] : \[\]\)\]/);
+  assert.match(client, /isLoadingUIVisible\(\) \{ return hostLoading; \}/);
+  assert.match(client, /showLoadingUI\(\) \{ internal\.assertAlive\(\); setHostLoading\(true\); \}/);
+  assert.match(client, /hideLoadingUI\(\) \{ setHostLoading\(false\); \}/);
+  assert.match(services, /isLoadingUIVisible\(\) \{ return !this\.#disposed && this\.#ui\.isLoadingUIVisible\(\); \}/);
+  assert.match(services, /showLoadingUI\(\) \{ this\.#assertAlive\(\); if \(!this\.isLoadingUIVisible\(\)\) this\.#ui\.showLoadingUI\(\); \}/);
+  assert.match(services, /hideLoadingUI\(\) \{ if \(!this\.#disposed && this\.isLoadingUIVisible\(\)\) this\.#ui\.hideLoadingUI\(\); \}/);
+  assert.match(dialog, /inert=\{open\}/);
+  assert.match(dialog, /aria-hidden=\{open \|\| undefined\}/);
+  assert.match(dialog, /aria-label="Pending Operation Dialog"/);
+  assert.match(dialog, /event\.key==='Tab'/);
+  assert.match(dialog, /\{failed\?'Error':current\.info\?\.title\?\?\(pending\?'Loading \.\.\.'\:displayLabel\)\}/);
+  assert.match(dialog, /: <p id=\{description\}>\{displayLabel\}<\/p>/);
+  assert.doesNotMatch(dialog, /: <span className="bis-bolt/);
+  assert.match(dialog, /<FormValue id=\{description\} className="bis-pending-error-field" label="Message" value=\{current\.error \?\? ''\} copyable/);
+  assert.match(dialog, /className="bis-pending-error-field" label="Message" value=/);
+  assert.match(dialog, /useClipboardCopy\(\(\)=>current\?\.error, current\?\.error\)/);
+  assert.doesNotMatch(dialog, /Operation unavailable/);
+  assert.match(style, /\.bis-pending-backdrop \{ position: absolute; inset: 0; z-index: 20; display: grid; place-items: center;/);
+  assert.match(style, /\.bis-pending-dialog \{ min-height: 100px; height: auto;/);
+  assert.match(style, /\.bis-pending-error-field \.bis-report textarea \{[^}]*width: 100%/);
+  assert.match(style, /\.bis-pending-error-field \.bis-report textarea \{[^}]*user-select: text/);
+  assert.doesNotMatch(style, /\.bis-pending-dialog \{ height: 100px;/);
+  assert.equal((style.match(/--bis-backdrop-color:/g) ?? []).length, 1);
+  assert.equal((style.match(/--bis-backdrop-blur:/g) ?? []).length, 1);
+  assert.match(style, /\.bis-layer-open \{[^}]*background: var\(--bis-backdrop-color\);[^}]*backdrop-filter: var\(--bis-backdrop-blur\);/);
+  assert.match(style, /\.bis-pending-backdrop \{[^}]*background: var\(--bis-backdrop-color\);[^}]*backdrop-filter: var\(--bis-backdrop-blur\);/);
+  assert.match(style, /\.bis-confirmation::backdrop \{ background: var\(--bis-backdrop-color\); backdrop-filter: var\(--bis-backdrop-blur\); \}/);
+  assert.doesNotMatch(style, /\.bis-pending-backdrop \{[^}]*#142330b8/);
+  assert.match(style, /@media \(prefers-reduced-motion: reduce\) \{ \.bis-bolt-spin \{ animation: none; \} \}/);
+});

@@ -1,0 +1,4 @@
+# Deprecated location; do not populate a new local file here.
+# Use ../shared/.env.local.template -> ../shared/.env.local instead.
+# That template includes faucet signer and supplied test-account slots.
+# Existing .env.local here is used only while shared/.env.local is absent.

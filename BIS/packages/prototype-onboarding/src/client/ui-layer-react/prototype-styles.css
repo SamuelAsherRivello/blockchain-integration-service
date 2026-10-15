@@ -1,0 +1,13 @@
+.prototype-page { --prototype-section-gap:20px; }
+.prototype-page > .prototype-title-bar { margin-bottom:var(--prototype-section-gap); }
+.prototype-page > .prototype-section { margin-bottom:0; }
+.prototype-section { min-width:0; border:1px solid #303c4c; border-radius:12px; background:#171e28; overflow:hidden; }
+.prototype-title-bar { display:flex; align-items:center; min-height:42px; gap:10px; padding:9px 16px; border-bottom:1px solid #303c4c; background:#1e2632; }
+.prototype-title-bar > * { align-self:center; }
+.prototype-page > .spike-header { align-items:center; }
+.prototype-page > .spike-header .spike-identity,
+.prototype-page > .spike-header .network-picker { align-items:center; }
+.prototype-title-bar h2 { min-width:0; margin:0; overflow:hidden; color:#dce5ef; font-size:15px; font-weight:550; line-height:20px; letter-spacing:-.015em; text-overflow:ellipsis; white-space:nowrap; }
+.prototype-number { flex:0 0 auto; color:#93a6bb; font:650 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing:.07em; }
+.prototype-title-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.prototype-section > :not(.prototype-title-bar) { position:relative; }

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BIS style isolation fixture</title>
+  <link rel="stylesheet" href="/BIS/packages/integration/src/client/ui-layer-react/overlay.css">
+  <style>
+    body { margin: 0; display: flex; gap: 16px; padding: 16px; }
+    .host { position: relative; width: 320px; height: 480px; }
+    .admin-host { font: 900 22px/2 Georgia, serif; letter-spacing: .2em; text-transform: uppercase; color: red; }
+    .game-host { font: 300 18px/1.1 Arial, sans-serif; letter-spacing: .3em; text-transform: lowercase; color: blue; }
+    .marketplace-host { font: 800 15px/1.8 'Courier New', monospace; letter-spacing: .15em; text-transform: uppercase; color: green; }
+  </style>
+</head>
+<body>
+  <div class="host admin-host"></div>
+  <div class="host game-host"></div>
+  <div class="host marketplace-host"></div>
+  <script>
+    const markup = `
+      <div class="bis-layer">
+        <div class="bis-card">
+          <div class="bis-dialog-heading"><h2>Accounts Details</h2></div>
+          <div class="bis-address-row">
+            <div class="bis-copy-field-heading" data-bis-style-check>Arkade address</div>
+            <input aria-label="Arkade address" value="tark1fixture">
+          </div>
+          <div class="bis-balance-columns">
+            <div class="bis-address-row">
+              <div class="bis-copy-field-heading" data-bis-style-check>Total balance</div>
+              <input aria-label="Total balance" value="-">
+            </div>
+            <div class="bis-address-row">
+              <div class="bis-copy-field-heading" data-bis-style-check>Bitcoin balance</div>
+              <input aria-label="Bitcoin balance" value="-">
+            </div>
+          </div>
+          <div class="bis-actions">
+            <button class="bis-button" data-bis-style-check>Assets</button>
+            <button class="bis-button" data-bis-style-check>Back</button>
+          </div>
+        </div>
+      </div>`;
+    for (const host of document.querySelectorAll('.host')) host.innerHTML = markup;
+  </script>
+</body>
+</html>

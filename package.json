@@ -1,0 +1,34 @@
+{
+  "name": "blockchain-integration-service",
+  "private": true,
+  "version": "0.0.23",
+  "type": "module",
+  "workspaces": [
+    "BIS/packages/*"
+  ],
+  "scripts": {
+    "test-wallets": "node BIS/scripts/test-wallets/cli.ts",
+    "test": "node BIS/scripts/test.ts",
+    "test:all": "npm run test && npm run test --workspace @spike/prototype-onboarding && npm run test --workspace @spike/prototype-faucet",
+    "dev": "node BIS/scripts/dev-all.ts",
+    "dev:admin": "npm run dev --workspace @bis/integration-admin -- --port 5174 --strictPort",
+    "dev:marketplace": "npm run dev --workspace @bis/marketplace -- --port 5176 --strictPort",
+    "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-admin && npm run build --workspace @bis/marketplace && npm run build --workspace @spike/prototype-faucet",
+    "build:all": "npm run build && npm run build --workspace @spike/prototype-onboarding",
+    "typecheck": "tsc --noEmit",
+    "check:typescript-migration": "node --experimental-strip-types BIS/scripts/check-typescript-migration.ts",
+    "preview": "npm run preview --workspace @bis/integration-admin",
+    "check:release": "node BIS/scripts/check-release-version.ts",
+    "stage:pages": "node BIS/scripts/stage-pages-artifact.ts",
+    "verify:pages": "node BIS/scripts/verify-pages-routes.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "playwright": "^1.64.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.4"
+  }
+}
+

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Signet asset verification</title></head>
+  <body>
+    <h1>Signet asset verification</h1>
+    <p>Uses the saved account on this origin. Reads use fresh wallet repositories. Retry accepts an existing completed mint receipt only; this page offers no new mint action.</p>
+    <button id="read">Read assets and mint receipts</button>
+    <label>Completed operation ID <input id="operation" autocomplete="off"></label>
+    <button id="retry">Retry completed mint</button>
+    <pre id="result" role="status">Ready</pre>
+    <script type="module" src="./asset-live-host.ts"></script>
+  </body>
+</html>

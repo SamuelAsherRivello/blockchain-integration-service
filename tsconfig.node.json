@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "BIS/scripts/**/*.ts",
+    "BIS/packages/*/src/**/*.ts",
+    "BIS/packages/*/tests/**/*.ts"
+  ]
+}
