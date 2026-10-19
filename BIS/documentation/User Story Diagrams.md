@@ -588,6 +588,19 @@ A.G.3 remains Admin-only. It reads the wallet selected by A.G.1 or A.G.2, shows 
 
 D.P.1 and D.P.2 retain their completed generic contract behavior, with the current serverless A.G.1/A.G.2/A.G.3 game-wallet migration planned in the active OpenSpec change. Historical acceptance records describe the previous hosted topology and are retained only as evidence for that superseded slice. BIS owns reusable contract tracking and operations; the game owns gameplay and placement.
 
+### D.P.3. Smart Contracts - 1
+
+The Admin preview adds a four-call escrow teaching flow after Assets. The Game Wallet is the sender and the public Player Wallet is the recipient. Each call may be repeated safely; only creation of an already-used caller-supplied ID fails.
+
+```text
+[D.P.3.01] Send Escrow --> create unique ID / amount / two-minute deadline
+[D.P.3.02] Check Escrow --> status / approval / expiry / time remaining / fee evidence
+[D.P.3.03] Approve Escrow --> approve an unapproved, unexpired escrow
+[D.P.3.04] Receive Escrow --> recipient claims and receives the payment
+```
+
+Creation accepts `approveUponCreation`. If false, the separate approval call gates receipt. An expired escrow cannot be received and is eligible for sender refund/recovery. The current prototype records approval in BIS state around the existing Arkade LTO path; it does not claim a separate Arkade approval opcode. The demo reports `already-taken`, `not-found`, `unavailable`, expired, pending, refunded and confirmed fallbacks rather than treating missing reads as success.
+
 ### D.P.1. Contracts UI ✓
 
 Status: complete for the delivered feature; user confirmed it works on 2026-09-09. Broader verification notes remain recorded separately. See the [verification record](../../openspec/changes/archive/2026-09-09-add-contracts-ui-and-lto-treasure-chest/verification.md). Add Contracts alongside the existing Account Details views, following the Assets list/detail interaction. Initially show only contracts BIS creates or tracks for the active account; this is not discovery of every Arkade contract associated with a wallet.

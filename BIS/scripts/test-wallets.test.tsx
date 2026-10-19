@@ -26,9 +26,9 @@ import { ReadonlyWallet, RestArkProvider, RestIndexerProvider } from '@arkade-os
 // Isolated tests encrypt even disposable sentinel data; never use a plaintext fake vault.
 test('owned network verification requires the public scope marker and rejects a conflicting footer', async () => {
  const owner=Object.create(OwnedBrowser.prototype);
- owner.registration={pair:{network:'mutinynet'},application:{origin:'http://127.0.0.1:5174',path:'/marketplace/'}};
+ owner.registration={pair:{network:'mutinynet'},application:{origin:'http://127.0.0.1:5174',path:'/integration-marketplace/'}};
  let network='mutinynet',footer;
- owner.page={url:()=> 'http://127.0.0.1:5174/marketplace/',locator:selector=>({last:()=>
+ owner.page={url:()=> 'http://127.0.0.1:5174/integration-marketplace/',locator:selector=>({last:()=>
   selector.includes('data-bis-network')?{getAttribute:async()=>network}:{count:async()=>footer===undefined?0:1,textContent:async()=>footer}})};
  await owner.verifyNetwork();
  footer='Network: Mutinynet';await owner.verifyNetwork();
@@ -952,7 +952,7 @@ test('isolated live CDP join navigates only public UI and detach preserves brows
     <button onclick="screen(document.querySelector('h2').textContent==='Accounts Details'?'Account':'Accounts Details')">Back</button>
     <button onclick="window.mutations++">Send</button><button onclick="window.mutations++">Get Recovery Phrase</button></div>
     <script>window.mutations=0;localStorage.setItem('isolated-user-state','unchanged');function screen(name){document.querySelector('h2').textContent=name;}</script>` }));
-  await page.goto('http://127.0.0.1:59999/marketplace/');
+  await page.goto('http://127.0.0.1:59999/integration-marketplace/');
   const root = await browser.newBrowserCDPSession();
   const { arguments: commandLine } = await root.send('Browser.getBrowserCommandLine');
   const profile = commandLine.find(value => value.startsWith('--user-data-dir='))?.slice('--user-data-dir='.length);

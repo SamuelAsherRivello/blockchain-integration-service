@@ -71,6 +71,7 @@ export type BisContractRequest = Readonly<{
   startedAt: number;
   expiresAt: number;
   exclusivityKey: string;
+  approveUponCreation?: boolean;
 }>;
 /** Legacy sessionId remains financial storage identity; offerSessionId names it explicitly. */
 export type BisContractState = BisContract & Readonly<{ offerSessionId: string }>;
@@ -132,6 +133,7 @@ export interface IBis {
   queryContractsAsync(filter?: BisContractFilter): Promise<BisContractQueryResult>;
   checkContractsAsync(filter?: BisContractFilter): Promise<BisContractQueryResult>;
   claimContractAsync(contractId: string): Promise<BisContractActionResult>;
+  approveContractAsync(contractId: string): Promise<BisContractActionResult>;
   rejectContractAsync(contractId: string): Promise<BisContractActionResult>;
   endContractSessionAsync(offerSessionId: string): Promise<void>;
   resetForGameAsync(): Promise<BisResetResult>;

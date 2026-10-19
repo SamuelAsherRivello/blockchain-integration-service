@@ -15,7 +15,8 @@ test('deferred warm reads are adopted by Details, Receive, Send and Swap with no
  await page.goto(new URL('/BIS/packages/integration/tests/fixtures/background-cache.html',server.resolvedUrls.local[0]).href,{timeout:180000});
  await page.waitForFunction(()=>window.cacheFixture && window.cacheFixture.context.getState().phase==='active').catch(error=>{throw new Error(`${error.message}; page errors: ${JSON.stringify(errors)}`);});
  async function warm() {
-   await page.waitForTimeout(50);await page.evaluate(()=>window.cacheFixture.warm());
+   await page.waitForFunction(()=>window.cacheFixture.warmScheduled());
+   await page.evaluate(()=>window.cacheFixture.warm());
    await page.waitForFunction(()=>window.cacheFixture.counts().balances===1 && window.cacheFixture.counts().addresses===1);
  }
  await warm();

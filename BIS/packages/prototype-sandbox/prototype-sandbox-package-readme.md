@@ -2,67 +2,30 @@
 
 [Back to the main README](../../../README.md)
 
-`@spike/prototype-sandbox` is a development-only collection of ten empty demo shells. Each demo has a stable URL and shares the compact title bar used by the Prototype Faucet, including the Signet and Mutinynet network selector. The package is a staging area for future Arkade experiments; it is not part of the reusable BIS integration API.
+`@spike/prototype-sandbox` contains small, executable Arkade examples with shared setup, navigation, source views, and output. The examples use the title-bar Signet or MutinyNet selection. Wallet creation and address derivation run locally; network reads, payments, assets, boarding, and contract transactions use their actual SDK or provider paths. A successful UI test does not establish financial acceptance.
 
-## Demo entry points
+## Routes and setup
 
-Open the shared development server and use `/prototype-interactive-docs/demo-1/` through `/prototype-interactive-docs/demo-11/`. The Navigation section lists the demos in rows. The current demo is disabled, while the other items are links to their dedicated entry points.
+Run `npm run dev` from the repository root. The shared Vite launcher serves this package at `/prototype-sandbox/`, alongside Admin, Marketplace, Onboarding, Faucet, and package documentation. Nineteen demo routes are declared in `src/client/navigation.ts`. Direct links retain their trailing slash and load the shared React application; navigation groups them into Wallets, Payments, Assets, Smart Contracts, and External Wallet.
 
-The initial pages intentionally contain no Faucet form, wallet action, network request, or placeholder behavior. The network selector keeps the existing Prototype Faucet presentation and confirmation behavior so future demos can add network-specific content without changing the shell contract.
+Setup keeps independent profiles for both networks. Wallet 1 supplies a public Arkade address; Wallet 2 supplies the signing mnemonic. Treat those as test identities only. Switching networks asks for confirmation and selects that network's separate values. Do not paste mnemonics into source code, public descriptors, console output, screenshots, reports, or Git. Changing the server port creates another browser origin and does not migrate wallet recovery data.
 
-## Development
+## Conditional Vault
 
-Run `npm run dev` from the repository root to use the shared Vite server, then open any Sandbox demo route. For isolated package development, run `npm run dev --workspace @spike/prototype-sandbox`.
+The four calls are Create, Increment, Check, and Claim. Create locks exactly 1,000 sats in a contract-derived output. Each permissionless Increment consumes one state and creates the committed next state, preserving the amount. Three increments permit the creator-signed Claim, which returns the principal to the creator. Check uses public network evidence and never signs, finalizes, or rebroadcasts a transaction.
 
-## Verification
+The immutable deadline is 120 seconds after creation preflight. The co-signer checks its UTC clock before signing; this is not an upper-bound Bitcoin settlement deadline. An already accepted transaction can finish later. After expiry, the details expose creator-authorized recovery from any progress state. The separate CSV Bitcoin exit has maturity, unroll, and fee requirements. It is not a free cooperative Claim.
 
-Run `npm run test --workspace @spike/prototype-sandbox` for deterministic route and navigation checks. Run `npm run build --workspace @spike/prototype-sandbox` to verify the standalone package build. Browser verification should confirm direct loading of all ten routes, the shared title and selector, the disabled active item, and navigation to another demo.
+Both local co-signers must run with their original protected keys. Use `node BIS/scripts/conditional-vault-service.ts start signet` and the corresponding `mutinynet` command from the repository root. Docker access is required. Signet binds loopback port 7074; MutinyNet binds 7075. The adapter independently pins their signer identities. Preserve these services and the encrypted recovery store while funded contracts exist. Public deployment and HTTPS operation are not claimed by this local preview.
 
-This prototype does not custody funds, call the Faucet API, or perform Arkade operations.
+Create shows Demo, Smart Contract (Tapscript), and Smart Contract (Compiled) tabs. The Tapscript tab shows the TypeScript source that constructs the contract scripts. The compiled tab contains the selected contract's actual compiled scripts and tree, not an example substituted for execution. Other calls show their integration source. The demo stores and validates public descriptors automatically without an export/import form. Use the same browser and origin for the four-call flow. A short dropdown ID or public address alone cannot discover arbitrary constructor parameters.
 
-## Shell contract
+## Results and recovery
 
-The package deliberately owns presentation only. The title bar identifies the
-surface as `BIS - Prototype Faucet` so it remains visually compatible with the
-Faucet prototype that inspired this shell. The selector contains the same two
-network choices and starts on Mutinynet. Changing it uses the existing
-confirmation message and updates the visible selection, but it does not make a
-request or reset any wallet data because these pages have no network-backed
-workflow.
+Output starts with the demo name, includes network, status, amount and receipt references, then ends with a success boolean. Pending acknowledgement is not success. Repeated operations reconcile their original outpoint and operation ID. Duplicate Create reports the selected VaultID. Local public metadata helps find a descriptor but never authorizes funds or establishes progress. Older records remain intact and explicitly unsupported rather than becoming new contracts.
 
-Navigation is a single horizontal row below the title bar. It always contains
-exactly ten labels, from Demo 1 to Demo 10. The current page is represented by
-a disabled button with `aria-current="page"`; all other labels are regular
-links. This makes the current location apparent to keyboard users and keeps
-each future experiment addressable without introducing client-side routing
-state that could drift from the browser URL.
+## Verification and boundaries
 
-## Package boundaries
+Run `npm run typecheck`, `npm test`, and `npm run build --workspace @spike/prototype-sandbox` from the root. Root tests discover deterministic sandbox checks; browser and funded network runs remain separate. Build the pinned executable VM with `pwsh -NoProfile -File BIS/tools/conditional-vault-vm/build.ps1` before contract execution tests. The browser runner checks public descriptors without mnemonic access.
 
-Prototype Sandbox is intentionally separate from `@bis/integration`, Admin,
-Marketplace, and the Faucet server. It may reuse the prototype stylesheet and
-network definitions, but it does not export product components, read account
-storage, or import signing and wallet services. Future demos should keep their
-own behavior inside this package and should add explicit requirements before
-they introduce network calls, persistence, or user-facing product flows.
-
-Each route has a small HTML document so the shared development server can serve
-it as a normal package entry. Those documents all boot the same React shell,
-which means changes to the title bar or Navigation are made once. The active
-demo is derived from the URL path; a missing or unsupported demo number falls
-back to Demo 1, while the ten documented paths remain the supported public
-surface for local development.
-
-## Adding a future demo
-
-Keep new UI behind the shared shell, preserve the title bar and Navigation
-contract, and keep secrets out of browser code, logs, and committed
-configuration. If a demo needs Arkade operations, define a separate change
-covering validation, pending states, failures, and the appropriate server
-boundary before implementing it. Do not turn an empty Sandbox page into a
-funding or custody surface without an explicit design.
-
-If a direct URL returns a missing page, confirm that the shared server was
-started from the repository root with `npm run dev` and that the URL includes
-its trailing slash. The shared server is the authoritative check because it
-exercises the same package routing used by the other BIS prototypes.
+The integration package owns compilation, submission, protected recovery, and receipt verification. This package owns teaching UI and presentation. See the [contract guide](../integration/src/client/wallet-layer-arkade/conditional-vault.md), [documentation review](../../documentation/conditional-vault-contract-review.md), [acceptance report](../../documentation/conditional-vault-acceptance.md), and [execution evidence](../../documentation/conditional-vault-feasibility.md) for trust assumptions, commands, current gates, and historical failures. Keep future demos equally small and real; unavailable behavior must never become a simulated successful transaction.

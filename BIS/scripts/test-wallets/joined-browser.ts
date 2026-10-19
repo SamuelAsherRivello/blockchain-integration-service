@@ -6,7 +6,7 @@ import { repositoryRoot } from './vault.ts';
 import { fail } from './errors.ts';
 
 const screens = ['Account', 'Accounts Details', 'Receive', 'Assets', 'Transactions'];
-const path = '/marketplace/';
+const path = '/integration-marketplace/';
 
 export function joinedRequest(request) {
   if (!request || typeof request !== 'object' || Array.isArray(request)) fail('joined-action-denied');
@@ -124,7 +124,7 @@ export class JoinedBrowser {
       const card = [...document.querySelectorAll('.bis-card')].at(-1);
       const ids = document.querySelectorAll('section[aria-label="Marketplace wallets and instructions"] code[title]');
       const network = [...document.querySelectorAll('.bis-network-text')].at(-1)?.textContent;
-      if (location.origin !== origin || location.pathname !== '/marketplace/' || location.search || location.hash ||
+      if (location.origin !== origin || location.pathname !== '/integration-marketplace/' || location.search || location.hash ||
           card?.querySelector('h2')?.textContent !== screen || ids[0]?.getAttribute('title') !== binding.playerId ||
           (ids.length > 1 ? ids[ids.length - 1].getAttribute('title') : null) !== binding.gameAddress ||
           network !== `Network: ${binding.network === 'signet' ? 'Signet' : 'Mutinynet'}` ||

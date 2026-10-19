@@ -112,7 +112,7 @@ test('A.G.1 keeps the recovery phrase and reports an import failure beside the f
   const submit = source.slice(source.indexOf('<form onSubmit='), source.indexOf('</form>') + '</form>'.length);
   assert.match(submit, /role="alert"/, 'A.G.1 needs an accessible inline failure result');
   assert.match(submit, /await controller\.importWallet\(input\)/, 'A.G.1 still delegates import to the wallet controller');
-  assert.match(submit, /Restoring \.\.\./, 'A.G.1 reports Game Wallet restoration while the import is pending');
+  assert.match(submit, /Loading \.\.\./, 'A.G.1 reports a generic loading state while the import is pending');
   assert.ok(submit.indexOf("setPhrase('')") > submit.indexOf('await controller.importWallet(input)'), 'A.G.1 must not erase the phrase before import succeeds');
 });
 
@@ -162,6 +162,7 @@ test('Admin renders implemented asset stories and omits empty categories', async
       selected: null, accountOpen: false, canReset: false, onSelect: unexpected, onReset: unexpected,
       canFund: false, funding: false, onFund: unexpected, onExplorer: unexpected,
       onMint: unexpected, mintAvailable:true, assetBusy: false, consoleOutput: '',
+      smartContracts: createElement('div', null, 'Send Escrow', 'Check Escrow', 'Approve Escrow', 'Receive Escrow'),
     }));
     assert.match(html, />A\. Accounts</);
     assert.match(html, />C\. Assets</);
@@ -170,6 +171,9 @@ test('Admin renders implemented asset stories and omits empty categories', async
     assert.doesNotMatch(html, /<span>C6<\/span>/);
     assert.match(html, /C\.P\.1\. Reward Player With Trophy After Level Complete/);
     assert.match(html, />B\. Payments</);
+    assert.match(html, />Smart Contracts - 1</);
+    assert.match(html, /Send EscrowCheck EscrowApprove EscrowReceive Escrow/);
+    assert.ok(html.indexOf('C. Assets') < html.indexOf('Smart Contracts - 1'));
     assert.match(html, /&quot;Pay 1000 Sats To Continue&quot;/);
     assert.match(html, /aria-label="Console output"/);
 });

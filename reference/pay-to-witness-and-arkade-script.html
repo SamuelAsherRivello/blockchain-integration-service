@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pay-to-Witness and Arkade Script — Quick Reference</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<p class="eyebrow">QUICK REFERENCE · BITCOIN SCRIPT</p>
+<h1>Pay-to-Witness concepts</h1>
+<p class="lede">An output locks value with a rule. A witness supplies the evidence that satisfies that rule when the value is spent.</p>
+<h2>Core vocabulary</h2>
+<dl>
+<dt>Output</dt><dd>A Bitcoin coin-like value plus a locking condition.</dd>
+<dt>ScriptPubKey</dt><dd>The locking program attached to an output.</dd>
+<dt>Witness</dt><dd>Spending evidence supplied by the input: signatures, public keys, preimages, or other stack data.</dd>
+<dt>Witness program</dt><dd>A compact commitment in a SegWit output that tells the spender what witness rule to satisfy.</dd>
+<dt>Script path</dt><dd>A branch of conditions selected when spending, especially in Taproot.</dd>
+</dl>
+<h2>Common patterns</h2>
+<table><thead><tr><th>Pattern</th><th>Unlock idea</th><th>Arkade function family</th></tr></thead><tbody>
+<tr><td>P2WPKH</td><td>Provide a signature and public key matching a hash.</td><td><code>new P2WPKH(pubkey)</code></td></tr>
+<tr><td>P2WSH</td><td>Provide a witness script plus evidence satisfying that script.</td><td><code>new P2WSH(witnessScript)</code></td></tr>
+<tr><td>P2TR</td><td>Spend through a key path or a committed Taproot script path.</td><td><code>new P2TR(internalKey, scriptTree)</code></td></tr>
+<tr><td>Signature check</td><td>Prove control of a private key without revealing it.</td><td><code>checkSig</code>, <code>checkMultisig</code></td></tr>
+<tr><td>Hashlock</td><td>Reveal a secret whose hash matches the committed hash.</td><td><code>sha256(preimage) == hash</code></td></tr>
+<tr><td>Timelock</td><td>Require an absolute or relative delay before spending.</td><td><code>checkLockTime</code>, <code>checkSequence</code></td></tr>
+</tbody></table>
+<h2>Game translation</h2>
+<p>“Winner claims prize” can mean: winner signature required; a referee signature required; a secret preimage reveals the winning path; or a timeout opens a refund path. The witness is the proof, not the game’s descriptive UI event.</p>
+<p class="source">Primary source: <a href="https://docs.arkadeos.com/experimental/arkade-functions">Arkade Functions</a>. Also review <a href="https://docs.arkadeos.com/learn/pillars/batch-expiry">VTXO lifecycle and liveness</a>.</p>
+</main></body></html>

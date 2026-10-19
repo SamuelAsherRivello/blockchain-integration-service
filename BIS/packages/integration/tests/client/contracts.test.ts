@@ -19,6 +19,17 @@ test('deadline is immutable and funding does not extend the eligibility window',
   assert.equal(contract.expiresAt, request.expiresAt);
 });
 
+test('approval is explicit, defaults on creation when requested, and gates receipt', () => {
+  const unapproved = startLto(emptyContractLedger(), { ...request, approved: false }, 1000).contract;
+  assert.equal(presentContract(unapproved, 1000).approved, false);
+  assert.equal(presentContract(finishContractOperation(unapproved, { operationId: 'fund-1', kind: 'fund', outcome: 'confirmed' }), 1000).canClaim, false);
+
+  const approved = startLto(emptyContractLedger(), { ...request, id: 'approved', approveUponCreation: true }, 1000).contract;
+  assert.equal(presentContract(approved, 1000).approved, true);
+  assert.equal(presentContract(approved, 1000).canClaim, false);
+  assert.equal(presentContract(finishContractOperation(approved, { operationId: 'fund-1', kind: 'fund', outcome: 'confirmed' }), 1000).canClaim, true);
+});
+
 test('duplicates reuse their original attempt, even after terminal settlement', () => {
   const first = start();
   assert.equal(startLto(first.ledger, { ...request, id: 'ignored', operationId: 'ignored' }, 2000).contract.id, request.id);

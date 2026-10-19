@@ -40,11 +40,11 @@ try {
   await expectText(admin, `v${releaseVersion}`);
 
   const marketplace = await browser.newPage();
-  const marketplaceResponse = await marketplace.goto(`${base}marketplace/`, { waitUntil: 'networkidle' });
+  const marketplaceResponse = await marketplace.goto(`${base}integration-marketplace/`, { waitUntil: 'networkidle' });
   assert.equal(marketplaceResponse?.status(), 200);
   await expectText(marketplace, 'Marketplace');
   await expectText(marketplace, `v${releaseVersion}`);
-  const catalog = await marketplace.request.get(`${base}marketplace/catalog.json`);
+  const catalog = await marketplace.request.get(`${base}integration-marketplace/catalog.json`);
   assert.equal(catalog.status(), 200);
   const artwork = await marketplace.request.get(`${base}assets/marketplace/v1/shoes-1.png`);
   assert.equal(artwork.status(), 200);
@@ -67,7 +67,7 @@ try {
     await redirects.goto(`${base}${oldRoute}`, { waitUntil: 'domcontentloaded' });
     await redirects.waitForURL(`${new URL(base).origin}/blockchain-presentations/${newRoute}`);
   }
-  console.log(`PASS ${base}admin/ and ${base}marketplace/`);
+  console.log(`PASS ${base}admin/ and ${base}integration-marketplace/`);
   console.log(`PASS ${Object.keys(legacyRoutes.decks).length} Slidev deck redirect trees and legacy URL forms`);
 } finally {
   await browser.close();

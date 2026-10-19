@@ -9,10 +9,10 @@ import remarkGfm from 'remark-gfm';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export const packageRoutes = [
   { label: 'BIS - Admin', route: '/admin/', directory: 'integration-admin' },
-  { label: 'BIS - Marketplace', route: '/marketplace/', directory: 'marketplace' },
+  { label: 'BIS - Marketplace', route: '/integration-marketplace/', directory: 'integration-marketplace' },
   { label: 'BIS - Prototype Onboarding', route: '/onboarding/', directory: 'prototype-onboarding' },
   { label: 'BIS - Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
-  { label: 'BIS - Prototype Interactive Docs', route: '/prototype-interactive-docs/', directory: 'prototype-sandbox' },
+  { label: 'BIS - Prototype Sandbox', route: '/prototype-sandbox/', directory: 'prototype-sandbox' },
   { label: 'BIS - Integration', route: '/integration/', directory: 'integration', readme: true },
   { label: 'BIS - Shared', route: '/shared/', directory: 'shared', readme: true },
 ];
@@ -73,7 +73,7 @@ function packageEntries() {
           }
           if (path.includes('\\') || path.split('/').includes('..')) { response.statusCode = 400; response.end('Invalid path'); return; }
           const redirect = target => { response.statusCode = 302; response.setHeader('Location', target + url.search); response.end(); };
-          if (path === '/') return redirect('/README.md');
+          if (path === '/') return redirect('/admin/');
           for (const app of packageRoutes) if (path === app.route.slice(0, -1)) return redirect(app.route);
           if (path === '/book' || path === '/book/' || path === '/book.html') return redirect('/admin/book.html');
           if (path === '/admin/book' || path === '/admin/book/') return redirect('/admin/book.html');
@@ -82,7 +82,7 @@ function packageEntries() {
           if (path === '/BIS/documentation/User Story Diagrams.md' && !url.search) return redirect('/admin/documentation/user-stories/');
           // Let the shared Vite proxy forward the prototype faucet API before
           // package-route handling treats it as a missing static file.
-          if (path.startsWith('/prototype-faucet/api/faucet/') || path.startsWith('/prototype-interactive-docs/api/')) return next();
+          if (path.startsWith('/prototype-faucet/api/faucet/') || path.startsWith('/prototype-sandbox/api/')) return next();
           const readmeApp = packageRoutes.find(app => app.readme && path === app.route);
           const readme = readmeApp ? `/BIS/packages/${readmeApp.directory}/${readmeApp.directory}-package-readme.md` : path;
           if (readmes.has(readme) && !url.search) {
@@ -129,7 +129,7 @@ export function developmentConfig({ port = 5174, faucetPort = 5190 } = {}) {
       host: '127.0.0.1', port, strictPort: true,
       proxy: {
         '/prototype-faucet/api/faucet': { target: `http://127.0.0.1:${faucetPort}`, rewrite: path => path.replace(/^\/prototype-faucet/, '') },
-        '/prototype-interactive-docs/api': { target: `http://127.0.0.1:${faucetPort}`, rewrite: path => path.replace(/^\/prototype-interactive-docs/, '') },
+        '/prototype-sandbox/api': { target: `http://127.0.0.1:${faucetPort}`, rewrite: path => path.replace(/^\/prototype-sandbox/, '') },
       },
       fs: { allow: [root] }, watch: { ignored: ['**/output/**'] },
     },

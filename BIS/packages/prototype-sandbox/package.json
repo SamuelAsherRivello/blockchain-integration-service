@@ -1,5 +1,5 @@
 {
-  "name": "@spike/prototype-interactive-docs",
+  "name": "@spike/prototype-sandbox",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@arkade-os/sdk": "0.4.79",
+    "@scure/base": "2.4.0",
+    "mermaid": "^12.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

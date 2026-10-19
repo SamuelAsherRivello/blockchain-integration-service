@@ -43,9 +43,15 @@ These are interfaces/types, not a hierarchy of new runtime DTO classes. `BisServ
 - Continue: `beginContinuation`, `payContinuationAsync`, `checkContinuationAsync`, `endContinuation`.
 - Rewards: `beginReward`, `refreshRewardAsync`, `collectRewardAsync`, `checkRewardAsync`, `acknowledgeRewardAsync`, `endReward`.
 - Equipment: `refreshEquipmentAsync`, `selectEquipmentAsync`, `clearEquipmentAsync`.
-- Contracts: `startContractAsync`, `queryContractsAsync`, `checkContractsAsync`, `claimContractAsync`, `rejectContractAsync`, `endContractSessionAsync`.
+- Contracts: `startContractAsync`, `queryContractsAsync`, `checkContractsAsync`, `claimContractAsync`, `rejectContractAsync`, `endContractSessionAsync`, `approveContractAsync`.
 
 Contract reads are intentionally split by intent. `queryContractsAsync` is a provider-neutral projection read. `checkContractsAsync` is an explicit, silent status check (and may be narrowed by `sessionId`); Admin uses it for selected-contract inspection rather than reconciling every record on page load. Recreating BIS or restoring a durable offer does not reconcile or toast. A game starts its offer explicitly at level start and checks the exact offer session at chest interaction, while durable recovery remains available for explicit checks and active operations.
+
+### Smart Contracts - 1: four-call escrow demo
+
+The Admin demo presents a small escrow-shaped workflow using the selected Game Wallet as the sender and the public Player Wallet as the recipient. `Send Escrow` creates a caller-supplied, globally unique ID with a two-minute deadline. The optional `approveUponCreation` boolean can approve the escrow in the same create request. `Check Escrow` is read-only, repeatable, and reports approval, expiry, financial status, remaining time, fee evidence, and unavailable/not-found fallbacks. `Approve Escrow` is a separate repeatable approval command for an escrow that was created without approval. `Receive Escrow` is the recipient claim that performs the actual payment and becomes a confirmed terminal operation. Repeating any call is safe; reusing an existing create ID fails with `already-taken`.
+
+This demo uses the existing Signet Arkade LTO path and its currently verified zero-fee policy, so the displayed fee is 0 sats when the policy is available. Approval is a BIS-persisted, sender-authorized gate for this prototype; it is not presented as a new Arkade script primitive. Expired contracts are not claimable and remain eligible for sender recovery through the existing refund/reconciliation path. The four controls are intentionally small teaching examples, not a production escrow protocol.
 - Cleanup: `resetForGameAsync` and `dispose`.
 
 Begin commands allocate facade-owned workflow IDs without submitting money or minting. Subsequent commands address those IDs. Snapshots are copied and frozen: `unavailable` contract state is not an empty successful query. Account state allowlists public profile/network references, not recovery phrases, addresses, SDK objects or raw provider errors. Financial workflow messages are presentation copy, not authority to apply a game effect.

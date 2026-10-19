@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@arkade-os/sdk": "0.4.79",
+    "@scure/base": "2.4.0",
     "@scure/bip39": "2.4.0"
   }
 }

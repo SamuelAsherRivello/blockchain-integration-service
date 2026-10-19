@@ -8,14 +8,14 @@ import { createContext, useCallback, useContext, useId, useLayoutEffect, useRef,
 
 export type BisPendingDiagnostic = Readonly<{code:string;message:string;recoverable:boolean;submitted:boolean;operationId?:string;itemName?:string}>;
 type NoticeInfo = {title:string;message:string;confirm?:()=>void};
-type Notice = { label: string; host?: true; error?: string; diagnostic?:BisPendingDiagnostic; info?:NoticeInfo; errorAction?: {label:string;run:()=>void;allowCancel:boolean}; dismiss(): void };
+type Notice = { label: string; host?: true; message?: string; error?: string; diagnostic?:BisPendingDiagnostic; info?:NoticeInfo; errorAction?: {label:string;run:()=>void;allowCancel:boolean}; dismiss(): void };
 type Register = (id: string, notice?: Notice) => void;
 export type HostLoading = Readonly<{subscribe(listener: () => void): () => void; getSnapshot(): boolean}>;
 const PendingContext = createContext<Register | undefined>(undefined);
 // Temporary bolt pivot preview: set false to restore normal loading behavior.
 const PREVIEW_LOADING_FOREVER = false;
 const PENDING_NOTICE_GAP_GRACE_MS = 250;
-const HOST_LOADING_NOTICE: Notice = {label:'Loading ...',host:true,dismiss:()=>{}};
+const HOST_LOADING_NOTICE: Notice = {label:'Loading ...',host:true,message:'(See Wallet In External Window)',dismiss:()=>{}};
 
 /** Child layout effects publish before paint, including the initial page render. */
 export function usePendingNotice(busy: boolean, label: string, error: string | undefined, dismiss: () => void, info?:NoticeInfo, errorAction?: {label:string;run:()=>void;allowCancel?:boolean}, diagnostic?:BisPendingDiagnostic) {
@@ -100,13 +100,13 @@ export function PendingOperations({children, overlay, className, hostLoading, on
           (buttons[(index+(event.shiftKey?-1:1)+buttons.length)%buttons.length] ?? dialog.current)?.focus();
         }
       }}>
-        <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" data-closing={!active && !retained || undefined} role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info||pending?description:undefined}>
+        <div ref={dialog} tabIndex={-1} className="bis-pending-dialog" data-closing={!active && !retained || undefined} role={failed?'alertdialog':'dialog'} aria-label="Pending Operation Dialog" aria-labelledby={title} aria-describedby={failed||current.info||current.message?description:undefined}>
           <h2 id={title} aria-live="polite" aria-atomic="true">{failed?'Error':current.info?.title??(pending?'Loading ...':displayLabel)}</h2>
             {failed ? <><div className="bis-pending-error-field">
               <FormValue id={description} className="bis-pending-error-field" label="Message" value={current.error ?? ''} copyable copy={errorCopy} multiline rows={3} disabled={errorCopy.status === 'copying'} />
             </div>{current.diagnostic&&<div className="bis-pending-diagnostic" role="status"><p>Reason: {current.diagnostic.code}</p>{current.diagnostic.itemName&&<p>Item: {current.diagnostic.itemName}</p>}{current.diagnostic.operationId&&<p>Operation: {current.diagnostic.operationId}</p>}<p>{current.diagnostic.submitted?'Reconcile the original operation before retrying.':current.diagnostic.recoverable?'Refresh and retry when the wallet is ready.':'No network submission was made.'}</p></div>}{current.errorAction ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.errorAction.run}>{current.errorAction.label}</button>{current.errorAction.allowCancel&&<button className="bis-button" onClick={current.dismiss}>Cancel</button>}</div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
             : current.info ? <><p id={description}>{current.info.message}</p>{current.info.confirm ? <div className="bis-actions"><button className="bis-button bis-primary" onClick={current.info.confirm}>Yes</button><button className="bis-button" onClick={current.dismiss}>Cancel</button></div> : <button className="bis-button" onClick={current.dismiss}>OK</button>}</>
-            : <p id={description}>{displayLabel}</p>}
+            : pending && current.message ? <p id={description}>{current.message}</p> : null}
         </div>
       </div>}
       {overlay}

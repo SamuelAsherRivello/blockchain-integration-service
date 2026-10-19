@@ -67,7 +67,7 @@ try {
    return route.fulfill({contentType:'text/javascript',body});
   });
   try {
-   await page.goto(process.argv[2]??'http://127.0.0.1:5174/marketplace/');
+   await page.goto(process.argv[2]??'http://127.0.0.1:5174/integration-marketplace/');
    await page.waitForFunction(()=>window.marketplaceCacheFixture?.calls.game===1&&window.marketplaceCacheFixture?.calls.player===1,{timeout:45000});
    const choose=role=>page.getByRole('group',{name:'Owner',exact:true}).getByRole('button',{name:role,exact:true}).click();
    const pending=page.locator('.bis-pending-backdrop:not([data-closing])');

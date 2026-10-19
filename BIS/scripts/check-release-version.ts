@@ -5,12 +5,12 @@ export const root = resolve(import.meta.dirname, '..', '..');
 export const inScopePackages = [
   'BIS/packages/integration/package.json',
   'BIS/packages/integration-admin/package.json',
-  'BIS/packages/marketplace/package.json',
+  'BIS/packages/integration-marketplace/package.json',
 ];
 export const runtimeSources = [
   'BIS/packages/integration/src/client/ui-layer-react/AccountCard.tsx',
   'BIS/packages/integration-admin/src/client/ui-layer-react/App.tsx',
-  'BIS/packages/marketplace/src/client/marketplace-layer/App.tsx',
+  'BIS/packages/integration-marketplace/src/client/marketplace-layer/App.tsx',
 ];
 
 const versionPattern = /^0\.0\.(\d+)$/;
@@ -63,7 +63,7 @@ export async function validateReleaseVersion({ previousVersion } = {}) {
     const entry = lockfile.packages?.[workspacePath];
     if (!entry || entry.version !== version) throw new Error(`package-lock.json is missing synchronized metadata for ${relativePath}.`);
   }
-  for (const relativePath of ['BIS/packages/integration-admin/package.json', 'BIS/packages/marketplace/package.json']) {
+  for (const relativePath of ['BIS/packages/integration-admin/package.json', 'BIS/packages/integration-marketplace/package.json']) {
     const manifest = await readJson(relativePath);
     if (manifest.dependencies?.['@bis/integration'] !== version) {
       throw new Error(`${relativePath} must depend on @bis/integration ${version}.`);
@@ -71,7 +71,7 @@ export async function validateReleaseVersion({ previousVersion } = {}) {
   }
 
   const readme = await readText('README.md');
-  for (const route of ['admin', 'marketplace']) {
+  for (const route of ['admin', 'integration-marketplace']) {
     const marker = `/${route}/?v=${version}`;
     if (!readme.includes(marker)) throw new Error(`README.md is missing the ${route} cache-buster ${marker}.`);
   }

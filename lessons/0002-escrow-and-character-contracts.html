@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lesson 2: Escrow and Character Contracts</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<p class="eyebrow">LESSON 02 · CONTRACT STATE MACHINES</p>
+<h1>Two Arkade contract demos</h1>
+<p class="lede">These examples use protocol-agnostic pseudocode: the rules are the lesson; exact SDK method names may change.</p>
+<h2>Demo A · 100-sat escrow</h2>
+<pre><code>enum EscrowState { CREATED, APPROVED, CLAIMED }
+
+contract Escrow {
+  const amount = 100 sats
+  const sender
+  const recipient
+  state = CREATED
+
+  // Called by sender. Creates the rule and funds it with exactly 100 sats.
+  function createEscrow(senderCaller, recipientAddress) {
+    require(senderCaller == sender)
+    require(state == CREATED)
+    require(msg.value == 100 sats)
+    recipient = recipientAddress
+    emit EscrowCreated(amount, sender, recipient)
+  }
+
+  // Called by sender. This is a separate approval transition.
+  function approveEscrow(senderCaller) {
+    require(senderCaller == sender)
+    require(state == CREATED)
+    state = APPROVED
+    emit EscrowApproved(amount)
+  }
+
+  // Called by recipient. Releases the 100 sats to the recipient.
+  function claim(recipientCaller) {
+    require(recipientCaller == recipient)
+    require(state == APPROVED)
+    state = CLAIMED                 // update before paying: replay protection
+    pay(recipient, 100 sats)
+    emit EscrowClaimed(recipient, amount)
+  }
+}
+
+// Application flow
+escrow = buildEscrowScript(senderPubKey, recipientPubKey)
+contractId = wallet.registerContract(escrow) // script/indexer bookkeeping
+wallet.fund(contractId, 100 sats)            // value-bearing operation
+sender.call(approveEscrow)
+recipient.call(claim)</code></pre>
+<p><strong>Design note:</strong> this intentionally has no sender refund path. A production escrow normally adds a sender-only refund after a deadline, and should define what happens if the operator is unavailable or the VTXO approaches expiry.</p>
+<h2>Demo B · Randomly rolled character</h2>
+<pre><code>enum CharacterState { DRAFT, CONFIRMED }
+
+contract Character {
+  const owner
+  state = DRAFT
+  level = 1
+  offense = 0
+  defense = 0
+  const pointsPerUpgrade = 1
+
+  function reroll(caller) {
+    require(caller == owner)
+    require(state == DRAFT)
+
+    offense = secureRandomInt(0, 10)  // inclusive
+    defense = 10 - offense
+    // Invariant: offense + defense == 10
+
+    emit CharacterRolled(offense, defense, level)
+  }
+
+  function checkCharacter(caller) {
+    require(caller == owner)
+    return {
+      state,
+      level,
+      offense,
+      defense,
+      pointsPerUpgrade
+    }
+  }
+
+  function confirmCharacter(caller) {
+    require(caller == owner)
+    require(state == DRAFT)
+    require(offense >= 0 && offense <= 10)
+    require(defense >= 0 && defense <= 10)
+    require(offense + defense == 10)
+    state = CONFIRMED
+    emit CharacterConfirmed(level, offense, defense)
+  }
+
+  function levelUp(caller, chosenAttribute) {
+    require(caller == owner)
+    require(state == CONFIRMED)
+    require(chosenAttribute == "offense" || chosenAttribute == "defense")
+
+    // This demo grants exactly one attribute point per level-up.
+    level = level + 1
+
+    // The caller chooses where the point goes.
+    if (chosenAttribute == "offense") {
+      offense = offense + 1
+    } else {
+      defense = defense + 1
+    }
+
+    // After confirmation, the original roll is no longer balanced to 10;
+    // the upgrade is a permanent progression change.
+    emit CharacterLeveledUp(level, offense, defense, chosenAttribute)
+  }
+}
+
+// Application flow
+character = buildCharacterScript(ownerPubKey)
+id = wallet.registerContract(character)
+owner.call(reroll)
+owner.call(checkCharacter)       // inspect the roll
+owner.call(reroll)               // allowed while DRAFT
+owner.call(confirmCharacter)     // freezes the roll
+owner.call(levelUp, "offense")   // or "defense"
+owner.call(reroll)               // rejected: state is CONFIRMED</code></pre>
+<h2>Three rules to carry forward</h2>
+<ol><li>Every method checks both <em>who</em> called it and <em>which state</em> the contract is in.</li><li>State changes happen before value release, preventing replay of a successful claim.</li><li>Randomness must be supplied by a mechanism the game can defend; a client-side random number is not trustworthy for valuable rewards.</li></ol>
+<p class="source">Next: translate one of these state machines into an Arkade Script design and decide which transitions are off-chain VTXO spends versus Bitcoin settlement. Ask me to do that when you are ready.</p>
+</main></body></html>

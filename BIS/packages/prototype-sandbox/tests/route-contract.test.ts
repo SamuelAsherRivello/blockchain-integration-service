@@ -5,14 +5,14 @@ import { DEMOS, HOME_PATH, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath } 
 
 const packageRoot = new URL('../', import.meta.url);
 
-test('each interactive-docs route has an entry document and a route contract', async () => {
+test('each prototype-sandbox route has an entry document and a route contract', async () => {
   const routes = [HOME_PATH, SETUP_PATH, ...DEMOS.map(demo => demo.path)];
   assert.equal(new Set(routes).size, routes.length);
 
   for (const route of routes) {
     const directory = route === HOME_PATH
       ? '.'
-      : route.replace('/prototype-interactive-docs/', '').replace(/\/$/, '');
+      : route.replace('/prototype-sandbox/', '').replace(/\/$/, '');
     const entry = new URL(`${directory === '.' ? '' : `${directory}/`}index.html`, packageRoot);
     await access(entry);
     const html = await readFile(entry, 'utf8');

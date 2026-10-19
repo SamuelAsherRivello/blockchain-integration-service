@@ -1,22 +1,29 @@
 export const DEMOS = Object.freeze([
-  { number: 1, subject: 'Get Wallet', title: 'Get Wallet', path: '/prototype-interactive-docs/demo-1/' },
-  { number: 2, subject: 'Get Balance', title: 'Private wallet', path: '/prototype-interactive-docs/demo-2/' },
-  { number: 3, subject: 'Get Balance', title: 'Public address', path: '/prototype-interactive-docs/demo-3/' },
-  { number: 4, subject: 'Send Payment', title: 'Send Payment', path: '/prototype-interactive-docs/demo-4/' },
-  { number: 5, subject: 'Receive Payment', title: 'Receive Payment', path: '/prototype-interactive-docs/demo-5/' },
-  { number: 6, subject: 'Payment History', title: 'Payment History', path: '/prototype-interactive-docs/demo-6/' },
-  { number: 7, subject: 'Mint Asset', title: 'Mint Asset', path: '/prototype-interactive-docs/demo-7/' },
-  { number: 8, subject: 'Send Asset', title: 'Send Asset', path: '/prototype-interactive-docs/demo-8/' },
-  { number: 9, subject: 'Receive Asset', title: 'Receive Asset', path: '/prototype-interactive-docs/demo-9/' },
-  { number: 10, subject: 'Asset History', title: 'Private wallet', path: '/prototype-interactive-docs/demo-10/' },
-  { number: 11, subject: 'Asset History', title: 'Public address', path: '/prototype-interactive-docs/demo-11/' },
-  { number: 12, subject: 'External Wallet', title: 'Send Payment', path: '/prototype-interactive-docs/demo-12/' },
-  { number: 13, subject: 'External Wallet', title: 'Receive Payment', path: '/prototype-interactive-docs/demo-13/' },
+  { number: 1, subject: 'Create Wallet', title: 'Create Wallet', access: 'W', path: '/prototype-sandbox/demo-1/' },
+  { number: 2, subject: 'Get Balance', title: 'Private wallet', access: 'R', path: '/prototype-sandbox/demo-2/' },
+  { number: 3, subject: 'Get Balance', title: 'Public address', access: 'R', path: '/prototype-sandbox/demo-3/' },
+  { number: 18, subject: 'Boarding', title: 'On (BTC → Arkade)', nested: true, access: 'W', path: '/prototype-sandbox/demo-18/' },
+  { number: 19, subject: 'Boarding', title: 'Off (Arkade → BTC)', access: 'W', path: '/prototype-sandbox/demo-19/' },
+  { number: 4, subject: 'Send Payment', title: 'Send Payment', access: 'W', path: '/prototype-sandbox/demo-4/' },
+  { number: 5, subject: 'Receive Payment', title: 'Receive Payment', access: 'R', path: '/prototype-sandbox/demo-5/' },
+  { number: 6, subject: 'Payment History', title: 'Payment History', access: 'R', path: '/prototype-sandbox/demo-6/' },
+  { number: 7, subject: 'Mint Asset', title: 'Mint Asset', access: 'W', path: '/prototype-sandbox/demo-7/' },
+  { number: 8, subject: 'Send Asset', title: 'Send Asset', access: 'W', path: '/prototype-sandbox/demo-8/' },
+  { number: 9, subject: 'Receive Asset', title: 'Receive Asset', access: 'R', path: '/prototype-sandbox/demo-9/' },
+  { number: 10, subject: 'Asset History', title: 'Private wallet', access: 'R', path: '/prototype-sandbox/demo-10/' },
+  { number: 11, subject: 'Asset History', title: 'Public address', access: 'R', path: '/prototype-sandbox/demo-11/' },
+  { number: 20, subject: 'Upgrade Asset', title: 'Upgrade Asset', access: 'W', path: '/prototype-sandbox/demo-20/' },
+  { number: 14, subject: 'Conditional Vault', title: 'Create', access: 'W', path: '/prototype-sandbox/demo-14/' },
+  { number: 15, subject: 'Conditional Vault', title: 'Increment', access: 'R', path: '/prototype-sandbox/demo-15/' },
+  { number: 17, subject: 'Conditional Vault', title: 'Check', access: 'R', path: '/prototype-sandbox/demo-17/' },
+  { number: 16, subject: 'Conditional Vault', title: 'Claim', access: 'W', path: '/prototype-sandbox/demo-16/' },
+  { number: 12, subject: 'External Wallet', title: 'Send Payment', access: 'R', path: '/prototype-sandbox/demo-12/' },
+  { number: 13, subject: 'External Wallet', title: 'Receive Payment', access: 'W', path: '/prototype-sandbox/demo-13/' },
 ]);
 
-export const SETUP_PATH = '/prototype-interactive-docs/setup/';
-export const HOME_PATH = '/prototype-interactive-docs/';
-export const LANDING_VISITED_STORAGE_KEY = 'prototype-interactive-docs-visited';
+export const SETUP_PATH = '/prototype-sandbox/setup/';
+export const HOME_PATH = '/prototype-sandbox/';
+export const LANDING_VISITED_STORAGE_KEY = 'prototype-sandbox-visited';
 export const NETWORK_STORAGE_KEY = 'network';
 export const DEFAULT_NETWORK = 'signet';
 export const DEFAULT_WALLET_1_ADDRESSES = Object.freeze({
@@ -104,7 +111,7 @@ export function localStorageGetItem(field, storage = globalThis.localStorage) {
 }
 
 export function getActiveDemo(pathname = '') {
-  const match = String(pathname).match(/\/prototype-interactive-docs\/demo-(\d+)(?:\/|$)/i);
+  const match = String(pathname).match(/\/prototype-sandbox\/demo-(\d+)(?:\/|$)/i);
   const number = Number(match?.[1]);
   return DEMOS.some(demo => demo.number === number) ? number : 1;
 }

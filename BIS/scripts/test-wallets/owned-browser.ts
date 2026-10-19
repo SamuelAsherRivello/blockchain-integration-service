@@ -13,7 +13,7 @@ import { publicScreens, browserEnvironment, validatePayment, publicSends, matchi
   validateLifecycle, readLogoutCount } from './browser-public.ts';
 import { gameAdapter, gameUrl, reconcileGameRegistration } from './game-adapter.ts';
 
-const paths = { admin: '/admin/', marketplace: '/marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/', game: gameAdapter.path };
+const paths = { admin: '/admin/', marketplace: '/integration-marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/', game: gameAdapter.path };
 export function ownedLaunchOptions(app, platform = process.platform) {
   // Verified Windows game smoke configuration. Keep ordinary BIS Chromium
   // defaults and never inherit arbitrary executable overrides or GPU flags.

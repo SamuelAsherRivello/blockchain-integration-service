@@ -13,10 +13,10 @@ import { recordGamePlayerPayment } from './game-player-payment.ts';
 
 export type BisContractFilter = Readonly<{ purpose?: string; sessionId?: string; exclusivityKey?: string; gameId?: string; hostReference?: string; includeResolved?: boolean; includeOtherNetworks?: boolean }>;
 export type BisContractsResult = Readonly<{ status: 'ready' | 'unavailable'; contracts: readonly BisContract[] }>;
-export type BisContractActionResult = Readonly<{ status: 'pending' | 'confirmed' | 'unavailable' | 'too-late' | 'not-submitted'; contract?: BisContract }>;
+export type BisContractActionResult = Readonly<{ status: 'pending' | 'confirmed' | 'unavailable' | 'too-late' | 'not-submitted' | 'already-taken'; contract?: BisContract }>;
 export type BisContractReconcileOptions = Readonly<{ contractId?: string; sessionId?: string; feedback?: 'silent' | 'explicit' | 'active' }>;
-export type BisLtoRequest = Omit<LtoRequest,'id'|'operationId'|'scope'> & Readonly<{ exclusivityKey: string }>;
-type Controller = { claim(id:string):Promise<BisContractActionResult>; reject(id:string):Promise<BisContractActionResult>; refund(id:string):Promise<BisContractActionResult>;checkContractsAsync?(filter?:BisContractFilter):Promise<BisContractsResult>;reconcile?(options?:BisContractReconcileOptions):Promise<void> };
+export type BisLtoRequest = Omit<LtoRequest,'id'|'operationId'|'scope'> & Readonly<{ exclusivityKey: string; approveUponCreation?: boolean }>;
+type Controller = { claim(id:string):Promise<BisContractActionResult>; approve(id:string):Promise<BisContractActionResult>; reject(id:string):Promise<BisContractActionResult>; refund(id:string):Promise<BisContractActionResult>;checkContractsAsync?(filter?:BisContractFilter):Promise<BisContractsResult>;reconcile?(options?:BisContractReconcileOptions):Promise<void> };
 const controllers = new WeakMap<BisContext,Controller>();
 export const contractController = (context: BisContext) => controllers.get(context);
 function createNetworkScopedPlayerStorage(selectedNetwork: () => TestNetwork | undefined): Pick<ReturnType<typeof createAccountStorage>, 'load'> {
@@ -173,6 +173,9 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           if(kind==='claim'||reject) {if(viewer!==record.scope.playerId||!player||player.profileId!==record.scope.playerId)throw Error();}
           else if(viewer!==record.scope.gameId)throw Error();
           record = ended(record);
+          if (contractResolved(record)) {
+            resolve({status:'confirmed',contract:presentContract(record,Date.now())}); return;
+          }
           if (kind==='claim'&&!presentContract(record,Date.now()).canClaim) { resolve({status:Date.now()>=record.expiresAt?'too-late':'unavailable'}); return; }
           if (reject) { persistEnd(record,'rejected'); record=endContract(record,'rejected'); }
           record=beginContractOperation(record,kind,crypto.randomUUID(),Date.now());
@@ -289,6 +292,11 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           localStorage.setItem(marker,'attempted');if(localStorage.getItem(marker)!=='attempted')return {status:'unavailable'};
           return {status:'unavailable'};
         }
+        // A caller-supplied escrow ID is a durable namespace, not an
+        // idempotency key. Once it exists, a later create must fail even if
+        // the browser still has the prior attempt marker.
+        const existingDocument=await storage.load();
+        if(existingDocument.ledger.contracts.some(contract=>contract.id===request.sessionId))return {status:'already-taken'};
         const scope={network,operator:operatorFor(network),playerId,gameId,exclusivityKey:request.exclusivityKey};
         started.set(request.sessionId,{scope,sessionId:request.sessionId});
         needsReconcile=true;
@@ -303,7 +311,8 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
           const activePlayer={...player,network},activeGame={...game,network};
           let document=await storage.load();
           assertGeneration(expected);
-          const allocated=startLto(document.ledger,{...request,scope,id:crypto.randomUUID(),operationId:crypto.randomUUID()},Date.now());
+          if (document.ledger.contracts.some(contract => contract.id === request.sessionId)) return {status:'already-taken'};
+          const allocated=startLto(document.ledger,{...request,scope,id:request.sessionId,operationId:crypto.randomUUID(),approved:request.approveUponCreation ?? true},Date.now());
           if(!allocated.contract) { await write({...document,ledger:allocated.ledger},expected); return {status:'unavailable'}; }
           const recovery=await dependencies.prepare(activeGame,activePlayer);
           assertGeneration(expected);
@@ -320,6 +329,28 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
       attempts.set(key,attempt);void attempt.finally(()=>{if(attempts.get(key)===attempt)attempts.delete(key);if(needsReconcile&&generation===expected)void reconcile({feedback:'silent',sessionId:request.sessionId});});return attempt;
     },
     claim: (id:string) => action(id,'claim'),
+    async approve(id:string): Promise<BisContractActionResult> {
+      const expected=generation;
+      if(detached)return {status:'unavailable'};
+      try {
+        const {game}=await wallets();
+        if(!game)return {status:'unavailable'};
+        return await locked(game.profileId,async()=>{
+          let document=await storage.load(); assertGeneration(expected);
+          let record=document.ledger.contracts.find(candidate=>candidate.id===id);
+          if(!record || record.scope.gameId!==game.profileId)return {status:'unavailable'};
+          record=ended(record);
+          if(contractResolved(record))return {status:'confirmed',contract:presentContract(record,Date.now())};
+          const current=presentContract(record,Date.now());
+          if(current.eligibility==='expired')return {status:'too-late',contract:current};
+          if(record.approved)return {status:'confirmed',contract:current};
+          const next={...record,approved:true};
+          document=await save(document,next,document.recovery[id],expected);
+          notify(next,'explicit');
+          return {status:'confirmed',contract:presentContract(next,Date.now())};
+        },game.network ?? context.getState().network ?? 'signet');
+      } catch { return {status:'unavailable'}; }
+    },
     reject: (id:string) => action(id,'refund',true),
     refund: (id:string) => action(id,'refund'),
     async endSession(sessionId:string) {
@@ -358,7 +389,7 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
   };
   // Passive query is intentionally excluded. Explicit provider operations from
   // Admin or BisService have the same foreground priority as Account actions.
-  for(const kind of ['start','claim','reject','refund','reconcile'] as const) {
+  for(const kind of ['start','claim','approve','reject','refund','reconcile'] as const) {
     const original=controller[kind];
     Object.defineProperty(controller,kind,{value:(...args:unknown[])=>withContextForegroundWork(context,()=>Reflect.apply(original,controller,args),kind!=='reconcile')});
   }

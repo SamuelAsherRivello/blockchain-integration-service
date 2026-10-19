@@ -22,7 +22,7 @@ await page.addInitScript(() => {
   new MutationObserver(sample).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'data-closing', 'style'] });
   window.setInterval(sample, 25);
 });
-await page.goto('http://127.0.0.1:5174/marketplace/', { waitUntil: 'domcontentloaded' });
+await page.goto('http://127.0.0.1:5174/integration-marketplace/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('h1');
 await page.waitForTimeout(30_000);
 const events = await page.evaluate(() => window.__bisLoadingEvents);

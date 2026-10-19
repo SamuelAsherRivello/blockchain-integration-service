@@ -35,7 +35,7 @@ export async function verifyWalletReadinessRaces(page,base='http://127.0.0.1:517
  await page.getByRole('button',{name:'Run refresh race'}).click();
  await page.waitForFunction(()=>document.querySelector('#result').textContent.startsWith('PASS:'));
  for(const at of ['balance','recipient']){
-  await page.goto(`${base}/marketplace/tests/client/checkout-session-host.html`);
+  await page.goto(`${base}/integration-marketplace/tests/client/checkout-session-host.html`);
   await page.selectOption('#pause',at);await page.getByRole('button',{name:'Prepare purchase'}).click();
   await page.waitForFunction(()=>document.querySelector('#result').textContent==='Read paused');
   await page.getByRole('button',{name:'Replace Game Wallet'}).click();await page.getByRole('button',{name:'Complete old read'}).click();

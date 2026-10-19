@@ -44,6 +44,6 @@ Modal pages retain first-frame construction gates. Details shows placeholders an
 
 ## Development and verification
 
-Run `npm run dev` from the repository root. `/integration/` renders this README; `/admin/` and `/marketplace/` exercise consuming applications on the shared server, normally port `5174`. They share account storage on that origin; the onboarding spike uses separate storage. Wallets from older ports are not migrated automatically.
+Run `npm run dev` from the repository root. `/integration/` renders this README; `/admin/` and `/integration-marketplace/` exercise consuming applications on the shared server, normally port `5174`. They share account storage on that origin; the onboarding spike uses separate storage. Wallets from older ports are not migrated automatically.
 
 Run `npm run typecheck`, `npm run build`, and `npm test` from the root. Keep fixtures isolated from funded accounts and record live acceptance separately. See [Deep Dive Details](../../documentation/deep-dive-details.md) and the [host-game smoke checks](../../documentation/SMOKE_TEST_BIS_TO_GAME.md) for boundaries and verification limits.

@@ -22,6 +22,7 @@ function setup() {
   cleanup=()=>{ui.unmount();context.dispose();};
   return {
     context,ready:context.readyAsync(),counts:()=>({balances,addresses}),
+    warmScheduled:()=>idle.size>0,
     warm(){const entry=idle.entries().next().value;if(entry){idle.delete(entry[0]);entry[1]({didTimeout:false,timeRemaining:()=>50});}},
     balance(){finishBalance({availableSats:100,availableBitcoinSats:20,availableArkadeSats:100,totalSats:120,bitcoinSats:20,arkadeSats:100});},
     addresses(){finishAddresses({arkadeAddress:'tark1-fixture',bitcoinAddress:'tb1p-fixture'});},

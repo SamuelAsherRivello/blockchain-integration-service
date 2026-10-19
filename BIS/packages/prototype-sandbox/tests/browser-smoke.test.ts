@@ -3,11 +3,11 @@ import test from 'node:test';
 import { chromium } from 'playwright';
 import { DEMOS, HOME_PATH, SETUP_PATH } from '../src/client/navigation.ts';
 
-const baseUrl = process.env.PROTOTYPE_INTERACTIVE_DOCS_URL ?? 'http://127.0.0.1:5174';
-const landingVisitedStorageKey = 'prototype-interactive-docs-visited';
+const baseUrl = process.env.PROTOTYPE_SANDBOX_URL ?? 'http://127.0.0.1:5174';
+const landingVisitedStorageKey = 'prototype-sandbox-visited';
 
 test('Playwright renders the landing page, setup page, and every demo route', { timeout: 60000 }, async t => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? {channel:process.env.PLAYWRIGHT_CHANNEL} : {}) });
   t.after(() => browser.close());
 
   const context = await browser.newContext();
@@ -25,8 +25,80 @@ test('Playwright renders the landing page, setup page, and every demo route', { 
   for (const route of routes) {
     const response = await page.goto(new URL(route.path, baseUrl).toString(), { waitUntil: 'networkidle' });
     assert.equal(response?.status(), 200, route.path);
-    await assert.doesNotReject(() => page.getByRole('heading', { level: 1, name: `BIS - Prototype Interactive Docs - ${route.title}` }).waitFor(), route.path);
-    await assert.doesNotReject(() => page.getByRole('navigation', { name: 'Prototype Interactive Docs navigation' }).waitFor(), route.path);
+    await assert.doesNotReject(() => page.getByRole('heading', { level: 1, name: `BIS - Prototype Sandbox - ${route.title}` }).waitFor(), route.path);
+    await assert.doesNotReject(() => page.getByRole('navigation', { name: 'Prototype Sandbox navigation' }).waitFor(), route.path);
+  }
+
+  await context.close();
+});
+
+test('each demo exposes an executable action and formatted output', { timeout: 60000 }, async t => {
+  const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? {channel:process.env.PLAYWRIGHT_CHANNEL} : {}) });
+  t.after(() => browser.close());
+
+  const context = await browser.newContext();
+  await context.addInitScript(key => window.localStorage.setItem(key, 'true'), landingVisitedStorageKey);
+  const page = await context.newPage();
+
+  for (const demo of DEMOS) {
+    await page.goto(new URL(demo.path, baseUrl).toString(), { waitUntil: 'networkidle' });
+    const demoTitle = demo.subject === demo.title ? demo.title : `${demo.subject} - ${demo.title}`;
+    await page.getByRole('heading', { level: 1, name: `BIS - Prototype Sandbox - ${demoTitle}` }).waitFor();
+    const sourceField = page.locator('[aria-label="Source code"]');
+    await sourceField.waitFor();
+    const source = await sourceField.textContent();
+    if([14,15,16,17].includes(demo.number))assert.match(source ?? '', /await (create|increment|check|claim)ConditionalVault\(/, demo.path);
+    else assert.match(source ?? '', /console\.log\(['`]Demo: /, demo.path);
+
+    const action = page.locator('.sandbox-demo button.sandbox-action-button').last();
+    await action.waitFor();
+    if (demo.number > 11) continue;
+
+    await action.click();
+    const output = page.locator('textarea[aria-label="Demo output"]');
+    await output.waitFor();
+    const deadline = Date.now() + 15000;
+    let outputValue = '';
+    while (Date.now() < deadline) {
+      outputValue = await output.evaluate(element => element.value);
+      if (outputValue) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const firstLine=outputValue.split('\n')[0].toLowerCase();
+    const permitted=[`Demo: ${demoTitle}`,`Demo: ${demo.title} - ${demo.subject}`].map(value=>value.toLowerCase());
+    assert.ok(permitted.includes(firstLine),demo.path);
+    assert.ok(/\nSuccess: (?:true|false)$/.test(outputValue),demo.path);
+  }
+
+  await context.close();
+});
+
+test('each demo exposes the shared Overview tabs and a 400px diagram canvas', { timeout: 60000 }, async t => {
+  const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? {channel:process.env.PLAYWRIGHT_CHANNEL} : {}) });
+  t.after(() => browser.close());
+
+  const context = await browser.newContext({ viewport: { width: 420, height: 800 } });
+  await context.addInitScript(key => window.localStorage.setItem(key, 'true'), landingVisitedStorageKey);
+  const page = await context.newPage();
+
+  for (const demo of DEMOS) {
+    await page.goto(new URL(demo.path, baseUrl).toString(), { waitUntil: 'networkidle' });
+    const overview = page.getByRole('region', { name: 'Overview' });
+    await overview.waitFor();
+    for (const label of ['Intro', 'Diagram', 'Docs']) {
+      assert.equal(await overview.getByRole('tab', { name: label, exact: true }).count(), 1, demo.path);
+    }
+    assert.match((await overview.getByRole('tabpanel').textContent()) ?? '', /Demonstrates /, demo.path);
+
+    await overview.getByRole('tab', { name: 'Diagram', exact: true }).click();
+    const diagram = overview.locator('.sandbox-diagram-canvas');
+    await diagram.locator('svg').waitFor();
+    assert.equal(Math.round((await diagram.boundingBox())?.height ?? 0), 400, demo.path);
+    const diagramBody = overview.locator('.sandbox-diagram-body');
+    assert.equal(await diagramBody.evaluate(element => element.scrollWidth > element.clientWidth), true, demo.path);
+
+    await overview.getByRole('tab', { name: 'Docs', exact: true }).click();
+    assert.ok(await overview.locator('a[href^="https://docs.arkadeos.com/"]').count(), demo.path);
   }
 
   await context.close();

@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { developmentConfig, packageRoutes } from './dev-config.ts';
 
@@ -18,7 +17,7 @@ test('one Vite server serves package applications, resources, and linked READMEs
     return response.text();
   }
 
-  for (const [path, title] of [['/admin/', 'BIS - Admin'], ['/marketplace/', 'BIS - Marketplace'], ['/onboarding/', 'BIS - Prototype Onboarding'], ['/prototype-faucet/', 'BIS - Prototype Faucet']]) {
+  for (const [path, title] of [['/admin/', 'BIS - Admin'], ['/integration-marketplace/', 'BIS - Marketplace'], ['/onboarding/', 'BIS - Prototype Onboarding'], ['/prototype-faucet/', 'BIS - Prototype Faucet']]) {
     const html = await get(path);
     assert.ok(html.includes(`<title>${title}</title>`));
     const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1]);
@@ -27,7 +26,7 @@ test('one Vite server serves package applications, resources, and linked READMEs
     assert.ok(entry);
     await get(new URL(entry, origin + path).pathname, 'javascript');
   }
-  const catalog = JSON.parse(await get('/marketplace/catalog.json', 'application/json'));
+  const catalog = JSON.parse(await get('/integration-marketplace/catalog.json', 'application/json'));
   assert.equal(catalog.version, 2);
   assert.ok(catalog.games.some(game => game.gameId === 'stealth-and-steel'));
   for (const app of packageRoutes.filter(app => !app.readme)) {
@@ -45,7 +44,7 @@ test('one Vite server serves package applications, resources, and linked READMEs
   assert.match(await get('/BIS/documentation/User%20Story%20Diagrams.md?raw&import', 'javascript'), /export default/);
   const adminModule = await get('/admin/src/client/admin-layer/AdminPanel.tsx', 'javascript');
   assert.ok(adminModule.includes('/admin/'));
-  const marketplaceModule = await get('/marketplace/src/client/marketplace-layer/App.tsx', 'javascript');
+  const marketplaceModule = await get('/integration-marketplace/src/client/marketplace-layer/App.tsx', 'javascript');
   assert.ok(marketplaceModule.includes('/marketplace/'));
 
   const readme = await get('/integration/');
@@ -72,16 +71,19 @@ test('one Vite server serves package applications, resources, and linked READMEs
     '/shared/.env.local', '/prototype-faucet/.env.local', '/BIS/packages/shared/.env.local.backup',
   ]) assert.equal((await fetch(origin + path)).status, 403, 'private environment path must be denied');
 
-  // Exercise the actual root launcher: it must fail, not move to another port.
+  // Exercise the actual root launcher: it must select a new port when needed.
   const child = spawn(process.execPath, [fileURLToPath(new URL('./dev-all.ts', import.meta.url)), '--port', String(server.httpServer.address().port)], { stdio: ['ignore', 'pipe', 'pipe'] });
   t.after(() => child.kill());
   let output = '';
   child.stdout.on('data', data => { output += data; });
   child.stderr.on('data', data => { output += data; });
-  const [code] = await once(child, 'exit');
-  assert.notEqual(code, 0);
-  assert.match(output, /already in use/);
-  assert.doesNotMatch(output, /BIS packages — one Vite server/);
+  await new Promise(resolve => setTimeout(resolve, 500));
+  assert.equal(child.exitCode, null, output);
+  assert.match(output, /Project run mode: shared; one Vite server/);
+  const port = Number(output.match(/BIS - Admin: http:\/\/127\.0\.0\.1:(\d+)\/admin\//)?.[1]);
+  assert.ok(port > 0 && port !== server.httpServer.address().port, output);
+  const response = await fetch(`http://127.0.0.1:${port}/admin/`);
+  assert.equal(response.status, 200);
 });
 
 

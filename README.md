@@ -54,7 +54,7 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 ### BIS
 
 * [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.23)
-* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.23)
+* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/integration-marketplace/?v=0.0.23)
 
 ### Game
 
@@ -91,7 +91,7 @@ Run the following commands to get started.
 
 <!-- AI: Replace {command} with the actual local launch command or editor action. State where to run it and how to open the app if needed. Refer to the printed URL when the port can vary. Avoid repeating completed build/setup steps. -->
 1. Run `npm run dev` to start one Vite server for all four packages.
-2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), [Prototype Faucet](http://127.0.0.1:5174/prototype-faucet/), or the [Integration README](http://127.0.0.1:5174/integration/).
+2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/integration-marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), [Prototype Faucet](http://127.0.0.1:5174/prototype-faucet/), or the [Integration README](http://127.0.0.1:5174/integration/).
 3. In Admin, select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
 
 ### 🛠 Release Version
@@ -99,7 +99,7 @@ Run the following commands to get started.
 <!-- AI: Describe the repository's existing release workflow in the fewest steps, based on checked-in workflows or release scripts. Distinguish builds, tags, releases, and deployment accurately. If no release process exists, retain a placeholder rather than inventing one. Documentation edits do not authorize publishing or changing Git history. -->
 1. For the first published baseline use `0.0.1`; for every later published update increment only the last digit (`0.0.N` → `0.0.(N+1)`). Run `npm run check:release -- --previous-version <prior-version>` to validate the transition, then run `npm test` and `npm run build`.
 2. Update both hidden `v` cache-busters in the Admin and Marketplace links to the new version, commit the intended changes, and push to `main`; [Deploy live demo](.github/workflows/deploy-pages.yml) builds and publishes both routes to GitHub Pages.
-3. Check the actual push-triggered [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.23) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.23). Tags, GitHub Releases and manual dispatch are not prerequisites. BIS publishes both demos independently; game updates publish separately to the game's single stable Pages link.
+3. Check the actual push-triggered [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.23) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/integration-marketplace/?v=0.0.23). Tags, GitHub Releases and manual dispatch are not prerequisites. BIS publishes both demos independently; game updates publish separately to the game's single stable Pages link.
 
 ## Project Overview
 
@@ -114,7 +114,7 @@ BIS separates reusable game integration from its development demos for Signet an
 - [Diagram](BIS/documentation/bis-concept-diagram-1.png): BIS architecture and integration overview.
 - [Faucets](BIS/documentation/Faucets%20-%20README.md): Faucets for funding an account.
 - [Integration Admin](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
-- [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
+- [Marketplace](BIS/packages/integration-marketplace/integration-marketplace-package-readme.md): Game equipment catalog and account UI.
 
 ### 📝 Structure
 
@@ -122,7 +122,7 @@ BIS separates reusable game integration from its development demos for Signet an
 - `BIS/documentation/`: Project documentation and README images.
 - `BIS/packages/integration/`: Reusable runtime UI, core state, and Arkade adapters.
 - `BIS/packages/integration-admin/`: Admin UI, 9:16 preview, and documentation viewer.
-- `BIS/packages/marketplace/`: Equipment catalog and account UI using the public integration API.
+- `BIS/packages/integration-marketplace/`: Equipment catalog and account UI using the public integration API.
 - `BIS/packages/prototype-faucet/`: Experimental Arkade faucet page and server; not part of the BIS product API.
 - `BIS/packages/shared/`: Server-only local secret configuration and the canonical environment template.
 - `BIS/packages/prototype-onboarding/`: Independent Arkade onboarding experiment with separate browser persistence.
@@ -154,10 +154,10 @@ React and TypeScript power the reusable integration, Admin, Marketplace, and onb
 - [Shared](BIS/packages/shared/shared-package-readme.md): Central `.env.local` setup for local faucet and test-account tooling; never a browser secret export.
 - [Integration](BIS/packages/integration/integration-package-readme.md): Reusable BIS UI, state, and wallet integration library.
 - [Integration Admin (BIS Admin)](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin controls and the runtime preview.
-- [Marketplace](BIS/packages/marketplace/marketplace-package-readme.md): Game equipment catalog and account UI.
+- [Marketplace](BIS/packages/integration-marketplace/integration-marketplace-package-readme.md): Game equipment catalog and account UI.
 - [Prototype Faucet](BIS/packages/prototype-faucet/prototype-faucet-package-readme.md): Experimental Arkade funding tool for local development on Signet and Mutinynet.
 - [Prototype Onboarding](BIS/packages/prototype-onboarding/prototype-onboarding-package-readme.md): Independent Signet onboarding experiment.
-- [Prototype Interactive Docs](BIS/packages/prototype-sandbox/prototype-sandbox-package-readme.md): Interactive Arkade wallet, payment, and asset demonstrations.
+- [Prototype Sandbox](BIS/packages/prototype-sandbox/prototype-sandbox-package-readme.md): Interactive Arkade wallet, payment, and asset demonstrations.
 
 ## Deep Dive
 

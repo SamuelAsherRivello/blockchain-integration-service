@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lesson 1: ArkadeOS Smart Contracts</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<p class="eyebrow">LESSON 01 · BLOCKCHAIN FOUNDATIONS</p>
+<h1>Smart contracts on Bitcoin, then Arkade</h1>
+<p class="lede">The useful mental shift: a smart contract is not necessarily a program living on a chain. It can be a rule that controls how a specific piece of value may move.</p>
+<section class="callout"><strong>One-sentence model.</strong> Arkade lets an application express payment and financial rules as Bitcoin-verifiable spending policies, while many transitions happen off-chain as VTXO state.</section>
+<h2>1. The general blockchain idea</h2>
+<p>A blockchain gives many parties a shared way to agree on state without one database owner. A smart contract adds rules: “these funds can move if condition A, B, or C is satisfied.” On Ethereum-like systems, the contract is commonly a deployed program with persistent storage, and a call pays gas for execution.</p>
+<p>Bitcoin is more deliberately constrained. Its native contract language, Script, validates spending conditions. The state is mostly UTXOs: spendable outputs whose locking rules are checked when consumed. Bitcoin contracts tend to be transaction-shaped: they describe allowed spending paths rather than behaving like continuously running objects.</p>
+<h2>2. What Arkade changes</h2>
+<p>Arkade introduces VTXOs—virtual transaction outputs—so compatible wallets can exchange value and obtain fast pre-confirmations off-chain. The operator coordinates these transitions; Bitcoin transactions periodically commit the state and preserve unilateral exit paths. Arkade’s own overview emphasizes that it is not another blockchain and does not require a separate native token or consensus system.</p>
+<p>So an Arkade contract is best imagined as a <em>programmable envelope around value</em>: for example, “the player may claim this reward now,” “the tournament escrow can be released when both parties approve,” or “the player can recover after a deadline.” The SDK’s ContractManager watches contract scripts and their VTXOs; it is not a virtual machine executing arbitrary game code.</p>
+<h2>3. Ten game ideas</h2>
+<ol><li>Trustless tournament escrow</li><li>Winner-takes-pot prize claims</li><li>Timed quest bounties</li><li>Player-to-player item swaps</li><li>Season-pass spending limits</li><li>Guild treasury approvals</li><li>Skill-match wagering escrow</li><li>Timed loot-box reveal refunds</li><li>Creator royalties on item resale</li><li>Offline-safe vending-machine rewards</li></ol>
+<h2>4. Cost intuition</h2>
+<p>Do not begin with “How much gas does deployment consume?” For Arkade, constructing a script and registering it with a wallet/indexer is generally not an on-chain deployment event. The cost-bearing moments are funding and spending: the BTC value itself, a quoted operator or route fee when one applies, and Bitcoin miner fees whenever a transaction reaches the base chain.</p>
+<p>For an exact quote, use the SDK/operator’s fee-quoting API for the concrete transfer. Treat any numerical estimate without the operator, transaction shape, fee rate, and network as provisional. An inactive VTXO also has a lifecycle: it must be renewed before expiry to preserve the normal unilateral-exit guarantees.</p>
+<h2>Try this retrieval check</h2>
+<p>Without looking back, answer: <strong>What is the difference between “creating an Arkade contract” and “funding an Arkade contract”?</strong> Send me your answer; I’ll correct it and make lesson 2 fit your level.</p>
+<p class="source">Read next: <a href="../reference/arkadeos-smart-contracts.html">ArkadeOS smart-contracts quick reference</a>. Primary sources: <a href="https://arkadeos.com/">ArkadeOS</a>, <a href="https://docs.arkadeos.com/learn/pillars/batch-expiry">VTXO lifecycle</a>, and <a href="https://arkade-os.github.io/ts-sdk/">SDK docs</a>.</p>
+</main></body></html>

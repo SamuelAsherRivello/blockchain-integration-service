@@ -4,7 +4,7 @@ export type ContractScope = Readonly<{
 }>;
 export type LtoRequest = Readonly<{
   scope: ContractScope; id: string; sessionId: string; operationId: string;
-  purpose: string; hostReference: string; amountSats: number; startedAt: number; expiresAt: number;
+  purpose: string; hostReference: string; amountSats: number; startedAt: number; expiresAt: number; approved?: boolean;
 }>;
 export type ContractOperationKind = 'fund' | 'claim' | 'refund';
 export const contractFailureMessages = {
@@ -28,6 +28,7 @@ export type ContractLedger = Readonly<{ contracts: readonly ContractRecord[]; at
 export type BisContract = Readonly<{
   id: string; type: 'lto'; scope: ContractScope; sessionId: string; purpose: string; hostReference: string;
   amountSats: number; startedAt: number; expiresAt: number; financial: ContractRecord['financial'];
+  approved: boolean;
   eligibility: 'within-window' | 'expired' | 'ended' | 'resolved';
   canClaim: boolean; canReject: boolean; canRefund: boolean;
   role?: 'player' | 'game';
@@ -58,7 +59,7 @@ export function validateContractLedger(value: unknown): asserts value is Contrac
   for (const record of ledger.contracts) {
     if(record?.operation?.failure!==undefined&&!Object.hasOwn(contractFailureMessages,record.operation.failure))throw new ContractError('Contract failure state is invalid.');
     validateRequest({ ...record, operationId: record.operation?.id });
-    if (record.version !== 1 || record.type !== 'lto' || ids.has(record.id) || !['funding','funded','claiming','refunding','unknown','claimed','refunded','failed'].includes(record.financial) ||
+    if ((record.approved !== undefined && typeof record.approved !== 'boolean') || record.version !== 1 || record.type !== 'lto' || ids.has(record.id) || !['funding','funded','claiming','refunding','unknown','claimed','refunded','failed'].includes(record.financial) ||
       !['fund','claim','refund'].includes(record.operation.kind) || !['prepared','submitted','unknown','confirmed','not-submitted'].includes(record.operation.submission) ||
       (record.ended !== undefined && !['rejected','session-ended'].includes(record.ended))) throw new ContractError('Contract recovery data is unavailable.');
     const pending = ['prepared','submitted','unknown'].includes(record.operation.submission);
@@ -100,7 +101,7 @@ export function startLto(ledger: ContractLedger, request: LtoRequest, now: numbe
   const scope: ContractScope = { network: request.scope.network, operator: request.scope.operator, playerId: request.scope.playerId, gameId: request.scope.gameId, exclusivityKey: request.scope.exclusivityKey };
   const contract: ContractRecord | undefined = status === 'created' ? {
     version: 1, type: 'lto', scope, id: request.id, sessionId: request.sessionId, purpose: request.purpose, hostReference: request.hostReference,
-    amountSats: request.amountSats, startedAt: request.startedAt, expiresAt: request.expiresAt, financial: 'funding',
+    amountSats: request.amountSats, startedAt: request.startedAt, expiresAt: request.expiresAt, approved: request.approved ?? true, financial: 'funding',
     operation: { id: request.operationId, kind: 'fund', submission: 'prepared' },
   } : undefined;
   return { status, contract, ledger: {
@@ -116,8 +117,8 @@ export function presentContract(contract: ContractRecord, now: number): BisContr
   return {
     id: contract.id, type: 'lto', scope: { network: contract.scope.network, operator: contract.scope.operator, playerId: contract.scope.playerId, gameId: contract.scope.gameId, exclusivityKey: contract.scope.exclusivityKey },
     sessionId: contract.sessionId, purpose: contract.purpose, hostReference: contract.hostReference,
-    amountSats: contract.amountSats, startedAt: contract.startedAt, expiresAt: contract.expiresAt, financial: contract.financial, eligibility,
-    canClaim: available && eligibility === 'within-window', canReject: available && eligibility === 'within-window', canRefund: available,
+    amountSats: contract.amountSats, startedAt: contract.startedAt, expiresAt: contract.expiresAt, financial: contract.financial, approved: contract.approved ?? true, eligibility,
+    canClaim: available && (contract.approved ?? true) && eligibility === 'within-window', canReject: available && eligibility === 'within-window', canRefund: available,
   };
 }
 /** Pure inspection: no provider, timer, signer, persistence or mutation. */

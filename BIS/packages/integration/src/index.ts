@@ -1,4 +1,5 @@
 export { createBisAdminContext } from './client/state-layer-core/context';
+export type { ConditionalVaultApi, VaultCreateRequest, VaultMutationRequest, VaultMutationResult, VaultPublicDescriptor, VaultInspection, VaultEvidence, VaultLifecycle, VaultOutpoint, VaultOperation } from './client/state-layer-core/conditional-vault';
 export { WALLET_SESSION_NOTIFICATION_VERSION, createWalletSessionPublisher, listenForWalletSessionNotifications, publishWalletSessionLifecycle, isWalletSessionNotification } from './client/integration-layer/wallet-session-notifications';
 export type { WalletSessionNotification, WalletSessionPeer, WalletSessionRole, WalletSessionSource, WalletSessionSourceState } from './client/integration-layer/wallet-session-notifications';
 export { createBisContext } from './client/wallet-layer-arkade/context-composition';

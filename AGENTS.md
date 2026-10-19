@@ -85,3 +85,29 @@ This local ChatGPT-terminal workflow takes precedence for ordinary user requests
 - Follow `BIS/documentation/BGS_PROJECT_BRIEF.md` and later confirmed decisions in `BIS/documentation/design-discussion.md`.
 - Approved structure: `BIS/packages/integration` owns runtime UI and future core/Arkade layers; `BIS/packages/integration-admin` consumes its public API and owns admin/preview composition.
 - Current slice: React split-screen demo, 9:16 preview, and an Account button opening a coming-soon dialog. Arkade SDK may be installed as a dependency; no Arkade or wallet operations yet.
+
+### Prototype sandbox integrity
+
+The prototype sandbox SHALL remain simple in scope but real in implementation. A demo may expose a small, teachable flow, but it MUST use the real Arkade SDK and network-backed operations for the behavior it claims to demonstrate. It MUST NOT replace blockchain or contract behavior with browser-local state, fabricated transaction IDs, pseudocode presented as executable contract source, or wallet-to-wallet transfers presented as smart-contract execution. If a requested behavior cannot yet be implemented with the real SDK, the demo MUST say so clearly and remain explicitly marked as a sketch or unavailable rather than appearing complete.
+
+Smart-contract demos MUST use a real compiled Arkade contract or covenant artifact, a real contract-derived address or output, real contract funding and spend paths, and verifiable contract state transitions. Tests MUST distinguish deterministic UI tests from live network verification; passing UI tests alone MUST NOT be reported as proof that the contract works on Arkade.
+
+### Prototype demo source format
+
+Every non-conditional-vault demo source shown in the prototype sandbox MUST
+contain all executable code within exactly these three sections, in this order:
+
+```ts
+// Arrange
+
+// Act
+
+// Assert
+```
+
+The conditional-vault source is exempt from this formatting requirement.
+
+Within `// Arrange`, keep setup in this order: imports first, a blank line,
+`localStorageGetItem` reads next, another blank line, then the remaining setup
+code. Demos without one of those categories should preserve the same spacing
+between the categories that are present.

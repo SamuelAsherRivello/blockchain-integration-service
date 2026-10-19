@@ -5,8 +5,8 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
 const overlayPath = new URL('../../src/client/ui-layer-react/overlay.css', import.meta.url);
-const marketplacePolishPath = new URL('../../../marketplace/src/client/ui-layer-react/player-polish.css', import.meta.url);
-const marketplaceStylePath = new URL('../../../marketplace/src/client/ui-layer-react/style.css', import.meta.url);
+const marketplacePolishPath = new URL('../../../integration-marketplace/src/client/ui-layer-react/player-polish.css', import.meta.url);
+const marketplaceStylePath = new URL('../../../integration-marketplace/src/client/ui-layer-react/style.css', import.meta.url);
 
 test('BIS style boundary owns protected typography and Marketplace does not override BIS headings', async () => {
   const [overlay, marketplacePolish, marketplaceStyle] = await Promise.all([

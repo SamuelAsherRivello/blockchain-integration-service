@@ -10,13 +10,13 @@ const documents=[
   'BIS/documentation/design-discussion.md','BIS/documentation/SMOKE_TEST_BIS_TO_GAME.md',
   'BIS/packages/integration/integration-package-readme.md',
   'BIS/packages/integration-admin/integration-admin-package-readme.md',
-  'BIS/packages/marketplace/marketplace-package-readme.md','docs/readme/package-boundaries-readme.md',
+  'BIS/packages/integration-marketplace/integration-marketplace-package-readme.md','docs/readme/package-boundaries-readme.md',
   ...['bridge-layer','state-layer-core','ui-layer-react','operation-layer','wallet-layer-game'].map(layer=>`BIS/packages/integration/src/client/${layer}/README.md`),
 ];
 
 test('canonical deep-dive example matches the compiled public package fixture',async()=>{
-  const docs=await readFile(resolve(root,'BIS/documentation/deep-dive-details.md'),'utf8');
-  const fixture=await readFile(resolve(root,'BIS/packages/integration/tests/fixtures/game-contract-types.ts'),'utf8');
+  const docs=(await readFile(resolve(root,'BIS/documentation/deep-dive-details.md'),'utf8')).replace(/\r\n/g,'\n');
+  const fixture=(await readFile(resolve(root,'BIS/packages/integration/tests/fixtures/game-contract-types.ts'),'utf8')).replace(/\r\n/g,'\n');
   const example=docs.match(/export async function mountBis[\s\S]*?\n}/)?.[0];
   assert.ok(example);assert.ok(fixture.includes(example));
   assert.ok(fixture.includes("from '@bis/integration'"));

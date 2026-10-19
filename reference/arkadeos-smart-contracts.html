@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ArkadeOS Smart Contracts — Quick Reference</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<p class="eyebrow">QUICK REFERENCE · 2026-10-19</p>
+<h1>ArkadeOS smart contracts</h1>
+<p class="lede">A compact map of the concepts, differences, game ideas, and fee model.</p>
+<h2>Core model</h2>
+<dl>
+<dt>Bitcoin</dt><dd>The settlement layer: transactions, UTXOs, Script, signatures, and miner fees.</dd>
+<dt>Arkade</dt><dd>A programmable Bitcoin extension using VTXOs: virtual outputs that support fast off-chain state transitions and later Bitcoin settlement.</dd>
+<dt>Contract</dt><dd>A spending policy: the set of conditions and paths under which a VTXO can be spent, recovered, or claimed.</dd>
+<dt>Operator</dt><dd>A service that coordinates off-chain transitions and batches them into Bitcoin commitments; it does not replace the user’s signing authority.</dd>
+<dt>Contract call</dt><dd>Usually a spend along one contract path, producing new VTXOs or an on-chain transaction—not a gas-metered function invocation.</dd>
+</dl>
+<h2>Arkade differences</h2>
+<ul><li>No separate Arkade consensus chain or gas token.</li><li>No EVM-style global mutable contract storage.</li><li>Rules live in Bitcoin Script/Taproot-style spending paths and transaction structure.</li><li>Fast activity can be off-chain and pre-confirmed; Bitcoin provides settlement and exit.</li><li>Self-custody includes presigned fallback paths, but expiry creates liveness obligations.</li><li>Fees are quote-, transaction-size-, operator-, and Bitcoin-network-dependent.</li></ul>
+<h2>Cost model</h2>
+<table><thead><tr><th>Action</th><th>Typical direct cost</th></tr></thead><tbody>
+<tr><td>Construct/register a contract</td><td>Usually 0 sats as a local/script/indexer operation; no EVM deployment gas.</td></tr>
+<tr><td>Fund the contract</td><td>BTC amount funded + any Arkade/operator transfer fee; quote it through the SDK/operator.</td></tr>
+<tr><td>Use a contract path off-chain</td><td>The value moved plus any quoted operator fee; no separate universal gas price.</td></tr>
+<tr><td>Settle, board, or unilaterally exit</td><td>Bitcoin miner fee based on transaction size and fee rate; a multi-step exit can require multiple transactions.</td></tr>
+</tbody></table>
+<p><strong>Rule of thumb:</strong> cost ≠ “contract code execution.” Cost = value moved + Arkade service/route fee, when applicable + eventual Bitcoin on-chain fee.</p>
+<p class="source">Primary sources: <a href="https://arkadeos.com/">ArkadeOS overview</a>, <a href="https://docs.arkadeos.com/learn/pillars/batch-expiry">VTXO lifecycle</a>, and the <a href="https://arkade-os.github.io/ts-sdk/">SDK reference</a>.</p>
+</main></body></html>

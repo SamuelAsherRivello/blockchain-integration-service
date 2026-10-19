@@ -17,9 +17,15 @@ const faucetPort = Number(values.faucetPort);
 if (!Number.isInteger(faucetPort) || faucetPort < 1 || faucetPort > 65535) throw new Error('Faucet port must be an integer from 1 to 65535.');
 const serverConfig = developmentConfig({ port: activePort, faucetPort });
 serverConfig.server.host = values.host;
+// Interactive starts fall through to an available port. The project run helper
+// opts into strict mode after it has selected and reserved a candidate port.
+serverConfig.server.strictPort = values.strictPort === true;
 if (values['no-hmr']) serverConfig.server.hmr = false;
 const server = await createServer(serverConfig);
 await server.listen();
+const address = server.httpServer?.address();
+if (typeof address !== 'object' || address === null) throw new Error('Vite did not expose a TCP listener address.');
+activePort = address.port;
 const faucetPackage = resolve(fileURLToPath(new URL('../packages/prototype-faucet/', import.meta.url)));
 let faucetApi;
 try {

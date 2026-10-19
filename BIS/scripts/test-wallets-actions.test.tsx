@@ -22,7 +22,7 @@ for (const network of ['signet', 'mutinynet']) test(`${network}: noncatalog coll
   const browser = await chromium.launch({ headless: true, env: browserEnvironment() });
   t.after(() => browser.close());
   const page = await browser.newPage();
-  const application = { origin: 'http://127.0.0.1:59999', path: '/marketplace/' };
+  const application = { origin: 'http://127.0.0.1:59999', path: '/integration-marketplace/' };
   const playerId = 'a'.repeat(64), gameAddress = `tark1${'b'.repeat(30)}`;
   await page.route('**/*', route => route.fulfill({ contentType: 'text/html', body: `
     <div class="bis-layer" data-bis-player-id="${playerId}" data-bis-network="${network}" data-bis-game-address="${gameAddress}"></div>

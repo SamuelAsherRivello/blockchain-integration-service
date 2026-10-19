@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lesson 4: Pay-to-Witness and Arkade Script</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<p class="eyebrow">LESSON 04 · BITCOIN CONTRACT FOUNDATIONS</p>
+<h1>Pay-to-witness: the evidence unlocks the value</h1>
+<p class="lede">The easiest mental model is a locked box. The output contains the lock; the spending input brings evidence that satisfies it.</p>
+<section class="callout"><strong>Lock:</strong> “Only a valid signature from this key may spend.”<br><strong>Witness:</strong> “Here is the signature and public key.”<br><strong>Verifier:</strong> “The evidence satisfies the lock, so the spend is valid.”</section>
+<h2>1. What “pay-to-witness” means</h2>
+<p>Bitcoin’s Segregated Witness design separates the spending evidence—the witness—from the older transaction data. A pay-to-witness output commits to a witness program. When someone spends it, the input carries a witness stack that must satisfy the committed rule.</p>
+<p>This is not a function call returning a result. It is a validity test: either the supplied evidence satisfies the spending condition, or the transaction is invalid.</p>
+<h2>2. Three useful shapes</h2>
+<h3>P2WPKH: one key</h3>
+<pre><code>lockingRule = new P2WPKH(playerPubkey)
+
+spendWitness = [playerSignature, playerPubkey]
+valid = verify(lockingRule, spendWitness)</code></pre>
+<p>Use this mental model for ordinary wallet ownership: the player proves control of the key corresponding to the committed public-key hash.</p>
+<h3>P2WSH: a script rule</h3>
+<pre><code>witnessScript =
+    require(checkSig(playerSignature, playerPubkey))
+    require(checkSequence(oneMinute))
+
+lockingRule = new P2WSH(witnessScript)
+
+spendWitness = [playerSignature, witnessScript]
+valid = verify(lockingRule, spendWitness)</code></pre>
+<p>The output commits to the script’s hash. The spender reveals the script and supplies the evidence needed to pass it.</p>
+<h3>P2TR: key path or script path</h3>
+<pre><code>taprootOutput = new P2TR(internalKey, scriptTree)
+
+// Spend with the key path, or reveal one committed script leaf.
+valid = verifyTaprootSpend(taprootOutput, witness)</code></pre>
+<p>Taproot lets a contract commit to multiple possible paths while keeping unused paths hidden in ordinary spends. Arkade’s experimental function reference exposes <code>new P2TR</code>, Taproot signature verification, and key-tweaking helpers.</p>
+<h2>3. The building blocks you will see repeatedly</h2>
+<ul><li><strong>Signatures:</strong> prove control of a key with <code>checkSig</code> or <code>checkMultisig</code>.</li><li><strong>Hashes:</strong> commit to a secret before it is revealed, then check it with <code>sha256</code>.</li><li><strong>Timelocks:</strong> delay a path with <code>checkLockTime</code> or relative <code>checkSequence</code>.</li><li><strong>Require:</strong> reject the spend unless a condition is true.</li><li><strong>Output checks:</strong> require the next output to preserve the contract’s value or encode the next state.</li></ul>
+<h2>4. A game example</h2>
+<p>A prize could have two paths:</p>
+<pre><code>claimPath:
+    require(checkSig(winnerSignature, winnerPubkey))
+
+refundPath:
+    require(checkSequence(refundDelay))
+    require(checkSig(senderSignature, senderPubkey))</code></pre>
+<p>The winner’s witness proves the claim path. If the winner never appears, the sender’s witness can use the refund path after the delay. The game server may observe the resulting VTXO event, but it is not the authority that makes the spend valid.</p>
+<h2>Try this</h2>
+<p>Explain this in your own words: what is the difference between a locking script and a witness? Then ask me about any one of P2WPKH, P2WSH, P2TR, hashlocks, or timelocks.</p>
+<p class="source">Primary source: <a href="https://docs.arkadeos.com/experimental/arkade-functions">Arkade Functions</a>. This page is experimental documentation; do not treat its syntax as production-stable.</p>
+</main></body></html>

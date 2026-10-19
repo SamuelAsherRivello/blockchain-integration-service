@@ -126,6 +126,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const [transactionOpen, setTransactionOpen] = useState(false);
   const [assetOpen, setAssetOpen] = useState(false);
   const [assetBusy, setAssetBusy] = useState(false);
+  const [sendRefreshVersion, setSendRefreshVersion] = useState(0);
   const [gameWalletLogin, setGameWalletLogin] = useState(false);
   const [developerReturn, setDeveloperReturn] = useState(false);
   const mountGeneration = useRef(0);
@@ -203,7 +204,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   // existing pending surface visible while that bounded read is in flight rather
   // than briefly presenting the default funding stage for a funded account.
   const data = assets ? state.assets : activity ? state.activity : receive ? state.addresses : details || transfer || onboarding ? state.balance : undefined;
-  const phaseLabels: Record<string,string> = {loading:'Loading ...',creating:'Creating ...',saving:'Saving ...',resetting:'Resetting ...', 'logging-out':'Logging out ...', restoring:'Restoring ...', 'restore-saving':'Saving ...'};
+  const phaseLabels: Record<string,string> = {loading:'Loading ...',creating:'Creating ...',saving:'Saving ...',resetting:'Resetting ...', 'logging-out':'Logging out ...', restoring:'Loading ...', 'restore-saving':'Loading ...'};
   const pageLoading = !!data && (data.status === 'idle' || data.status === 'loading');
   const recoveryLoading = savedRecovery && (state.recoveryStatus === 'hidden' || state.recoveryStatus === 'loading');
   const failure = state.error || (details && state.addresses.status==='unavailable' ? 'Receiving addresses could not be loaded.' : undefined) || (!onboarding && !assets && !activity && data?.status === 'unavailable' ? `${assets?'Assets':activity?'Transactions':receive?'Receiving addresses':'Balances'} could not be loaded.` : savedRecovery && state.recoveryStatus === 'unavailable' ? 'Recovery phrase could not be loaded.' : undefined);
@@ -258,7 +259,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
         headingActions={gameWalletLogin && gameWallet ? <IconButton className="bis-title-icon" label="Refresh Game Wallet" tabIndex={-1} disabled={walletSnapshot?.status === 'loading'} onClick={()=>void gameWallet.refresh()}>
             <span className="bis-refresh-image" aria-hidden="true" />
-          </IconButton> : !gameWalletLogin && (assets || details || transfer || activity || receive) && <IconButton className="bis-title-icon" label={`Refresh ${title}`} tabIndex={-1} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : accountDetailsLoading} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : context.refreshBalance())}>
+          </IconButton> : !gameWalletLogin && (assets || details || transfer || activity || receive || send) && <IconButton className="bis-title-icon" label={`Refresh ${title}`} tabIndex={-1} disabled={assets ? assetBusy || state.assets.status === 'idle' || state.assets.status === 'loading' : receive ? state.addresses.status === 'idle' || state.addresses.status === 'loading' : activity ? state.activity.status === 'idle' || state.activity.status === 'loading' : state.balance.status === 'idle' || state.balance.status === 'loading' || (details && (state.addresses.status === 'idle' || state.addresses.status === 'loading'))} onClick={()=>void (assets ? context.refreshAssets() : activity ? context.refreshActivity() : (setSendRefreshVersion(version => version + 1), context.refreshBalance()) )}>
             <span className="bis-refresh-image" aria-hidden="true" />
           </IconButton>}
         description={gameWalletLogin ? 'Set the wallet used by this game’s contracts.' : developer ? 'Developer tools for this BIS session.' : (send ? 'Send balance to another address.' : transfer ? 'Swap between your balances.' : receive ? 'Use these addresses to receive test funds only.' : savedRecovery ? 'Anyone with this phrase can access your account.' : restoring ? 'Enter the recovery words saved from this experience.' : logout ? 'Backup your recovery phrase before logging out.' : state.hasProfile ? (onboarding || assets || details || activity ? null : 'You are logged in.') : recovery ? 'Save these words privately.' : 'You are not logged in.')}>
@@ -266,7 +267,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
         {onboarding && <AccountOnboardingView key={state.profileId} view={state.onboarding} network={state.network} bitcoinAddress={state.addresses.status==='ready'?state.addresses.bitcoinAddress:undefined} balance={state.balance} />}
         {transfer && <AccountTransferView context={context} key={state.profileId} balance={state.balance} onBack={() => context.closeAccount()} />}
         {receive && <AccountAddressesFormValue addresses={state.addresses} />}
-        {send && <AccountSendView context={context} key={state.profileId} />}
+        {send && <AccountSendView context={context} key={state.profileId} refreshVersion={sendRefreshVersion} />}
         {logout && <>
           {state.logoutGameConfirmationBody && <p>{state.logoutGameConfirmationBody}</p>}
           <label className="bis-backup-check"><input type="checkbox" checked={state.logoutBackupAcknowledged} disabled={busy} onChange={event => context.setLogoutBackupAcknowledged(event.target.checked)} /><span>I have backed up my wallet</span></label>

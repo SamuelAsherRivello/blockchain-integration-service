@@ -48,7 +48,12 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
     restore: (phrase, signal) => {
       const network = selected();
       if (!network) throw Error('Choose a test network first.');
-      return restoreAccount(phrase, signal, network,player);
+      // Restore ownership with the temporary wallet first. The shared role
+      // session performs a complete snapshot read, which is unnecessary for
+      // restore and can make a valid Signet account look unavailable when an
+      // unrelated indexer/contract read is unavailable. The retained session
+      // is created after the account is saved and is used for subsequent reads.
+      return restoreAccount(phrase, signal, network);
     },
   },player);
   const contextOptions: BisContextOptions = {

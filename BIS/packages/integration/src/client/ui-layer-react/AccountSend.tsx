@@ -16,7 +16,7 @@ import {FormValue} from './FormValue';
 import {FormTooltip, formatBalanceSats} from './FormTooltip';
 import { useEntryLoadingGate, viewLoadingPolicies } from './view-loading';
 
-export function AccountSendView({context}:{context:BisContext}) {
+export function AccountSendView({context, refreshVersion = 0}:{context:BisContext; refreshVersion?: number}) {
  const [recipient,setRecipient]=useState(''),[amount,setAmount]=useState('0'),[funds,setFunds]=useState<number>();
  const [quote,setQuote]=useState<BisSendQuote>(),[busy,setBusy]=useState(true),[error,setError]=useState('');
  const [clipboardError,setClipboardError]=useState('');
@@ -45,7 +45,7 @@ export function AccountSendView({context}:{context:BisContext}) {
  useEffect(()=>{
   alive.current=true;initialLoad.current=true;readController.current=new AbortController();void loadFunds(true);
   return()=>{alive.current=false;revision.current++;working.current=false;readController.current.abort();};
- },[context]);
+ },[context, refreshVersion]);
  useEffect(()=>{if(quote)heading.current?.focus();},[quote]);
  function edit(value:string,field:'recipient'|'amount'){revision.current++;setQuote(undefined);setError('');if(field==='recipient')setRecipient(value);else setAmount(value);}
  async function paste(){setClipboardError('');const current=revision.current;try {const text=await navigator.clipboard.readText();if(alive.current&&current===revision.current&&!working.current)edit(text.trim(),'recipient');}catch {if(alive.current&&current===revision.current)setClipboardError('Clipboard unavailable. Enter the address manually.');}}
@@ -79,7 +79,7 @@ export function AccountSendView({context}:{context:BisContext}) {
    <p>Send to</p><p className="bis-send-address">{quote.recipient}</p>
    {expired&&<p role="status">Quote expired. Go Back for a fresh review.</p>}
   </div>:<div className="bis-send-form">
-   <FormValue label="Arkade balance" value={funds===undefined?'':sats(funds)} copyable disabled={funds===undefined} tooltipName="Arkade balance" tooltip={<FormTooltip title="Arkade balance" balance={formatBalanceSats(funds)} available={formatBalanceSats(funds)} />} />
+   <FormValue label="Arkade balance" value={funds===undefined?'—':sats(funds)} copyable disabled={funds===undefined} tooltipName="Arkade balance" tooltip={<FormTooltip title="Arkade balance" balance={formatBalanceSats(funds)} available={formatBalanceSats(funds)} />} />
    <div className="bis-address-row">
     <FormHeading htmlFor={recipientId} label="Recipient Arkade address"><PasteButton disabled={busy} onClick={() => void paste()} /></FormHeading>
     <input id={recipientId} ref={recipientInput} aria-label="Recipient Arkade address" autoComplete="off" spellCheck={false} disabled={busy} value={recipient} onChange={e=>edit(e.target.value,'recipient')}/>

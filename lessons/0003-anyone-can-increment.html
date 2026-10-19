@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Demo 1: Anyone Can Increment</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<p class="eyebrow">DEMO 01 · SHARED STATE</p>
+<h1>Anyone can increment</h1>
+<p class="lede">The contract has one integer state value and a one-minute cooldown. There is no owner check: any caller may increment it after the cooldown expires.</p>
+<pre><code>contract Counter {
+  state counter = 0
+  state lastCallAt = null
+  const cooldown = 60 seconds
+
+  // No caller restriction: anyone can request this transition.
+  function increment(caller, now):
+    current = readStateFromInputVtxo()
+    require(current.lastCallAt == null OR now &gt;= current.lastCallAt + cooldown)
+    next = current.counter + 1
+
+    require(next == current.counter + 1)
+
+    // Preserve the contract's value and replace its state.
+    createOutput(
+      script = this.script,
+      value = input.value,
+      state = {
+        counter: next,
+        lastCallAt: now
+      },
+      notSpendableBefore = now + cooldown
+    )
+}
+
+function getCounter(): number:
+  vtxo = readCurrentVtxo(counterScript)
+  return vtxo.state.counter
+
+// Application flow
+counterScript = buildCounterScript(
+  initialCounter = 0,
+  initialLastCallAt = null,
+  cooldown = 60 seconds
+)
+contractId = wallet.registerContract(counterScript)
+
+// Alice, Bob, or any other wallet can call it.
+walletA.call(counterScript, "increment", now)
+// Before 60 seconds: rejected.
+walletB.call(counterScript, "increment", now + 30 seconds)
+// At or after 60 seconds: allowed.
+walletB.call(counterScript, "increment", now + 60 seconds)
+
+value = getCounter()</code></pre>
+<h2>Concurrency rule</h2>
+<p>Two callers may read the same old VTXO. They cannot both spend the exact same state forever: one transition wins, and the other must refresh the contract state and retry against the new VTXO.</p>
+<pre><code>async function incrementWithRetry(wallet, maxAttempts = 3):
+  for attempt in 1..maxAttempts:
+    try:
+      return await wallet.call(counterScript, "increment")
+    catch error:
+      if error is ConflictingSpend or StaleState:
+        await manager.refreshVtxos()
+        continue
+      throw error
+  throw "Could not increment after retrying"
+</code></pre>
+<p><strong>Enforcement note:</strong> <code>now</code> is pseudocode. For a rule that must be enforced by Bitcoin rather than merely checked by the application/operator, encode the cooldown as a relative timelock/CSV spending condition. The exact Arkade Script representation depends on the SDK/compiler version.</p>
+<p class="callout"><strong>Arkade interpretation:</strong> this is not a shared database integer being mutated in place. Each successful increment consumes one state-bearing VTXO and creates another with the next value.</p>
+<p class="source">Related: <a href="../lessons/0002-escrow-and-character-contracts.html">escrow and character state machines</a>. Ask me next to turn this into a precise Arkade Script state encoding.</p>
+</main></body></html>
