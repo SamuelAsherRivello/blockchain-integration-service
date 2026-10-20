@@ -107,8 +107,10 @@ button, input, select { font: inherit; }
 .sandbox-operation-input .sandbox-inline-input select { min-width: 0; width: 100%; padding: 8px 10px; border: 1px solid #2c3947; border-radius: 6px; color: #dce5ee; background: #11151c; font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .sandbox-operation-input .sandbox-inline-input select { border-color: rgba(169, 217, 195, .58); background: #131c1a; }
 .sandbox-demo-body { display: grid; gap: 14px; padding: 16px; }
+.sandbox-demo > .prototype-title-bar { justify-content: space-between; }
 .sandbox-demo-address { display: grid; gap: 6px; }
 .sandbox-demo-address span, .sandbox-code-label { color: #a9b6c7; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
+.sandbox-code-label + .sandbox-code-copyable { margin-top: 8px; }
 .sandbox-demo-address code { display: block; overflow-x: auto; padding: 9px 10px; border: 1px solid #2c3947; border-radius: 6px; color: #d9e5df; background: #11151c; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
 .sandbox-demo-body > .sandbox-action-button { justify-self: start; }
 .sandbox-source-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
@@ -123,6 +125,9 @@ button, input, select { font: inherit; }
 .sandbox-copy-button:disabled { cursor: not-allowed; opacity: .28; }
 .sandbox-copy-button-copied { color: #a9d9c3; }
 .sandbox-copy-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.sandbox-source-button { display: grid; width: 26px; height: 26px; place-items: center; padding: 5px; border: 1px solid rgba(169, 217, 195, .18); border-radius: 5px; color: #8997a8; background: rgba(17, 21, 28, .38); opacity: .72; }
+.sandbox-source-button:hover, .sandbox-source-button:focus-visible { border-color: rgba(169, 217, 195, .55); color: #c4ead5; opacity: 1; }
+.sandbox-source-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .sandbox-code-copyable .sandbox-copy-button { top: 13px; right: 13px; }
 .sandbox-output-copyable .sandbox-output-field { padding-right: 44px; }
 .sandbox-code-lines { margin: 0; padding: 25px 8px; overflow: hidden; border-right: 1px solid #2c3947; color: #718096; background: #151b23; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-align: right; user-select: none; }
