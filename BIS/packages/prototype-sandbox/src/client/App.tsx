@@ -808,7 +808,7 @@ function OutputSection({ title, output, elapsedMs, onRecover = undefined, recove
         <CopyButton value={outputText} label="Copy demo output" />
       </div>
       {(demoSupportsExplorer(scope) || onRecover || explorerLinks.length > 0) && <div className="sandbox-output-actions">
-        {demoSupportsExplorer(scope) && <button type="button" className="sandbox-action-button sandbox-explorer-button" disabled={!explorerUrl} title={explorerUrl ? 'Open the result on its network explorer in a new tab' : 'No explorer result is available yet.'} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open on Explorer</button>}
+        {demoSupportsExplorer(scope) && explorerLinks.length === 0 && <button type="button" className="sandbox-action-button sandbox-explorer-button" disabled={!explorerUrl} title={explorerUrl ? 'Open the result on its network explorer in a new tab' : 'No explorer result is available yet.'} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open on Explorer</button>}
         {explorerLinks.map(({ label, url }) => <button key={label} type="button" className="sandbox-action-button sandbox-explorer-button" disabled={!url} title={url ? 'Open this asset on its network explorer in a new tab' : 'No explorer result is available yet.'} onClick={() => { if (url) window.open(url, '_blank', 'noopener,noreferrer'); }}>{label}</button>)}
         {onRecover && <button type="button" className="sandbox-action-button" disabled={recoverDisabled} title={recoverDisabled ? 'Requires a verified expired vault and its creator wallet.' : 'Return the expired vault funds to its creator'} onClick={onRecover}>Recover</button>}
       </div>}
@@ -1862,8 +1862,8 @@ function DemoUpgradeAsset({ network }) {
         `Success: ${result.status === 'complete'}`,
       ].join('\n'), result.status === 'complete' && record.replacementAssetId ? {
         explorers: [
-          { label: 'Open On Explorer (Previous)', target: { network, kind: 'asset', identifier: record.sourceAssetId } },
-          { label: 'Open On Explorer (Current)', target: { network, kind: 'asset', identifier: record.replacementAssetId } },
+          { label: 'Open On Explorer (Previous Item)', target: { network, kind: 'asset', identifier: record.sourceAssetId } },
+          { label: 'Open On Explorer (Current Item)', target: { network, kind: 'asset', identifier: record.replacementAssetId } },
         ],
       } : record.burnTransactionId ? { explorer: { network, kind: 'ark-transaction', identifier: record.burnTransactionId } } : undefined);
       if (result.status === 'complete' && record.replacementAssetId) {
