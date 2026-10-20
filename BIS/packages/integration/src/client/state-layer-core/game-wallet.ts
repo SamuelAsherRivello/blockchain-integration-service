@@ -45,7 +45,11 @@ export function createBisGameWallet(...args:Parameters<typeof createLocalGameWal
     const controller=createLocalGameWallet(effectiveOptions, {
       storage, restore:async(p,s,n)=>{
         if(await identify(p)===options.playerProfileId())throw new WalletRoleConflictError('Select a separate Game Wallet.');
-        return restoreAccount(p,s,n,access);
+        // Restore validation must not depend on a complete retained-wallet
+        // snapshot. A valid but empty/fresh Signet wallet still needs to be
+        // importable when contract or indexer reads are unavailable; the
+        // retained Game session is acquired after selection for normal reads.
+        return restoreAccount(p,s,n);
       },create:(s,n)=>createAccount(s,n,access),
       addresses:(a,s)=>loadAddresses(a,s,access),balance:(a,s)=>loadBalance(a,s,access),
       watch:async(_address,signal,changed)=>{const account=await storage.load();if(!account)throw Error('Game wallet changed.');return access.observe(account,signal,()=>{void changed();});},
@@ -407,7 +411,15 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
         await selectSeparateGameWallet(account,signal);
         return true;
       } catch (error) {
-        if (!signal.aborted) publish({...previous, message:error instanceof WalletRoleConflictError?'This recovery phrase belongs to the player wallet. Restore or create a separate game wallet.':'Import failed. Check the recovery phrase, connection, and use a wallet different from the player.'});
+        if (!signal.aborted) {
+          const network = selectedNetwork() === 'signet' ? 'Signet' : 'Mutinynet';
+          const message = error instanceof WalletRoleConflictError
+            ? 'This recovery phrase belongs to the player wallet. Restore or create a separate game wallet.'
+            : error instanceof Error && error.message === 'Invalid recovery phrase.'
+              ? 'That recovery phrase is not valid. Check the words and try again.'
+              : `Could not verify this wallet on ${network}. The phrase may be valid, but the ${network} service or wallet data was unavailable. Check the connection and try again.`;
+          publish({...previous, message});
+        }
         return false;
       } finally { importing = false; if (refreshQueued) { refreshQueued = false; void refresh(); } }
     },
