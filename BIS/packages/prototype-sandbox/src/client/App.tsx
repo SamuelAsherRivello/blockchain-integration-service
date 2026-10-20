@@ -5,7 +5,7 @@ import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/netw
 import { decodeArkadeAddress, validateArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
 import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, localStorageGetItem, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
 import { conditionalVaultArtifact, checkConditionalVault, claimConditionalVault, createConditionalVault, incrementConditionalVault, readStoredConditionalVault } from './conditional-vault.ts';
-import { createAssetUpgradeRequest, executeAssetUpgrade } from './asset-upgrade.ts';
+import { LEVEL_ONE_ICON, LEVEL_ONE_TITLE, LEVEL_TWO_TITLE, createAssetUpgradeRequest, executeAssetUpgrade } from './asset-upgrade.ts';
 import { ASSET_UPGRADE_SOURCE } from './asset-upgrade-demo-source.ts';
 import CONDITIONAL_VAULT_LANGUAGE_SOURCE from '../../../integration/src/client/wallet-layer-arkade/conditional-vault-program.ts?raw';
 import { conditionalVaultDemoSource } from './conditional-vault-demo-source.ts';
@@ -645,15 +645,28 @@ await wallet.getVtxos()
 // Act
 const { assetId } = await wallet.assetManager.issue({
   amount: 1n,
-  metadata: { ticker: assetLabel },
+  metadata: {
+    ticker: assetLabel,
+    name: 'Sword Level 1',
+    title: 'Sword Level 1',
+    level: '1',
+    icon: 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/sword-1.png',
+    upgradeable: 'true',
+    upgradePath: 'sword',
+    nextLevel: '2',
+  },
 })
 localStorage.setItem(network + '-asset-id-' + assetLabel, assetId)
+localStorage.setItem(network + '-asset-id-' + assetLabel + '-level', '1')
 
 // Assert
 const success = Boolean(assetId)
 console.log('Demo: Mint Asset')
 console.log('Asset label:', assetLabel)
 console.log('Asset ID:', assetId)
+console.log('Display title: Sword Level 1')
+console.log('Metadata level: 1')
+console.log('Icon: https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/sword-1.png')
 console.log('Success:', success)`;
 
 const SEND_ASSET_SOURCE = `// Arrange
@@ -784,6 +797,7 @@ function getBaseURL(network, address) {
 function OutputSection({ title, output, elapsedMs, onRecover = undefined, recoverDisabled = true }) {
   const { scope, details } = useDemoOutput();
   const explorerUrl = demoExplorerUrl(scope, details.explorer);
+  const explorerLinks = (details.explorers ?? []).map(({ label, target }) => ({ label, url: demoExplorerUrl(scope, target) }));
   const outputText = output ? [`Demo: ${title}`, output].join('\n') : '';
   return <section className="sandbox-output prototype-section" aria-label="Output">
     <div className="prototype-title-bar"><h2>Output</h2></div>
@@ -793,8 +807,9 @@ function OutputSection({ title, output, elapsedMs, onRecover = undefined, recove
         <textarea className="sandbox-output-field" rows="10" readOnly value={outputText} aria-label="Demo output" />
         <CopyButton value={outputText} label="Copy demo output" />
       </div>
-      {(demoSupportsExplorer(scope) || onRecover) && <div className="sandbox-output-actions">
+      {(demoSupportsExplorer(scope) || onRecover || explorerLinks.length > 0) && <div className="sandbox-output-actions">
         {demoSupportsExplorer(scope) && <button type="button" className="sandbox-action-button sandbox-explorer-button" disabled={!explorerUrl} title={explorerUrl ? 'Open the result on its network explorer in a new tab' : 'No explorer result is available yet.'} onClick={() => { if (explorerUrl) window.open(explorerUrl, '_blank', 'noopener,noreferrer'); }}>Open on Explorer</button>}
+        {explorerLinks.map(({ label, url }) => <button key={label} type="button" className="sandbox-action-button sandbox-explorer-button" disabled={!url} title={url ? 'Open this asset on its network explorer in a new tab' : 'No explorer result is available yet.'} onClick={() => { if (url) window.open(url, '_blank', 'noopener,noreferrer'); }}>{label}</button>)}
         {onRecover && <button type="button" className="sandbox-action-button" disabled={recoverDisabled} title={recoverDisabled ? 'Requires a verified expired vault and its creator wallet.' : 'Return the expired vault funds to its creator'} onClick={onRecover}>Recover</button>}
       </div>}
     </div>
@@ -1694,9 +1709,10 @@ function DemoMintAsset({ network }) {
     const startedAt = begin();
     setRunning(true); setOutput('');
     try {
-      const result = await withFreshDemoWallet(network, wallet => wallet.assetManager.issue({ amount: 1n, metadata: { ticker: assetId } }), { freshContracts: true });
+      const result = await withFreshDemoWallet(network, wallet => wallet.assetManager.issue({ amount: 1n, metadata: { ticker: assetId, name: LEVEL_ONE_TITLE, title: LEVEL_ONE_TITLE, level: '1', icon: LEVEL_ONE_ICON, upgradeable: 'true', upgradePath: 'sword', nextLevel: '2' } }), { freshContracts: true });
       window.localStorage.setItem(mintedAssetStorageKey(network, assetId), result.assetId);
-      setOutput([`Asset label: ${assetId}`, `Asset ID: ${result.assetId}`, `Success: ${Boolean(result.assetId)}`].join('\n'), { explorer: { network, kind: 'asset', identifier: result.assetId } });
+      window.localStorage.setItem(`${mintedAssetStorageKey(network, assetId)}-level`, '1');
+      setOutput([`Asset label: ${assetId}`, `Asset ID: ${result.assetId}`, `Display title: ${LEVEL_ONE_TITLE}`, 'Metadata level: 1', `Icon: ${LEVEL_ONE_ICON}`, `Success: ${Boolean(result.assetId)}`].join('\n'), { explorer: { network, kind: 'asset', identifier: result.assetId } });
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
   return <OperationDemo demoTitle="Mint Asset" intro="Demonstrates creating a new Arkade asset." diagram={DIAGRAMS.mintAsset} loadingText="Mint asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Arkade supports issuing assets with or without a control asset. This demo showcases issuing without a control asset, so the asset has a fixed supply and cannot be reissued later.</p></div>} sourceId="mint-asset-source" source={MINT_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
@@ -1827,19 +1843,33 @@ function DemoUpgradeAsset({ network }) {
     let wallet;
     try {
       const sourceAssetId = getMintedAssetId(network, assetId);
-      if (!sourceAssetId) throw new Error('Use Mint Asset demo first so this wallet owns a level-one source asset.');
+      if (!sourceAssetId) throw new Error('Use Mint Asset demo first so this wallet owns the level-one source asset.');
+      const sourceLevel = window.localStorage.getItem(`${mintedAssetStorageKey(network, assetId)}-level`) || '1';
       wallet = await createDemoWallet(network, { freshContracts: true });
-      const result = await executeAssetUpgrade({ wallet, request: createAssetUpgradeRequest(network, assetId, sourceAssetId) });
+      const result = await executeAssetUpgrade({ wallet, request: createAssetUpgradeRequest(network, assetId, sourceAssetId, sourceLevel) });
       const record = result.record;
       setOutput([
         `Source Asset ID: ${record.sourceAssetId}`,
+        `Source Display Title: ${record.sourceTitle ?? LEVEL_ONE_TITLE}`,
+        `Source Metadata Level: ${record.sourceLevel ?? '1'}`,
         `Replacement Asset ID: ${record.replacementAssetId ?? 'unresolved'}`,
+        `Replacement Display Title: ${record.replacementTitle ?? LEVEL_TWO_TITLE}`,
+        `Replacement Metadata Level: ${record.replacementLevel ?? '2'}`,
         `Phase: ${record.phase}`,
         ...(record.issueTransactionId ? [`Issue Transaction ID: ${record.issueTransactionId}`] : []),
         ...(record.burnTransactionId ? [`Burn Transaction ID: ${record.burnTransactionId}`] : []),
         ...(result.message ? [`Recovery: ${result.message}`] : []),
         `Success: ${result.status === 'complete'}`,
-      ].join('\n'), record.burnTransactionId ? { explorer: { network, kind: 'ark-transaction', identifier: record.burnTransactionId } } : undefined);
+      ].join('\n'), result.status === 'complete' && record.replacementAssetId ? {
+        explorers: [
+          { label: 'Open On Explorer (Previous)', target: { network, kind: 'asset', identifier: record.sourceAssetId } },
+          { label: 'Open On Explorer (Current)', target: { network, kind: 'asset', identifier: record.replacementAssetId } },
+        ],
+      } : record.burnTransactionId ? { explorer: { network, kind: 'ark-transaction', identifier: record.burnTransactionId } } : undefined);
+      if (result.status === 'complete' && record.replacementAssetId) {
+        window.localStorage.setItem(mintedAssetStorageKey(network, assetId), record.replacementAssetId);
+        window.localStorage.setItem(`${mintedAssetStorageKey(network, assetId)}-level`, record.replacementLevel ?? '2');
+      }
     } catch (error) {
       setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
     } finally {
@@ -1847,7 +1877,7 @@ function DemoUpgradeAsset({ network }) {
       finish(startedAt); setRunning(false);
     }
   }
-  return <OperationDemo demoTitle="Upgrade Asset" intro="Demonstrates replacing an immutable level-one asset with a level-two asset in the same mnemonic-backed wallet. This is an issue-verify-burn sequence, not native reissuance." diagram={DIAGRAMS.assetUpgrade} loadingText="Upgrade asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Upgrade issues a new level-two asset, verifies that the replacement is owned, then burns the exact level-one source. The browser journal makes interrupted phases recoverable, but it is not a production authorization service.</p></div>} sourceId="asset-upgrade-source" source={ASSET_UPGRADE_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Upgrade Asset" intro="Demonstrates replacing an upgradeable sword with its next immutable level in the same mnemonic-backed wallet. This is an issue-verify-burn sequence, not native reissuance." diagram={DIAGRAMS.assetUpgrade} loadingText="Upgrade asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Upgrade reads the source sword metadata, issues the next level with its matching title, level, and icon, verifies that the replacement is owned, then burns the source. Level 1 upgrades to Level 2, and Level 2 upgrades to Level 3. Level 3 is terminal.</p></div>} sourceId="asset-upgrade-source" source={ASSET_UPGRADE_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
     <label htmlFor="asset-upgrade-mnemonic">Wallet 2 Mnemonic</label>
     <input id="asset-upgrade-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} />
@@ -1933,4 +1963,5 @@ export function App({ pathname = window.location.pathname }) {
     <footer className="spike-footer" aria-label="Footer" />
   </div>;
 }
+
 

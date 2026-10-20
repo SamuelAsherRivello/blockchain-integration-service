@@ -1,3 +1,5 @@
+import { decodeListedMetadataValue } from '../../../integration/src/client/state-layer-core/assets.ts';
+
 export type UpgradePhase = 'issuing' | 'replacement-issued' | 'burning' | 'burn-submitted' | 'complete';
 
 export type AssetUpgradeRequest = Readonly<{
@@ -6,6 +8,7 @@ export type AssetUpgradeRequest = Readonly<{
   sourceQuantity: string;
   assetLabel: string;
   operationId: string;
+  sourceLevel: string;
   targetMetadata: Readonly<Record<string, string>>;
 }>;
 
@@ -13,6 +16,10 @@ export type AssetUpgradeRecord = AssetUpgradeRequest & Readonly<{
   version: 1;
   phase: UpgradePhase;
   replacementAssetId?: string;
+  sourceTitle?: string;
+  sourceLevel?: string;
+  replacementTitle?: string;
+  replacementLevel?: string;
   issueTransactionId?: string;
   burnTransactionId?: string;
 }>;
@@ -25,6 +32,24 @@ export type AssetUpgradeResult = Readonly<{
 
 const RECORD_PREFIX = 'prototype-sandbox:asset-upgrade:v1:';
 const TXID_PATTERN = /^[a-f0-9]{64}$/i;
+export const LEVEL_ONE_TITLE = 'Sword Level 1';
+export const LEVEL_TWO_TITLE = 'Sword Level 2';
+export const LEVEL_ONE_ICON = 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/sword-1.png';
+export const LEVEL_TWO_ICON = 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/sword-2.png';
+export const LEVEL_THREE_TITLE = 'Sword Level 3';
+export const LEVEL_THREE_ICON = 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/sword-3.png';
+
+function swordTitle(level: string) {
+  return `Sword Level ${level}`;
+}
+
+function swordIcon(level: string) {
+  return {
+    '1': LEVEL_ONE_ICON,
+    '2': LEVEL_TWO_ICON,
+    '3': LEVEL_THREE_ICON,
+  }[level];
+}
 
 function recordKey(network: string, sourceAssetId: string) {
   return `${RECORD_PREFIX}${network}:${sourceAssetId}`;
@@ -34,7 +59,11 @@ function publicTransactionId(value: unknown) {
   return typeof value === 'string' && TXID_PATTERN.test(value) ? value : undefined;
 }
 
-export function createAssetUpgradeRequest(network: string, assetLabel: string, sourceAssetId: string): AssetUpgradeRequest {
+export function createAssetUpgradeRequest(network: string, assetLabel: string, sourceAssetId: string, sourceLevel = '1'): AssetUpgradeRequest {
+  const targetLevel = String(Number(sourceLevel) + 1);
+  const targetTitle = swordTitle(targetLevel);
+  const targetIcon = swordIcon(targetLevel);
+  if (!targetIcon) throw new Error(`No sword artwork is configured for level ${targetLevel}.`);
   const operationId = `asset-upgrade:${network}:${assetLabel}:${sourceAssetId}`;
   return {
     network,
@@ -42,10 +71,16 @@ export function createAssetUpgradeRequest(network: string, assetLabel: string, s
     sourceQuantity: '1',
     assetLabel,
     operationId,
+    sourceLevel,
     targetMetadata: {
-      name: `${assetLabel} Level 2 Sword`,
-      ticker: `${assetLabel}-L2`,
-      level: '2',
+      name: targetTitle,
+      title: targetTitle,
+      ticker: `${assetLabel}-L${targetLevel}`,
+      level: targetLevel,
+      icon: targetIcon,
+      upgradeable: targetLevel === '1' || targetLevel === '2' ? 'true' : 'false',
+      upgradePath: 'sword',
+      ...(targetLevel === '1' || targetLevel === '2' ? { nextLevel: String(Number(targetLevel) + 1) } : {}),
       bisUpgradeOperationId: operationId,
     },
   };
@@ -90,12 +125,16 @@ async function findRecordedReplacement(wallet: any, operationId: string) {
   for (const assetId of assetIds) {
     try {
       const details = await wallet.assetManager.getAssetDetails(assetId);
-      if (details?.metadata?.bisUpgradeOperationId === operationId) return assetId;
+      if (decodeListedMetadataValue(details?.metadata?.bisUpgradeOperationId) === operationId) return assetId;
     } catch {
       // An unrelated asset may not expose metadata; continue looking for the marker.
     }
   }
   return undefined;
+}
+
+function decodedMetadata(metadata: Record<string, unknown> | undefined) {
+  return Object.fromEntries(Object.entries(metadata ?? {}).map(([key, value]) => [key, decodeListedMetadataValue(value)]));
 }
 
 function recoverable(record: AssetUpgradeRecord, message: string): AssetUpgradeResult {
@@ -121,11 +160,19 @@ export async function executeAssetUpgrade({
 
   const sourceQuantity = await ownedQuantity(wallet, request.sourceAssetId);
   if (sourceQuantity !== BigInt(request.sourceQuantity)) throw new Error('The level-one source asset is not currently owned in the expected quantity. Mint it first or refresh the wallet.');
+  const sourceDetails = await wallet.assetManager.getAssetDetails(request.sourceAssetId);
+  const sourceMetadata = decodedMetadata(sourceDetails?.metadata);
+  const sourceLevel = String(sourceMetadata.level ?? '');
+  if (sourceMetadata.upgradePath !== 'sword' || sourceMetadata.upgradeable !== 'true' || sourceLevel !== request.sourceLevel || sourceMetadata.title !== swordTitle(sourceLevel)) {
+    throw new Error(`The source asset is not an upgradeable ${swordTitle(request.sourceLevel)} with the expected metadata.`);
+  }
+  const targetLevel = String(Number(sourceLevel) + 1);
+  if (request.targetMetadata.level !== targetLevel) throw new Error('The upgrade request does not target the next sword level.');
   const balance = await wallet.getBalance();
   if (BigInt(balance.available ?? 0) <= 0n) throw new Error('The wallet has no available sats to fund the replacement issuance.');
 
   if (!record) {
-    record = writeAssetUpgradeRecord({ ...request, version: 1, phase: 'issuing' }, storage);
+    record = writeAssetUpgradeRecord({ ...request, version: 1, phase: 'issuing', sourceTitle: sourceMetadata.title, sourceLevel, replacementTitle: request.targetMetadata.title, replacementLevel: targetLevel }, storage);
   }
 
   let replacementAssetId = record.replacementAssetId;
@@ -141,7 +188,7 @@ export async function executeAssetUpgrade({
   if (!replacementAssetId) {
     const issued = await wallet.assetManager.issue({ amount: 1n, metadata: request.targetMetadata });
     replacementAssetId = issued.assetId;
-    record = writeAssetUpgradeRecord({ ...record, phase: 'replacement-issued', replacementAssetId, ...(publicTransactionId(issued.arkTxId) ? { issueTransactionId: issued.arkTxId } : {}) }, storage);
+    record = writeAssetUpgradeRecord({ ...record, phase: 'replacement-issued', replacementAssetId, replacementTitle: request.targetMetadata.title, replacementLevel: targetLevel, ...(publicTransactionId(issued.arkTxId) ? { issueTransactionId: issued.arkTxId } : {}) }, storage);
   }
 
   if (await ownedQuantity(wallet, replacementAssetId) < 1n) return recoverable(record, 'The level-two replacement was issued but its ownership is not yet verified.');
@@ -152,3 +199,4 @@ export async function executeAssetUpgrade({
   record = writeAssetUpgradeRecord({ ...record, phase: 'complete' }, storage);
   return { status: 'complete', record };
 }
+

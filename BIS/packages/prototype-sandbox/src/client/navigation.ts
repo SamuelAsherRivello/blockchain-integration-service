@@ -10,9 +10,9 @@ export const DEMOS = Object.freeze([
   { number: 7, subject: 'Mint Asset', title: 'Mint Asset', access: 'W', path: '/prototype-sandbox/demo-7/' },
   { number: 8, subject: 'Send Asset', title: 'Send Asset', access: 'W', path: '/prototype-sandbox/demo-8/' },
   { number: 9, subject: 'Receive Asset', title: 'Receive Asset', access: 'R', path: '/prototype-sandbox/demo-9/' },
+  { number: 20, subject: 'Upgrade Asset', title: 'Upgrade Asset', access: 'W', path: '/prototype-sandbox/demo-20/' },
   { number: 10, subject: 'Asset History', title: 'Private wallet', access: 'R', path: '/prototype-sandbox/demo-10/' },
   { number: 11, subject: 'Asset History', title: 'Public address', access: 'R', path: '/prototype-sandbox/demo-11/' },
-  { number: 20, subject: 'Upgrade Asset', title: 'Upgrade Asset', access: 'W', path: '/prototype-sandbox/demo-20/' },
   { number: 14, subject: 'Conditional Vault', title: 'Create', access: 'W', path: '/prototype-sandbox/demo-14/' },
   { number: 15, subject: 'Conditional Vault', title: 'Increment', access: 'R', path: '/prototype-sandbox/demo-15/' },
   { number: 17, subject: 'Conditional Vault', title: 'Check', access: 'R', path: '/prototype-sandbox/demo-17/' },
@@ -123,3 +123,4 @@ export function isSetupPath(pathname = '') {
 export function isHomePath(pathname = '') {
   return `${String(pathname).replace(/\/+$/, '')}/` === HOME_PATH;
 }
+

@@ -5,7 +5,7 @@ export type DemoExplorerTarget = Readonly<{
   kind: 'ark-transaction' | 'bitcoin-transaction' | 'asset' | 'bitcoin-address';
   identifier: string;
 }>;
-const supportedDemos = new Set(Array.from({ length: 18 }, (_, index) => index + 2));
+const supportedDemos = new Set([...Array.from({ length: 18 }, (_, index) => index + 2), 20]);
 export function demoSupportsExplorer(scope: string) {
   const [network, demo] = scope.split(':');
   return ['signet', 'mutinynet'].includes(network) && supportedDemos.has(Number(demo));
@@ -27,3 +27,4 @@ export function firstArkTransaction(values: unknown): string | undefined {
     if (typeof candidate === 'string' && /^[a-f0-9]{64}$/i.test(candidate)) return candidate;
   }
 }
+

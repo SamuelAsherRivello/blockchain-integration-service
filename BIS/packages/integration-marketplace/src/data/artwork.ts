@@ -7,13 +7,18 @@ import shield3 from '../client/ui-layer-react/assets/equipment/shield-3.png';
 import shoes1 from '../client/ui-layer-react/assets/equipment/shoes-1.png';
 import shoes2 from '../client/ui-layer-react/assets/equipment/shoes-2.png';
 import shoes3 from '../client/ui-layer-react/assets/equipment/shoes-3.png';
+import sword1 from '../client/ui-layer-react/assets/equipment/sword-1.png';
+import sword2 from '../client/ui-layer-react/assets/equipment/sword-2.png';
+import sword3 from '../client/ui-layer-react/assets/equipment/sword-3.png';
 
 const equipmentArtwork = {
   'shoes-1': shoes1, 'shoes-2': shoes2, 'shoes-3': shoes3,
   'dagger-1': dagger1, 'dagger-2': dagger2, 'dagger-3': dagger3,
   'shield-1': shield1, 'shield-2': shield2, 'shield-3': shield3,
+  'sword-1': sword1, 'sword-2': sword2, 'sword-3': sword3,
 } as const;
 
 export function artworkFor(key: string): string | undefined {
   return equipmentArtwork[key as keyof typeof equipmentArtwork];
 }
+
