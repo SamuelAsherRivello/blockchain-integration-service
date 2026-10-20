@@ -10,13 +10,14 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 export const packageRoutes = [
   { label: 'BIS - Admin', route: '/admin/', directory: 'integration-admin' },
   { label: 'BIS - Marketplace', route: '/integration-marketplace/', directory: 'integration-marketplace' },
-  { label: 'BIS - Prototype Onboarding', route: '/onboarding/', directory: 'prototype-onboarding' },
+  { label: 'BIS - Prototype Onboarding', route: '/prototype-onboarding/', directory: 'prototype-onboarding' },
   { label: 'BIS - Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
   { label: 'BIS - Prototype Sandbox', route: '/prototype-sandbox/', directory: 'prototype-sandbox' },
   { label: 'BIS - Integration', route: '/integration/', directory: 'integration', readme: true },
   { label: 'BIS - Shared', route: '/shared/', directory: 'shared', readme: true },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);
+const routeAliases = [{ route: '/onboarding/', target: '/prototype-onboarding/' }];
 const isFile = async path => (await stat(path).catch(() => undefined))?.isFile() ?? false;
 
 function headingAnchors() {
@@ -73,7 +74,10 @@ function packageEntries() {
           }
           if (path.includes('\\') || path.split('/').includes('..')) { response.statusCode = 400; response.end('Invalid path'); return; }
           const redirect = target => { response.statusCode = 302; response.setHeader('Location', target + url.search); response.end(); };
-          if (path === '/') return redirect('/admin/');
+          if (path === '/') return next();
+          for (const alias of routeAliases) {
+            if (path === alias.route.slice(0, -1)) return redirect(alias.route);
+          }
           for (const app of packageRoutes) if (path === app.route.slice(0, -1)) return redirect(app.route);
           if (path === '/book' || path === '/book/' || path === '/book.html') return redirect('/admin/book.html');
           if (path === '/admin/book' || path === '/admin/book/') return redirect('/admin/book.html');
@@ -94,7 +98,8 @@ function packageEntries() {
           if (path === '/favicon.png') { request.url = '/BIS/packages/integration-admin/public/favicon.png' + url.search; return next(); }
           for (const app of packageRoutes) {
             const directory = `/BIS/packages/${app.directory}/`;
-            const prefix = path.startsWith(app.route) ? app.route : path.startsWith(directory) ? directory : undefined;
+            const alias = routeAliases.find(candidate => path.startsWith(candidate.route));
+            const prefix = path.startsWith(app.route) ? app.route : alias && alias.target === app.route ? alias.route : path.startsWith(directory) ? directory : undefined;
             if (!prefix || app.readme) continue;
             const tail = path.slice(prefix.length);
             const physical = resolve(root, `.${directory}`, tail);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { DEMOS } from '../src/client/navigation.ts';
+import { ASSET_UPGRADE_SOURCE } from '../src/client/asset-upgrade-demo-source.ts';
 
 const packageRoot = new URL('../', import.meta.url);
 const appSource = await readFile(new URL('src/client/App.tsx', packageRoot), 'utf8');
@@ -18,6 +19,7 @@ const demoLogLabels = [
   'Mint Asset',
   'Send Asset',
   'Receive Asset',
+  'Upgrade Asset',
   'Asset History - Private Wallet',
   'Asset History - Public Address',
   'Create Conditional Vault',
@@ -42,6 +44,9 @@ test('each demo has a route, active render branch, and Demo console label', asyn
     if([14,15,16,17].includes(demo.number)) {
       assert.match(appSource,new RegExp(escapeRegExp(demoLogLabels[index])),demo.path);
       assert.match(appSource,/source=\{conditionalVaultDemoSource\(action\)\}/,demo.path);
+    } else if (demo.number === 20) {
+      assert.match(appSource, /demoTitle="Upgrade Asset"/, demo.path);
+      assert.match(appSource, /source=\{ASSET_UPGRADE_SOURCE\}/, demo.path);
     } else assert.match(appSource, new RegExp(`console\\.log\\('Demo: ${escapeRegExp(demoLogLabels[index])}'\\)`), demo.path);
   }
 });
@@ -59,7 +64,7 @@ test('all demo pages use the shared Overview diagram catalog', () => {
   const diagramKeys = [
     'createWallet', 'privateBalance', 'publicBalance', 'onboard', 'offboard',
     'sendPayment', 'receivePayment', 'paymentHistory', 'mintAsset', 'sendAsset',
-    'receiveAsset', 'privateAssetHistory', 'publicAssetHistory', 'vaultCreate',
+    'receiveAsset', 'privateAssetHistory', 'publicAssetHistory', 'assetUpgrade', 'vaultCreate',
     'vaultIncrement', 'vaultCheck', 'vaultClaim', 'externalSend', 'externalReceive',
   ];
   for (const key of diagramKeys) assert.match(appSource, new RegExp(`${key}: sequenceDiagram`), key);
@@ -95,12 +100,17 @@ test('non-contract demo sources use Arrange, Act, and Assert sections', () => {
   for (const name of sourceNames) {
     const sourceMatch = appSource.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'));
     assert.ok(sourceMatch, name);
-    const source = sourceMatch[1];
+    const source = sourceMatch[1].replace(/\r\n/g, '\n');
     assert.match(source, /^\/\/ Arrange\n/);
     assert.equal((source.match(/^\/\/ Arrange$/gm) || []).length, 1, name);
     assert.equal((source.match(/^\/\/ Act$/gm) || []).length, 1, name);
     assert.equal((source.match(/^\/\/ Assert$/gm) || []).length, 1, name);
   }
+  const upgradeSource = ASSET_UPGRADE_SOURCE.replace(/\r\n/g, '\n');
+  assert.match(upgradeSource, /^\/\/ Arrange\n/);
+  assert.equal((upgradeSource.match(/^\/\/ Arrange$/gm) || []).length, 1);
+  assert.equal((upgradeSource.match(/^\/\/ Act$/gm) || []).length, 1);
+  assert.equal((upgradeSource.match(/^\/\/ Assert$/gm) || []).length, 1);
 });
 
 test('external wallet demos request popup handoff and start with empty output', () => {

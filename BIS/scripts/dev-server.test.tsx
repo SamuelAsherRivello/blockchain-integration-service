@@ -17,7 +17,16 @@ test('one Vite server serves package applications, resources, and linked READMEs
     return response.text();
   }
 
-  for (const [path, title] of [['/admin/', 'BIS - Admin'], ['/integration-marketplace/', 'BIS - Marketplace'], ['/onboarding/', 'BIS - Prototype Onboarding'], ['/prototype-faucet/', 'BIS - Prototype Faucet']]) {
+  const landing = await get('/');
+  assert.match(landing, /<title>Blockchain Integration Service<\/title>/);
+  assert.match(landing, /href="\.\/admin\/"/);
+  assert.match(landing, /href="\.\/integration-marketplace\/"/);
+  assert.match(landing, /<h2 id="apps-heading">Apps<\/h2>/);
+  assert.match(landing, /<h2 id="prototypes-heading">Prototypes<\/h2>/);
+  assert.match(landing, /<h2 id="other-heading">Other<\/h2>/);
+  assert.equal((landing.match(/target="_blank"/g) ?? []).length, 8);
+
+  for (const [path, title] of [['/admin/', 'BIS - Admin'], ['/integration-marketplace/', 'BIS - Marketplace'], ['/prototype-onboarding/', 'BIS - Prototype Onboarding'], ['/onboarding/', 'BIS - Prototype Onboarding'], ['/prototype-faucet/', 'BIS - Prototype Faucet']]) {
     const html = await get(path);
     assert.ok(html.includes(`<title>${title}</title>`));
     const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1]);

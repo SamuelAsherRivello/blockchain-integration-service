@@ -7,6 +7,7 @@ for (const network of ['signet', 'mutinynet'] as const) {
     const id = 'ab'.repeat(32);
     assert.equal(demoSupportsExplorer(`${network}:1`), false);
     for (let demo = 2; demo <= 19; demo++) assert.equal(demoSupportsExplorer(`${network}:${demo}`), true);
+    assert.equal(demoSupportsExplorer(`${network}:20`), true);
     assert.equal(demoExplorerUrl(`${network}:14`), undefined);
     assert.equal(demoExplorerUrl(`${network}:14`, { network, kind: 'ark-transaction', identifier: id }), `https://explorer.${network}.arkade.sh/tx/${id}`);
     assert.equal(demoExplorerUrl(`${network}:7`, { network, kind: 'asset', identifier: `${id}0000` }), `https://explorer.${network}.arkade.sh/asset/${id}0000`);

@@ -48,11 +48,12 @@ test('each demo exposes an executable action and formatted output', { timeout: 6
     await sourceField.waitFor();
     const source = await sourceField.textContent();
     if([14,15,16,17].includes(demo.number))assert.match(source ?? '', /await (create|increment|check|claim)ConditionalVault\(/, demo.path);
+    else if (demo.number === 20) assert.match(source ?? '', /executeAssetUpgrade\(/, demo.path);
     else assert.match(source ?? '', /console\.log\(['`]Demo: /, demo.path);
 
     const action = page.locator('.sandbox-demo button.sandbox-action-button').last();
     await action.waitFor();
-    if (demo.number > 11) continue;
+    if (demo.number > 11 && demo.number !== 20) continue;
 
     await action.click();
     const output = page.locator('textarea[aria-label="Demo output"]');
@@ -64,6 +65,11 @@ test('each demo exposes an executable action and formatted output', { timeout: 6
       if (outputValue) break;
       await new Promise(resolve => setTimeout(resolve, 100));
     }
+    if (demo.number === 20) {
+      assert.match(outputValue, /Use Mint Asset demo first/);
+      assert.match(outputValue, /\nSuccess: false$/);
+      continue;
+    }
     const firstLine=outputValue.split('\n')[0].toLowerCase();
     const permitted=[`Demo: ${demoTitle}`,`Demo: ${demo.title} - ${demo.subject}`].map(value=>value.toLowerCase());
     assert.ok(permitted.includes(firstLine),demo.path);
@@ -73,7 +79,7 @@ test('each demo exposes an executable action and formatted output', { timeout: 6
   await context.close();
 });
 
-test('each demo exposes the shared Overview tabs and a 400px diagram canvas', { timeout: 60000 }, async t => {
+test('each demo exposes the shared Overview tabs and naturally sized diagram canvas', { timeout: 60000 }, async t => {
   const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? {channel:process.env.PLAYWRIGHT_CHANNEL} : {}) });
   t.after(() => browser.close());
 
@@ -93,8 +99,9 @@ test('each demo exposes the shared Overview tabs and a 400px diagram canvas', { 
     await overview.getByRole('tab', { name: 'Diagram', exact: true }).click();
     const diagram = overview.locator('.sandbox-diagram-canvas');
     await diagram.locator('svg').waitFor();
-    assert.equal(Math.round((await diagram.boundingBox())?.height ?? 0), 400, demo.path);
+    assert.ok(((await diagram.boundingBox())?.height ?? 0) > 0, demo.path);
     const diagramBody = overview.locator('.sandbox-diagram-body');
+    assert.equal(await diagramBody.evaluate(element => element.scrollHeight === element.clientHeight), true, demo.path);
     assert.equal(await diagramBody.evaluate(element => element.scrollWidth > element.clientWidth), true, demo.path);
 
     await overview.getByRole('tab', { name: 'Docs', exact: true }).click();

@@ -1,6 +1,12 @@
 import type { DemoExplorerTarget } from './demo-explorer.ts';
 
-export type OutputDetails = Readonly<{ explorer?: DemoExplorerTarget; recoverable?: boolean; vaultId?: string; creatorPublicKey?: string }>;
+export type OutputDetails = Readonly<{
+  explorer?: DemoExplorerTarget;
+  explorers?: ReadonlyArray<Readonly<{ label: string; target: DemoExplorerTarget }>>;
+  recoverable?: boolean;
+  vaultId?: string;
+  creatorPublicKey?: string;
+}>;
 type Result = Readonly<{ output: string; elapsedMs: number | null; details: OutputDetails }>;
 const empty: Result = Object.freeze({ output: '', elapsedMs: null, details: Object.freeze({}) });
 
