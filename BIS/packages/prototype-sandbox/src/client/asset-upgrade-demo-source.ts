@@ -10,12 +10,15 @@ const sourceAssetId = localStorageGetItem('asset-id-' + assetLabel)
 const sourceLevel = localStorageGetItem('asset-id-' + assetLabel + '-level') || '1'
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
+const walletIdentity = identity.descriptor.match(/\[([0-9a-f]+)\//i)?.[1]
+if (!walletIdentity) throw new Error('Could not determine the wallet identity.')
+const walletDatabase = 'bis-prototype-sandbox-wallet-v1:' + network + ':' + walletIdentity
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: NETWORKS[network].operator,
   settlementConfig: false,
   storage: {
-    walletRepository: new IndexedDBWalletRepository(),
+    walletRepository: new IndexedDBWalletRepository(walletDatabase),
     contractRepository: new InMemoryContractRepository(),
   },
 })

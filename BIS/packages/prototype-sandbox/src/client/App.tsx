@@ -657,12 +657,15 @@ const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
 const assetLabel = localStorageGetItem('asset-id')
 
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
+const walletIdentity = identity.descriptor.match(/\[([0-9a-f]+)\//i)?.[1]
+if (!walletIdentity) throw new Error('Could not determine the wallet identity.')
+const walletDatabase = 'bis-prototype-sandbox-wallet-v1:' + network + ':' + walletIdentity
 const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
   settlementConfig: false,
   storage: {
-    walletRepository: new IndexedDBWalletRepository(),
+    walletRepository: new IndexedDBWalletRepository(walletDatabase),
     contractRepository: new InMemoryContractRepository(),
   },
 })
@@ -1254,10 +1257,13 @@ async function createDemoWallet(network, { isolated = false, signerOnly = false,
   const wallet2Mnemonic = setupWalletProfileValues(network).mnemonic2;
   if (!wallet2Mnemonic.trim()) throw new Error('Enter Wallet 2 Mnemonic on Setup Input first.');
   const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false });
+  const walletIdentity = identity.descriptor.match(/\[([0-9a-f]+)\//i)?.[1];
+  if (!walletIdentity) throw new Error('Could not determine the wallet identity.');
+  const walletDatabase = 'bis-prototype-sandbox-wallet-v1:' + network + ':' + walletIdentity;
   const storage = isolated
     ? { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() }
     : freshContracts
-      ? { walletRepository: new IndexedDBWalletRepository(), contractRepository: new InMemoryContractRepository() }
+      ? { walletRepository: new IndexedDBWalletRepository(walletDatabase), contractRepository: new InMemoryContractRepository() }
       : undefined;
   const wallet = await Wallet.create({
     identity,

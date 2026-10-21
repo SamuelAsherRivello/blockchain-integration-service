@@ -113,6 +113,13 @@ test('non-contract demo sources use Arrange, Act, and Assert sections', () => {
   assert.equal((upgradeSource.match(/^\/\/ Assert$/gm) || []).length, 1);
 });
 
+test('asset demos scope persistent HD state to the selected identity', () => {
+  assert.match(appSource, /const walletIdentity = identity\.descriptor\.match/);
+  assert.match(appSource, /const walletDatabase = 'bis-prototype-sandbox-wallet-v1:' \+ network \+ ':' \+ walletIdentity/);
+  assert.match(appSource, /new IndexedDBWalletRepository\(walletDatabase\)/);
+  assert.match(ASSET_UPGRADE_SOURCE, /new IndexedDBWalletRepository\(walletDatabase\)/);
+});
+
 test('external wallet demos request popup handoff and start with empty output', () => {
   assert.equal((appSource.match(/window\.open\(link, '_blank', 'popup/g) || []).length, 2);
   assert.match(appSource, /output=\{output \|\| callbackResult\}/);
