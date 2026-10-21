@@ -1,0 +1,20 @@
+html, body, #root { width: 100%; min-height: 100%; margin: 0; background: #000; }
+body { color: #111; font-family: system-ui, sans-serif; }
+#root { min-height: 100dvh; display: grid; place-items: center; overflow: hidden; }
+.wallet-events-card { box-sizing: border-box; width: min(350px, 76vw); text-align: center; transform-origin: center; perspective: 1000px; cursor: pointer; border-radius: 7px; }
+.wallet-events-card:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 5px; }
+.wallet-events-turn { position: relative; transform-style: preserve-3d; transition: transform 450ms cubic-bezier(.16, 1, .3, 1); }
+.is-flipped .wallet-events-turn { transform: rotateY(180deg); }
+.wallet-events-face { box-sizing: border-box; padding: 32px 24px; background: #fff; border-radius: 7px; backface-visibility: hidden; }
+.wallet-events-back { position: absolute; width: 100%; height: calc(100dvh - 32px); top: 50%; transform: translateY(-50%) rotateY(180deg); display: flex; flex-direction: column; padding: 24px 18px; }
+.wallet-events-back h2 { margin: 0 0 6px; font-size: 24px; font-weight: 650; }
+.wallet-events-log { flex: 1; min-height: 0; margin: 0; padding: 0; list-style: none; overflow-y: auto; text-align: left; scrollbar-color: #718096 #edf0f2; }
+.wallet-events-log li { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid #dce2e8; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
+.wallet-events-log time { color: #536170; font-size: 11px; font-variant-numeric: tabular-nums; }
+.wallet-events-dots { display: inline-block; width: 2.2em; text-align: left; }
+.wallet-events-card h1 { margin: 0 0 6px; font-size: 28px; font-weight: 650; }
+.wallet-events-card p { margin: 0; font-size: 18px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
+.wallet-events-card .wallet-events-network { margin-bottom: 16px; font-size: 14px; font-weight: 400; }
+@media (prefers-reduced-motion: reduce) {
+  .wallet-events-turn { transition: none; }
+}

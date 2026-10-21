@@ -127,6 +127,7 @@ export function developmentConfig({ port = 5174, faucetPort = 5190 } = {}) {
   return {
     configFile: false,
     root,
+    cacheDir: resolve(root, 'output', 'vite-cache', String(port)),
     appType: 'mpa',
     publicDir: false,
     plugins: [packageEntries()],
@@ -138,6 +139,11 @@ export function developmentConfig({ port = 5174, faucetPort = 5190 } = {}) {
       },
       fs: { allow: [root] }, watch: { ignored: ['**/output/**'] },
     },
-    optimizeDeps: { entries: packageRoutes.filter(app => !app.readme).map(app => `BIS/packages/${app.directory}/index.html`) },
+    optimizeDeps: {
+      // Mermaid loads diagram chunks lazily; serve its ESM directly rather than
+      // requesting chunks that can outlive an optimizer generation.
+      exclude: ['mermaid'],
+      entries: packageRoutes.filter(app => !app.readme).map(app => `BIS/packages/${app.directory}/index.html`),
+    },
   };
 }

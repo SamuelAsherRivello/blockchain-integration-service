@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_NETWORK, DEFAULT_WALLET_1_ADDRESSES, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, formatSatsAsBitcoin, getActiveDemo, isHomePath, isSetupPath, localStorageGetItem, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from '../src/client/navigation.ts';
 
-test('defines twenty labeled demo routes', () => {
-  assert.equal(DEMOS.length, 20);
+test('defines twenty-one labeled demo routes', () => {
+  assert.equal(DEMOS.length, 21);
   assert.deepEqual(DEMOS.map(demo => demo.path), [
     ...Array.from({ length: 3 }, (_, index) => `/prototype-sandbox/demo-${index + 1}/`),
     '/prototype-sandbox/demo-18/',
@@ -12,6 +12,7 @@ test('defines twenty labeled demo routes', () => {
     '/prototype-sandbox/demo-20/',
     '/prototype-sandbox/demo-10/',
     '/prototype-sandbox/demo-11/',
+    '/prototype-sandbox/demo-21/',
     '/prototype-sandbox/demo-14/',
     '/prototype-sandbox/demo-15/',
     '/prototype-sandbox/demo-17/',
@@ -32,11 +33,12 @@ test('defines twenty labeled demo routes', () => {
   assert.equal(DEMOS[12].subject, 'Asset History');
   assert.equal(DEMOS[12].title, 'Private wallet');
   assert.equal(DEMOS[13].title, 'Public address');
-  assert.equal(DEMOS[14].subject, 'Conditional Vault');
-  assert.equal(DEMOS[14].title, 'Create');
-  assert.equal(DEMOS[18].subject, 'External Wallet');
-  assert.equal(DEMOS[18].title, 'Send Payment');
-  assert.equal(DEMOS[19].title, 'Receive Payment');
+  assert.equal(DEMOS[14].subject, 'Events');
+  assert.equal(DEMOS[15].subject, 'Conditional Vault');
+  assert.equal(DEMOS[15].title, 'Create');
+  assert.equal(DEMOS[19].subject, 'External Wallet');
+  assert.equal(DEMOS[19].title, 'Send Payment');
+  assert.equal(DEMOS[20].title, 'Receive Payment');
 });
 
 test('derives active demo from direct paths and defaults safely', () => {

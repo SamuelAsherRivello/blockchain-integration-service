@@ -1,12 +1,17 @@
-import { Children, Fragment, isValidElement, useEffect, useRef, useState } from 'react';
+import { Children, Fragment, createContext, isValidElement, useContext, useEffect, useId, useRef, useState } from 'react';
 import { InMemoryContractRepository, InMemoryWalletRepository, IndexedDBWalletRepository, MnemonicIdentity, OnchainWallet, Ramps, RestArkProvider, Wallet } from '@arkade-os/sdk';
-import mermaid from 'mermaid';
+// The self-contained ESM distribution also bundles Mermaid's CommonJS helpers.
+import mermaid from 'mermaid/dist/mermaid.esm.min.mjs';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.ts';
 import { decodeArkadeAddress, validateArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
 import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, faucetUrl, getActiveDemo, isHomePath, isSetupPath, localStorageGetItem, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
 import { conditionalVaultArtifact, checkConditionalVault, claimConditionalVault, createConditionalVault, incrementConditionalVault, readStoredConditionalVault } from './conditional-vault.ts';
 import { LEVEL_ONE_ICON, LEVEL_ONE_TITLE, LEVEL_TWO_TITLE, createAssetUpgradeRequest, executeAssetUpgrade } from './asset-upgrade.ts';
 import { ASSET_UPGRADE_SOURCE } from './asset-upgrade-demo-source.ts';
+import { EVENTS_SOURCE } from './events-demo-source.ts';
+import { openEventsMonitor } from './events-popup.ts';
+import { sandboxWalletStorage } from './wallet-storage.ts';
+import { demoSourceUrl } from './source-links.ts';
 import CONDITIONAL_VAULT_LANGUAGE_SOURCE from '../../../integration/src/client/wallet-layer-arkade/conditional-vault-program.ts?raw';
 import { conditionalVaultDemoSource } from './conditional-vault-demo-source.ts';
 import { DemoOutputScope, useDemoOutput } from './demo-output.ts';
@@ -14,6 +19,17 @@ import { demoExplorerUrl, demoSupportsExplorer, firstArkTransaction } from './de
 import {testNetwork} from '../../../integration/src/client/state-layer-core/test-network.ts';
 import './style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
+
+const DemoNetworkContext = createContext('signet');
+
+function DemoActionButton({ label = 'Execute', onClick, disabled }) {
+  const network = useContext(DemoNetworkContext);
+  const networkId = useId();
+  return <button className="sandbox-action-button sandbox-execute-button" type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-describedby={networkId}>
+    <span className="sandbox-execute-label">{label}</span>
+    <span id={networkId} className="sandbox-execute-network">({NETWORKS[network].label})</span>
+  </button>;
+}
 
 function PrototypeMark() {
   return <span className="spike-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>;
@@ -40,27 +56,8 @@ const DOCS_URLS = Object.freeze({
   externalWallet: 'https://docs.arkadeos.com/wallets/getting-started/introduction',
 });
 
-const SOURCE_FILE_URLS = Object.freeze({
-  'create-wallet-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'private-balance-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'balance-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'onboard-bitcoin-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'offboard-bitcoin-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'send-payment-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'receive-payment-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'payment-history-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'mint-asset-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'send-asset-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'receive-asset-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'asset-history-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'public-asset-history-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'asset-upgrade-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/asset-upgrade-demo-source.ts',
-  'external-wallet-payment-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-  'external-wallet-receive-source': 'https://github.com/SamuelAsherRivello/blockchain-integration-service/blob/main/BIS/packages/prototype-sandbox/src/client/App.tsx',
-});
-
 function sourceFileUrl(sourceId) {
-  return SOURCE_FILE_URLS[sourceId] ?? 'https://github.com/SamuelAsherRivello/blockchain-integration-service/tree/main/BIS/packages/prototype-sandbox/src/client';
+  return demoSourceUrl(sourceId, import.meta.env.DEV);
 }
 
 const STANDARD_PARTICIPANTS = `  participant L1 as Bitcoin<br/>(On-Chain L1)
@@ -78,6 +75,10 @@ ${messages}`;
 }
 
 const DIAGRAMS = Object.freeze({
+  events: sequenceDiagram(`  Client->>Client: Open Wallet 1 monitor popup
+  Client->>Arkade: Subscribe to Wallet 1 public script
+  Arkade-->>Client: Live received, spent, or swept outputs
+  Client->>Client: Describe event and pulse card`),
   createWallet: sequenceDiagram(`  Client->>SDK: Request wallet
   SDK-->>Client: Wallet response`),
   privateBalance: sequenceDiagram(`  Client->>SDK: Request balance
@@ -297,7 +298,7 @@ function HomeSection() {
 
 export function Navigation({ activeDemo, homeActive = false, setupActive = false, onNavigate }) {
   const activeRecord = DEMOS.find(demo => demo.number === activeDemo);
-  const sectionStarts = { 'Create Wallet': 'Wallets', 'Send Payment': 'Payments', 'Mint Asset': 'Assets', 'Conditional Vault': 'Smart Contracts', 'External Wallet': 'External Wallet' };
+  const sectionStarts = { 'Create Wallet': 'Wallets', 'Send Payment': 'Payments', 'Mint Asset': 'Assets', 'Events': 'Events', 'Conditional Vault': 'Smart Contracts', 'External Wallet': 'External Wallet' };
   const demoGroups = DEMOS.reduce((groups, demo) => {
     const existing = groups.find(group => group[0].subject === demo.subject);
     if (existing) existing.push(demo);
@@ -439,6 +440,7 @@ console.log('Success:', success)`;
 
 const CREATE_WALLET_SOURCE = `// Arrange
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
+import { sandboxWalletStorage } from './wallet-storage.ts'
 
 const network = localStorageGetItem('network')
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
@@ -449,6 +451,7 @@ const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
   settlementConfig: false,
+  storage: sandboxWalletStorage(network, identity),
 })
 
 // Act
@@ -462,6 +465,7 @@ console.log('Success:', success)`;
 
 const PRIVATE_BALANCE_SOURCE = `// Arrange
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
+import { sandboxWalletStorage } from './wallet-storage.ts'
 
 const network = localStorageGetItem('network')
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
@@ -472,6 +476,7 @@ const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
   settlementConfig: false,
+  storage: sandboxWalletStorage(network, identity),
 })
 
 // Act
@@ -490,6 +495,7 @@ console.log('Success:', success)`;
 
 const SEND_PAYMENT_SOURCE = `// Arrange
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
+import { sandboxWalletStorage } from './wallet-storage.ts'
 
 const network = localStorageGetItem('network')
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
@@ -500,6 +506,7 @@ const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
   settlementConfig: false,
+  storage: sandboxWalletStorage(network, identity),
 })
 const contractManager = await wallet.getContractManager()
 await contractManager.refreshVtxos()
@@ -545,6 +552,9 @@ console.log('Wallet URL:', wallet.toString())
 console.log('Success:', Boolean(wallet))`;
 
 const EXTERNAL_WALLET_RECEIVE_SOURCE = `// Arrange
+import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
+import { sandboxWalletStorage } from './wallet-storage.ts'
+
 const network = document.querySelector('#network').value
 const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
 
@@ -554,6 +564,7 @@ const wallet = await Wallet.create({
   identity,
   arkServerUrl: NETWORKS[network].operator,
   settlementConfig: false,
+  storage: sandboxWalletStorage(network, identity),
 })
 const contractManager = await wallet.getContractManager()
 
@@ -627,6 +638,7 @@ console.log('Success:', success)`;
 
 const PAYMENT_HISTORY_SOURCE = `// Arrange
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
+import { sandboxWalletStorage } from './wallet-storage.ts'
 
 const network = localStorageGetItem('network')
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
@@ -636,6 +648,7 @@ const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
   settlementConfig: false,
+  storage: sandboxWalletStorage(network, identity),
 })
 await wallet.getVtxos()
 
@@ -702,6 +715,7 @@ console.log('Success:', success)`;
 
 const SEND_ASSET_SOURCE = `// Arrange
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
+import { sandboxWalletStorage } from './wallet-storage.ts'
 
 const network = localStorageGetItem('network')
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
@@ -714,6 +728,7 @@ const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
   settlementConfig: false,
+  storage: sandboxWalletStorage(network, identity),
 })
 await wallet.getVtxos()
 
@@ -762,6 +777,7 @@ console.log('Success:', success)`;
 
 const ASSET_HISTORY_SOURCE = `// Arrange
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
+import { sandboxWalletStorage } from './wallet-storage.ts'
 
 const network = localStorageGetItem('network')
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
@@ -773,6 +789,7 @@ const wallet = await Wallet.create({
   identity,
   arkServerUrl: 'https://' + network + '.arkade.sh',
   settlementConfig: false,
+  storage: sandboxWalletStorage(network, identity),
 })
 await wallet.getVtxos()
 
@@ -1007,7 +1024,7 @@ function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDes
           <label className="sandbox-code-label" htmlFor={visibleSourceId}>{showingCompiled ? 'Smart contract compiled' : showingContract ? 'Smart contract source' : 'Demo source'}</label>
           <SourceCodeField id={visibleSourceId} source={visibleSource} />
         </div>
-        <button className="sandbox-action-button" type="button" onClick={onExecute} disabled={running}>{actionLabel}</button>
+        <DemoActionButton label={actionLabel} onClick={onExecute} disabled={running} />
       </div>
     </section>
     <OutputSection title={demoTitle} output={output} elapsedMs={elapsedMs} onRecover={onRecover} recoverDisabled={recoverDisabled} />
@@ -1104,7 +1121,7 @@ function DemoCreateWallet({ network }) {
     setOutput('');
     try {
       const identity = MnemonicIdentity.fromMnemonic(currentMnemonic, { isMainnet: false });
-      const wallet = await Wallet.create({ identity, arkServerUrl: NETWORKS[network].operator, settlementConfig: false });
+      const wallet = await Wallet.create({ identity, arkServerUrl: NETWORKS[network].operator, settlementConfig: false, storage: sandboxWalletStorage(network, identity) });
       const address = await wallet.getAddress();
       setOutput([`Arkade Address: ${address}`, `Success: ${Boolean(address)}`].join('\n'));
       await wallet.dispose?.();
@@ -1131,7 +1148,7 @@ function DemoCreateWallet({ network }) {
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="create-wallet-source">Source code</label>
         <SourceCodeField id="create-wallet-source" source={CREATE_WALLET_SOURCE} />
-        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>Execute</button>
+        <DemoActionButton onClick={execute} disabled={running} />
       </div>
     </section>
     <OutputSection title="Create Wallet" output={output} elapsedMs={elapsedMs} />
@@ -1154,7 +1171,7 @@ function DemoGetBalancePrivate({ network }) {
     setOutput('');
     try {
       const identity = MnemonicIdentity.fromMnemonic(currentMnemonic, { isMainnet: false });
-      const wallet = await Wallet.create({ identity, arkServerUrl: NETWORKS[network].operator, settlementConfig: false });
+      const wallet = await Wallet.create({ identity, arkServerUrl: NETWORKS[network].operator, settlementConfig: false, storage: sandboxWalletStorage(network, identity) });
       const balance = await wallet.getBalance();
       const address = await wallet.getAddress();
       const vtxos = await wallet.getVtxos();
@@ -1189,7 +1206,7 @@ function DemoGetBalancePrivate({ network }) {
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="private-balance-source">Source code</label>
         <SourceCodeField id="private-balance-source" source={PRIVATE_BALANCE_SOURCE} />
-        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>Execute</button>
+        <DemoActionButton onClick={execute} disabled={running} />
       </div>
     </section>
     <OutputSection title="Private wallet - Get Balance" output={output} elapsedMs={elapsedMs} />
@@ -1246,7 +1263,7 @@ function DemoGetBalancePublic({ network }) {
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="balance-source">Source code</label>
         <SourceCodeField id="balance-source" source={BALANCE_SOURCE} />
-        <button className="sandbox-action-button" type="button" onClick={execute} disabled={running}>Execute</button>
+        <DemoActionButton onClick={execute} disabled={running} />
       </div>
     </section>
     <OutputSection title="Public address - Get Balance" output={output} elapsedMs={elapsedMs} />
@@ -1257,21 +1274,16 @@ async function createDemoWallet(network, { isolated = false, signerOnly = false,
   const wallet2Mnemonic = setupWalletProfileValues(network).mnemonic2;
   if (!wallet2Mnemonic.trim()) throw new Error('Enter Wallet 2 Mnemonic on Setup Input first.');
   const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false });
-  const walletIdentity = identity.descriptor.match(/\[([0-9a-f]+)\//i)?.[1];
-  if (!walletIdentity) throw new Error('Could not determine the wallet identity.');
-  const walletDatabase = 'bis-prototype-sandbox-wallet-v1:' + network + ':' + walletIdentity;
   const storage = isolated
     ? { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() }
-    : freshContracts
-      ? { walletRepository: new IndexedDBWalletRepository(walletDatabase), contractRepository: new InMemoryContractRepository() }
-      : undefined;
+    : sandboxWalletStorage(network, identity, freshContracts);
   const wallet = await Wallet.create({
     identity,
     arkServerUrl: NETWORKS[network].operator,
     walletMode: signerOnly ? 'static' : 'hd',
     lookAheadWindow: 20,
     settlementConfig: false,
-    ...(storage ? { storage } : {}),
+    storage,
   });
   // Contract Claim/Recover uses only the creator signature. It must not spend
   // the two-minute window discovering unrelated HD addresses and balances.
@@ -1924,6 +1936,31 @@ function DemoUpgradeAsset({ network }) {
   </>} />;
 }
 
+function DemoEvents({ network }) {
+  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
+  const address = setupWalletProfileValues(network).address1;
+  function execute() {
+    const start = begin();
+    try {
+      decodeArkadeAddress(address);
+      openEventsMonitor(network, address);
+      setOutput('Monitor window opened. Wait for its listening message, then use another demo.\nNo payment has been initiated.\nSuccess: true');
+    } catch (error) { setOutput(`Error: ${error.message}\nSuccess: false`); }
+    finally { finish(start); }
+  }
+  return <OperationDemo demoTitle="Events" intro="Demonstrates listening for Wallet 1 activity in a separate window while using other demos." diagram={DIAGRAMS.events}
+    docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments and listening for activity"
+    docsDetails={<div className="sandbox-docs-details"><p>Keep the popup open and wait for "I'm listening . . ." before trying these demos:</p><ul>
+      <li><a href="../demo-4/">Send Payment</a>: Wallet 2 sends 100 sats to Wallet 1.</li>
+      <li><a href="../demo-8/">Send Asset</a>: sends an asset to Wallet 1. First use Mint Asset to create it in Wallet 2.</li>
+      <li><a href="../demo-12/">Send Payment from External Wallet</a>: approves a payment to Wallet 1 in an external wallet.</li>
+    </ul><p>Mint Asset alone affects Wallet 2. Receive and history demos only read existing data. This popup observes the captured public address and network without a mnemonic. Changing Setup does not retarget an open monitor; execute Events again.</p></div>}
+    sourceId="events-source" source={EVENTS_SOURCE} output={output} elapsedMs={elapsedMs} running={false} onExecute={execute} input={<>
+      <label htmlFor="events-address">Wallet 1 Address</label><input id="events-address" value={address} readOnly />
+      <label htmlFor="events-network">Network</label><input id="events-network" value={NETWORKS[network].label} readOnly />
+    </>} />;
+}
+
 export function App({ pathname = window.location.pathname }) {
   const [currentPathname, setCurrentPathname] = useState(() => {
     if (isHomePath(pathname)) {
@@ -1974,6 +2011,7 @@ export function App({ pathname = window.location.pathname }) {
     <div className="sandbox-workspace">
       <Navigation activeDemo={homeActive || setupActive ? null : activeDemo} homeActive={homeActive} setupActive={setupActive} onNavigate={navigate} />
       <main className="sandbox-main-content">
+        <DemoNetworkContext.Provider value={network}>
         <DemoOutputScope.Provider value={`${network}:${activeDemo}`}>
         {homeActive && <HomeSection />}
         {setupActive && <SetupSection />}
@@ -1991,6 +2029,7 @@ export function App({ pathname = window.location.pathname }) {
         {!homeActive && !setupActive && activeDemo === 10 && <DemoAssetHistory network={network} />}
         {!homeActive && !setupActive && activeDemo === 11 && <DemoAssetHistoryPublic network={network} />}
         {!homeActive && !setupActive && activeDemo === 20 && <DemoUpgradeAsset network={network} />}
+        {!homeActive && !setupActive && activeDemo === 21 && <DemoEvents network={network} />}
         {!homeActive && !setupActive && activeDemo === 14 && <DemoConditionalVault key={`${network}-create`} network={network} action="create" />}
         {!homeActive && !setupActive && activeDemo === 15 && <DemoConditionalVault key={`${network}-increment`} network={network} action="increment" />}
         {!homeActive && !setupActive && activeDemo === 16 && <DemoConditionalVault key={`${network}-claim`} network={network} action="claim" />}
@@ -1998,6 +2037,7 @@ export function App({ pathname = window.location.pathname }) {
         {!homeActive && !setupActive && activeDemo === 12 && <DemoExternalWalletPayment network={network} />}
         {!homeActive && !setupActive && activeDemo === 13 && <DemoExternalWalletReceivePayment network={network} />}
         </DemoOutputScope.Provider>
+        </DemoNetworkContext.Provider>
       </main>
     </div>
     <footer className="spike-footer" aria-label="Footer" />

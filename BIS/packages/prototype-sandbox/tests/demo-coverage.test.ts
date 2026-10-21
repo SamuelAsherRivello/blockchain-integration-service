@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { DEMOS } from '../src/client/navigation.ts';
 import { ASSET_UPGRADE_SOURCE } from '../src/client/asset-upgrade-demo-source.ts';
+import { EVENTS_SOURCE } from '../src/client/events-demo-source.ts';
 
 const packageRoot = new URL('../', import.meta.url);
 const appSource = await readFile(new URL('src/client/App.tsx', packageRoot), 'utf8');
@@ -22,6 +23,7 @@ const demoLogLabels = [
   'Upgrade Asset',
   'Asset History - Private Wallet',
   'Asset History - Public Address',
+  'Events',
   'Create Conditional Vault',
   'Increment Conditional Vault',
   'Check Conditional Vault',
@@ -47,6 +49,9 @@ test('each demo has a route, active render branch, and Demo console label', asyn
     } else if (demo.number === 20) {
       assert.match(appSource, /demoTitle="Upgrade Asset"/, demo.path);
       assert.match(appSource, /source=\{ASSET_UPGRADE_SOURCE\}/, demo.path);
+    } else if (demo.number === 21) {
+      assert.match(appSource, /source=\{EVENTS_SOURCE\}/);
+      assert.match(EVENTS_SOURCE, /console\.log\('Demo: Events'\)/);
     } else assert.match(appSource, new RegExp(`console\\.log\\('Demo: ${escapeRegExp(demoLogLabels[index])}'\\)`), demo.path);
   }
 });

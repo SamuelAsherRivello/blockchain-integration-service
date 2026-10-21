@@ -13,6 +13,7 @@ export const DEMOS = Object.freeze([
   { number: 20, subject: 'Upgrade Asset', title: 'Upgrade Asset', access: 'W', path: '/prototype-sandbox/demo-20/' },
   { number: 10, subject: 'Asset History', title: 'Private wallet', access: 'R', path: '/prototype-sandbox/demo-10/' },
   { number: 11, subject: 'Asset History', title: 'Public address', access: 'R', path: '/prototype-sandbox/demo-11/' },
+  { number: 21, subject: 'Events', title: 'Events', access: 'R', path: '/prototype-sandbox/demo-21/' },
   { number: 14, subject: 'Conditional Vault', title: 'Create', access: 'W', path: '/prototype-sandbox/demo-14/' },
   { number: 15, subject: 'Conditional Vault', title: 'Increment', access: 'R', path: '/prototype-sandbox/demo-15/' },
   { number: 17, subject: 'Conditional Vault', title: 'Check', access: 'R', path: '/prototype-sandbox/demo-17/' },

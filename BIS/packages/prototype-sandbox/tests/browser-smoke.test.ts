@@ -94,11 +94,13 @@ test('each demo exposes the shared Overview tabs and naturally sized diagram can
     for (const label of ['Intro', 'Diagram', 'Docs']) {
       assert.equal(await overview.getByRole('tab', { name: label, exact: true }).count(), 1, demo.path);
     }
+    await overview.getByRole('tab', { name: 'Intro', exact: true }).click();
     assert.match((await overview.getByRole('tabpanel').textContent()) ?? '', /Demonstrates /, demo.path);
 
     await overview.getByRole('tab', { name: 'Diagram', exact: true }).click();
     const diagram = overview.locator('.sandbox-diagram-canvas');
-    await diagram.locator('svg').waitFor();
+    try { await diagram.locator('svg').waitFor(); }
+    catch { assert.fail(`${demo.path}: ${await overview.innerText()}`); }
     assert.ok(((await diagram.boundingBox())?.height ?? 0) > 0, demo.path);
     const diagramBody = overview.locator('.sandbox-diagram-body');
     assert.equal(await diagramBody.evaluate(element => element.scrollHeight === element.clientHeight), true, demo.path);

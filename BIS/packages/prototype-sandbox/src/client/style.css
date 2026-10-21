@@ -91,6 +91,9 @@ button, input, select { font: inherit; }
 .sandbox-action-button { padding: 8px 14px; border: 1px solid #a9d9c3; border-radius: 6px; color: #19362a; background: #a9d9c3; font-weight: 700; cursor: pointer; }
 .sandbox-action-button:hover, .sandbox-action-button:focus-visible { background: #c2ebd6; }
 .sandbox-action-button:disabled { cursor: wait; opacity: .65; }
+.sandbox-execute-button { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; max-width: 100%; padding: 10px 18px; text-align: center; }
+.sandbox-execute-label { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.sandbox-execute-network { font-size: 12px; font-weight: 400; line-height: 1.4; }
 .sandbox-loading-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgb(8 14 20 / 72%); }
 .sandbox-loading-prompt { width: min(320px, 100%); padding: 24px; border: 1px solid #a9d9c3; border-radius: 12px; background: #171e28; box-shadow: 0 16px 44px #0008; color: #eef1f6; text-align: center; }
 .sandbox-loading-prompt h2 { margin: 0 0 12px; font-size: 18px; }
@@ -157,10 +160,12 @@ button, input, select { font: inherit; }
 @media (max-width: 760px) {
   .spike-header-inner { align-items: flex-start; flex-direction: column; }
   .network-picker { align-self: stretch; justify-content: space-between; }
-  .sandbox-workspace { grid-template-columns: 1fr; }
-  .prototype-page .sandbox-navigation { position: static; min-height: auto; border-right: 0; }
   .sandbox-output-actions .sandbox-action-button { min-height: 44px; }
   .sandbox-main-content { min-height: auto; padding: 16px 12px 200px; }
   .sandbox-setup-profiles { grid-template-columns: 1fr; }
   .sandbox-setup-profile + .sandbox-setup-profile { padding-top: 16px; padding-left: 0; border-top: 1px solid #2c3947; border-left: 0; }
+}
+@media (max-width: 480px) {
+  .spike-header-inner { padding: 12px; gap: 12px; }
+  .sandbox-demo-input-body, .sandbox-operation-input, .sandbox-operation-input .sandbox-inline-input { grid-template-columns: minmax(0, 1fr); }
 }
