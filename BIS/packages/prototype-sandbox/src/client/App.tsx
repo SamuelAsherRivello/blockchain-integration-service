@@ -11,6 +11,7 @@ import { ASSET_UPGRADE_SOURCE } from './asset-upgrade-demo-source.ts';
 import { EVENTS_SOURCE } from './events-demo-source.ts';
 import { openEventsMonitor } from './events-popup.ts';
 import { sandboxWalletStorage } from './wallet-storage.ts';
+import { OPTIONAL_ASSET_PAYMENTS, optionalAssetPayment, assetTransferSats } from './asset-payment.ts';
 import { demoSourceUrl } from './source-links.ts';
 import CONDITIONAL_VAULT_LANGUAGE_SOURCE from '../../../integration/src/client/wallet-layer-arkade/conditional-vault-program.ts?raw';
 import { conditionalVaultDemoSource } from './conditional-vault-demo-source.ts';
@@ -716,12 +717,14 @@ console.log('Success:', success)`;
 const SEND_ASSET_SOURCE = `// Arrange
 import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
 import { sandboxWalletStorage } from './wallet-storage.ts'
+import { assetTransferSats } from './asset-payment.ts'
 
 const network = localStorageGetItem('network')
 const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
 const address1 = localStorageGetItem('wallet-1-address')
 const assetLabel = localStorageGetItem('asset-id')
 const assetId = localStorageGetItem('asset-id-' + assetLabel)
+const optionalPaymentSats = localStorageGetItem('asset-payment-sats')
 
 const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
 const wallet = await Wallet.create({
@@ -735,8 +738,11 @@ await wallet.getVtxos()
 if (!assetId) throw new Error('Use Mint Asset demo first.')
 
 // Act
+// Assets require carrier sats: currently 330 on both test networks, not a fee.
+// The optional payment defaults to 0 and is added to that carrier amount.
 const txid = await wallet.send({
   address: address1,
+  amount: assetTransferSats(wallet.dustAmount, optionalPaymentSats),
   assets: [{ assetId, amount: 1n }],
 })
 
@@ -1776,6 +1782,8 @@ function DemoMintAsset({ network }) {
 
 function DemoSendAsset({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network);
+  const [paymentSats, setPaymentSats] = useState(() => optionalAssetPayment(localStorageGetItem('asset-payment-sats')));
+  useEffect(() => { setPaymentSats(optionalAssetPayment(localStorageGetItem('asset-payment-sats'))); }, [network]);
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
   async function execute() {
@@ -1786,12 +1794,22 @@ function DemoSendAsset({ network }) {
       const address1 = setupWalletProfileValues(network).address1;
       const actualAssetId = getMintedAssetId(network, assetId);
       if (!actualAssetId) throw new Error('Use Mint Asset demo first.');
-      const txid = await wallet.send({ address: address1, assets: [{ assetId: actualAssetId, amount: 1n }] });
-      setOutput([`Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: txid } });
+      const carrierSats = Number(wallet.dustAmount);
+      const amount = assetTransferSats(wallet.dustAmount, paymentSats);
+      const txid = await wallet.send({ address: address1, amount, assets: [{ assetId: actualAssetId, amount: 1n }] });
+      setOutput([`Transaction ID: ${txid}`, `Asset units: 1`, `Required carrier: ${carrierSats} sats`, `Optional payment: ${paymentSats} sats`, `Total sent: ${amount} sats and 1 asset unit`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: txid } });
       await wallet.dispose?.();
     } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
   }
   return <OperationDemo demoTitle="Send Asset" intro="Demonstrates sending an Arkade asset to an address." diagram={DIAGRAMS.sendAsset} loadingText="Send asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" source={SEND_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+    <label className="sandbox-inline-input" htmlFor="send-asset-payment"><span>Optional Payment Sats:</span>
+      <select id="send-asset-payment" aria-describedby="send-asset-payment-help" value={paymentSats} onChange={event => {
+        const value = optionalAssetPayment(event.target.value);
+        window.localStorage.setItem(`${network}-asset-payment-sats`, String(value));
+        setPaymentSats(value);
+      }}>{OPTIONAL_ASSET_PAYMENTS.map(value => <option key={value} value={value}>{value}</option>)}</select>
+      <small id="send-asset-payment-help" className="sandbox-asset-payment-help">Extra payment only. The asset also carries the SDK minimum, currently 330 sats. These sats go to Wallet 1, not to fees.</small>
+    </label>
     <label htmlFor="send-asset-mnemonic">Wallet 2 Mnemonic</label>
     <input id="send-asset-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
     <label htmlFor="send-asset-address">Wallet 1 Address</label>

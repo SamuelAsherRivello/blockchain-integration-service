@@ -105,6 +105,7 @@ button, input, select { font: inherit; }
 .sandbox-demo-input-body input:not([readonly]):not(:disabled), .sandbox-demo-input-body select { border-color: rgba(169, 217, 195, .58); background: #131c1a; }
 .sandbox-demo-input-body input:not([readonly]):not(:disabled):focus-visible, .sandbox-demo-input-body select:focus-visible { outline: 2px solid #a9d9c3; outline-offset: 2px; }
 .sandbox-operation-input { grid-template-columns: 120px minmax(0, 1fr); }
+.sandbox-asset-payment-help { grid-column: 1 / -1; color: #bec9d7; font-size: 12px; line-height: 1.5; }
 .sandbox-operation-input .sandbox-inline-input { grid-column: 1 / -1; display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 10px; }
 .sandbox-operation-input .sandbox-inline-input span { color: #bec9d7; font-size: 12px; font-weight: 550; }
 .sandbox-operation-input .sandbox-inline-input select { min-width: 0; width: 100%; padding: 8px 10px; border: 1px solid #2c3947; border-radius: 6px; color: #dce5ee; background: #11151c; font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
