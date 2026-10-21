@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { DEMOS, HOME_PATH, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath } from '../src/client/navigation.ts';
+import { DEMOS, HOME_PATH, SETUP_PATH, getActiveDemo, isHomePath, isSetupPath, sandboxBasePath } from '../src/client/navigation.ts';
 
 const packageRoot = new URL('../', import.meta.url);
+
+test('sandbox navigation preserves the deployed Pages prefix without changing local routes', () => {
+  for (const base of ['/', './', '/prototype-sandbox/']) assert.equal(sandboxBasePath(base), '/prototype-sandbox/');
+  assert.equal(sandboxBasePath('/blockchain-integration-service/prototype-sandbox/'), '/blockchain-integration-service/prototype-sandbox/');
+});
 
 test('each prototype-sandbox route has an entry document and a route contract', async () => {
   const routes = [HOME_PATH, SETUP_PATH, ...DEMOS.map(demo => demo.path)];

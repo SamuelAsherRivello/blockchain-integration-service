@@ -48,6 +48,35 @@ try {
   assert.equal(catalog.status(), 200);
   const artwork = await marketplace.request.get(`${base}assets/marketplace/v1/shoes-1.png`);
   assert.equal(artwork.status(), 200);
+  const sandbox = await browser.newPage();
+  const sandboxResponse = await sandbox.goto(`${base}prototype-sandbox/demo-21/`);
+  assert.equal(sandboxResponse?.status(), 200);
+  await expectText(sandbox, 'BIS - Prototype Sandbox - Events');
+  const navigation = sandbox.getByRole('navigation');
+  const links = await navigation.locator('a[href]').evaluateAll(elements => elements.map(element => element.getAttribute('href')));
+  assert.ok(links.includes('/blockchain-integration-service/prototype-sandbox/setup/'));
+  assert.ok(links.includes('/blockchain-integration-service/prototype-sandbox/'));
+  assert.equal(new Set(links.filter(link => link?.includes('/demo-'))).size, 20, 'the active Events demo is not a link');
+  assert.ok(links.every(link => link?.startsWith('/blockchain-integration-service/prototype-sandbox/')));
+  const opened = sandbox.waitForEvent('popup');
+  await sandbox.getByRole('button', { name: 'Execute', exact: true }).click();
+  const monitor = await opened;
+  await monitor.getByRole('status').waitFor();
+  assert.ok(new URL(monitor.url()).pathname.endsWith('/blockchain-integration-service/prototype-sandbox/events-monitor/'));
+  assert.equal(await monitor.locator('.wallet-events-front .wallet-events-network').textContent(), '(Signet)');
+  for (let demo = 1; demo <= 21; demo++) {
+    await sandbox.goto(`${base}prototype-sandbox/demo-${demo}/`);
+    assert.match(await sandbox.getByRole('link', { name: 'Open source file', exact: true }).getAttribute('href') ?? '', /^https:\/\/github.com\/SamuelAsherRivello\/blockchain-integration-service\/blob\/main\//);
+    await sandbox.getByRole('tab', { name: 'Diagram', exact: true }).click();
+    await sandbox.locator('.sandbox-diagram-canvas svg').waitFor();
+  }
+  await sandbox.goto(`${base}prototype-sandbox/setup/`);
+  assert.equal(monitor.isClosed(), false, 'monitor survives navigation');
+  await monitor.close();
+  await expectText(sandbox, 'Wallet 1');
+  await sandbox.goto(`${base}prototype-sandbox/`);
+  await expectText(sandbox, 'Prototype Sandbox');
+  console.log('PASS deployed-prefix Sandbox navigation, Setup, Home and all 21 diagrams');
   const stagedRoot = resolve(artifactRoot, 'blockchain-integration-service');
   await access(resolve(stagedRoot, 'slidev', 'index.html'));
   for (const [deck, count] of Object.entries(legacyRoutes.decks)) {
@@ -67,7 +96,7 @@ try {
     await redirects.goto(`${base}${oldRoute}`, { waitUntil: 'domcontentloaded' });
     await redirects.waitForURL(`${new URL(base).origin}/blockchain-presentations/${newRoute}`);
   }
-  console.log(`PASS ${base}admin/ and ${base}integration-marketplace/`);
+  console.log(`PASS ${base}admin/, ${base}integration-marketplace/ and ${base}prototype-sandbox/demo-21/`);
   console.log(`PASS ${Object.keys(legacyRoutes.decks).length} Slidev deck redirect trees and legacy URL forms`);
 } finally {
   await browser.close();

@@ -1,3 +1,9 @@
+export function sandboxBasePath(base = import.meta.env?.BASE_URL ?? '/') {
+  const normalized = `/${base.replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/');
+  return normalized.endsWith('/prototype-sandbox/') ? normalized : '/prototype-sandbox/';
+}
+
+export const HOME_PATH = sandboxBasePath();
 export const DEMOS = Object.freeze([
   { number: 1, subject: 'Create Wallet', title: 'Create Wallet', access: 'W', path: '/prototype-sandbox/demo-1/' },
   { number: 2, subject: 'Get Balance', title: 'Private wallet', access: 'R', path: '/prototype-sandbox/demo-2/' },
@@ -20,10 +26,9 @@ export const DEMOS = Object.freeze([
   { number: 16, subject: 'Conditional Vault', title: 'Claim', access: 'W', path: '/prototype-sandbox/demo-16/' },
   { number: 12, subject: 'External Wallet', title: 'Send Payment', access: 'R', path: '/prototype-sandbox/demo-12/' },
   { number: 13, subject: 'External Wallet', title: 'Receive Payment', access: 'W', path: '/prototype-sandbox/demo-13/' },
-]);
+].map(demo => ({ ...demo, path: `${HOME_PATH}demo-${demo.number}/` })));
 
-export const SETUP_PATH = '/prototype-sandbox/setup/';
-export const HOME_PATH = '/prototype-sandbox/';
+export const SETUP_PATH = `${HOME_PATH}setup/`;
 export const LANDING_VISITED_STORAGE_KEY = 'prototype-sandbox-visited';
 export const NETWORK_STORAGE_KEY = 'network';
 export const DEFAULT_NETWORK = 'signet';
