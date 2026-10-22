@@ -10,6 +10,8 @@
 <a href="https://www.youtube.com/watch?v=-hZ7I68h7BI"><img src="docs/marketing/youtube-bitcoin-for-game-dev.png" alt="Watch the Blockchain Integration Service video on YouTube" width="600" /></a>
 </p>
 
+➡️ Bitcoin For Game Development — [https://bitcoingamedevelopment.com/](https://bitcoingamedevelopment.com/)
+
 # Blockchain Integration Service (BIS)
 
 [![Arkade](https://img.shields.io/badge/Arkade-381993?style=flat-square)](https://arkadeos.com/)
