@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { bisContentSecurityPolicy } from './content-security-policy.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export const packageRoutes = [
@@ -130,7 +131,7 @@ export function developmentConfig({ port = 5174, faucetPort = 5190 } = {}) {
     cacheDir: resolve(root, 'output', 'vite-cache', String(port)),
     appType: 'mpa',
     publicDir: false,
-    plugins: [packageEntries()],
+    plugins: [bisContentSecurityPolicy(), packageEntries()],
     server: {
       host: '127.0.0.1', port, strictPort: true,
       proxy: {

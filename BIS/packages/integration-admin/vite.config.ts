@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { bisContentSecurityPolicy } from '../../scripts/content-security-policy.ts';
 
 const packageRoot = fileURLToPath(new URL('.', import.meta.url));
 const documentationRoute = '/documentation/user-stories/';
@@ -39,5 +40,5 @@ export default defineConfig(({ command }) => ({
       },
     },
   },
-  plugins: [documentationRedirects()],
+  plugins: [bisContentSecurityPolicy(), documentationRedirects()],
 }));

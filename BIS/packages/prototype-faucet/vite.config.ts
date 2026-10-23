@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createFaucetApiLifecycle } from './src/shared/faucet-api-lifecycle.ts';
 import { readSharedEnvironment } from '../shared/src/server/environment.ts';
+import { bisContentSecurityPolicy } from '../../scripts/content-security-policy.ts';
 
 const apiPort = Number(readSharedEnvironment({ keys: ['FAUCET_PORT'], legacyFaucetFallback: true }).values.FAUCET_PORT || 5190);
 
@@ -29,7 +30,7 @@ function faucetApiPlugin() {
 }
 
 export default defineConfig({
-  plugins: [faucetApiPlugin()],
+  plugins: [bisContentSecurityPolicy(), faucetApiPlugin()],
   server: {
     proxy: { '/api/faucet': { target: `http://127.0.0.1:${apiPort}` } },
   },
