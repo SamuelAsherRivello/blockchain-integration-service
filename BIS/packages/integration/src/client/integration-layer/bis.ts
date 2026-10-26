@@ -13,7 +13,12 @@ import type { TestNetwork } from '../state-layer-core/test-network';
 export type BisNetwork = TestNetwork;
 export type BisOptions = Readonly<{ getBisGame(): IBisGame | undefined }>;
 export type BisDisposeOptions = Readonly<{ preserveContracts?: boolean }>;
-export type BisWalletReference = Readonly<{ profileId: string; network?: BisNetwork }>;
+export type BisWalletReference = Readonly<{
+  profileId: string;
+  network?: BisNetwork;
+  /** Signing origin when known; older or alternate integrations may omit it. */
+  source?: 'manual' | 'server';
+}>;
 export type BisError = Readonly<{
   code: 'disposed' | 'cleanup-failed' | 'unavailable' | 'invalid-workflow' | 'invalid-request';
   message: string;
@@ -136,6 +141,9 @@ export interface IBis {
   approveContractAsync(contractId: string): Promise<BisContractActionResult>;
   rejectContractAsync(contractId: string): Promise<BisContractActionResult>;
   endContractSessionAsync(offerSessionId: string): Promise<void>;
+  /** Explicit encrypted backup/import. Import never submits a financial transaction. */
+  exportContractRecoveryAsync(password:string):Promise<string>;
+  importContractRecoveryAsync(file:string,password:string):Promise<void>;
   resetForGameAsync(): Promise<BisResetResult>;
   dispose(options?: BisDisposeOptions): void;
 }

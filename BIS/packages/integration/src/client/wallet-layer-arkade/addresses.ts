@@ -1,11 +1,12 @@
-import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
-import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { readonlyIdentity } from './wallet-identity.ts';
+import { ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
+import { requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
 import type { RoleWalletAccess } from './adapter-session.ts';
 
 export type AccountAddresses = Readonly<{ arkadeAddress: string; bitcoinAddress: string }>;
-export async function loadAddresses(account: AccountSecret, signal: AbortSignal, session?: RoleWalletAccess): Promise<AccountAddresses> {
-  if (!validRecovery(account.phrase)) throw new Error('Invalid account.');
+export async function loadAddresses(account: WalletAccount, signal: AbortSignal, session?: RoleWalletAccess): Promise<AccountAddresses> {
+  if (!('server' in account) && !validRecovery(account.phrase)) throw new Error('Invalid account.');
   if (session) {
     const {arkadeAddress,bitcoinAddress}=await session.addresses(account,signal);
     if(!arkadeAddress.startsWith('tark1')||!bitcoinAddress.startsWith('tb1'))throw Error('Unexpected address network.');
@@ -16,7 +17,7 @@ export async function loadAddresses(account: AccountSecret, signal: AbortSignal,
   const getInfo = provider.getInfo.bind(provider);
   provider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
   return withTemporaryWallet(ReadonlyWallet.create({
-    identity: await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly(),
+    identity: await readonlyIdentity(account),
     arkProvider: provider,
     storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
   }), signal, async wallet => {

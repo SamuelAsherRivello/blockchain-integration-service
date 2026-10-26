@@ -1,6 +1,6 @@
 import {eligibleUnreservedCoins, walletReservations, migrateWalletReservations} from '../state-layer-core/wallet-reservations.ts';
 import { ArkAddress, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, Transaction, Extension, createAssetPacket, type ExtendedVirtualCoin } from '@arkade-os/sdk';
-import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
+import { operatorFor, requireNetwork, type WalletAccount } from './account.ts';
 import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
 import type {RoleWalletAccess} from './adapter-session.ts';
@@ -105,12 +105,12 @@ async function plan(wallet:ReadonlyWallet,profileId:string,recipient:string,requ
  const quote:BisSendQuote=Object.freeze({id:crypto.randomUUID(),profileId,recipient:address.encode(),amountSats:amounts.amountSats,feeSats:0,totalSats:amounts.amountSats,maxSats:total,expiresAt:Date.now()+60000,fingerprint});
  return {quote,coins,recipientScript:hex(address.pkScript),changeScript:hex(ArkAddress.decode(own).pkScript)};
 }
-async function read<T>(account:AccountSecret,signal:AbortSignal,work:(wallet:ReadonlyWallet)=>Promise<T>,session?:RoleWalletAccess):Promise<T> {
+async function read<T>(account:WalletAccount,signal:AbortSignal,work:(wallet:ReadonlyWallet)=>Promise<T>,session?:RoleWalletAccess):Promise<T> {
  const network=account.network ?? 'signet', c=config(signal,network);
  return useReadonlyWallet(account,signal,c.options,async wallet=>{const result=await work(wallet);c.assertFresh();return result;},session);
 }
-export const loadSendFunds=(account:AccountSecret,signal:AbortSignal,preserveAssets=false,session?:RoleWalletAccess)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId,undefined,account.network ?? 'signet')).total,session);
-export const quoteSend=(account:AccountSecret,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false,ignoreOperation?:string,session?:RoleWalletAccess)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets,ignoreOperation,account.network ?? 'signet')).quote,session);
+export const loadSendFunds=(account:WalletAccount,signal:AbortSignal,preserveAssets=false,session?:RoleWalletAccess)=>read(account,signal,async wallet=>(await funds(wallet,preserveAssets,account.profileId,undefined,account.network ?? 'signet')).total,session);
+export const quoteSend=(account:WalletAccount,recipient:string,amount:number|undefined,signal:AbortSignal,preserveAssets=false,ignoreOperation?:string,session?:RoleWalletAccess)=>read(account,signal,async wallet=>(await plan(wallet,account.profileId,recipient,amount,preserveAssets,ignoreOperation,account.network ?? 'signet')).quote,session);
 
 // Verify the entire direct-send shape, including the checkpoint indirection.
 // No signed bytes are returned or persisted by this boundary.
@@ -133,7 +133,7 @@ export function inspectSendTransaction(encoded:string,checkpoints:string[],quote
 }
 export type SendJournal = {read(profileId:string):SendRecord|undefined; write(record:SendRecord):void; complete(id:string,transactionId:string,profileId:string):void};
 const defaultJournal:SendJournal={read:readSendRecord,write:writeSendRecord,complete:completeSend};
-export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurrent:()=>boolean,journal:SendJournal=defaultJournal,preserveAssets=false,ignoreOperation?:string,session?:RoleWalletAccess):Promise<SendRecord> {
+export async function submitSend(account:WalletAccount,quote:BisSendQuote,isCurrent:()=>boolean,journal:SendJournal=defaultJournal,preserveAssets=false,ignoreOperation?:string,session?:RoleWalletAccess):Promise<SendRecord> {
  const signal=AbortSignal.timeout(30000),network=account.network ?? 'signet',c=config(signal,network),activeJournal=journal===defaultJournal?{read:(profileId:string,id?:string)=>readSendRecord(profileId,id,network),write:(record:SendRecord)=>writeSendRecord({...record,network}),complete:(id:string,transactionId:string,profileId:string)=>completeSend(id,transactionId,profileId,network)}:journal;let open=true,record:SendRecord|undefined;
  const submit=c.options.arkProvider.submitTx.bind(c.options.arkProvider);
  c.options.arkProvider.submitTx=async()=>{throw new SendError('Send preparation is incomplete.');};
@@ -154,7 +154,7 @@ export async function submitSend(account:AccountSecret,quote:BisSendQuote,isCurr
  } catch(e) {if(record)return activeJournal.read(account.profileId)??record;throw e instanceof SendError?e:new SendError('Send could not be prepared. Review again.');}
  finally {open=false;}
 }
-export async function reconcileSend(account:AccountSecret,signal:AbortSignal,journal:SendJournal=defaultJournal):Promise<SendRecord|undefined> {
+export async function reconcileSend(account:WalletAccount,signal:AbortSignal,journal:SendJournal=defaultJournal):Promise<SendRecord|undefined> {
  if(journal===defaultJournal) {
   const network=account.network ?? 'signet';
   for(const item of readSendRecords(account.profileId,network).filter(r=>r.status==='pending')) {

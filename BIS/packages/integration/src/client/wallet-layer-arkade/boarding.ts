@@ -6,7 +6,7 @@ import { readFreshBalance } from './balance.ts';
 import { sdkVersion, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, CSVMultisigTapscript, hasBoardingTxExpired, Ramps, ArkAddress, Transaction, Extension, createAssetPacket, type IWallet, type SettleParams } from '@arkade-os/sdk';
 import { boardingAssets, type BoardingAssetChange } from '../state-layer-core/boarding-assets.ts';
 import type { ExtendedVirtualCoin } from '@arkade-os/sdk';
-import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
+import { operatorFor, requireNetwork, type WalletAccount } from './account.ts';
 import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
 import type {RoleWalletAccess} from './adapter-session.ts';
@@ -29,7 +29,7 @@ function config(network:TestNetwork='signet') {
   indexerProvider.getVtxos=async(...args)=>{try{return await getVtxos(...args);}catch(error){failed=true;throw error;}};
   return {options:{arkProvider,indexerProvider,settlementConfig:false as const,storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}},healthy:()=>!failed};
 }
-async function readonly<T>(account:AccountSecret,signal:AbortSignal,read:(wallet:ReadonlyWallet)=>Promise<T>,session?:RoleWalletAccess):Promise<T> {
+async function readonly<T>(account:WalletAccount,signal:AbortSignal,read:(wallet:ReadonlyWallet)=>Promise<T>,session?:RoleWalletAccess):Promise<T> {
   const c=config(account.network ?? 'signet');
   return useReadonlyWallet(account,signal,c.options,async wallet=>{
     const result=await read(wallet);
@@ -121,11 +121,11 @@ export function inspectBoardingAssets(proof:string,params:SettleParams,change:Bo
   const own=tx.getOutput(0),extension=tx.getOutput(2);
   if(!own.script||hex(own.script)!==change.script||own.amount!==BigInt(change.sats)||!extension.script||hex(extension.script)!==hex(expected.script)||extension.amount!==0n)throw Error('Transfer does not preserve your assets.');
 }
-export async function quoteBoarding(account:AccountSecret,requested:number|undefined,signal:AbortSignal,direction:BoardingQuote['direction']='to-arkade',session?:RoleWalletAccess,destination?:BitcoinFundingDestination) {
+export async function quoteBoarding(account:WalletAccount,requested:number|undefined,signal:AbortSignal,direction:BoardingQuote['direction']='to-arkade',session?:RoleWalletAccess,destination?:BitcoinFundingDestination) {
   validateBitcoinFundingDestination(destination,direction,account.network??'signet');
   return readonly(account,signal,async wallet=>(await plan(wallet,account.profileId,requested,direction,account.network ?? 'signet',destination)).quote,session);
 }
-export async function getBoardingAvailability(account:AccountSecret,signal:AbortSignal,direction:BoardingQuote['direction']='to-arkade',session?:RoleWalletAccess) {
+export async function getBoardingAvailability(account:WalletAccount,signal:AbortSignal,direction:BoardingQuote['direction']='to-arkade',session?:RoleWalletAccess) {
   try {
     const {policy}=await readWalletNetworkPolicy(account.network ?? 'signet');
     signal.throwIfAborted();
@@ -140,7 +140,7 @@ export async function getBoardingAvailability(account:AccountSecret,signal:Abort
     return Object.freeze({available:false as const,reason:'policy-unavailable' as const,message:'Operator policy verification is unavailable. Account Transfer is unavailable.'});
   }
 }
-export function submitBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:()=>boolean=()=>true,session?:RoleWalletAccess):Promise<BoardingRecord> {
+export function submitBoarding(account:WalletAccount,quote:BoardingQuote,isCurrent:()=>boolean=()=>true,session?:RoleWalletAccess):Promise<BoardingRecord> {
   const operationId=crypto.randomUUID();
   let acknowledge!:(record:BoardingRecord)=>void;
   const registered=new Promise<BoardingRecord>(resolve=>{acknowledge=resolve;});
@@ -150,7 +150,7 @@ export function submitBoarding(account:AccountSecret,quote:BoardingQuote,isCurre
   const completion=runBoardingWorker(account.profileId,operationId,()=>globalThis.navigator?.locks?withBrowserMutation(run):run());
   return Promise.race([registered,completion]);
 }
-async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:()=>boolean,onRegistered:(record:BoardingRecord)=>void,operationId:string,session?:RoleWalletAccess):Promise<BoardingRecord> {
+async function runBoarding(account:WalletAccount,quote:BoardingQuote,isCurrent:()=>boolean,onRegistered:(record:BoardingRecord)=>void,operationId:string,session?:RoleWalletAccess):Promise<BoardingRecord> {
   validateBitcoinFundingDestination(quote.destination,quote.direction,account.network??'signet');
   if(quote.profileId!==account.profileId||!['to-arkade','to-bitcoin'].includes(quote.direction)||quote.expiresAt<=Date.now())throw Error('Review a fresh transfer quote.');
   const network=account.network ?? 'signet', c=config(network);
@@ -253,12 +253,12 @@ async function runBoarding(account:AccountSecret,quote:BoardingQuote,isCurrent:(
     attempt?.close();
   }
 }
-export async function reconcileBoarding(account:AccountSecret,signal:AbortSignal,session?:RoleWalletAccess):Promise<BoardingRecord|undefined> {
+export async function reconcileBoarding(account:WalletAccount,signal:AbortSignal,session?:RoleWalletAccess):Promise<BoardingRecord|undefined> {
   let latest:BoardingRecord|undefined;
   for(const record of readBoardingRecords(account.profileId,account.network ?? 'signet'))latest=await reconcileRecord(account,signal,record,session);
   return latest;
 }
-export async function readLiveBoardingState(account:AccountSecret,signal:AbortSignal,session?:RoleWalletAccess) {
+export async function readLiveBoardingState(account:WalletAccount,signal:AbortSignal,session?:RoleWalletAccess) {
   const records=readBoardingRecords(account.profileId,account.network ?? 'signet').filter(r=>r.quote.direction==='to-arkade' && r.status!=='not-submitted');
   if(!records.length)return 'ready' as const;
   return readonly(account,signal,async wallet=>{
@@ -268,7 +268,7 @@ export async function readLiveBoardingState(account:AccountSecret,signal:AbortSi
   },session);
 }
 /** Read-only live evidence; does not set a persisted "boarded" flag. */
-export async function readLiveBoardingWait(account:AccountSecret,signal:AbortSignal,session?:RoleWalletAccess):Promise<boolean> {
+export async function readLiveBoardingWait(account:WalletAccount,signal:AbortSignal,session?:RoleWalletAccess):Promise<boolean> {
   const records=readBoardingRecords(account.profileId,account.network ?? 'signet').filter(r=>r.quote.direction==='to-arkade');
   if(!records.length)return false;
   return readonly(account,signal,async wallet=>{
@@ -277,7 +277,7 @@ export async function readLiveBoardingWait(account:AccountSecret,signal:AbortSig
     return hasLiveBoardingWait(records,transactions);
   },session);
 }
-async function reconcileRecord(account:AccountSecret,signal:AbortSignal,record:BoardingRecord,session?:RoleWalletAccess):Promise<BoardingRecord|undefined> {
+async function reconcileRecord(account:WalletAccount,signal:AbortSignal,record:BoardingRecord,session?:RoleWalletAccess):Promise<BoardingRecord|undefined> {
   if(!record||record.profileId!==account.profileId)return;
   if(record.status!=='pending')return record;
   if(record.phase==='prepared')return withWalletMutation(async()=>recoverPreparedBoarding(readBoardingRecord(account.profileId,record.id,account.network ?? 'signet')!),account.profileId,account.network ?? 'signet');

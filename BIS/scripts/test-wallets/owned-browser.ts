@@ -6,6 +6,7 @@ import { verifiedInventory } from './inventory.ts';
 import { origin } from './arguments.ts';
 import { validatePrivatePath } from './vault.ts';
 import { fail } from './errors.ts';
+import { pollOwnedObservation } from './readiness.ts';
 import { Operations } from './operations.ts';
 import { observeReceipt } from './funding.ts';
 import { runSwap, readSwapState } from './swap.ts';
@@ -22,10 +23,11 @@ export function ownedLaunchOptions(app, platform = process.platform) {
     viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
   } : {};
 }
-export function ownedProfileKey(pairLabel, network, selectedOrigin, app) {
+export function ownedProfileKey(pairLabel, network, selectedOrigin, app, recoveryProfile) {
   // Keep established Marketplace recovery paths; other apps own independent
   // browser storage even when hosted on the same loopback origin.
-  const scope = `${pairLabel}:${network}:${selectedOrigin}${app === 'marketplace' ? '' : `:${app}`}`;
+  if(recoveryProfile!==undefined&&!/^[a-z][a-z0-9-]{0,39}$/.test(recoveryProfile))fail('invalid-recovery-profile');
+  const scope = `${pairLabel}:${network}:${selectedOrigin}${app === 'marketplace' ? '' : `:${app}`}${recoveryProfile?`:recovery:${recoveryProfile}`:''}`;
   return createHash('sha256').update(scope).digest('hex').slice(0, 24);
 }
 export async function configureApplications(vault, selectedOrigin) {
@@ -72,7 +74,7 @@ export class OwnedBrowser {
       return { application, pair, player, game };
     });
     const { application, pair, player, game } = this.registration;
-    const key = ownedProfileKey(pairLabel, pair.network, selectedOrigin, app);
+    const key = ownedProfileKey(pairLabel, pair.network, selectedOrigin, app, this.options.recoveryProfile);
     const profile = join(this.vault.root, 'profiles', key);
     await validatePrivatePath(profile);
     const lockPath = join(this.vault.root, `profile-${key}.lock`);
@@ -90,12 +92,23 @@ export class OwnedBrowser {
       for (const key of ['DEBUG', 'PWDEBUG', 'DEBUG_FILE']) delete process.env[key];
       const { chromium } = await import('playwright');
       stage = 'launch';
-      this.context = await chromium.launchPersistentContext(profile, { headless: true, acceptDownloads: false,
+      this.context = await chromium.launchPersistentContext(profile, { headless: true, acceptDownloads: this.options.encryptedRecoveryDownloads===true,
         viewport: { width: 1280, height: 900 }, timeout: 20000,
         ...ownedLaunchOptions(app),
         env: browserEnvironment(),
       });
       this.context.setDefaultTimeout(20000);
+      if (this.options.stableSource) {
+        // Keep this acceptance browser on its loaded source during unrelated
+        // development edits. Do not change the shared server or network APIs.
+        await this.context.routeWebSocket(url => url.host === new URL(selectedOrigin).host, socket => {
+          const server = socket.connectToServer();
+          server.onMessage(message => {
+            try { if (['update', 'full-reload'].includes(JSON.parse(String(message)).type)) return; } catch {}
+            socket.send(message);
+          });
+        });
+      }
       // Do not forward console/pageerror/request bodies or enable tracing/video.
       this.page = this.context.pages()[0] ?? await this.context.newPage();
       this.context.on('page', page => { if (page !== this.page) void page.close().catch(() => {}); });
@@ -118,7 +131,12 @@ export class OwnedBrowser {
       stage = 'restore';
       await this.restorePair();
       return this.inspect();
-    } catch {
+    } catch (error) {
+      this.options.onPublicFailure?.({ stage: this.restoreStage ?? stage, timeout: error?.name === 'TimeoutError',
+        errorType: ['Error','TypeError','ReferenceError'].includes(error?.name) ? error.name : 'other',
+        undefinedName: String(error?.message).match(/\b([A-Za-z_$][\w$]*) is not defined/)?.[1],
+        code: typeof error?.code === 'string' && /^[a-z-]+$/.test(error.code) ? error.code : undefined,
+        flags: ['outside of the viewport', 'intercepts pointer events', 'not stable', 'not visible', 'strict mode violation', 'not attached','dynamic','import','could not','fetch','storage','Storage','database','saved','crypto','closed','CSP','Content Security Policy','unsafe-eval'].filter(flag => String(error?.message).includes(flag)) });
       await this.close();
       fail(`owned-browser-${this.restoreStage ?? stage}-unavailable`);
     }
@@ -189,6 +207,34 @@ export class OwnedBrowser {
       await restore.click();
       this.restoreStage = 'player-restore';
       await this.entry(player.phrase, '⚡ Restore');
+      // A valid, empty identity needs the normal first-use confirmation.
+      // Recovery entry disappearing alone does not mean login has completed.
+      const waitForSaved = async (predicate, value) => {
+        await pollOwnedObservation(() => this.page.evaluate(predicate, value), AbortSignal.timeout(30000));
+      };
+      this.restoreStage = 'player-confirmation-wait';
+      await waitForSaved(async ({ profileId, network }) => {
+        if ([...document.querySelectorAll('dialog[open] h2')].some(h => h.textContent === 'Create New Account?')) return true;
+        const { createAccountStorage } = await import('/BIS/packages/integration/src/client/state-layer-core/account-storage.ts');
+        return (await createAccountStorage(network).load()).account?.profileId === profileId;
+      },
+      { profileId: player.profileId, network: pair.network });
+      const firstUse = this.page.getByRole('dialog', { name: 'Create New Account?', exact: true });
+      if (await this.page.evaluate(() => [...document.querySelectorAll('dialog[open] h2')].some(h => h.textContent === 'Create New Account?'))) {
+        this.restoreStage = 'player-confirmation-click';
+        await firstUse.waitFor({ state: 'visible' });
+        await firstUse.getByRole('button', { name: 'Create Account', exact: true }).click();
+      }
+      this.restoreStage = 'player-connected-wait';
+      await waitForSaved(async ({ profileId, network }) => {
+        const { createAccountStorage } = await import('/BIS/packages/integration/src/client/state-layer-core/account-storage.ts');
+        return (await createAccountStorage(network).load()).account?.profileId === profileId;
+      }, { profileId: player.profileId, network: pair.network });
+      await this.page.waitForFunction(expected => {
+        const layer = document.querySelector('.bis-layer[data-bis-player-id]');
+        return !layer || layer.getAttribute('data-bis-player-id') === expected;
+      }, player.profileId, { timeout: 30000, polling: 100 });
+      await this.accountMenu();
     }
     this.restoreStage = 'player-details';
     await this.page.getByRole('button', { name: 'Accounts Details', exact: true }).click();

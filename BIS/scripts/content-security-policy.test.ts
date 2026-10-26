@@ -55,7 +55,7 @@ test('real browser blocks inline/eval/foreign script but renders Admin, safe Mer
     await server.listen();const address=server.httpServer!.address();assert.ok(address&&typeof address!=='string');
     const origin=`http://127.0.0.1:${address.port}`;
     const nonces=[];
-    for(const path of ['/admin/','/BIS/packages/integration-admin/index.html','/integration-marketplace/','/integration/']){
+    for(const path of ['/admin/','/BIS/packages/integration-admin/index.html','/marketplace/','/integration-marketplace/','/integration/']){
       const response=await fetch(origin+path),html=await response.text();
       assert.match(response.headers.get('content-security-policy')??'',/script-src 'self'/);
       assert.match(html,/name="bis-content-security-policy"/);

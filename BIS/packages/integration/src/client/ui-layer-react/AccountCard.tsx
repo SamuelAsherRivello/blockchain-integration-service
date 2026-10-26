@@ -1,13 +1,13 @@
 import { useId, type ReactNode, type Ref } from 'react';
 import { version } from '../../../package.json';
 
-export function AccountDialogShell({ title, description, headingRef, headingActions, className = '', children, network = 'Signet' }: {
-  title: string; description: ReactNode; headingRef: Ref<HTMLHeadingElement>; headingActions?: ReactNode; className?: string; children: ReactNode; network?: string;
+export function AccountDialogShell({ title, description, headingRef, headingActions, className = '', children, network = 'Signet', serverConnected = false }: {
+  title: string; description: ReactNode; headingRef: Ref<HTMLHeadingElement>; headingActions?: ReactNode; className?: string; children: ReactNode; network?: string; serverConnected?: boolean;
 }) {
   const titleId = useId(), descriptionId = useId();
   return <section className={`bis-card${className}`} role="dialog" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined}>
     <div className="bis-network-label">
-      <span className="bis-network-anchor"><span className="bis-network-text">Network: {network}</span><span className="bis-version-label">BIS: v{version}</span></span>
+      <span className="bis-network-anchor"><span className="bis-network-text">Network: {network}</span><span className="bis-version-label">BIS: v{version}{serverConnected && ' Server'}</span></span>
     </div>
     <header className="bis-dialog-heading">
       <h2 ref={headingRef} tabIndex={-1} id={titleId}>{title}</h2>

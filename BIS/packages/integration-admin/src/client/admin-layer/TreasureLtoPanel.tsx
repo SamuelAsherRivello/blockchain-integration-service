@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import type {BisContext,createBisGameWallet,createBisLto} from '@bis/integration';
+import {contractValidationOptions,contractValidationDescription,type ContractValidationMode,type BisContext,type createBisGameWallet,type createBisLto} from '@bis/integration';
 import {createTreasureSession,treasureMessage} from '../preview-layer/treasure-session.ts';
 import {StoryButton} from './StoryButton';
 
@@ -7,14 +7,24 @@ import {StoryButton} from './StoryButton';
 export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:BisContext;offers?:ReturnType<typeof createBisLto>;gameWallet?:ReturnType<typeof createBisGameWallet>;onLog:(result:unknown)=>void}) {
   const controller=useMemo(()=>context&&offers&&gameWallet?createTreasureSession({context,offers,gameWallet}):undefined,[context,offers,gameWallet]);
   const [deadline,setDeadline]=useState<number>(),[remaining,setRemaining]=useState(0);
+  const network=context?.getState().network??'signet';
+  const [solution,setSolution]=useState<ContractValidationMode>(network==='mutinynet'?'arkade-covenant-v2':'browser-policy-v1');
+  const [inProgress,setInProgress]=useState(false);
+  const [claimBusy,setClaimBusy]=useState(false);
+  const claimFlight=useRef<object|undefined>(undefined);
+  const selectedSolution=network==='signet'?'browser-policy-v1':solution;
+  useEffect(()=>{setSolution(network==='mutinynet'?'arkade-covenant-v2':'browser-policy-v1');},[network]);
   const latest=useRef(controller);latest.current=controller;
   const log=useRef(onLog);log.current=onLog;
   useEffect(()=>{
+    claimFlight.current=undefined;setClaimBusy(false);
     setDeadline(undefined);setRemaining(0);
     let previous='',previousOfferKey='',active=true;
     const report=()=>{
       if(!active||!controller)return;
       const state=controller.getState(),key=JSON.stringify([state.sessionId,state.contractId,state.status,state.reason]);
+      setInProgress(['preparing','active','pending'].includes(state.status));
+      if(state.validationMode&&['preparing','active','pending'].includes(state.status))setSolution(state.validationMode);
       const offerInPlay=Boolean(state.contractId&&['preparing','active'].includes(state.status));
       const offerKey=offerInPlay?`${state.sessionId}:${state.contractId}`:'';
       if (offerKey && offerKey!==previousOfferKey) {
@@ -41,9 +51,14 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
   function start(){
     log.current({event:'Start LTO',message:'Starting a new 90-second session. Any prior offer must resolve before replacement.'});
     if(!controller){const message='The limited-time offer Treasure could not be created.';log.current({event:'Start LTO',status:'unavailable',message});context?.showToast(message,{messageType:'warning'});return;}
-    void controller.start();
+    void controller.start(selectedSolution);
   }
   async function claim(){
+    // Guard before even the shared inspection await. A second UI invocation
+    // must not produce a misleading unavailable toast for the first claim.
+    if(claimFlight.current)return;
+    const flight={};claimFlight.current=flight;setClaimBusy(true);
+    try {
     log.current({event:'Claim LTO',status:'checking',message:'Checking the current treasure offer and claim eligibility.'});
     const current=controller;
     if(!current){log.current({event:'Claim LTO',status:'unavailable',message:'No ready treasure session.'});return;}
@@ -55,10 +70,24 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
     if(latest.current!==current)return;
     log.current({event:'Claim LTO',status:result.status,sessionId:before.sessionId,contractId:before.contractId,message:result.status==='pending'?'Claim pending; confirmation will arrive without interrupting play.':treasureMessage(before.status)});
     if (result.status !== 'pending') context?.showToast(result.status === 'too-late' ? 'The limited-time offer Treasure has expired.' : result.status === 'not-submitted' ? 'You could not claim limited-time offer Treasure.' : result.status === 'confirmed' ? 'You claimed limited-time offer Treasure. (Confirmed)' : 'The limited-time offer Treasure is unavailable.', {messageType:result.status === 'confirmed' ? 'success' : 'warning'});
+    } finally {if(claimFlight.current===flight){claimFlight.current=undefined;setClaimBusy(false);}}
   }
   return <StoryButton label="D.G.1 / D.P.2. LTO Treasure Chest" sublabel={<span className="game-wallet-balance" aria-label="LTO time left" style={{fontVariantNumeric:'tabular-nums'}}>Time left: {remaining}s</span>}>
-    <button type="button" onClick={start}>Start LTO</button>
-    <button type="button" onClick={()=>void claim()}>Claim LTO</button>
+    <div style={{display:'flex',flexDirection:'column',gap:'0.75rem',width:'100%',minWidth:0,whiteSpace:'normal'}}>
+    <label style={{display:'flex',flexDirection:'column',gap:'0.35rem',minWidth:0}}>Signing / validation solution
+      <select aria-label="Signing / validation solution" aria-describedby="treasure-validation-description" value={selectedSolution}
+        style={{width:'100%',minWidth:0}} disabled={inProgress} onChange={event=>setSolution(event.target.value as ContractValidationMode)}>
+        {contractValidationOptions(network).map(mode=><option key={mode} value={mode}>{mode==='arkade-covenant-v2'?'Arkade co-signer (preferred)':'Browser validation (less secure)'}</option>)}
+      </select>
+    </label>
+    <p id="treasure-validation-description" style={{maxWidth:'60ch',margin:0,overflowWrap:'break-word'}}>{contractValidationDescription(selectedSolution)} {network==='signet'?'The co-signer solution is not configured for Signet yet.':'Explicit Admin choices do not silently fall back.'}</p>
+    <p style={{maxWidth:'60ch',margin:0}}>Start LTO locks 1,000 sats from your selected Game Wallet for this offer. Both wallets are locally controlled. This is not a protected publisher-funded reward treasury.</p>
+    <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem'}}>
+    <button type="button" disabled={claimBusy} onClick={start}>Start LTO</button>
+    <button type="button" disabled={claimBusy} aria-busy={claimBusy} onClick={()=>void claim()}>Claim LTO</button>
+    </div>
+    <span role="status" aria-live="polite" style={{minHeight:'1.5em'}}>{claimBusy?'Checking the treasure claim. Confirmation may take longer.':''}</span>
+    </div>
   </StoryButton>;
 }
 

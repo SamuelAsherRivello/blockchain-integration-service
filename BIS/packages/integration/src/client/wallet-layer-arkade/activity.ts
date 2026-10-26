@@ -1,5 +1,6 @@
-import { ReadonlyWallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, EsploraProvider, InMemoryWalletRepository, InMemoryContractRepository, assetMintResolver, type ArkTransaction } from '@arkade-os/sdk';
-import { requireNetwork, operatorFor, type AccountSecret } from './account.ts';
+import { readonlyIdentity } from './wallet-identity.ts';
+import { ReadonlyWallet, RestArkProvider, RestIndexerProvider, EsploraProvider, InMemoryWalletRepository, InMemoryContractRepository, assetMintResolver, type ArkTransaction } from '@arkade-os/sdk';
+import { requireNetwork, operatorFor, type WalletAccount } from './account.ts';
 import { testNetwork } from '../state-layer-core/test-network.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
@@ -100,8 +101,8 @@ export async function observeActivityWallet(pending: Promise<ActivityWallet>, si
   }
 }
 
-export async function watchActivity(account: AccountSecret, signal: AbortSignal, publish: (rows: readonly BisTransaction[]) => void,session?:import('./adapter-session.ts').RoleWalletAccess): Promise<void> {
-  if (!validRecovery(account.phrase)) throw Error('Invalid account.');
+export async function watchActivity(account: WalletAccount, signal: AbortSignal, publish: (rows: readonly BisTransaction[]) => void,session?:import('./adapter-session.ts').RoleWalletAccess): Promise<void> {
+  if (!('server' in account) && !validRecovery(account.phrase)) throw Error('Invalid account.');
   signal.throwIfAborted();
   if(session)return session.read(account,signal,async wallet=>{
     // The observer owns callbacks/timers, never the retained SDK wallet.
@@ -129,7 +130,7 @@ export async function watchActivity(account: AccountSecret, signal: AbortSignal,
   const getTransactions = onchainProvider.getTransactions.bind(onchainProvider);
   onchainProvider.getTransactions = async (...args) => { try { signal.throwIfAborted(); return await getTransactions(...args); } catch (error) { failed = true; throw error; } };
   await observeActivityWallet(ReadonlyWallet.create({
-    identity: await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly(), arkProvider, indexerProvider, onchainProvider,
+    identity: await readonlyIdentity(account), arkProvider, indexerProvider, onchainProvider,
     storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
   }), signal, publish, () => !failed);
 }

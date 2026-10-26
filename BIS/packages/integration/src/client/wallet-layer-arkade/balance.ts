@@ -1,5 +1,6 @@
-import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
-import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { readonlyIdentity } from './wallet-identity.ts';
+import { ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
+import { requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
 import type { RoleWalletAccess } from './adapter-session.ts';
@@ -41,8 +42,8 @@ export async function readFreshBalance(wallet: BalanceWallet): Promise<BalanceAm
   });
 }
 
-export async function loadBalance(account: AccountSecret, signal: AbortSignal, session?: RoleWalletAccess): Promise<BalanceAmounts> {
-  if (!validRecovery(account.phrase)) throw new Error('Invalid account.');
+export async function loadBalance(account: WalletAccount, signal: AbortSignal, session?: RoleWalletAccess): Promise<BalanceAmounts> {
+  if (!('server' in account) && !validRecovery(account.phrase)) throw new Error('Invalid account.');
   if (session) return session.read(account,signal,readFreshBalance);
   const network=account.network ?? 'signet', operator=operatorFor(network);
   const response = await fetch(`${operator}/v1/info`, {
@@ -64,7 +65,7 @@ export async function loadBalance(account: AccountSecret, signal: AbortSignal, s
     catch (error) { indexerFailed = true; throw error; }
   };
   const pending = ReadonlyWallet.create({
-    identity: await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly(),
+    identity: await readonlyIdentity(account),
     arkProvider, indexerProvider,
     storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
     watcherConfig: { failsafePollIntervalMs: 60000, reconnectDelayMs: 60000, maxReconnectAttempts: 1 },

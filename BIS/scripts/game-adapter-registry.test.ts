@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { configureApplications, ownedProfileKey, ownedLaunchOptions, OwnedBrowser } from './test-wallets/owned-browser.ts';
+
+test('recovery acceptance uses separate protected profiles without changing established wallet paths',()=>{
+  const original=ownedProfileKey('pair','signet','http://127.0.0.1:5174','admin');
+  assert.equal(original,ownedProfileKey('pair','signet','http://127.0.0.1:5174','admin',undefined));
+  assert.notEqual(original,ownedProfileKey('pair','signet','http://127.0.0.1:5174','admin','portable-a'));
+  assert.throws(()=>ownedProfileKey('pair','signet','http://127.0.0.1:5174','admin','../unsafe'));
+});
 import { assertGameProvenance, gameAdapter, gameUrl, verifyGameProvenance, reconcileGameRegistration } from './test-wallets/game-adapter.ts';
 
 function vaultState() {

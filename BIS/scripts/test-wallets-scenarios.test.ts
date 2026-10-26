@@ -9,7 +9,13 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { Vault } from './test-wallets/vault.ts';
 import { register } from './test-wallets/inventory.ts';
 import { Operations } from './test-wallets/operations.ts';
-import { runGuardedScenario, validateGuardedScenario, parseContractReport } from './test-wallets/guarded-scenarios.ts';
+import { runGuardedScenario, validateGuardedScenario, parseContractReport, guardedObservationBudget } from './test-wallets/guarded-scenarios.ts';
+
+test('scenario observation limits are explicit, bounded and preserve the ordinary default',()=>{
+  assert.deepEqual(guardedObservationBudget(),{milliseconds:5000,maximumAttempts:20});
+  assert.deepEqual(guardedObservationBudget(115000),{milliseconds:115000,maximumAttempts:460});
+  for(const value of [0,249,120001,Infinity,250.5])assert.throws(()=>guardedObservationBudget(value));
+});
 
 async function fixture(t, network = 'signet', scenario = 'mint-delivery') {
   const parent = await mkdtemp(join(tmpdir(), 'bis-scenarios-'));
@@ -51,6 +57,17 @@ test('named scenarios reject arbitrary/private payloads before opening an owned 
   }
   await assert.rejects(runGuardedScenario({ inspect: async () => ({ mode: 'joined' }) },
     { command: 'run', scenario: 'mint-delivery', operation: 'x', destination: 'game' }), /scenario-owned-session-required/);
+});
+
+test('long original observation adopts a delayed acknowledgement without another confirmation',async t=>{
+  const f=await fixture(t);let reads=0;
+  const original=f.adapters.confirm;
+  f.adapters.confirm=async()=>{await original();reads=0;};
+  f.adapters.records=async()=>++reads>=26?[structuredClone(f.product)]:[];
+  const result=await runGuardedScenario(f.owner,f.request,{...f.adapters,observationTimeoutMs:115000});
+  assert.equal(result.operation.providerId,'product-one');
+  assert.equal(result.operation.state,'pending');
+  assert.equal(f.confirms(),1);assert.ok(reads>=26);
 });
 
 for (const network of ['signet', 'mutinynet']) for (const scenario of ['mint-delivery', 'burn', 'contract-claim', 'contract-refund'])

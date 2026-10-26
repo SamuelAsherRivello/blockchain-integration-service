@@ -21,6 +21,7 @@ export type { BisServiceOptions, BisServiceContinueDeliveryOptions, BisServiceRe
 export { BisServiceResetError } from './client/integration-layer/bis-service';
 export type { IBisGame, BisGameSession, BisGameContinuationTarget, BisGameConfirmedContinuation, BisGameConfirmedPlayerReward, BisGameEffectReceipt, BisGameLogoutAuthorizationRequest, BisGameLogoutAuthorization, BisGameLogoutRecheck } from './client/state-layer-core/bis-game';
 export { createBisGameWallet } from './client/state-layer-core/game-wallet';
+export { configureBisServer } from './client/wallet-layer-arkade/server-wallet';
 export { arkExplorerAssetUrl, arkExplorerTransactionUrl, testNetwork } from './client/state-layer-core/test-network';
 export type { TestNetwork } from './client/state-layer-core/test-network';
 export { createBisLto } from './client/state-layer-core/lto-service';
@@ -78,3 +79,5 @@ export type { BisEquipmentSlots, BisEquipmentState } from './client/state-layer-
 export { preparePublicAssetInventory, getPublicAssetInventory, invalidatePublicAssetInventory } from './client/state-layer-core/public-asset-inventory';
 export type { BisPublicAssetInventoryRequest } from './client/state-layer-core/public-asset-inventory';
 export type { BoardingQuote, BitcoinFundingDestination } from './client/state-layer-core/boarding-quote';
+export {contractValidationOptions,contractValidationDescription} from './client/state-layer-core/contract-validation.ts';
+export type {ContractValidationMode,ContractValidationPreference} from './client/state-layer-core/contract-validation.ts';

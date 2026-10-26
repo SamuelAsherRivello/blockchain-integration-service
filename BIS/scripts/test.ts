@@ -14,6 +14,7 @@ const result = spawnSync(process.execPath, [
   'BIS/packages/integration-marketplace/tests/client/*.test.ts',
   'BIS/scripts/*.test.ts',
   'BIS/packages/shared/tests/*.test.ts',
+  'BIS/packages/bis-server/tests/*.test.ts',
   ...readdirSync(new URL('../packages/prototype-sandbox/tests/',import.meta.url)).filter(name=>name.endsWith('.test.ts')&&!name.startsWith('browser-')).map(name=>`BIS/packages/prototype-sandbox/tests/${name}`),
 ], { cwd: root, stdio: 'inherit' });
 

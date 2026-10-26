@@ -6,7 +6,7 @@
 
 ## Responsibilities and public API
 
-Start with `src/index.ts`: `IBis` defines commands, `BisService` coordinates services, and `IBisGame` supplies five callbacks including `onBisEvent`. Import `@bis/integration/style.css`. Wallet creation, restoration, and selection remain explicit.
+Start with `src/index.ts`: `IBis` defines commands, `BisService` coordinates services, and `IBisGame` supplies five callbacks including `onBisEvent`. Game-wallet snapshots report signing source (`manual` or `server`) when known; an omitted source remains unknown. Import `@bis/integration/style.css`. Wallet creation, restoration, and selection remain explicit.
 
 Game commands expose readonly `BisSnapshot` copies. The [boundary example](tests/fixtures/game-contract-types.ts) rejects missing callbacks, private access, and mutable snapshots. Admin and Marketplace retain supported lower-level exports.
 

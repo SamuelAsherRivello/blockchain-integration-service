@@ -7,6 +7,8 @@ test('project run configuration is a valid shared-server contract', () => {
   assert.equal(projectRunConfig.command, 'npm run dev');
   assert.equal(projectRunConfig.serverMode, 'shared');
   assert.equal(projectRunConfig.preferredPort, 5174);
+  assert.deepEqual(projectRunConfig.portRange, { min: 5174, max: 5174 });
+  assert.equal(projectRunConfig.faucetPort, 5190);
   assert.deepEqual(projectRunConfig.routes.map(route => route.label), [
     'BIS - Admin',
     'BIS - Marketplace',
@@ -15,6 +17,7 @@ test('project run configuration is a valid shared-server contract', () => {
     'BIS - Prototype Sandbox',
     'BIS - Integration',
     'BIS - Shared',
+    'BIS - Server',
   ]);
 });
 

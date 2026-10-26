@@ -19,7 +19,7 @@ const skillRoot = [
 test('installed run helper contains the recovery contract', {skip:!skillRoot && 'Optional project-run skill is not installed on this host.'}, async () => {
   const helper = await readFile(join(skillRoot,'run-project.ps1'), 'utf8');
   const skill = await readFile(join(skillRoot,'SKILL.md'), 'utf8');
-  assert.match(helper, /npm run dev -- --host 127\.0\.0\.1 --port \$candidate/);
+  assert.match(helper, /npm run dev -- --host 127\.0\.0\.1 --port/);
   assert.match(helper, /Get-ListeningPids/);
   assert.match(helper, /netstat\.exe/);
   assert.match(helper, /Test-RouteHealth/);
@@ -29,9 +29,17 @@ test('installed run helper contains the recovery contract', {skip:!skillRoot && 
   assert.doesNotMatch(helper, /if \(\$listener -or \$diagnostics -match 'Project run mode:'\)/);
   assert.match(helper, /EADDRINUSE/);
   assert.match(helper, /host-verification-pending/);
-  assert.match(skill, /preserve unrelated listeners/i);
-  assert.match(skill, /fallback/);
-  assert.match(skill, /sidecar/);
+  assert.doesNotMatch(helper, /taskkill|Stop-ProcessTree|\$candidate\+\+/);
+  assert.match(helper, /startup\.lock/);
+  assert.match(helper, /PROJECT_RUN_LOCK_TOKEN/);
+  assert.match(helper, /\[IO.File\]::Move/);
+  assert.match(helper, /ProjectRunCoordination.Native\]::CreateDirectory/);
+  assert.doesNotMatch(helper, /New-Item -ItemType Directory -Path \$lockPath/);
+  assert.match(skill, /preserve (?:wallet\/browser|browser\/wallet) storage and unrelated (?:listeners|processes)/i);
+  assert.match(skill, /Do not restart(?: it)?\b/i);
+  assert.match(skill, /Do not[\s\S]*?install dependencies/i);
+  assert.match(skill, /preserve the process for inspection/i);
+  assert.match(skill, /isolated\s+test\s+ports?\s+or\s+reset\s+state/i);
 });
 
 test('development proxy honors the selected faucet sidecar port', () => {

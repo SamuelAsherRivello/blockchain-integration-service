@@ -10,6 +10,7 @@ export const SIGNET_OPERATOR = 'https://signet.arkade.sh';
  * It is deliberately not persisted: the encrypted local profile is not a
  * substitute for the selected network's current state. */
 export type AccountSecret = { phrase: string; profileId: string; network?: TestNetwork; networkAccountFound?: boolean };
+export type { WalletAccount } from './wallet-identity.ts';
 export async function identify(phrase: string): Promise<string> {
   const identity = MnemonicIdentity.fromMnemonic(phrase, { isMainnet: false });
   const publicKey = await identity.compressedPublicKey();

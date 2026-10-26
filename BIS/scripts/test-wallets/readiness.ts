@@ -47,3 +47,12 @@ export async function boundedObservation(read, signal) {
   } finally { signal.removeEventListener('abort', abort); }
 }
 
+// Await the value, not the truthiness of a Promise returned by a browser poller.
+export async function pollOwnedObservation(read, signal, intervalMs = 100) {
+  for (;;) {
+    const value = await boundedObservation(read, signal);
+    if (value) return value;
+    await boundedObservation(() => new Promise(resolve => setTimeout(resolve, intervalMs)), signal);
+  }
+}
+

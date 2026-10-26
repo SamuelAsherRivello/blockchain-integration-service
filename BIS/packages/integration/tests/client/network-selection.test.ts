@@ -50,7 +50,7 @@ test('operator configuration is selected exactly and rejects a cross-network res
   assert.equal(operatorFor('mutinynet'), 'https://mutinynet.arkade.sh');
   assert.equal(testNetwork('signet').faucetUrl, 'https://signet.2nd.dev/');
   assert.equal(testNetwork('mutinynet').faucetUrl, 'https://faucet.mutinynet.com/');
-  assert.equal(testNetwork('signet').explorerApiUrl, 'https://mempool.space/signet/api');
+  assert.equal(testNetwork('signet').explorerApiUrl, 'https://mempool.signet.arkade.sh/api');
   assert.equal(testNetwork('mutinynet').explorerApiUrl, 'https://mempool.mutinynet.arkade.sh/api');
   const transactionId='a'.repeat(64);
   assert.equal(transactionExplorerUrl({id:'fixture',amountSats:1,direction:'Incoming',status:'Confirmed',identifier:transactionId},'mutinynet'), `https://mempool.mutinynet.arkade.sh/tx/${transactionId}`);

@@ -89,6 +89,7 @@ export class BisService implements IBis {
   #revision = 0;
   #notifying = false;
   #queryRevision = 0;
+  #contractInspections = new Map<string,Promise<BisContractQueryResult>>();
   #resetPromise: Promise<BisResetResult> | undefined;
 
   constructor(options: BisOptions) {
@@ -231,7 +232,7 @@ export class BisService implements IBis {
     return frozenCopy({ revision: this.#revision, version, disposed: this.#disposed,
       account: { visible: !this.#disposed && player.view === 'account', hasProfile: !this.#disposed && player.hasProfile, phase: player.phase,
         ...(player.profileId ? { playerWallet: { profileId: player.profileId, network: player.network } } : {}),
-        ...(game.profileId ? { gameWallet: { profileId: game.profileId, network: game.network } } : {}) },
+        ...(game.profileId ? { gameWallet: { profileId: game.profileId, network: game.network, ...(game.source ? { source: game.source } : {}) } } : {}) },
       capabilities: {
         items: { available: this.hasItemSupport(), reason: itemSupportFeedback(player) },
         assetMinting: { available: this.hasAssetMintingSupport(), reason: assetMintingSupportFeedback(player, game) },
@@ -318,7 +319,7 @@ export class BisService implements IBis {
     const projected: BisContractQueryResult = frozenCopy({ status: result.status, contracts: result.contracts.map(contract => ({ ...contract, offerSessionId: contract.sessionId })) });
     if (unfiltered && revision === this.#queryRevision) { this.#contracts = projected; this.#contractsAccountKey = accountKey; this.#publish(); }
     for (const contract of projected.contracts) {
-      if (contract.financial !== 'claimed' || !contract.operationId) continue;
+      if (contract.recoveryRequired || contract.financial !== 'claimed' || !contract.operationId) continue;
       const origin = this.#offerOrigins.get(contract.offerSessionId), key = `${contract.id}/${contract.operationId}`;
       if (!origin || this.#deliveredContracts.has(key)) continue;
       this.#deliveredContracts.add(key);
@@ -335,18 +336,25 @@ export class BisService implements IBis {
     if (!this.#offerOrigins.has(request.offerSessionId)) this.#offerOrigins.set(request.offerSessionId, origin);
     const { offerSessionId, ...rest } = frozenCopy(request);
     const result = await this.#lto.start({ ...rest, sessionId: offerSessionId });
-    await this.#readContracts(); return frozenCopy(result);
+    void this.#readContracts().catch(()=>{}); return frozenCopy(result);
   }
   queryContractsAsync(filter: BisContractFilter = {}) { return this.#readContracts(filter); }
-  async checkContractsAsync(filter: BisContractFilter = {}) {
+  checkContractsAsync(filter: BisContractFilter = {}):Promise<BisContractQueryResult> {
     this.#assertAlive();
-    await this.#lto.reconcile(filter.sessionId ? {sessionId:filter.sessionId,feedback:'silent'} : {feedback:'silent'});
-    return this.#readContracts(filter);
+    const key=JSON.stringify([this.#generation,this.#accountKey(),Object.entries(filter).sort(([a],[b])=>a.localeCompare(b))]);
+    const existing=this.#contractInspections.get(key);if(existing)return existing;
+    const request=Promise.resolve().then(async()=>{
+      await this.#lto.reconcile(filter.sessionId ? {sessionId:filter.sessionId,feedback:'silent'} : {feedback:'silent'});
+      return this.#readContracts(filter);
+    }).finally(()=>{if(this.#contractInspections.get(key)===request)this.#contractInspections.delete(key);});
+    this.#contractInspections.set(key,request);return request;
   }
-  async claimContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.claim(id); await this.#readContracts(); return frozenCopy(result); }
-  async approveContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.approve(id); await this.#readContracts(); return frozenCopy(result); }
-  async rejectContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.reject(id); await this.#readContracts(); return frozenCopy(result); }
+  async claimContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.claim(id); void this.#readContracts().catch(()=>{}); return frozenCopy(result); }
+  async approveContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.approve(id); void this.#readContracts().catch(()=>{}); return frozenCopy(result); }
+  async rejectContractAsync(id: string) { this.#assertAlive(); const result = await this.#lto.reject(id); void this.#readContracts().catch(()=>{}); return frozenCopy(result); }
   async endContractSessionAsync(id: string) { this.#assertAlive(); this.#endedOffers.add(id); this.#offerOrigins.delete(id); await this.#lto.endSession(id); await this.#readContracts(); }
+  async exportContractRecoveryAsync(password:string) { this.#assertAlive();return this.#lto.exportRecovery(password); }
+  async importContractRecoveryAsync(file:string,password:string) { this.#assertAlive();await this.#lto.importRecovery(file,password);void this.#readContracts().catch(()=>{}); }
   #endWorkflows() {
     for (const id of this.#continuations.keys()) this.endContinuation(id);
     for (const id of this.#rewards.keys()) this.endReward(id);

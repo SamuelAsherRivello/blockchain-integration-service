@@ -1,0 +1,19 @@
+{
+  "name": "@bis/bis-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { "./vite": { "node": "./src/server/vite.ts" } },
+  "scripts": {
+    "test": "node scripts/run-all-tests.mjs",
+    "test:milestone-1": "node scripts/run-focused-tests.mjs focused",
+    "test:milestone-1:browser": "node scripts/run-focused-tests.mjs browser",
+    "test:native-redis": "node --test tests/native/signing-store-checkpoint-redis.test.ts tests/native/treasure-journal-client-integration.test.ts",
+    "verify:redis": "node scripts/verify-redis.ts",
+    "verify:deployment-preflight": "node scripts/preflight-deployment.ts",
+    "verify:vercel-instances": "node scripts/verify-vercel-instances.ts",
+    "build:deployment": "node scripts/build-deployment.ts"
+  },
+  "dependencies": { "@arkade-os/sdk": "0.4.79", "@upstash/redis": "1.39.0" },
+  "devDependencies": { "esbuild": "0.28.2" }
+}

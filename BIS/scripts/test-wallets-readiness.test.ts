@@ -4,7 +4,7 @@ import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { register, assign, create } from './test-wallets/inventory.ts';
 import { observe } from './test-wallets/observations.ts';
-import { readinessTarget, classifyReadiness, boundedObservation } from './test-wallets/readiness.ts';
+import { readinessTarget, classifyReadiness, boundedObservation, pollOwnedObservation } from './test-wallets/readiness.ts';
 import { ownedReadiness } from './test-wallets/owned-readiness.ts';
 import { argumentsFor } from './test-wallets/arguments.ts';
 import { joinedRequest } from './test-wallets/joined-browser.ts';
@@ -12,6 +12,19 @@ import { Operations } from './test-wallets/operations.ts';
 
 const zero = { availableSats: 0, availableBitcoinSats: 0, availableArkadeSats: 0, totalSats: 0, bitcoinSats: 0, arkadeSats: 0 };
 const funded = { ...zero, availableSats: 1000, availableArkadeSats: 1000, totalSats: 1000, arkadeSats: 1000 };
+
+test('owned observation awaits asynchronous false values instead of accepting their Promises',async()=>{
+  let reads=0;
+  assert.equal(await pollOwnedObservation(async()=>++reads===3,AbortSignal.timeout(1000),0),true);
+  assert.equal(reads,3);
+});
+
+test('owned observation bounds an unresolved read without reporting readiness',async()=>{
+  const controller=new AbortController();
+  const result=pollOwnedObservation(()=>new Promise(()=>{}),controller.signal,0);
+  controller.abort();
+  await assert.rejects(result,/observation-cancelled/);
+});
 // In-memory transaction seam: synthetic accounts never touch the private user
 // vault or Shared environment. Production encrypted-vault tests run separately.
 async function fixture() {

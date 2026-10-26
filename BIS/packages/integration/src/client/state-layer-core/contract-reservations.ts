@@ -2,6 +2,7 @@ import { contractResolved, type ContractRecord } from './contracts.ts';
 import type { ContractDocument, ContractRecovery } from './contract-storage.ts';
 import { operatorFor } from '../wallet-layer-arkade/account.ts';
 import type { TestNetwork } from './test-network.ts';
+import {treasureServerRecoveryPending,treasureServerRecoveryInputs} from './treasure-server-recovery.ts';
 
 export const contractReservationKey = 'bis-signet-contract-reservations-v1';
 const reservationKey = (network: TestNetwork) => `bis-${network}-contract-reservations-v2`;
@@ -37,9 +38,11 @@ export function readContractReservations(networkOrStorage: TestNetwork | Storage
   return records;
 }
 function entry(record: ContractRecord, recovery: ContractRecovery): Reservation {
-  const inputs = record.operation.kind === 'fund' && !contractResolved(record) && record.financial !== 'funded'
+  const financialInputs = record.operation.kind === 'fund' && !contractResolved(record) && record.financial !== 'funded'
     ? recovery.spend?.inputs : recovery.fundingOutput ? [recovery.fundingOutput] : undefined;
-  return { id:record.id,playerId:record.scope.playerId,gameId:record.scope.gameId,pending:!contractResolved(record),network:record.scope.network as TestNetwork,operator:record.scope.operator,
+  const privateInputs=treasureServerRecoveryInputs(recovery),inputs=financialInputs||privateInputs.length
+    ?[...new Map([...(financialInputs??[]),...privateInputs].map(({txid,vout})=>[txid+':'+vout,{txid,vout}])).values()]:undefined;
+  return { id:record.id,playerId:record.scope.playerId,gameId:record.scope.gameId,pending:!contractResolved(record)||treasureServerRecoveryPending(recovery),network:record.scope.network as TestNetwork,operator:record.scope.operator,
     ...(inputs ? {inputs:inputs.map(({txid,vout})=>({txid,vout}))} : {}), ...(recovery.spend ? {transactionId:recovery.spend.transactionId} : {}) };
 }
 function write(records: Reservation[], network: TestNetwork, storage: Storage) {
@@ -50,7 +53,7 @@ function write(records: Reservation[], network: TestNetwork, storage: Storage) {
 }
 /** Reserve conservatively before the encrypted commit; failures may block, never free, inputs. */
 export function reserveContract(record: ContractRecord, recovery: ContractRecovery, storage: Storage = localStorage) {
-  if (contractResolved(record)) return;
+  if (contractResolved(record)&&!treasureServerRecoveryPending(recovery)) return;
   const network = record.scope.network as TestNetwork;
   const records = (()=>{try{return readContractReservations(network,storage);}catch{return [];}})(), next = entry(record,recovery);
   write([...records.filter(r=>r.id!==record.id),next],network,storage);

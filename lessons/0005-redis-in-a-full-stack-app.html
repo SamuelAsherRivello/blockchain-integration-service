@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Redis in a full-stack app</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<nav class="lesson-nav"><a class="back-link" href="../reference/redis-full-stack.html">Quick reference</a><a class="back-link" href="../reference/arkadeos-smart-contracts.html">Arkade reference</a></nav>
+<p class="eyebrow">Lesson 0005 · 3 minutes · 2026-10-26</p>
+<h1>Where Redis fits</h1>
+<p class="lede">Goal: explain what a backend might put in Redis and what still needs an authoritative source.</p>
+<p>Redis is an in-memory data store. It keeps working data in RAM and supports optional disk persistence. A backend can access values by key, such as <code>listing:42</code>. See the <a href="https://redis.io/docs/latest/get-started/">official introduction</a>.</p>
+<h2>A marketplace request</h2>
+<p>Imagine a React page requesting an item's description through a Node API. The API first checks Redis for a cached copy.</p>
+<ol><li>If the copy exists, the API returns it.</li><li>Otherwise, the API reads the database, saves a copy in Redis with a 60-second expiration, and returns it.</li></ol>
+<p>This is <a href="https://redis.io/docs/latest/develop/use-cases/cache-aside/">cache-aside</a>. Repeated requests can avoid database reads. The tradeoff is freshness: a cached description can be outdated until it expires or the app invalidates it.</p>
+<h2>Other backend jobs</h2>
+<ul><li><a href="https://redis.io/docs/latest/develop/use-cases/session-store/">Sessions</a> share login state across API instances.</li><li><a href="https://redis.io/docs/latest/develop/use-cases/rate-limiter/">Rate limits</a> share request counters across API instances.</li><li><a href="https://redis.io/docs/latest/develop/use-cases/">Queues, messaging and leaderboards</a> support background workers, event distribution and rankings.</li></ul>
+<p class="callout">For your blockchain integration designs, a cached display is a snapshot. A Redis value does not prove a payment or execute an Arkade contract. Verify those operations through the SDK and network.</p>
+<h2>Recall before revealing</h2>
+<p>An item sells while its cached listing still says "available." Should the purchase API trust that cached value? Explain your choice.</p>
+<details><summary>Reveal feedback</summary><p>No. The cache may be stale. The purchase flow must check authoritative availability and enforce the purchase rules. For a blockchain operation, it must also validate the relevant network state. Expiration reduces staleness but does not guarantee correctness.</p></details>
+<p>Tomorrow, explain the cache-hit and cache-miss paths from memory. Ask the agent follow-up questions about any unclear step.</p>
+<p class="source">Primary reading: <a href="https://redis.io/docs/latest/develop/use-cases/cache-aside/">Redis cache-aside</a>. Next reference: <a href="../reference/redis-full-stack.html">Redis terms and responsibilities</a>. The marketplace flow is a teaching example, not a claim about this repository's implementation.</p>
+</main></body></html>

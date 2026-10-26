@@ -22,7 +22,7 @@ const definitions: Record<TestNetwork, TestNetworkDefinition> = Object.freeze({
     id: 'signet',
     label: 'Signet',
     operator: 'https://signet.arkade.sh',
-    explorerApiUrl: 'https://mempool.space/signet/api',
+    explorerApiUrl: 'https://mempool.signet.arkade.sh/api',
     faucetUrls: Object.freeze(['https://signetfaucet.com/', 'https://signet.2nd.dev/']),
     faucetUrl: 'https://signet.2nd.dev/',
     bitcoinExplorerAddressUrl: (address: string) => `https://mempool.space/signet/address/${encodeURIComponent(address)}`,

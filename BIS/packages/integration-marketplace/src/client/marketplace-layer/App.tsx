@@ -337,7 +337,7 @@ function MarketplaceContent(){
           const quote=await player.quoteAccountSend(recipient,amountSats,true);
           checkoutSession.assertCurrent(scope);if(!alive())throw Error('Checkout view closed.');
           result=await player.confirmAccountSend(quote);
-        }else result=await gameWallet.payPlayer({profileId:record.request.player.profileId,address:recipient},amountSats,current);
+        }else result=await gameWallet.payPlayer({profileId:record.request.player.profileId,address:recipient},amountSats,current,record.request.id);
         return {status:result.status==='succeeded'?'succeeded' as const:'pending' as const,...(result.transactionId?{transactionId:result.transactionId}:{})};
       },
       deliver:async({recipient,assetId,quantity})=>{

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Redis quick reference</title><link rel="stylesheet" href="../assets/lesson.css"></head>
+<body><main>
+<h1>Redis in the stack</h1>
+<table><thead><tr><th>Part</th><th>Typical responsibility</th></tr></thead><tbody>
+<tr><td>Frontend</td><td>Display data and send requests to an API.</td></tr>
+<tr><td>Backend API</td><td>Validate requests and apply application rules.</td></tr>
+<tr><td>Primary database</td><td>Store authoritative application records.</td></tr>
+<tr><td>Redis</td><td>Cache repeated reads, share sessions and counters, support queues and messaging.</td></tr>
+</tbody></table>
+<dl><dt>Key</dt><dd>A name used to find data, such as <code>listing:42</code>.</dd><dt>Cache hit</dt><dd>The requested cached value exists.</dd><dt>Cache miss</dt><dd>The requested cached value is absent.</dd><dt>TTL</dt><dd>Time to live: how long a key remains before automatic expiration.</dd><dt>Invalidation</dt><dd>Removing or replacing a cached value after its source changes.</dd></dl>
+<p>RAM storage does not mean Redis must lose everything on restart. It supports disk persistence; durability depends on configuration. A cache can be rebuilt, while sessions and queued work need deliberate loss and recovery policies.</p>
+<p>In a typical web app, the browser calls your API and the API accesses Redis. Redis is a separate service that multiple backend instances can share.</p>
+<p class="source">Sources: <a href="https://redis.io/docs/latest/get-started/">Redis introduction</a>, <a href="https://redis.io/docs/latest/develop/use-cases/cache-aside/">cache-aside</a>, <a href="https://redis.io/docs/latest/develop/use-cases/session-store/">session storage</a>, <a href="https://redis.io/docs/latest/develop/use-cases/">use cases</a>. <a href="../lessons/0005-redis-in-a-full-stack-app.html">Open the lesson</a>.</p>
+</main></body></html>

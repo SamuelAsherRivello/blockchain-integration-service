@@ -10,6 +10,8 @@
 <a href="https://www.youtube.com/watch?v=-hZ7I68h7BI"><img src="docs/marketing/youtube-bitcoin-for-game-dev.png" alt="Watch the Blockchain Integration Service video on YouTube" width="600" /></a>
 </p>
 
+➡️ Bitcoin For Game Development — [https://bitcoingamedevelopment.com/](https://bitcoingamedevelopment.com/)
+
 # Blockchain Integration Service (BIS)
 
 [![Arkade](https://img.shields.io/badge/Arkade-381993?style=flat-square)](https://arkadeos.com/)
@@ -53,9 +55,9 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 <!-- AI: Keep the verified public demo URLs. Use a hidden ?v=<published-version> cache buster in each destination while leaving the labels unchanged. Advance both values for every published version. Do not add a Current release announcement or version badge here unless explicitly requested by the user. -->
 ### BIS
 
-* [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.26)
-* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/integration-marketplace/?v=0.0.26)
-* [Prototype Sandbox](https://samuelasherrivello.github.io/blockchain-integration-service/prototype-sandbox/?v=0.0.26), including the [Events demo](https://samuelasherrivello.github.io/blockchain-integration-service/prototype-sandbox/demo-21/?v=0.0.26).
+* [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.27)
+* [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.27)
+* [Prototype Sandbox](https://samuelasherrivello.github.io/blockchain-integration-service/prototype-sandbox/?v=0.0.27), including the [Events demo](https://samuelasherrivello.github.io/blockchain-integration-service/prototype-sandbox/demo-21/?v=0.0.27).
 
 ### Game
 
@@ -92,7 +94,8 @@ Run the following commands to get started.
 
 <!-- AI: Replace {command} with the actual local launch command or editor action. State where to run it and how to open the app if needed. Refer to the printed URL when the port can vary. Avoid repeating completed build/setup steps. -->
 1. Run `npm run dev` to start one Vite server for all four packages.
-2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/integration-marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), [Prototype Faucet](http://127.0.0.1:5174/prototype-faucet/), or the [Integration README](http://127.0.0.1:5174/integration/).
+   BIS uses fixed port **5174**, with its faucet API on **5190**. Stealth & Steel uses **5176**. Repeated starts reuse the healthy project server under a shared startup lock. An occupied or unhealthy port stops startup rather than moving browser origins or terminating a preview. Explicit isolated checks use `npm run dev -- --isolated --port <test-port>` with separate run-state files. Existing wallet storage is never migrated by startup.
+2. Open [BIS Admin](http://127.0.0.1:5174/admin/), [BIS Marketplace](http://127.0.0.1:5174/marketplace/), [Onboarding Spike](http://127.0.0.1:5174/onboarding/), [Prototype Faucet](http://127.0.0.1:5174/prototype-faucet/), or the [Integration README](http://127.0.0.1:5174/integration/).
 3. In Admin, select **A.P.1 Account Button**, then **Account**, to open the account chooser in the 9:16 preview. **Documentation ↗** opens the user-story diagrams.
 
 ### 🛠 Release Version
@@ -100,7 +103,7 @@ Run the following commands to get started.
 <!-- AI: Describe the repository's existing release workflow in the fewest steps, based on checked-in workflows or release scripts. Distinguish builds, tags, releases, and deployment accurately. If no release process exists, retain a placeholder rather than inventing one. Documentation edits do not authorize publishing or changing Git history. -->
 1. For the first published baseline use `0.0.1`; for every later published update increment only the last digit (`0.0.N` → `0.0.(N+1)`). Run `npm run check:release -- --previous-version <prior-version>` to validate the transition, then run `npm test` and `npm run build`.
 2. Update the hidden `v` cache-busters in the published app links to the new version, commit the intended changes, and push to `main`; [Deploy live demo](.github/workflows/deploy-pages.yml) builds and publishes Admin, Marketplace, and Prototype Sandbox to GitHub Pages.
-3. Check the actual push-triggered [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.26) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/integration-marketplace/?v=0.0.26). Tags, GitHub Releases and manual dispatch are not prerequisites. BIS publishes both demos independently; game updates publish separately to the game's single stable Pages link.
+3. Check the actual push-triggered [Actions run](https://github.com/SamuelAsherRivello/blockchain-integration-service/actions/workflows/deploy-pages.yml), then verify [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.27) and [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.27). Tags, GitHub Releases and manual dispatch are not prerequisites. BIS publishes both demos independently; game updates publish separately to the game's single stable Pages link.
 
 ## Project Overview
 
@@ -116,6 +119,10 @@ BIS separates reusable game integration from its development demos for Signet an
 - [Faucets](BIS/documentation/Faucets%20-%20README.md): Faucets for funding an account.
 - [Integration Admin](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin demonstrations and verification hosts.
 - [Marketplace](BIS/packages/integration-marketplace/integration-marketplace-package-readme.md): Game equipment catalog and account UI.
+
+### 🧭 Blockchain Teaching Lessons
+
+- [Blockchain Teaching Lessons](docs/learning-lessons/Overview.md): ArkadeOS lessons covering wallets, assets, intents, oracles, vaults, and smart contracts.
 
 ### 📝 Structure
 
@@ -153,6 +160,7 @@ React and TypeScript power the reusable integration, Admin, Marketplace, and onb
 #### Internal Packages
 
 - [Shared](BIS/packages/shared/shared-package-readme.md): Central `.env.local` setup for local faucet and test-account tooling; never a browser secret export.
+- [BIS server](BIS/packages/bis-server/bis-server-package-readme.md): Optional local Game Wallet signer on the shared Vite server, with manual login fallback.
 - [Integration](BIS/packages/integration/integration-package-readme.md): Reusable BIS UI, state, and wallet integration library.
 - [Integration Admin (BIS Admin)](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin controls and the runtime preview.
 - [Marketplace](BIS/packages/integration-marketplace/integration-marketplace-package-readme.md): Game equipment catalog and account UI.

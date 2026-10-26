@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useId, useMemo, useState, useSyncExternalStore } from 'react';
 import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
 import { createBisGameWallet } from '../state-layer-core/game-wallet.ts';
 import { RecoveryPhrasePanel } from './RecoveryPhrasePanel';
@@ -6,8 +6,50 @@ import { RecoveryPhraseEntry } from './RecoveryPhraseEntry';
 import { usePendingNotice } from './PendingOperationDialog';
 import { FormValue } from './FormValue';
 import { FormTooltip, formatBalanceSats } from './FormTooltip';
+import { configureBisServer, signerEndpoint } from '../wallet-layer-arkade/server-wallet.ts';
 
 type GameWallet = ReturnType<typeof createBisGameWallet>;
+
+function OwnerSignerAccess({ wallet }: { wallet: GameWallet }) {
+  const inputId = useId();
+  const [credential, setCredential] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const endpoint = signerEndpoint();
+  let destination: URL;
+  try {
+    destination = new URL(endpoint ?? '');
+    if (destination.protocol !== 'https:' || destination.username || destination.password || destination.search || destination.hash) return null;
+  } catch { return null; }
+
+  async function update(forget = false) {
+    if (busy) return;
+    if (!forget && credential.trim().length < 32) { setMessage('Use an owner token of at least 32 characters, not a recovery phrase.'); return; }
+    const token = forget ? undefined : credential.trim();
+    setCredential(''); setBusy(true); setMessage('');
+    configureBisServer({ url: endpoint, ownerToken: token });
+    try {
+      await wallet.refresh();
+      const connected = wallet.getState().serverStatus === 'connected';
+      setMessage(forget ? 'Owner access forgotten in this tab.' : connected ? 'Owner access connected for this tab only.' : 'Owner access was not accepted or the signer is unavailable. Check the token and retry.');
+    } catch { setMessage('Owner connection could not be checked. Retry without submitting another operation.'); }
+    finally { setBusy(false); }
+  }
+
+  return <details className="bis-owner-access">
+    <summary>Operator owner access</summary>
+    <p>Operator only. Never share this token with players. This is not Game Wallet Login and does not change wallet ownership.</p>
+    <p>Credential destination: {destination.origin}{destination.pathname}</p>
+    <form autoComplete="off" onSubmit={event => { event.preventDefault(); void update(); }}>
+      <label htmlFor={inputId}>Private owner token</label>
+      <input id={inputId} type="password" autoComplete="off" spellCheck={false} value={credential} disabled={busy} onChange={event => setCredential(event.target.value)} />
+      <button className="bis-button" type="submit" disabled={busy || !credential.trim()}>Connect owner access</button>
+      <button className="bis-button" type="button" disabled={busy} onClick={() => void update(true)}>Forget owner access</button>
+    </form>
+    <p>The token stays in this tab's memory. It is not saved in browser storage. Reloading clears it.</p>
+    {message && <p role="status">{message}</p>}
+  </details>;
+}
 
 /** Private A.G.2 setup surface. It receives no Admin balance, address, or boarding capability. */
 export function GameWalletLoginView({ wallet, onBack }: { wallet: GameWallet; onBack(): void }) {
@@ -52,6 +94,14 @@ export function GameWalletLoginView({ wallet, onBack }: { wallet: GameWallet; on
     finally { setLoggingOut(false); setBusy(false); }
   }
 
+  if (state.source === 'server' || state.serverStatus === 'error') return <div className="bis-actions">
+    <p role="status">{state.source === 'server' ? 'Game wallet source: Server' : 'Game server unavailable'}</p>
+    {state.source === 'server' && <FormValue label="Arkade address" value={state.addresses?.arkadeAddress ?? '—'} copyable disabled={!state.addresses?.arkadeAddress} />}
+    {state.serverMessage && <p role="alert">{state.serverMessage}</p>}
+    <OwnerSignerAccess wallet={wallet} />
+    <button className="bis-button" onClick={() => void wallet.refresh()}>Retry server connection</button>
+    <button className="bis-button bis-back" onClick={onBack}>Back</button>
+  </div>;
   if (!state.playerConnected) return <div className="bis-actions">
     <p role="status">Connect a Player Wallet before creating, restoring, or logging in to a Game Wallet.</p>
     <button className="bis-button bis-back" onClick={onBack}>Back</button>
@@ -77,6 +127,7 @@ export function GameWalletLoginView({ wallet, onBack }: { wallet: GameWallet; on
   if (page === 'restore') return <RecoveryPhraseEntry editable={!busy} disabled={busy} submitLabel="⚡ Restore Wallet"
     onSubmit={phrase => void restore(phrase)} onBack={() => { setMessage(''); setPage('start'); }} backDisabled={busy} message={message} />;
   return <div className="bis-actions">
+    {state.serverMessage && <><p role="status">{state.serverMessage}</p><button className="bis-button" onClick={() => void wallet.refresh()}>Retry server connection</button></>}
     <div className="bis-account-actions">
       <button className="bis-button bis-primary" disabled={busy} onClick={() => void create()}>&#x26A1; Create Wallet</button>
       <button className="bis-button" disabled={busy} onClick={() => { setMessage(''); setPage('restore'); }}>&#x26A1; Restore Wallet</button>

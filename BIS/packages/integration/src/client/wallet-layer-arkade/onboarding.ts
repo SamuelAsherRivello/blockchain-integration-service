@@ -1,5 +1,6 @@
+import { signingIdentity, readonlyIdentity } from './wallet-identity.ts';
 import {Wallet,ReadonlyWallet,MnemonicIdentity,RestArkProvider,RestIndexerProvider,InMemoryWalletRepository,InMemoryContractRepository,ArkAddress,CSVMultisigTapscript,hasBoardingTxExpired,Transaction,sdkVersion,type SettleParams} from '@arkade-os/sdk';
-import {operatorFor,type AccountSecret} from './account.ts';
+import {operatorFor,type WalletAccount} from './account.ts';
 import {readWalletNetworkPolicy} from './wallet-network-policy.ts';
 import type {TestNetwork} from '../state-layer-core/test-network.ts';
 import {requireZeroFeePolicy} from '../state-layer-core/wallet-network-policy.ts';
@@ -79,8 +80,8 @@ export async function readOnboardingFacts(wallet:ReadonlyWallet,provider:RestArk
   for(const which of ['boarding','returning'] as const)if(next?.plan){const leg=next[which];if(leg.commitmentTxid&&!leg.bitcoinConfirmedAt&&txs.some(tx=>tx.txid===leg.commitmentTxid&&tx.status.confirmed))next={...next,[which]:{...leg,bitcoinConfirmedAt:Date.now()}};}
   return {snapshot,address,transactions,independent:[...new Map(independent.map(c=>[point(c),c])).values()],...(next&&next!==r?{reconciled:next}:{})};
 }
-const runtime={provider:(operator:string)=>new RestArkProvider(operator),readonly:async(provider:RestArkProvider,account:AccountSecret,operator:string)=>ReadonlyWallet.create({...options(provider,operator),identity:await MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false}).toReadonly()}),signing:(provider:RestArkProvider,account:AccountSecret,operator:string)=>Wallet.create({...options(provider,operator),identity:MnemonicIdentity.fromMnemonic(account.phrase,{isMainnet:false})})};
-export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>boolean,dependencies=runtime,session?:RoleWalletAccess):OnboardingAdapter{
+const runtime={provider:(operator:string)=>new RestArkProvider(operator),readonly:async(provider:RestArkProvider,account:WalletAccount,operator:string)=>ReadonlyWallet.create({...options(provider,operator),identity:await readonlyIdentity(account)}),signing:(provider:RestArkProvider,account:WalletAccount,operator:string)=>Wallet.create({...options(provider,operator),identity:signingIdentity(account)})};
+export function createOnboardingAdapter(account:WalletAccount,isCurrent:()=>boolean,dependencies=runtime,session?:RoleWalletAccess):OnboardingAdapter{
   const scope=onboardingScope(account.profileId,account.network??'signet');
   let cleanup:Promise<void>=Promise.resolve();
   const current=(signal:AbortSignal)=>{signal.throwIfAborted();if(!isCurrent())throw Error('Onboarding account changed.');};
@@ -186,7 +187,7 @@ export function createOnboardingAdapter(account:AccountSecret,isCurrent:()=>bool
   };
 }
 
-function retainedSigner(session:RoleWalletAccess,account:AccountSecret,provider:RestArkProvider,signal:AbortSignal,stop:AbortController):Promise<Wallet>{
+function retainedSigner(session:RoleWalletAccess,account:WalletAccount,provider:RestArkProvider,signal:AbortSignal,stop:AbortController):Promise<Wallet>{
   let acquired!:(wallet:Wallet)=>void,failed!:(error:unknown)=>void;
   const ready=new Promise<Wallet>((resolve,reject)=>{acquired=resolve;failed=reject;});
   void session.sign(account,signal,{arkProvider:provider},async(wallet,active)=>{

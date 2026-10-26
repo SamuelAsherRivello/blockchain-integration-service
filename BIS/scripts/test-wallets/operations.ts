@@ -51,7 +51,7 @@ function canonicalIntent(input) {
   let target;
   if (input.target !== undefined) {
     const value = input.target;
-    if (!['arkade-send', 'mint','arkade-to-bitcoin-funding'].includes(input.kind) || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation'].includes(key)) ||
+    if (!['arkade-send', 'mint','arkade-to-bitcoin-funding','claim','refund'].includes(input.kind) || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation'].includes(key)) ||
         !/^[a-f0-9]{64}$/.test(value.profileId ?? '') || !Number.isSafeInteger(value.generation) || value.generation < 1)
       fail('invalid-operation-target');
     label(value.account);
@@ -192,6 +192,30 @@ export class Operations {
       const record = find(state, id);
       if (record.state !== 'prepared') fail('submitted-operation-cannot-cancel');
       record.state = 'cancelled'; record.updatedAt = new Date().toISOString();
+      return snapshot(record);
+    });
+  }
+  /** Test harness only. This is an explicit loss disposition, never verified network failure. */
+  async abandonLostPrototypeFunding(id, authorization) {
+    label(id);
+    if(authorization!=='user-prototype-loss-policy-2026-10-21')fail('prototype-loss-authorization-required');
+    return this.vault.transaction(async state=>{
+      await verifiedInventory(state);
+      const record=find(state,id);
+      authorized(state,record.intent);
+      if(record.state==='cancelled'&&record.resolution?.authorization===authorization)return snapshot(record);
+      const runId=record.intent.id.endsWith('-fund')?record.intent.id.slice(0,-5):undefined;
+      const run=runId?state.treasureAdminRuns?.[runId]:undefined;
+      // Only this explicitly registered Admin prototype funding reservation is
+      // eligible. Claims, refunds, ordinary sends and acknowledged funding are
+      // never released by the user's sandbox-loss policy.
+      const lostAdminFunding=record.intent.kind==='arkade-send'&&run&&
+        run.network===record.intent.network&&run.game===record.intent.profileId&&
+        run.origin===record.intent.sourceOrigin&&record.intent.recipient==='treasure:'+runId&&
+        !run.contractId&&!run.receipts?.length&&!run.completedAt;
+      if((record.intent.kind!=='faucet'&&!lostAdminFunding)||record.state!=='unknown'||record.providerId!==undefined)fail('prototype-funding-not-lost');
+      record.state='cancelled';record.updatedAt=new Date().toISOString();
+      record.resolution={kind:'user-authorized-abandonment',networkOutcome:'unknown',authorization,at:record.updatedAt};
       return snapshot(record);
     });
   }

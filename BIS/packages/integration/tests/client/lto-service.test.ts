@@ -58,25 +58,27 @@ test('local reset invalidates preparation before it can persist or submit an off
   assert.deepEqual(s.calls,[]);assert.deepEqual(s.toasts,[]);
 });
 
-test('late remote completion after reset cannot restore local contracts or notifications',async()=>{
+test('reset refuses to erase submitted recovery and late completion cannot rewrite its journal',async()=>{
   let release;const gate=new Promise(resolve=>{release=resolve;});
   const s=setup({wait:kind=>kind==='fund'?gate:undefined});
   const work=s.service.start(s.request);await until(()=>s.calls.length===1);
-  await s.service.reset();const notifications=s.toasts.length;release();
+  const before=await s.storage.load();
+  await assert.rejects(s.service.reset(),/remain reserved/);const notifications=s.toasts.length;release();
   assert.equal((await work).status,'unavailable');await delay();
-  assert.equal((await s.storage.load()).ledger.contracts.length,0);
+  assert.deepEqual(await s.storage.load(),before);
   assert.equal(s.toasts.length,notifications);assert.deepEqual(s.calls,['fund']);
 });
 
-test('reset drains an already-started local write before clearing its result',async()=>{
+test('reset drains an already-started local write and preserves unresolved recovery',async()=>{
   const s=setup(),save=s.storage.save.bind(s.storage);let release,writing=false;
   const gate=new Promise(resolve=>{release=resolve;});
   s.storage.save=async document=>{writing=true;await gate;return save(document);};
   const work=s.service.start(s.request);await until(()=>writing);
   let resetFinished=false;const reset=s.service.reset().then(()=>{resetFinished=true;});
-  await delay();assert.equal(resetFinished,false);release();await reset;
+  const refusal=assert.rejects(reset,/remain reserved/);
+  await delay();assert.equal(resetFinished,false);release();await refusal;
   assert.equal((await work).status,'unavailable');await delay();
-  assert.equal((await s.storage.load()).ledger.contracts.length,0);assert.deepEqual(s.calls,[]);
+  assert.equal((await s.storage.load()).ledger.contracts.length,1);assert.deepEqual(s.calls,[]);
 });
 
 test('controller recreation is silent and waits for explicit reconciliation',async()=>{
@@ -111,7 +113,7 @@ test('visibility recovery refunds an elapsed offer once without extending its or
   await until(async()=>(await s.storage.load()).ledger.contracts[0].financial==='refunded');
   page.dispatchEvent(new Event('visibilitychange'));await delay();
   const record=(await s.storage.load()).ledger.contracts[0];
-  assert.equal(record.expiresAt,s.request.expiresAt);assert.deepEqual(s.calls,['fund','refund']);
+  assert.equal(record.expiresAt,(Math.floor(s.request.startedAt/1000)+90)*1000);assert.deepEqual(s.calls,['fund','refund']);
   worker.dispose();
 });
 

@@ -6,6 +6,10 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 const terminal = new Set(['settled', 'failed', 'cancelled']);
 const names = new Set(['mint-delivery', 'burn', 'contract-claim', 'contract-refund']);
 const token = value => typeof value === 'string' && /^[A-Za-z0-9:_-]{1,128}$/.test(value);
+export function guardedObservationBudget(milliseconds=5000){
+  if(!Number.isSafeInteger(milliseconds)||milliseconds<250||milliseconds>120000)fail('invalid-scenario-observation-limit');
+  return {milliseconds,maximumAttempts:Math.ceil(milliseconds/250)};
+}
 export function validateGuardedScenario(request) {
   const allowed = ['command', 'scenario', 'operation', ...(request?.scenario === 'mint-delivery' ? ['destination'] :
     request?.scenario === 'burn' ? ['assetId', 'quantity'] : ['contractId'])];
@@ -163,6 +167,7 @@ export async function recoverMintDelivery(owner, request, original, verifyOrigin
 
 export async function runGuardedScenario(owner, request, adapters = {}) {
   validateGuardedScenario(request);
+  const observation=guardedObservationBudget(adapters.observationTimeoutMs);
   let inspection;
   try { inspection = await owner.inspect(); }
   catch {
@@ -228,7 +233,8 @@ export async function runGuardedScenario(owner, request, adapters = {}) {
     // A prepared retry may have lost its dialog; do not recreate a UI request.
     operation = await ledger.submit(request.operation, async () => {
       await (adapters.confirm ?? confirm)(owner, request);
-      for (let attempt = 0; attempt < 20; attempt++) {
+      const deadline=Date.now()+observation.milliseconds;
+      for (let attempt = 0; attempt < observation.maximumAttempts&&Date.now()<deadline; attempt++) {
         const row = match(await read());
         if (row) return { providerId: ['claim', 'refund'].includes(kind) ? row.operationId : row.id };
         await (adapters.pause ?? (ms => owner.page.waitForTimeout(ms)))(250);

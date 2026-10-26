@@ -11,6 +11,14 @@ function backend() {
   return { async read() { return structuredClone(saved); }, async write(value, revision) { if ((saved?.revision ?? 0) !== revision) throw Error('conflict'); saved = structuredClone(value); }, peek() { return saved; }, corrupt(value) { saved = value; } };
 }
 
+test('a durable contract cannot change validation mode after allocation',async()=>{
+  const storage=createContractStorage(backend());
+  const initial=document();initial.ledger.contracts[0]={...initial.ledger.contracts[0],validationMode:'browser-policy-v1'};
+  const saved=await storage.save(initial);
+  await assert.rejects(storage.save({...saved,ledger:{...saved.ledger,contracts:saved.ledger.contracts.map(r=>({...r,validationMode:undefined}))}}));
+  assert.equal((await storage.load()).ledger.contracts[0].validationMode,'browser-policy-v1');
+});
+
 test('asset change manifest survives encrypted reload and rejects invalid quantities',async()=>{
   const db=backend(),storage=createContractStorage(db),data=document();
   data.recovery.contract={...recovery,spend:{operationId:'fund',transactionId:'ab'.repeat(32),inputs:[{txid:'cd'.repeat(32),vout:0,value:53000}],destinationScript:'02',amountSats:1000,change:{script:'00',value:52000,assets:[{assetId:'ef'.repeat(34),amount:'9007199254740993'}]}}};

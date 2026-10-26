@@ -1,6 +1,6 @@
 import type { Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk';
 import { createAppWalletSession } from './app-wallet-session.ts';
-import { requireNetwork, type AccountSecret } from './account.ts';
+import { requireNetwork, type WalletAccount } from './account.ts';
 import { withCompleteSnapshot,readCompleteContracts } from './complete-snapshot.ts';
 
 export type AppWalletSession = ReturnType<typeof createAppWalletSession<Wallet>>;
@@ -51,8 +51,8 @@ function createRoleWalletAccess(owner: AppWalletSession, role: 'player' | 'game'
   type Events={key:string;stop:AbortController;callbacks:Set<()=>void>;pending:Promise<void>};
   let events:Events|undefined;
   return {
-    addresses(account:AccountSecret,signal:AbortSignal) {return owner.addresses(role,account,signal);},
-    async observe(account:AccountSecret,signal:AbortSignal,changed:()=>void):Promise<void>{
+    addresses(account:WalletAccount,signal:AbortSignal) {return owner.addresses(role,account,signal);},
+    async observe(account:WalletAccount,signal:AbortSignal,changed:()=>void):Promise<void>{
       signal.throwIfAborted();
       const key=JSON.stringify([account.profileId,account.network??'signet']);
       if(!events||events.key!==key||events.stop.signal.aborted){
@@ -85,7 +85,7 @@ function createRoleWalletAccess(owner: AppWalletSession, role: 'player' | 'game'
         if(!signal.aborted&&!entry.stop.signal.aborted)throw Error('Wallet observation ended.');
       }finally{entry.callbacks.delete(callback);signal.removeEventListener('abort',detach);}
     },
-    read<T>(account: AccountSecret, signal: AbortSignal, use: (wallet: ReadonlyWallet) => Promise<T>, fresh = true): Promise<T> {
+    read<T>(account: WalletAccount, signal: AbortSignal, use: (wallet: ReadonlyWallet) => Promise<T>, fresh = true): Promise<T> {
       if (!fresh) return owner.read(role, account, signal, async (wallet, active) => {
         active.throwIfAborted(); return use(await readonlyView(wallet as Wallet));
       });
@@ -105,7 +105,7 @@ function createRoleWalletAccess(owner: AppWalletSession, role: 'player' | 'game'
         return result;
       });
     },
-    history(account:AccountSecret,signal:AbortSignal) {
+    history(account:WalletAccount,signal:AbortSignal) {
       return owner.read(role,account,signal,async (resource,active)=>{
         const wallet=await readonlyView(resource as Wallet);
         requireNetwork((await wallet.arkProvider.getInfo()).network,account.network??'signet');
@@ -136,7 +136,7 @@ function createRoleWalletAccess(owner: AppWalletSession, role: 'player' | 'game'
         return result;
       });
     },
-    sign<T>(account: AccountSecret, signal: AbortSignal,
+    sign<T>(account: WalletAccount, signal: AbortSignal,
       providers: {arkProvider?: RestArkProvider; indexerProvider?: RestIndexerProvider},
       use: (wallet: Wallet, signal: AbortSignal) => Promise<T>): Promise<T> {
       return owner.sign(role, account, signal, async (wallet, active) => {

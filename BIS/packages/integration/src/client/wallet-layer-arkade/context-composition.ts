@@ -6,10 +6,19 @@ import { createArkadeContextDependencies } from './context-dependencies.ts';
 import { createAppWalletSession } from './app-wallet-session.ts';
 import { bindRoleWallet } from './adapter-session.ts';
 import { registerAppWalletOwner } from './app-wallet-composition.ts';
+import { createAppPlayerProof } from './app-player-proof.ts';
+import { marketplacePaymentEvidence } from './app-marketplace-evidence.ts';
 
 /** Public compatibility façade; concrete Arkade wiring lives outside state core. */
 export function createBisContext(options: BisContextOptions = {}): BisContext {
-  const owner=createAppWalletSession(),player=bindRoleWallet(owner,'player');
+  const owner=createAppWalletSession({
+    playerProof: request => createAppPlayerProof({ load: () => storage.load(), scope: () => context.getState(), subscribe: listener => context.subscribe(listener) })(request),
+    marketplacePayment: (account, inputs) => {
+      const state = context.getState();
+      if (state.phase !== 'active' || state.network !== account.network) return;
+      return marketplacePaymentEvidence(account, inputs, state.profileId);
+    },
+  }),player=bindRoleWallet(owner,'player');
   const session = createTestNetworkSession();
   const selected = () => session.getSelected();
   const stores = new Map<TestNetwork, AccountStorage>();

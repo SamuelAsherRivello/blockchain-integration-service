@@ -1,0 +1,6 @@
+.vercel
+.env*
+!.env.local.template
+# Marketplace-installed provider guidance is local tooling, not package source.
+.agents/
+skills-lock.json

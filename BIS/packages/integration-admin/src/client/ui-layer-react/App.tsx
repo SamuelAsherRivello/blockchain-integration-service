@@ -97,7 +97,12 @@ export function App({ contextFactory = createBisContext, gameWalletFactory = cre
   },[gameWalletController]);
   const [mintOpen, setMintOpen] = useState(false);
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
-  const logAsset = (label: string, result: unknown) => setConsoleLines([`${label}\n${JSON.stringify(result, null, 2)}`]);
+  const logAsset = (label: string, result: unknown) => {
+    const entry = `${label}\n${JSON.stringify(result, null, 2)}`;
+    // Background wallet reports must not erase an explicit Details result.
+    // Keep the same bounded history used by the contract controls.
+    setConsoleLines(previous => label === 'Game Wallet' ? [...previous.slice(-19), entry] : [entry]);
+  };
   function openMint() { if (!assetBusy) setMintOpen(true); }
   const prepareMint = useCallback((destination: MintDestination) => {
     const source = gameWalletRef.current;

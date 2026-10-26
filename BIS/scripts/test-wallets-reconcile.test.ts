@@ -26,6 +26,44 @@ test('faucet reconciliation accepts only the original operation, with no alterna
   assert.throws(() => argumentsFor(['reconcile', '--operation', 'original-request', '--api', 'http://127.0.0.1:5191']), /invalid-arguments/);
 });
 
+test('explicit prototype funding loss disposition retains unknown network outcome and original identity',async()=>{
+  const f=await fixture();
+  await assert.rejects(f.ledger.abandonLostPrototypeFunding(f.intent.id,'implicit'),/authorization-required/);
+  const record=await f.ledger.abandonLostPrototypeFunding(f.intent.id,'user-prototype-loss-policy-2026-10-21');
+  assert.equal(record.state,'cancelled');
+  assert.equal(record.resolution.networkOutcome,'unknown');
+  assert.equal(record.resolution.kind,'user-authorized-abandonment');
+  assert.deepEqual(record.intent,f.intent);assert.equal(record.providerId,undefined);
+  assert.equal(f.submissions(),1);
+  assert.equal((await f.ledger.submit(f.intent.id,()=>assert.fail('abandonment must not replay the original request'))).state,'cancelled');
+  await f.ledger.prepare({...f.intent,id:'fresh-user-approved-request'});
+});
+
+test('prototype loss disposition cannot retire a contract claim or an acknowledged faucet payment',async()=>{
+  const f=await fixture();
+  await f.ledger.abandonLostPrototypeFunding(f.intent.id,'user-prototype-loss-policy-2026-10-21');
+  await f.ledger.prepare({...f.intent,id:'original-claim',kind:'claim',recipient:'original-contract',amountSats:1000});
+  await f.ledger.submit('original-claim',async()=>{throw Error('lost claim acknowledgement');});
+  await assert.rejects(f.ledger.abandonLostPrototypeFunding('original-claim','user-prototype-loss-policy-2026-10-21'),/funding-not-lost/);
+  const g=await fixture();g.state.operations[0].providerId='a'.repeat(64);
+  await assert.rejects(g.ledger.abandonLostPrototypeFunding(g.intent.id,'user-prototype-loss-policy-2026-10-21'),/funding-not-lost/);
+});
+
+test('prototype loss policy accepts only bound unacknowledged Admin funding, never a funded contract or ordinary send',async()=>{
+  const f=await fixture();
+  await f.ledger.abandonLostPrototypeFunding(f.intent.id,'user-prototype-loss-policy-2026-10-21');
+  const id='admin-expiry-fund', runId='admin-expiry';
+  await f.ledger.prepare({...f.intent,id,kind:'arkade-send',recipient:'treasure:'+runId,amountSats:1000});
+  await f.ledger.submit(id,async()=>{throw Error('interrupted test');});
+  await assert.rejects(f.ledger.abandonLostPrototypeFunding(id,'user-prototype-loss-policy-2026-10-21'),/funding-not-lost/);
+  f.state.treasureAdminRuns={[runId]:{network:f.intent.network,game:f.intent.profileId,origin:f.intent.sourceOrigin}};
+  f.state.treasureAdminRuns[runId].contractId='original-contract';
+  await assert.rejects(f.ledger.abandonLostPrototypeFunding(id,'user-prototype-loss-policy-2026-10-21'),/funding-not-lost/);
+  delete f.state.treasureAdminRuns[runId].contractId;
+  const result=await f.ledger.abandonLostPrototypeFunding(id,'user-prototype-loss-policy-2026-10-21');
+  assert.equal(result.state,'cancelled');assert.equal(result.resolution.networkOutcome,'unknown');
+});
+
 test('lost faucet acknowledgement uses GET by original request and requires a separately verified exact receipt', async () => {
   const f = await fixture();
   const transactionId = 'a'.repeat(64);

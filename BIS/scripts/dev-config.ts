@@ -5,20 +5,25 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { bisSignerPlugin } from '../packages/bis-server/src/server/vite.ts';
 import { bisContentSecurityPolicy } from './content-security-policy.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export const packageRoutes = [
   { label: 'BIS - Admin', route: '/admin/', directory: 'integration-admin' },
-  { label: 'BIS - Marketplace', route: '/integration-marketplace/', directory: 'integration-marketplace' },
+  { label: 'BIS - Marketplace', route: '/marketplace/', directory: 'integration-marketplace' },
   { label: 'BIS - Prototype Onboarding', route: '/prototype-onboarding/', directory: 'prototype-onboarding' },
   { label: 'BIS - Prototype Faucet', route: '/prototype-faucet/', directory: 'prototype-faucet' },
   { label: 'BIS - Prototype Sandbox', route: '/prototype-sandbox/', directory: 'prototype-sandbox' },
   { label: 'BIS - Integration', route: '/integration/', directory: 'integration', readme: true },
   { label: 'BIS - Shared', route: '/shared/', directory: 'shared', readme: true },
+  { label: 'BIS - Server', route: '/bis-server/', directory: 'bis-server', readme: true },
 ];
 const readmes = new Set(['/README.md', ...packageRoutes.map(app => `/BIS/packages/${app.directory}/${app.directory}-package-readme.md`)]);
-const routeAliases = [{ route: '/onboarding/', target: '/prototype-onboarding/' }];
+const routeAliases = [
+  { route: '/onboarding/', target: '/prototype-onboarding/' },
+  { route: '/integration-marketplace/', target: '/marketplace/' },
+];
 const isFile = async path => (await stat(path).catch(() => undefined))?.isFile() ?? false;
 
 function headingAnchors() {
@@ -54,6 +59,14 @@ function packageEntries() {
   return {
     name: 'bis-package-entries',
     enforce: 'pre',
+    transformIndexHtml(_html, context) {
+      const filename = (context.filename ?? '').replaceAll('\\', '/');
+      if (!context.server || !(filename.endsWith('/BIS/packages/integration-marketplace/index.html') ||
+          /^\/(?:marketplace|integration-marketplace)\/(?:index\.html)?$/.test(context.path))) return;
+      // Fetch the shared UI graph alongside the Marketplace entry and React.
+      // Source modules retain the normal hot-reload behavior.
+      return [{ tag: 'link', attrs: { rel: 'modulepreload', href: '/BIS/packages/integration/src/index.ts' }, injectTo: 'head' as const }];
+    },
     // Supply a package-specific public base during shared development only.
     transform(code, id) {
       const normalized = id.replaceAll('\\', '/');
@@ -70,10 +83,11 @@ function packageEntries() {
           const path = decodeURIComponent(url.pathname);
           // This middleware precedes package rewrites and Markdown/raw imports.
           // The committed placeholder template is public; populated env files are not.
-          if (path.split('/').some(part => /^\.env(?:\..*)?$/.test(part) && part !== '.env.local.template')) {
+          if (path.split('/').some(part => /^\.env(?:\..*)?$/i.test(part) && part.toLowerCase() !== '.env.local.template')) {
             response.statusCode = 403; response.end('Private configuration'); return;
           }
           if (path.includes('\\') || path.split('/').includes('..')) { response.statusCode = 400; response.end('Invalid path'); return; }
+          if (/\/bis-server\/src\//i.test(path)) { response.statusCode = 403; response.end('Server-only source'); return; }
           const redirect = target => { response.statusCode = 302; response.setHeader('Location', target + url.search); response.end(); };
           if (path === '/') return next();
           for (const alias of routeAliases) {
@@ -124,14 +138,14 @@ function packageEntries() {
   };
 }
 
-export function developmentConfig({ port = 5174, faucetPort = 5190 } = {}) {
+export function developmentConfig({ port = 5174, faucetPort = 5190, signerConfig = undefined as Parameters<typeof bisSignerPlugin>[0] } = {}) {
   return {
     configFile: false,
     root,
     cacheDir: resolve(root, 'output', 'vite-cache', String(port)),
     appType: 'mpa',
     publicDir: false,
-    plugins: [bisContentSecurityPolicy(), packageEntries()],
+    plugins: [bisContentSecurityPolicy(), packageEntries(), bisSignerPlugin(signerConfig)],
     server: {
       host: '127.0.0.1', port, strictPort: true,
       proxy: {

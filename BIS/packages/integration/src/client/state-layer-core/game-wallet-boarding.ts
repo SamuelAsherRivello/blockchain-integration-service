@@ -1,7 +1,7 @@
 import {eligibleUnreservedCoins,walletReservations} from './wallet-reservations.ts';
 import { assertNoPendingSend } from './sending.ts';
 import { quoteBoarding, submitBoarding, reconcileBoarding } from '../wallet-layer-arkade/boarding.ts';
-import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
+import type { WalletAccount } from '../wallet-layer-arkade/account.ts';
 import type { BoardingQuote } from './boarding-quote.ts';
 import { assertNoPendingBoarding, withWalletMutation } from './boarding-record.ts';
 import { transferStatus } from './boarding-status.ts';
@@ -14,12 +14,12 @@ export function preserveGameBoarding(profileId: string) {
   if (localStorage.getItem(key) !== '1') throw Error('Recovery storage unavailable.');
 }
 export const gameWalletBoarding = {
-  async quote(account: AccountSecret, signal: AbortSignal,session?:RoleWalletAccess) {
+  async quote(account: WalletAccount, signal: AbortSignal,session?:RoleWalletAccess) {
     eligibleUnreservedCoins([],walletReservations(account.profileId,account.network??'signet'));
 
     return quoteBoarding(account, undefined, signal, 'to-arkade',session);
   },
-  async submit(account: AccountSecret, quote: BoardingQuote, current: () => boolean,session?:RoleWalletAccess) {
+  async submit(account: WalletAccount, quote: BoardingQuote, current: () => boolean,session?:RoleWalletAccess) {
     return withWalletMutation(async () => {
       eligibleUnreservedCoins([],walletReservations(account.profileId,account.network??'signet'));
 
@@ -28,7 +28,7 @@ export const gameWalletBoarding = {
       return transferStatus(await submitBoarding(account, quote, current,session));
     }, account.profileId,account.network??'signet');
   },
-  async check(account: AccountSecret, signal: AbortSignal,session?:RoleWalletAccess) {
+  async check(account: WalletAccount, signal: AbortSignal,session?:RoleWalletAccess) {
     return transferStatus(await reconcileBoarding(account, signal,session));
   },
 };

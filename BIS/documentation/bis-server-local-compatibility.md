@@ -1,0 +1,29 @@
+# BIS server local compatibility
+
+Milestone 1 only. [Package setup](../packages/bis-server/bis-server-package-readme.md) and [OpenSpec tasks](../../openspec/changes/add-bis-server-game-wallet/tasks.md) describe the remaining release boundary.
+
+| Boundary | Local implementation and deterministic evidence | Remaining acceptance |
+| --- | --- | --- |
+| Public identity | Compressed/x-only public keys and SHA-256 profile binding | Funded identity/network reads |
+| Public spending grants | Player proof and short-lived grants bind the exact request, operation, network, profile, and connection; concurrent/replay/changed requests are refused. Production flags remain off pending deployment acceptance. | Anonymous Pages connect and real public signing after policy deployment |
+| Transaction signing | Real HTTP PSBT signing matches SDK local result; selected input remains scoped; offchain spending uses fresh source reconstruction and the approved 5,000-sat operation / 10,000-sat daily-network ceilings. | Live mint, delivery, payment and boarding |
+| Asset actions | Public mint is one non-reissuable BIS unit; delivery requires a recorded player grant or verified Marketplace receipt; burn reconstructs the SDK packet, allows only an asset previously issued for the same Player, retains other assets at Game, and counts Bitcoin fee/carrier exposure. Arbitrary assets, multiple-asset loss, and redirection fail closed. | Live mint/delivery/burn acceptance against funded test identities |
+| Private owner actions | `BIS_OWNER_TOKEN` authenticates separate owner plans and scoped grants; owner credentials stay in memory-only Developer Settings and are excluded from Pages bundles. | Deployed browser-origin owner check |
+| Message signing | Schnorr signature verified against advertised key; ECDSA matches local signer | Protocol-specific operator acceptance |
+| Tree signing | Two-party HTTP MuSig2 partial signatures aggregate into a verified Schnorr signature; stable nonces, immutable initialization, expiry and one-use signing | Live operator settlement |
+| Settlement authorization | Client captures explicit settlement inputs/outputs and buffers bounded connector chunks by started batch ID before the SDK announces the signing candidate; matching batch finalization is then bound to that candidate. Parallel proofs share one hosted plan, and session/finalization grants retain its batch token and fee reservation | Combined hosted-client virtual-forfeit acceptance, implicit settlement selection and live boarding acceptance |
+| Settlement batch checks | SDK graph/recipient validation plus root aggregate-key checks, original Bitcoin input inclusion, asset quantities and bounded traversal; browser batch ID/expiry/commitment feed the scoped batch route | Funded operator/Vercel acceptance; deterministic candidates are not network receipts |
+| Game composition | Remote references contain no phrase; local Player signer unchanged; contracts share selected game source | Browser/provider recovery acceptance |
+| Fallback | Absent/refused/timed-out endpoint offers manual login; no automatic retained-wallet activation after server loss | Browser UI checks on every deployed consumer |
+| Hosted runtime | Separate Node adapter, primary-side Redis claims, encrypted sessions and real cross-Vercel-instance signing checks | Remaining workflow policies and funded acceptance |
+| Batch coordination | Real Redis claims pin one batch per original reservation; browser capture rejects replacements, and hosted grants bind initialization before nonce creation. The client signs the original boarding commitment during finalization; separate policy tests reconstruct virtual forfeits against the captured connector tree | Combined hosted-client virtual-forfeit and funded live settlement/finalization acceptance |
+| Operation session codec | Retained public/owner clients complete real cold-handler aggregation and boarding-commitment finalization using captured SDK events; encrypted restoration binds reservation/key/batch; local HTTP retains its SDK session key | Combined virtual-forfeit client-path and live operator/Vercel acceptance |
+| Standard LTO funding/refund | Server reconstructs the Player/Game hashlock from verified keys, fresh operator parameters and a public hash; direct client uses an exclusive Game signing lease | Real funded operator acceptance; Treasure covenant and settlement parity remain separate |
+
+Existing mint/delivery/payment/boarding operations retain their browser-owned journals and network verification. Contract adapters use the same selected game reference instead of loading a parallel browser game wallet. These code paths are not equivalent to completed live acceptance.
+
+Current retained BIS wallet configuration leaves SDK `walletMode` at `auto`; SDK 0.4.79 has no HD receive stream in auto/static mode. The remote identity therefore does not advertise HD descriptor allocation. Explicit future HD mode requires a separate compatibility extension rather than silently deriving different addresses.
+
+For an external game development host, proxy `/api/bis/` to the BIS loopback Vite origin with `changeOrigin: true`; both client code and browser API requests then use the game's local origin. Preserve the original same-origin browser authorization check when proxying. The game needs its tested BIS package import before it can use these new integration exports; no vendored game release is performed during this local step.
+
+Published builds can set `VITE_BIS_SERVER_URL` while building BIS or call public `configureBisServer({url})` before constructing BIS. Development defaults to the local API even if the package was built for a hosted URL. The public URL contains no signing credentials. Do not enable public production signing or publish these consumers until required workflow policies and funded acceptance pass.

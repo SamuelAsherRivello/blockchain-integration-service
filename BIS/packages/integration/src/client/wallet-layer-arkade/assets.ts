@@ -1,9 +1,10 @@
-import { ArkAddress, MnemonicIdentity, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, hasTerminalSpend, type AssetDetails } from '@arkade-os/sdk';
+import { readonlyIdentity } from './wallet-identity.ts';
+import { ArkAddress, Wallet, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, hasTerminalSpend, type AssetDetails } from '@arkade-os/sdk';
 import { encodeAssetMetadata } from './asset-metadata.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
 import type { RoleWalletAccess } from './adapter-session.ts';
 import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
-import { requireNetwork, operatorFor, withTemporaryWallet, type AccountSecret } from './account.ts';
+import { requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
 import type { TestNetwork } from '../state-layer-core/test-network.ts';
 import { AssetError, checkMintRecord, readAssetRecords, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../state-layer-core/assets.ts';
 import { BIS_LATEST_ASSET_FORMAT_VERSION, resolveBisAssetFormat } from '../state-layer-core/asset-format.ts';
@@ -11,7 +12,7 @@ import { BurnError, readBurnRecord, writeBurnRecord, validateBurn, type BisBurnA
 import { eligibleUnreservedCoins, walletReservations } from '../state-layer-core/wallet-reservations.ts';
 import { AssetDeliveryError, completeAssetDelivery, readAssetDeliveryRecord, validateAssetDelivery, writeAssetDeliveryRecord, type AssetDeliveryAsset, type AssetDeliveryRecord, type BisAssetDeliveryRequest, type BisAssetDeliveryResult } from '../state-layer-core/asset-delivery.ts';
 
-export async function loadMintAvailability(account:AccountSecret,signal:AbortSignal,session?:RoleWalletAccess) {
+export async function loadMintAvailability(account:WalletAccount,signal:AbortSignal,session?:RoleWalletAccess) {
   const network=account.network ?? 'signet';
   try {eligibleUnreservedCoins([],walletReservations(account.profileId,network));}
   catch {return {canMint:false,reason:'Pending operation inputs could not be verified. Open wallet recovery details before minting.'};}
@@ -93,7 +94,7 @@ function providers(signal: AbortSignal, beforeSubmit?: () => void, afterSubmit?:
 }
 const storage = () => ({ walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() });
 // Caller holds the wallet mutation lock. A pending record is written before submission.
-export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetRequest, signal:AbortSignal, isCurrent:()=>boolean,session?:RoleWalletAccess):Promise<Extract<BisBurnAssetResult,{status:'burned'}>> {
+export async function burnWalletAsset(account:WalletAccount, input:BisBurnAssetRequest, signal:AbortSignal, isCurrent:()=>boolean,session?:RoleWalletAccess):Promise<Extract<BisBurnAssetResult,{status:'burned'}>> {
   const network=account.network ?? 'signet';
   const request=validateBurn(input), prior=readBurnRecord(account.profileId, input.operationId, network);
   if(prior?.id===request.operationId) {
@@ -145,7 +146,7 @@ export async function burnWalletAsset(account:AccountSecret, input:BisBurnAssetR
     throw new BurnError('unavailable','The wallet could not prepare a spendable burn transaction. This is not caused by the item metadata format. Refresh Assets, resolve any pending wallet operation, and try again.');
   } finally {open=false;}
 }
-export async function listWalletAssets(account: AccountSecret, signal: AbortSignal, session?: RoleWalletAccess): Promise<BisAsset[]> {
+export async function listWalletAssets(account: WalletAccount, signal: AbortSignal, session?: RoleWalletAccess): Promise<BisAsset[]> {
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
   const network = account.network ?? 'signet';
   if(session) {
@@ -166,7 +167,7 @@ export async function listWalletAssets(account: AccountSecret, signal: AbortSign
     },false);
   }
   const p = providers(deadline, undefined, undefined, network);
-  const identity = await MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false }).toReadonly();
+  const identity = await readonlyIdentity(account);
   return withTemporaryWallet(ReadonlyWallet.create({ identity, arkProvider: p.arkProvider, indexerProvider: p.indexerProvider, storage: storage() }), deadline, async wallet => {
     const owned = await readFreshAssets({getBalance:()=>readAssetHoldings(wallet),getProviderConnectionState:()=>wallet.getProviderConnectionState(),assetManager:wallet.assetManager}); p.assertFresh();
     return addLocalProvenance(owned,account);
@@ -175,7 +176,7 @@ export async function listWalletAssets(account: AccountSecret, signal: AbortSign
 // Immutable metadata only. Mutable quantities are ALWAYS read above. Weak scope
 // is app-owned; network/operator/asset ID prevent cross-network metadata reuse.
 const metadataCaches=new WeakMap<RoleWalletAccess,Map<string,AssetDetails>>();
-function addLocalProvenance(owned:OwnedAsset[],account:AccountSecret):BisAsset[] {
+function addLocalProvenance(owned:OwnedAsset[],account:WalletAccount):BisAsset[] {
     let records: ReturnType<typeof readAssetRecords> = [];
     const network=account.network??'signet';
     try { records = readAssetRecords(account.profileId, network); } catch { /* Local provenance is optional; chain ownership remains authoritative. */ }
@@ -242,7 +243,7 @@ function deliveryResult(record:NonNullable<ReturnType<typeof readAssetDeliveryRe
  * Sends one exact asset allocation using a local signer. The intent is stored
  * before `wallet.send` can submit so a lost acknowledgement stays recoverable.
  */
-export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDeliveryRequest,signal:AbortSignal,isCurrent:()=>boolean,session?:RoleWalletAccess):Promise<BisAssetDeliveryResult> {
+export async function deliverWalletAsset(account:WalletAccount,input:BisAssetDeliveryRequest,signal:AbortSignal,isCurrent:()=>boolean,session?:RoleWalletAccess):Promise<BisAssetDeliveryResult> {
   let request:BisAssetDeliveryRequest;
   try {request=validateAssetDelivery(input);} catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'invalid-input',message:error instanceof Error?error.message:'Item delivery is invalid.',profileId:account.profileId,operationId:input?.operationId};}
   try {
@@ -273,7 +274,7 @@ export async function deliverWalletAsset(account:AccountSecret,input:BisAssetDel
 }
 
 /** Reconcile only from current sender and recipient evidence; absence is never success. */
-export async function reconcileWalletAssetDelivery(account:AccountSecret,operationId:string,signal:AbortSignal,session?:RoleWalletAccess):Promise<BisAssetDeliveryResult> {
+export async function reconcileWalletAssetDelivery(account:WalletAccount,operationId:string,signal:AbortSignal,session?:RoleWalletAccess):Promise<BisAssetDeliveryResult> {
   try {
     const network=account.network ?? 'signet',record=readAssetDeliveryRecord(account.profileId,operationId,network);
     if(!record)throw new AssetDeliveryError('invalid-input','The requested item delivery does not exist.');
@@ -289,7 +290,7 @@ export async function reconcileWalletAssetDelivery(account:AccountSecret,operati
   } catch(error) {return {status:'error',code:error instanceof AssetDeliveryError?error.code:'unavailable',message:error instanceof Error?error.message:'Item delivery status is unavailable.',profileId:account.profileId,operationId};}
 }
 // Caller holds the mutation lock shared with transfers and account clearing.
-export async function mintWalletAsset(account: AccountSecret, request: BisMintAssetRequest, signal: AbortSignal, isCurrent: () => boolean,session?:RoleWalletAccess): Promise<Exclude<BisMintAssetResult, {status:'error'}>> {
+export async function mintWalletAsset(account: WalletAccount, request: BisMintAssetRequest, signal: AbortSignal, isCurrent: () => boolean,session?:RoleWalletAccess): Promise<Exclude<BisMintAssetResult, {status:'error'}>> {
   const network=account.network ?? 'signet', record = checkMintRecord(account.profileId, request,network);
   if (record?.status === 'succeeded') return { status: 'already-minted', profileId: account.profileId, operationId: request.operationId, asset: record.asset!, transactionId: record.transactionId };
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
@@ -359,10 +360,10 @@ export async function mintWalletAsset(account: AccountSecret, request: BisMintAs
 }
 
 /** Stream wallet output changes directly; no history or balance polling. */
-export async function watchAssetChanges(account: AccountSecret, signal: AbortSignal, changed: () => void,session?:RoleWalletAccess): Promise<void> {
+export async function watchAssetChanges(account: WalletAccount, signal: AbortSignal, changed: () => void,session?:RoleWalletAccess): Promise<void> {
   if(session)return session.observe(account,signal,changed);
   const p = providers(signal, undefined, undefined, account.network ?? 'signet');
-  const identity = await MnemonicIdentity.fromMnemonic(account.phrase, {isMainnet:false}).toReadonly();
+  const identity = await readonlyIdentity(account);
   const wallet = await ReadonlyWallet.create({identity, arkProvider:p.arkProvider, indexerProvider:p.indexerProvider, storage:storage()});
   try {
     signal.throwIfAborted();

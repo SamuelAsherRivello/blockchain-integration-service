@@ -17,7 +17,7 @@ function fixture() {
   const events = [], effects = [], requests = [], contextEvents = new Set();
   let session = { gameId: 'unit-game', gameSessionId: 'run-1' };
   const context = observable({ view: 'empty', hasProfile: true, profileId: 'player', phase: 'active', network: 'signet' });
-  const wallet = observable({ status: 'ready', profileId: 'game-wallet', network: 'signet', playerConnected: true, balance: { availableSats: 5000 } });
+  const wallet = observable({ status: 'ready', profileId: 'game-wallet', network: 'signet', source: 'manual', playerConnected: true, balance: { availableSats: 5000 } });
   let contracts = [], resetFailure = false, mintWait;
   Object.assign(context, {
     readyAsync: async () => {},
@@ -107,6 +107,11 @@ test('BisService owns private resources and routes game workflows through the tw
     assert.equal(Object.isFrozen(snapshot.account.playerWallet), true);
     assert.throws(() => { snapshot.account.hasProfile = false; }, TypeError);
     assert.equal('addresses' in snapshot.account.gameWallet, false);
+    assert.equal(snapshot.account.gameWallet.source, 'manual');
+    f.wallet.set({ source: 'server' });
+    assert.equal(f.service.getSnapshot().account.gameWallet.source, 'server');
+    f.wallet.set({ source: undefined });
+    assert.equal('source' in f.service.getSnapshot().account.gameWallet, false, 'unknown origins remain unknown');
     assert.equal(f.contextEvents.size, 1); assert.equal(f.lto.listeners.size, 1);
     f.service.dispose(); f.service.dispose();
     assert.equal(f.context.listeners.size, 0); assert.equal(f.contextEvents.size, 0);

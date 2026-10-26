@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { configureEventSource, InMemoryContractRepository, InMemoryWalletRepository, MnemonicIdentity, RestArkProvider, RestIndexerProvider, Wallet } from '@arkade-os/sdk';
 import { createSharedArkadeWalletService } from '../../../integration/src/client/wallet-layer-arkade/shared-wallet-service.ts';
-import { createFaucetService, safeError } from '../shared/faucet-core.ts';
+import { createFaucetService, publicOnboarding, safeError } from '../shared/faucet-core.ts';
 import { queryBalance } from '../../scripts/get-balance.ts';
 import { NETWORKS, NETWORK_IDS } from '../shared/network-config.ts';
 import { createFaucetOperationStore, createProcessWalletLock } from '../shared/faucet-operation-store.ts';
@@ -107,20 +107,6 @@ async function readJson(request) {
     chunks.push(chunk);
   }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw Object.assign(new Error('Request body is invalid.'), { code: 'ADDRESS_INVALID' }); }
-}
-
-function publicOnboarding(operation) {
-  if (!operation) return undefined;
-  const message = operation.failureCode === 'operator-unavailable'
-    ? 'Arkade operator fee estimation is unavailable. Try again later.'
-    : operation.failureCode === 'policy-unsupported'
-      ? 'The Arkade operator policy does not support onboarding right now.'
-      : operation.failureCode === 'settlement-rejected'
-        ? 'The Arkade operator rejected onboarding. Try again later.'
-        : operation.failureCode === 'outcome-unknown'
-          ? 'Onboarding is pending reconciliation. Do not submit it again.'
-          : operation.failureMessage;
-  return { ...operation, ...(message ? { failureMessage: message } : {}) };
 }
 
 function publicWalletState(state) {

@@ -4,11 +4,11 @@ import {createTreasureSession,treasureMessage} from '../../src/client/preview-la
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 function setup() {
   let now=1000,sequence=0;
-  const player={profileId:'player',phase:'active'},game={profileId:'game',status:'ready'},calls=[],records=[];
+  const player={profileId:'player',phase:'active',network:'signet'},game={profileId:'game',status:'ready',network:'signet'},calls=[],records=[];
   const offers={start:async request=>{calls.push(['start',request]);return {status:'pending'};},endSession:async id=>calls.push(['end',id]),
     checkContractsAsync:async()=>({status:'ready',contracts:records}),claim:async id=>{calls.push(['claim',id]);return {status:'pending'};},reject:async id=>{calls.push(['reject',id]);return {status:'pending'};}};
   const controller=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
-  const record=(patch={})=>({id:'contract',type:'lto',purpose:'treasureLTO',sessionId:controller.getState().sessionId,hostReference:`treasure:${controller.getState().sessionId}`,scope:{playerId:'player',gameId:'game'},canClaim:true,financial:'funded',eligibility:'within-window',...patch});
+  const record=(patch={})=>({id:'contract',type:'lto',purpose:'treasureLTO',sessionId:controller.getState().sessionId,hostReference:`treasure:${controller.getState().sessionId}`,expiresAt:controller.snapshot()?.expiresAt,scope:{playerId:'player',gameId:'game',network:'signet'},canClaim:true,financial:'funded',eligibility:'within-window',...patch});
   return {controller,player,game,calls,records,record,offers,advance:ms=>{now+=ms;}};
 }
 test('Start fixes the 90-second deadline without waiting for funding or extending for pauses',async()=>{
@@ -36,16 +36,16 @@ test('chest ignores other purposes, sessions and references and only claims the 
 });
 test('losing cooperating session cannot adopt or claim another session contract',async()=>{
   let now=1000,sequence=0;
-  const player={profileId:'player',phase:'active'},game={profileId:'game',status:'ready'},calls=[],records=[];
+  const player={profileId:'player',phase:'active',network:'signet'},game={profileId:'game',status:'ready',network:'signet'},calls=[],records=[];
   const offers={start:async request=>{calls.push(['start',request]);return {status:request.sessionId==='session-1'?'pending':'unavailable'};},endSession:async id=>calls.push(['end',id]),
     checkContractsAsync:async()=>({status:'ready',contracts:records}),claim:async id=>{calls.push(['claim',id]);return {status:'pending'};},reject:async id=>{calls.push(['reject',id]);return {status:'pending'};}};
   const first=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
   const second=createTreasureSession({context:{getState:()=>player},gameWallet:{getState:()=>game},offers,now:()=>now,newId:()=>`session-${++sequence}`});
   first.start();second.start();await tick();
-  records.push({id:'contract-one',type:'lto',purpose:'treasureLTO',sessionId:first.getState().sessionId,hostReference:`treasure:${first.getState().sessionId}`,scope:{playerId:'player',gameId:'game'},canClaim:true,financial:'funded',eligibility:'within-window'});
+  records.push({id:'contract-one',type:'lto',purpose:'treasureLTO',sessionId:first.getState().sessionId,hostReference:`treasure:${first.getState().sessionId}`,expiresAt:91000,scope:{playerId:'player',gameId:'game',network:'signet'},canClaim:true,financial:'funded',eligibility:'within-window'});
   await first.inspect();await second.inspect();
   assert.equal(first.getState().status,'active');
-  assert.equal(second.getState().status,'no-offer');
+  assert.equal(second.getState().status,'unavailable');
   assert.equal(second.getState().contractId,undefined);
   assert.equal((await second.act('claim')).status,'unavailable');
   assert.equal(calls.filter(c=>c[0]==='claim').length,0);
@@ -86,5 +86,97 @@ test('level progression restores the same deadline and contract without another 
   assert.equal(resumed.restore(saved),true);await resumed.inspect();
   assert.equal(resumed.getState().remainingSeconds,60);assert.equal(resumed.getState().contractId,'contract');
   assert.equal(s.calls.filter(c=>c[0]==='start').length,1);assert.equal(s.calls.filter(c=>c[0]==='end').length,0);
+});
+
+test('Admin forwards an explicit validation choice and displays the mode returned by BIS',async()=>{
+  const s=setup();
+  await s.controller.start('browser-policy-v1');
+  assert.equal(s.calls.find(call=>call[0]==='start')[1].validationSolution,'browser-policy-v1');
+  s.records.push(s.record({validationMode:'browser-policy-v1'}));
+  await s.controller.inspect();
+  assert.equal(s.controller.getState().validationMode,'browser-policy-v1');
+  await s.controller.act('claim');
+  s.advance(91000);
+  assert.equal(s.controller.getState().status,'pending');
+  assert.equal(s.controller.getState().validationMode,'browser-policy-v1');
+});
+
+test('host default leaves automatic selection to BIS instead of choosing a browser mode locally',async()=>{
+  const s=setup();await s.controller.start();
+  assert.equal('validationSolution' in s.calls.find(call=>call[0]==='start')[1],false);
+  s.records.push(s.record({validationMode:'arkade-covenant-v2'}));
+  await s.controller.inspect();
+  assert.equal(s.controller.getState().validationMode,'arkade-covenant-v2');
+});
+
+test('pending rejection keeps its persisted mode and financial pending state across expiry',async()=>{
+  const s=setup();await s.controller.start('arkade-covenant-v2');
+  s.records.push(s.record({validationMode:'arkade-covenant-v2'}));await s.controller.inspect();
+  assert.equal((await s.controller.act('reject')).status,'pending');
+  s.advance(91000);
+  assert.equal(s.controller.getState().status,'pending');
+  assert.equal(s.controller.getState().validationMode,'arkade-covenant-v2');
+});
+
+test('restored active cache cannot authorize an action before matching BIS inspection',async()=>{
+  const s=setup();await s.controller.start();await tick();s.records.push(s.record());await s.controller.inspect();
+  const saved=s.controller.snapshot();s.controller.dispose({preserveSession:true});
+  const restored=createTreasureSession({context:{getState:()=>s.player},gameWallet:{getState:()=>s.game},offers:s.offers,now:()=>1000});
+  assert.equal(restored.restore({...saved,status:'active'}),true);
+  assert.equal(restored.getState().status,'unavailable');
+  assert.equal((await restored.act('claim')).status,'unavailable');
+  await restored.inspect();assert.equal(restored.getState().status,'active');
+  assert.equal(s.calls.filter(c=>c[0]==='claim').length,0);
+  restored.dispose({preserveSession:true});
+});
+
+test('network and deadline substitutions cannot activate a matching-looking contract',async()=>{
+  const s=setup();await s.controller.start();await tick();
+  for(const patch of [{scope:{playerId:'player',gameId:'game',network:'mutinynet'}},{expiresAt:92000}]){
+    s.records.splice(0,s.records.length,s.record(patch));await s.controller.inspect();
+    assert.equal(s.controller.getState().status,'unavailable');
+    assert.equal((await s.controller.act('claim')).status,'unavailable');
+  }
+  s.records.splice(0,s.records.length,s.record());await s.controller.inspect();
+  s.player.network='mutinynet';s.game.network='mutinynet';
+  assert.equal(s.controller.getState().status,'no-offer');
+  assert.equal((await s.controller.act('reject')).status,'unavailable');
+});
+
+test('concurrent inspections share the same pending read and do not sign',async()=>{
+  const s=setup();await s.controller.start();await tick();let release,reads=0;
+  s.offers.checkContractsAsync=()=>{reads++;return new Promise(resolve=>{release=resolve;});};
+  const first=s.controller.inspect(),second=s.controller.inspect();
+  assert.equal(first,second);await tick();assert.equal(reads,1);
+  release({status:'ready',contracts:[s.record()]});await Promise.all([first,second]);
+  assert.equal(s.controller.getState().status,'active');
+  assert.equal(s.calls.filter(c=>['claim','reject'].includes(c[0])).length,0);
+});
+
+test('a pending old inspection cannot block or overwrite the replacement session',async()=>{
+  const s=setup();await s.controller.start();await tick();let release;
+  s.offers.checkContractsAsync=()=>new Promise(resolve=>{release=resolve;});
+  const old=s.controller.inspect();await tick();const oldRecord=s.record();
+  s.controller.end();s.offers.checkContractsAsync=async()=>({status:'ready',contracts:s.records});
+  await s.controller.start();await tick();s.records.push(s.record({id:'new-contract'}));await s.controller.inspect();
+  assert.equal(s.controller.getState().contractId,'new-contract');
+  release({status:'ready',contracts:[oldRecord]});await old;
+  assert.equal(s.controller.getState().contractId,'new-contract');
+  assert.equal(s.controller.getState().status,'active');
+});
+
+test('network replacement during a pending read cannot restore active eligibility',async()=>{
+  const s=setup();await s.controller.start();await tick();let release;
+  s.offers.checkContractsAsync=()=>new Promise(resolve=>{release=resolve;});
+  const read=s.controller.inspect();await tick();const original=s.record();
+  s.player.network='mutinynet';s.game.network='mutinynet';
+  release({status:'ready',contracts:[original]});await read;
+  assert.equal(s.controller.getState().status,'no-offer');
+  assert.equal((await s.controller.act('claim')).status,'unavailable');
+});
+
+test('mismatched wallet networks skip Start without signing or funding',async()=>{
+  const s=setup();s.game.network='mutinynet';await s.controller.start();
+  assert.equal(s.controller.getState().status,'no-offer');assert.equal(s.calls.length,0);
 });
 

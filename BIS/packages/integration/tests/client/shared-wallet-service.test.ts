@@ -73,3 +73,23 @@ test('shared service retains an ambiguous settlement as pending', async () => {
   assert.equal(records.at(-1).status, 'pending');
   assert.equal(records.at(-1).stage, 'failed');
 });
+
+test('already available Arkade funds bypass failed boarding without rewriting its history', async () => {
+  const failed = { id: 'original-boarding', status: 'failed', failureCode: 'operator-unavailable', failureMessage: 'fee-estimation-unavailable' };
+  let writes = 0;
+  const service = createSharedArkadeWalletService({
+    scope: { walletId: 'wallet-1', network: 'signet', operator: 'https://signet.arkade.sh', role: 'faucet' },
+    wallet: wallet({
+      getBalance: async () => ({ total: 150_000n, available: 50_000n, settled: 50_000n, boarding: { total: 100_000n } }),
+      settle: async () => { assert.fail('Available offchain funds must not trigger another boarding batch.'); },
+      getBoardingUtxos: async () => { assert.fail('Available offchain funds do not require boarding selection.'); },
+    }),
+    store: { read: () => failed, write: () => { writes += 1; } },
+  });
+  const state = await service.onboard();
+  assert.equal(state.balance.available, 50_000);
+  assert.equal(state.balance.boarding, 100_000);
+  assert.equal(state.operation, failed);
+  assert.equal(state.operation.status, 'failed');
+  assert.equal(writes, 0);
+});

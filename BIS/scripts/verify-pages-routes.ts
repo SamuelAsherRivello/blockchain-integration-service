@@ -40,14 +40,18 @@ try {
   await expectText(admin, `v${releaseVersion}`);
 
   const marketplace = await browser.newPage();
-  const marketplaceResponse = await marketplace.goto(`${base}integration-marketplace/`, { waitUntil: 'networkidle' });
+  const marketplaceResponse = await marketplace.goto(`${base}marketplace/`, { waitUntil: 'networkidle' });
   assert.equal(marketplaceResponse?.status(), 200);
   await expectText(marketplace, 'Marketplace');
   await expectText(marketplace, `v${releaseVersion}`);
-  const catalog = await marketplace.request.get(`${base}integration-marketplace/catalog.json`);
+  const catalog = await marketplace.request.get(`${base}marketplace/catalog.json`);
   assert.equal(catalog.status(), 200);
   const artwork = await marketplace.request.get(`${base}assets/marketplace/v1/shoes-1.png`);
   assert.equal(artwork.status(), 200);
+  const legacyMarketplaceResponse = await marketplace.goto(`${base}integration-marketplace/`, { waitUntil: 'networkidle' });
+  assert.equal(legacyMarketplaceResponse?.status(), 200);
+  await expectText(marketplace, 'Marketplace');
+  await expectText(marketplace, `v${releaseVersion}`);
   const sandbox = await browser.newPage();
   const sandboxResponse = await sandbox.goto(`${base}prototype-sandbox/demo-21/`);
   assert.equal(sandboxResponse?.status(), 200);
@@ -96,7 +100,7 @@ try {
     await redirects.goto(`${base}${oldRoute}`, { waitUntil: 'domcontentloaded' });
     await redirects.waitForURL(`${new URL(base).origin}/blockchain-presentations/${newRoute}`);
   }
-  console.log(`PASS ${base}admin/, ${base}integration-marketplace/ and ${base}prototype-sandbox/demo-21/`);
+  console.log(`PASS ${base}admin/, ${base}marketplace/, legacy integration-marketplace/ and ${base}prototype-sandbox/demo-21/`);
   console.log(`PASS ${Object.keys(legacyRoutes.decks).length} Slidev deck redirect trees and legacy URL forms`);
 } finally {
   await browser.close();

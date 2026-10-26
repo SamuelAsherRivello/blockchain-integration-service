@@ -1,20 +1,30 @@
+import { signingIdentity, readonlyIdentity, walletSourceKey } from './wallet-identity.ts';
 import { Wallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, InMemoryIntentRepository, IndexedDBIntentRepository, EsploraProvider } from '@arkade-os/sdk';
 import {testNetwork} from '../state-layer-core/test-network.ts';
-import { operatorFor, requireNetwork, type AccountSecret } from './account.ts';
+import { operatorFor, requireNetwork, type WalletAccount } from './account.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
 import { projectConfiguredAddresses } from './address-projection.ts';
 import type { AccountAddresses } from './addresses.ts';
+import type { ServerSigningOperation, ServerContractIntent } from './server-wallet.ts';
+import {serverTreasureAuthority,createLeasedTreasureServerTransport,type TreasureServerPersistence} from './server-wallet.ts';
+import type { AppPlayerProof } from './app-player-proof.ts';
+import { prepareServerSettlement, captureServerSettlementEvent, selectImplicitServerSettlement } from './server-settlement.ts';
 
 type Role = 'player' | 'game';
 type Disposable = { dispose(): Promise<void> };
+export type AppTreasureServerCapability=Readonly<{
+  authority:'owner'|'player-proof';
+  transport:(persistence:TreasureServerPersistence)=>ReturnType<typeof createLeasedTreasureServerTransport>;
+}>;
 type Configuration = Parameters<typeof Wallet.create>[0];
 type ReadWallet = Pick<Wallet, 'getAddress' | 'getBoardingAddress' | 'getBalance' | 'getVtxos' | 'getContractManager' | 'getProviderConnectionState'>;
 type Slot<W> = {
-  generation: number; account: AccountSecret; operator: string;
+  generation: number; account: WalletAccount; operator: string;
   controller: AbortController; pending: Promise<W>; wallet?: W;
   addresses: Promise<AccountAddresses>;
   startAddresses(): void;
   cleanup?: Promise<void>; lane: Promise<void>; users: number; drained?: () => void;
+  signingOperation: { active?: ServerSigningOperation };
 };
 
 // Arkade persists the signed settlement intent before registering it with the
@@ -23,7 +33,7 @@ type Slot<W> = {
 // operation even though the operator may still settle it.  Use a dedicated
 // database: the SDK explicitly prohibits sharing its intent schema with the
 // wallet/contract repositories.  The name contains only public local scope.
-function settlementIntentRepository(role: Role, account: AccountSecret) {
+function settlementIntentRepository(role: Role, account: WalletAccount) {
   const network=account.network ?? 'signet';
   if(typeof indexedDB==='undefined')return new InMemoryIntentRepository();
   return new IndexedDBIntentRepository(`bis-settlement-intents-v1:${network}:${role}:${encodeURIComponent(account.profileId)}`);
@@ -37,6 +47,8 @@ function settlementIntentRepository(role: Role, account: AccountSecret) {
  * Automatic SDK transactions are disabled, not merely hidden from the UI.
  */
 export function createAppWalletSession<W extends Disposable = Wallet>(options: {
+  playerProof?: AppPlayerProof;
+  marketplacePayment?: (account: WalletAccount, inputs: readonly { txid: string; vout: number }[]) => string | undefined;
   createWallet?: (config: Configuration) => Promise<W>;
   acquisitionMs?: number; retirementMs?: number;
 } = {}) {
@@ -44,8 +56,8 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
   const generations: Record<Role, number> = { player: 0, game: 0 };
   let closed = false;
   const factory = options.createWallet ?? (config => Wallet.create(config) as unknown as Promise<W>);
-  const same = (slot: Slot<W>, account: AccountSecret) => slot.account.profileId === account.profileId &&
-    slot.account.phrase === account.phrase && (slot.account.network ?? 'signet') === (account.network ?? 'signet') &&
+  const same = (slot: Slot<W>, account: WalletAccount) => slot.account.profileId === account.profileId &&
+    walletSourceKey(slot.account) === walletSourceKey(account) && (slot.account.network ?? 'signet') === (account.network ?? 'signet') &&
     slot.operator === operatorFor(account.network);
   const current = (role: Role, slot: Slot<W>) => !closed && slots.get(role) === slot && !slot.controller.signal.aborted;
 
@@ -69,7 +81,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     // waits on this promise; replacement acquisition has its own bounded wait.
     return bounded(done, options.retirementMs ?? 20000);
   }
-  async function acquireSlot(role: Role, account: AccountSecret, signal: AbortSignal, earlyAddresses=false): Promise<Slot<W>> {
+  async function acquireSlot(role: Role, account: WalletAccount, signal: AbortSignal, earlyAddresses=false): Promise<Slot<W>> {
     signal.throwIfAborted();
     if (closed) throw Error('Wallet session closed.');
     let slot = slots.get(role);
@@ -109,7 +121,8 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       // MnemonicIdentity construction performs synchronous seed/HD work too.
       // Start I/O first so that cost overlaps the bootstrap response wait.
       if(earlyAddresses)startInfo();
-      const identity = MnemonicIdentity.fromMnemonic(account.phrase, { isMainnet: false });
+      const signingOperation: { active?: ServerSigningOperation } = {};
+      const identity = signingIdentity(account, () => signingOperation.active);
       const config: Configuration = {
         identity,
         arkProvider, indexerProvider: shareIndexerReads(new RestIndexerProvider(operator), operator),
@@ -123,7 +136,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
         watcherConfig: { failsafePollIntervalMs: 60000, reconnectDelayMs: 60000, maxReconnectAttempts: 1 },
       };
       slot = { generation: ++generations[role], account: { ...account }, operator, controller,
-        pending: Promise.resolve().then(() => factory(config)), addresses, startAddresses:()=>{void startInfo();}, lane: Promise.resolve(), users: 0 };
+        pending: Promise.resolve().then(() => factory(config)), addresses, startAddresses:()=>{void startInfo();}, lane: Promise.resolve(), users: 0, signingOperation };
       slots.set(role, slot);
       const created = slot;
       const timer = setTimeout(() => {
@@ -142,7 +155,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     if(earlyAddresses&&!slot.wallet)slot.startAddresses();
     return slot;
   }
-  async function acquire(role:Role, account:AccountSecret, signal:AbortSignal) {
+  async function acquire(role:Role, account:WalletAccount, signal:AbortSignal) {
     const slot=await acquireSlot(role,account,signal);
     const selected = slot;
     const wallet = await detached(selected.pending, AbortSignal.any([signal, selected.controller.signal]));
@@ -150,7 +163,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     return { wallet, slot: selected };
   }
 
-  async function borrow<T>(role: Role, account: AccountSecret, signal: AbortSignal,
+  async function borrow<T>(role: Role, account: WalletAccount, signal: AbortSignal,
     use: (wallet: W, signal: AbortSignal) => Promise<T>, exclusive = false): Promise<T> {
     const { wallet, slot } = await acquire(role, account, signal);
     const leaseSignal = AbortSignal.any([signal, slot.controller.signal]);
@@ -165,18 +178,57 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     try { leaseSignal.throwIfAborted(); }
     catch(error){release?.();throw error;}
     if (!current(role, slot)) {release?.();throw Error('Wallet session retired.');}
+    const signingOperation: ServerSigningOperation | undefined = exclusive ? Object.freeze({ id: crypto.randomUUID(), signal: leaseSignal, playerProof: options.playerProof, payment: {}, settlement: {} }) : undefined;
+    if (signingOperation) slot.signingOperation.active = signingOperation;
     slot.users++;
-    const execution=Promise.resolve().then(()=>use(wallet,leaseSignal)).then(result=>{
+    const execution=Promise.resolve().then(async()=>{
+      const resource = wallet as unknown as Wallet;
+      if (!signingOperation || !('server' in account) || typeof resource.buildAndSubmitOffchainTx !== 'function') return use(wallet,leaseSignal);
+      const original = resource.buildAndSubmitOffchainTx;
+      const originalSettle = resource.settle;
+      if (typeof originalSettle === 'function' && role === 'game') resource.settle = async function(params, callback) {
+        leaseSignal.throwIfAborted();
+        const selected = params ?? await selectImplicitServerSettlement(this);
+        leaseSignal.throwIfAborted();
+        const previous = signingOperation.settlement!.active;
+        const gameAddress = await this.getAddress();
+        leaseSignal.throwIfAborted();
+        const settlement = prepareServerSettlement(selected, account.network ?? 'signet', account.server.publicKey, gameAddress);
+        signingOperation.settlement!.active = settlement;
+        try { return await originalSettle.call(this, selected, async event => {
+          // No await before capture: SDK batch handling starts immediately.
+          if (!leaseSignal.aborted && signingOperation.settlement!.active === settlement) captureServerSettlementEvent(settlement, event);
+          await callback?.(event);
+        }); }
+        finally { signingOperation.settlement!.active = previous; }
+      };
+      resource.buildAndSubmitOffchainTx = async function(inputs, outputs) {
+        leaseSignal.throwIfAborted();
+        const previous = signingOperation.payment!.active;
+        const outpoints = inputs.map(input => ({ txid: input.txid, vout: input.vout }));
+        signingOperation.payment!.active = { outpoints, ...(role === 'game' ? { marketplacePayment: options.marketplacePayment?.(account, outpoints) } : {}) };
+        try { return await original.call(this,inputs,outputs); }
+        finally { signingOperation.payment!.active = previous; }
+      };
+      try { return await use(wallet,leaseSignal); }
+      finally { resource.buildAndSubmitOffchainTx = original; resource.settle = originalSettle; }
+    }).then(result=>{
         leaseSignal.throwIfAborted();
         if (!current(role, slot)) throw Error('Wallet session retired.');
         return result;
-    }).finally(()=>{if(--slot.users===0)slot.drained?.();release?.();});
+    }).finally(()=>{
+      // Caller cancellation does not release or replace this binding. Only the
+      // actual SDK execution can finish the lease and admit the next operation.
+      if (signingOperation && slot.signingOperation.active === signingOperation) slot.signingOperation.active = undefined;
+      if(--slot.users===0)slot.drained?.();release?.();
+    });
     // Caller/local logout can leave immediately. The actual SDK execution still
     // owns its lane and resource until it stops; replacement stays quarantined.
     return detached(execution,leaseSignal);
   }
   return {
-    async addresses(role:Role,account:AccountSecret,signal:AbortSignal):Promise<AccountAddresses> {
+    hasActiveSigning(role: Role) { return slots.get(role)?.signingOperation.active !== undefined; },
+    async addresses(role:Role,account:WalletAccount,signal:AbortSignal):Promise<AccountAddresses> {
       const slot=await acquireSlot(role,account,signal,true);
       const active=AbortSignal.any([signal,slot.controller.signal,AbortSignal.timeout(options.acquisitionMs ?? 20000)]);
       // A completed wallet remains authoritative if its receive address changes.
@@ -191,15 +243,36 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       return result;
     },
     // Read capability has no submission methods; both capabilities use one SDK object.
-    read<T>(role: Role, account: AccountSecret, signal: AbortSignal, use: (wallet: W extends Wallet ? ReadWallet : W, signal: AbortSignal) => Promise<T>) {
+    read<T>(role: Role, account: WalletAccount, signal: AbortSignal, use: (wallet: W extends Wallet ? ReadWallet : W, signal: AbortSignal) => Promise<T>) {
       return borrow(role, account, signal, use as (wallet: W, signal: AbortSignal) => Promise<T>);
     },
-    sign<T>(role: Role, account: AccountSecret, signal: AbortSignal, use: (wallet: W, signal: AbortSignal) => Promise<T>) {
+    sign<T>(role: Role, account: WalletAccount, signal: AbortSignal, use: (wallet: W, signal: AbortSignal) => Promise<T>) {
       return borrow(role, account, signal, use, true);
+    },
+    /** Direct contract adapters use the same exclusive Game lease as SDK sends.
+     * They prepare and submit themselves; this supplies only the scoped signer.
+     */
+    signContract<T>(account: WalletAccount, signal: AbortSignal, use: (identity: ReturnType<typeof signingIdentity>, prepare: (inputs: readonly { txid: string; vout: number }[], contract: ServerContractIntent) => void,treasure?:AppTreasureServerCapability) => Promise<T>) {
+      return borrow('game', account, signal, async (_wallet, active) => {
+        const slot = slots.get('game'), operation = slot?.signingOperation.active;
+        if (!slot || !operation || !current('game', slot)) throw Error('Game signing operation ended.');
+        const identity = signingIdentity(account, () => slot.signingOperation.active);
+        const authority='server' in account?serverTreasureAuthority(account):undefined;
+        const treasure:AppTreasureServerCapability|undefined=authority&&'server' in account?{authority,
+          transport:persistence=>createLeasedTreasureServerTransport(account,()=>slot.signingOperation.active,{
+            ...persistence,signal:AbortSignal.any([active,persistence.signal??new AbortController().signal]),
+            isCurrent:()=>current('game',slot)&&slot.signingOperation.active===operation&&persistence.isCurrent(),
+          })}:undefined;
+        return use(identity, (inputs, contract) => {
+          active.throwIfAborted();
+          if (!current('game', slot) || slot.signingOperation.active !== operation) throw Error('Game signing operation ended.');
+          operation.payment!.active = { outpoints: inputs.map(({ txid, vout }) => ({ txid, vout })), contract: Object.freeze({ ...contract }) };
+        },treasure);
+      }, true);
     },
     // Any operation needing simultaneous role leases uses this fixed order;
     // ordinary payer/recipient operations borrow only the submitting role.
-    signBoth<T>(accounts:{player:AccountSecret;game:AccountSecret},signal:AbortSignal,use:(wallets:{player:W;game:W},signal:AbortSignal)=>Promise<T>){
+    signBoth<T>(accounts:{player:WalletAccount;game:WalletAccount},signal:AbortSignal,use:(wallets:{player:W;game:W},signal:AbortSignal)=>Promise<T>){
       return borrow('player',accounts.player,signal,(player,playerSignal)=>
         borrow('game',accounts.game,playerSignal,(game,active)=>use({player,game},active),true),true);
     },

@@ -1,5 +1,5 @@
 import { StoryButton } from './StoryButton';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FormTooltip, createBisGameWallet, formatBalanceSats, type BisGameWalletState } from '@bis/integration';
 
 export function AdminGameWalletView({controller, onDetails, onRecipientChange, onOpenDeveloper, mode = 'all'}: {
@@ -18,6 +18,10 @@ export function AdminGameWalletView({controller, onDetails, onRecipientChange, o
   }, [mode, onRecipientChange, state.addresses?.arkadeAddress, state.profileId]);
   const [boardingBusy, setBoardingBusy] = useState(false);
   const [boardingState, setBoardingState] = useState<'loading' | 'ready' | 'waiting' | 'boarded' | 'provider-unavailable'>('loading');
+  // Reporting updates the parent console. Its callback identity can change on
+  // every render without starting another provider read or resetting the timer.
+  const detailsReporter = useRef(onDetails);
+  detailsReporter.current = onDetails;
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -31,14 +35,14 @@ export function AdminGameWalletView({controller, onDetails, onRecipientChange, o
         // A failed read is not live proof that boarding is waiting or complete.
         if (!stopped) {
           setBoardingState('provider-unavailable');
-          onDetails({operation:'A.G.3 Boarding Status', status:'unavailable', category:'provider-read', message:'Fresh boarding transaction evidence is unavailable. Retry Details when the provider is reachable.'});
+          detailsReporter.current({operation:'A.G.3 Boarding Status', status:'unavailable', category:'provider-read', message:'Fresh boarding transaction evidence is unavailable. Retry Details when the provider is reachable.'});
         }
       }
       if (!stopped) timer = setTimeout(() => void check(), 15000);
     };
     void check();
     return () => { stopped = true; clearTimeout(timer); };
-  }, [controller, mode, onDetails, state.profileId, state.status, boardingBusy]);
+  }, [controller, mode, state.profileId, state.status, boardingBusy]);
   const [quote, setQuote] = useState<Awaited<ReturnType<ReturnType<typeof createBisGameWallet>['quoteBoarding']>>>();
   const setBoardingMessage = (message: string) => { if (message) onDetails({operation:'Board Game Wallet', message}); };
   useEffect(() => { setQuote(undefined); }, [state.profileId]);
@@ -120,7 +124,7 @@ export function AdminGameWalletView({controller, onDetails, onRecipientChange, o
   }
   return <div className="game-wallet-panel">
     {mode !== 'board' && <><StoryButton label="A.G.1. Game Wallet (Admin-facing)">
-        {state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
+        {state.source === 'server' || state.serverStatus === 'error' ? <><span>{state.source === 'server' ? 'Server' : 'Server configuration error'}</span><button disabled={busy} onClick={() => void controller?.refresh()}>Retry</button></> : state.profileId ? <button disabled={busy} onClick={() => void controller?.logout()}>Logout</button>
           : <button disabled={busy || !playerReady} onClick={() => { setEntry(true); setPhrase(''); setImportMessage(''); }}>Login</button>}
     </StoryButton>
     <StoryButton label="A.G.2. Game Wallet (User-facing)">

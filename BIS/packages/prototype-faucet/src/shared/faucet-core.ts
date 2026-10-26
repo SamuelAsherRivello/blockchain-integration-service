@@ -47,6 +47,22 @@ export function safeError(error, fallback = 'The faucet is unavailable.') {
   return { code: 'UNAVAILABLE', message: fallback };
 }
 
+/** Public failure labels must reflect actual evidence, never a guessed cause. */
+export function publicOnboarding(operation) {
+  if (!operation) return undefined;
+  const feeFailure=/fee-estimation-unavailable|failed to estimate fee rate/i.test(String(operation.failureMessage??''));
+  const message=operation.failureCode==='operator-unavailable'
+    ? feeFailure?'Arkade operator fee estimation is unavailable. Try again later.':'The Arkade operator is unavailable. Try again later.'
+    : operation.failureCode==='policy-unsupported'
+      ? 'The Arkade operator policy does not support onboarding right now.'
+      : operation.failureCode==='settlement-rejected'
+        ? 'The Arkade operator rejected onboarding. Try again later.'
+        : operation.failureCode==='outcome-unknown'
+          ? 'Onboarding is pending reconciliation. Do not submit it again.'
+          : operation.failureMessage?'Onboarding could not be completed. Check its status before retrying.':undefined;
+  return {...operation,...(message?{failureMessage:message}:{})};
+}
+
 export function createRateLimiter({ max = 5, windowMs = 86_400_000, now = () => Date.now() } = {}) {
   const attempts = new Map();
   return Object.freeze({

@@ -129,8 +129,11 @@ test('completion requires confirmed input spend, exact owned receipt and exact B
 test('all account readers use read-only identities; sole signing adapter disables automatic settlement',()=>{
  for(const name of ['account','balance','addresses','funding','activity']) {
   const source=readFileSync(new URL(`../../src/client/wallet-layer-arkade/${name}.ts`,import.meta.url),'utf8');
-  assert.match(source,/ReadonlyWallet\.create\(/,name);assert.match(source,/\.toReadonly\(\)/,name);assert.doesNotMatch(source,/(?<!Readonly)Wallet\.create\(/,name);
+  assert.match(source,/ReadonlyWallet\.create\(/,name);assert.match(source,/\.toReadonly\(\)|await readonlyIdentity\(account\)/,name);assert.doesNotMatch(source,/(?<!Readonly)Wallet\.create\(/,name);
+  if(name!=='account')assert.doesNotMatch(source,/signingIdentity\(/,name);
  }
+ const identities=readFileSync(new URL('../../src/client/wallet-layer-arkade/wallet-identity.ts',import.meta.url),'utf8');
+ assert.match(identities,/remoteReadonlyIdentity\(account\).*\.toReadonly\(\)/);
  const source=readFileSync(new URL('../../src/client/wallet-layer-arkade/boarding.ts',import.meta.url),'utf8');assert.match(source,/settlementConfig:false/);
 });
 

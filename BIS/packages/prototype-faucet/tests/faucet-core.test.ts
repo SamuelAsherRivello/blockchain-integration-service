@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ArkAddress } from '@arkade-os/sdk';
-import { ALLOWED_AMOUNTS, createFaucetService, createRateLimiter, decodeArkadeAddress, safeError, validateArkadeAddress, validateAmount } from '../src/shared/faucet-core.ts';
+import { ALLOWED_AMOUNTS, createFaucetService, createRateLimiter, decodeArkadeAddress, publicOnboarding, safeError, validateArkadeAddress, validateAmount } from '../src/shared/faucet-core.ts';
 import { parseArgs, parseSats, requestFunding } from '../scripts/fund-address.ts';
 import { addressScript, parseArgs as parseBalanceArgs, queryBalance } from '../scripts/get-balance.ts';
 import { createFaucetApiLifecycle } from '../src/shared/faucet-api-lifecycle.ts';
@@ -33,6 +33,25 @@ test('accepts every whole-satoshi amount within the configured bounds', () => {
 
 test('sanitizes fee-estimation failures into an actionable onboarding message', () => {
   assert.deepEqual(safeError(new Error('failed to estimate fee rate: fee-estimation-unavailable')), { code: 'UNAVAILABLE', message: 'Arkade operator fee estimation is unavailable. Try again later.' });
+});
+
+test('public onboarding labels fee failures only when the original failure identifies fees',()=>{
+  const original={id:'original',status:'failed',failureCode:'operator-unavailable',failureMessage:'HTTP 400: fee-estimation-unavailable'};
+  assert.match(publicOnboarding(original).failureMessage,/fee estimation/);
+  for(const failureMessage of ['fetch failed','network timeout','HTTP 503','Operator network mismatch']){
+    const projected=publicOnboarding({...original,failureMessage});
+    assert.equal(projected.failureMessage,'The Arkade operator is unavailable. Try again later.');
+    assert.equal(projected.id,original.id);assert.equal(projected.status,original.status);
+  }
+  assert.equal(original.failureMessage,'HTTP 400: fee-estimation-unavailable');
+  assert.equal(publicOnboarding(undefined),undefined);
+});
+
+test('public onboarding preserves unknown outcomes and does not expose arbitrary raw errors',()=>{
+  const pending={status:'pending',failureCode:'outcome-unknown',failureMessage:'private-sentinel'};
+  assert.match(publicOnboarding(pending).failureMessage,/Do not submit it again/);
+  assert.equal(publicOnboarding(pending).status,'pending');
+  assert.doesNotMatch(JSON.stringify(publicOnboarding({status:'failed',failureMessage:'private-sentinel'})),/private-sentinel/);
 });
 
 test('server service validates, idempotently sends, and returns pending status', async () => {

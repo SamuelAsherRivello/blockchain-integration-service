@@ -6,6 +6,26 @@ import { verifiedInventory } from './inventory.ts';
 import { Operations } from './operations.ts';
 import { origin } from './arguments.ts';
 import { fail } from './errors.ts';
+import { RestArkProvider } from '@arkade-os/sdk';
+import { testNetwork } from '../../packages/integration/src/client/state-layer-core/test-network.ts';
+import { inspectTreasureDirectPolicy } from '../../packages/integration/src/client/wallet-layer-arkade/treasure-direct-policy.ts';
+import { assertAcceptanceBudget } from '../treasure-acceptance-policy.ts';
+
+/** Narrow 1,000-sat offchain funding. This does not quote/onboard Bitcoin funds
+ * or alter unknown-cost legacy intents. SDK Wallet.send conserves input value
+ * as recipient plus change; nonzero operator policy remains unsupported. */
+export function boundedFaucetCost(network, info, balance) {
+  const policy = inspectTreasureDirectPolicy(network, info);
+  if (balance?.network !== network || !Number.isSafeInteger(balance.available) || balance.available < 1000 ||
+      balance.onboarding && balance.onboarding.status !== 'complete') fail('bounded-faucet-not-spendable');
+  return { feeSats: 0, policyFingerprint: policy.fingerprint, availableSats: balance.available };
+}
+async function readBoundedFaucetCost(api, network) {
+  const response = await fetch(`${api}/api/faucet/balance?network=${network}`, {method:'GET',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000)});
+  if (!response.ok) fail('bounded-faucet-not-spendable');
+  const balance = await response.json(), info = await new RestArkProvider(testNetwork(network).operator).getInfo();
+  return {info,balance};
+}
 
 function faucetOrigin(explicit) {
   if (explicit) return origin(explicit);
@@ -33,6 +53,11 @@ export async function fund(vault, options, adapters = {}) {
   // Validate even when invoked directly, before any private access or side effect.
   argumentsFor(['fund', ...Object.entries(options).flatMap(([key, value]) => [`--${key}`, String(value)])]);
   const api = adapters.api ?? faucetOrigin(options.api);
+  const bounded = Number(options.amount) === 1000;
+  const quote = async () => {
+    const {info,balance} = await (adapters.cost ?? readBoundedFaucetCost)(api, options.network);
+    return boundedFaucetCost(options.network,info,balance);
+  };
   const account = await vault.transaction(async state => {
     await verifiedInventory(state);
     const row = state.accounts.find(x => x.label === options.account);
@@ -41,18 +66,33 @@ export async function fund(vault, options, adapters = {}) {
     return { ...row, network: options.network };
   });
   const addresses = await (adapters.addresses ?? loadAddresses)(account, AbortSignal.timeout(30000));
+  const cost = bounded ? await quote() : undefined;
   const ledger = new Operations(vault);
   const intent = { id: options.operation, account: account.label, profileId: account.profileId,
     generation: account.generation, network: options.network, kind: 'faucet',
-    recipient: addresses.arkadeAddress, amountSats: Number(options.amount), feeSats: null, sourceOrigin: api };
+    recipient: addresses.arkadeAddress, amountSats: Number(options.amount), feeSats: bounded ? 0 : null, sourceOrigin: api };
+  if (bounded) await vault.transaction(state => {
+    assertAcceptanceBudget(state.operations ?? [], intent, Date.now());
+    state.boundedFaucetFunding ??= {};
+    const previous = state.boundedFaucetFunding[intent.id];
+    const binding = {network:intent.network,profileId:intent.profileId,generation:intent.generation,recipient:intent.recipient,amountSats:1000,feeSats:0,sourceOrigin:api};
+    if (previous && JSON.stringify(previous.binding) !== JSON.stringify(binding)) fail('operation-intent-conflict');
+    if (!previous) state.boundedFaucetFunding[intent.id] = {binding,preparedCost:cost,observedAt:Date.now()};
+  });
   await ledger.prepare(intent);
   const operation = await ledger.submit(intent.id, async () => {
-    await (adapters.ensure ?? ensureApi)({ api });
+    if (bounded) {
+      // Recheck just before POST. An unavailable existing API never spawns a
+      // competing server, onboards, or triggers replacement funding here.
+      const current = await quote();
+      if (current.policyFingerprint !== cost.policyFingerprint) fail('bounded-faucet-policy-changed');
+      await vault.transaction(state => {state.boundedFaucetFunding[intent.id].submitCost=current;state.boundedFaucetFunding[intent.id].submitObservedAt=Date.now();});
+    } else await (adapters.ensure ?? ensureApi)({ api });
     const ack = await (adapters.request ?? requestFunding)({ api, address: intent.recipient,
       network: intent.network, amount: intent.amountSats, idempotencyKey: intent.id },
     (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(30000) }));
     if (ack.network !== intent.network || ack.address !== intent.recipient || ack.amountSats !== intent.amountSats ||
-        !/^[a-f0-9]{64}$/.test(ack.operationId ?? '')) fail('faucet-acknowledgement-mismatch');
+        !/^[a-f0-9]{64}$/.test(ack.operationId ?? '') || bounded && ack.transactionId !== undefined && ack.transactionId !== ack.operationId) fail('faucet-acknowledgement-mismatch');
     return { providerId: ack.operationId };
   });
   if (!['pending', 'unknown', 'submitting'].includes(operation.state)) return { operation };

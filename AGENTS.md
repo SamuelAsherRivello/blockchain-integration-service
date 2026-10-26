@@ -34,9 +34,9 @@
 This local ChatGPT-terminal workflow takes precedence for ordinary user requests to run Vite or run the project. Use the remote SSH preview workflow below only when the user explicitly requests a remote preview.
 
 - When the user says "run Vite," "run the project," or equivalent, open a terminal tab beside the current ChatGPT tab using the Codex terminal panel.
-- Run the command from the repository root: `npm run dev -- --port <available-port>`.
+- Run from the repository root with `npm run dev`. The shared frontend port is fixed at `5174`; the faucet API port is fixed at `5190`.
 - Keep the terminal session running, verify the Admin and Marketplace routes, and return their URLs only after the server is running.
-- Prefer port `5174`; if it is occupied, use the next available local port and report that port in the links. Do not hand the command back to the user unless execution is blocked by an explicit environment or permission failure.
+- Reuse a healthy ownership-verified server on `5174`. Never stop it, replace it, or choose another port during an ordinary start. Report occupied, unhealthy or unverified listeners for explicit resolution. Stealth & Steel owns `5176`.
 
 - Treat requests such as "run a Vite server" as requests for a remote demo preview usable from the user's Windows 11 browser. Follow this workflow by default.
 - "Run vite" means start or reuse the single shared Vite server with `npm run dev` from the repository root. It binds loopback port 5174 with strict port behavior and serves all four packages. Keep the server running for the preview session. When a remote preview is requested, run that command on the SSH server.
@@ -46,7 +46,7 @@ This local ChatGPT-terminal workflow takes precedence for ordinary user requests
 - The user confirmed this mapping works on 2026-09-06: Windows port 15174 forwards to server port 5174. Port 5173 serves an unrelated project, and binding Windows port 5174 returned Permission denied. Use the confirmed mapping by default in future sessions.
 - If SSH reports `channel ... open failed: connect failed: Connection refused`, check and start the remote Vite server, then verify HTTP 200; the SSH connection itself is already established. Reuse an existing working tunnel.
 - Return all four Windows browser links: `http://127.0.0.1:15174/admin/`, `http://127.0.0.1:15174/marketplace/`, `http://127.0.0.1:15174/onboarding/`, and `http://127.0.0.1:15174/integration/`. Distinguish verified server availability from client tunnel connectivity; a remote agent cannot establish the Windows-side tunnel without access to that machine. For an explicitly local preview, return the same four paths on the local server port.
-- The root launcher owns one Vite instance and accepts `npm run dev -- --port <port>` for isolated checks; it always uses strict port behavior. Do not use the separate workspace servers for a normal four-package preview.
+- The root launcher owns one shared Vite instance. Explicit isolated checks require `npm run dev -- --isolated --port <test-port>` and use separate run-state directories. They must not overwrite the shared run record or touch the shared preview. All normal starts share `output/run-state/startup.lock` with the installed run helper. Never steal a stale lock or automatically terminate duplicate servers. Use the root launcher, not separate workspace servers, for normal previews.
 - Admin and Marketplace retain their existing BIS storage namespaces and share account storage on the common origin. The standalone spike retains its own window-scoped storage. Do not migrate or erase wallet data from previous ports as part of starting the server.
 
 ## GitHub Pages release contract
@@ -85,6 +85,21 @@ This local ChatGPT-terminal workflow takes precedence for ordinary user requests
 - Follow `BIS/documentation/BGS_PROJECT_BRIEF.md` and later confirmed decisions in `BIS/documentation/design-discussion.md`.
 - Approved structure: `BIS/packages/integration` owns runtime UI and future core/Arkade layers; `BIS/packages/integration-admin` consumes its public API and owns admin/preview composition.
 - Current slice: React split-screen demo, 9:16 preview, and an Account button opening a coming-soon dialog. Arkade SDK may be installed as a dependency; no Arkade or wallet operations yet.
+
+### Standing test-wallet authorization
+
+- The user authorizes agents to fund, onboard and use registered test wallets
+  on Signet and Mutinynet whenever needed for testing, without asking for each
+  faucet request or test transaction. This includes transfers between those
+  test wallets and the local test faucet, and real contract lifecycle tests.
+- Keep recovery phrases, private keys and signed recovery material protected.
+  Preserve wallet data, transaction journals and exact network receipts.
+- Reconcile existing pending operations before competing spends. This standing
+  authorization does not turn an unknown outcome into verified failure or
+  authorize fabricating a result. Apply the user's separately approved lost
+  prototype-information policy only within its recorded sandbox scope.
+- This grant does not cover mainnet, real-money purchases, unrelated wallets,
+  production treasury changes, or importing/releasing the game dependency.
 
 ### Prototype sandbox integrity
 

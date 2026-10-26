@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "lessons/0005-redis-in-a-full-stack-app.html"
+        ],
+        "createdAt": "2026-10-26T14:02:32.422Z",
+        "reason": "Agent verified linked assets/lesson.css sets body text to 17px and 16px on small screens; static HTML hook does not resolve the shared stylesheet."
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "reference/redis-full-stack.html"
+        ],
+        "createdAt": "2026-10-26T14:02:39.209Z",
+        "reason": "Agent verified linked assets/lesson.css sets body text to 17px and 16px on small screens; static HTML hook does not resolve the shared stylesheet."
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "reference/redis-full-stack.html"
+        ],
+        "createdAt": "2026-10-26T14:03:33.378Z",
+        "reason": "Agent verified assets/lesson.css: wide tracking on this page applies only to short uppercase table headings; body text has no letter-spacing. This is the rule-sanctioned label exception."
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "reference/redis-full-stack.html"
+        ],
+        "createdAt": "2026-10-26T14:03:34.886Z",
+        "reason": "Agent retained the existing course stylesheet as explicitly required by ai-skills-teach asset reuse instructions. Inter is used for headings and table labels; body text uses Georgia."
+      }
+    ]
+  }
+}

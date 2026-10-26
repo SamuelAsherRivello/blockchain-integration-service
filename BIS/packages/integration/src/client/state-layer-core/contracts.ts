@@ -1,3 +1,4 @@
+import {contractValidationDescription} from './contract-validation.ts';
 /** Pure lifecycle rules. Callers must hold the wallet lock and persist before submitting. */
 export type ContractScope = Readonly<{
   network: string; operator: string; playerId: string; gameId: string; exclusivityKey: string;
@@ -20,12 +21,17 @@ export type ContractOperation = Readonly<{
   failure?: keyof typeof contractFailureMessages;
 }>;
 export type ContractRecord = Readonly<Omit<LtoRequest, 'operationId'> & {
+  recoveryRequired?: boolean;
+  validationMode?: import('./contract-validation.ts').ContractValidationMode;
   version: 1; type: 'lto'; financial: 'funding' | 'funded' | 'claiming' | 'refunding' | 'unknown' | 'claimed' | 'refunded' | 'failed';
   ended?: 'rejected' | 'session-ended'; operation: ContractOperation;
 }>;
 type ContractAttempt = Readonly<{ scope: ContractScope; sessionId: string; status: 'created' | 'occupied' | 'expired'; contractId?: string }>;
 export type ContractLedger = Readonly<{ contracts: readonly ContractRecord[]; attempts: readonly ContractAttempt[] }>;
 export type BisContract = Readonly<{
+  recoveryRequired?: boolean;
+  validationMode?: import('./contract-validation.ts').ContractValidationMode;
+  validationDescription?: string;
   id: string; type: 'lto'; scope: ContractScope; sessionId: string; purpose: string; hostReference: string;
   amountSats: number; startedAt: number; expiresAt: number; financial: ContractRecord['financial'];
   approved: boolean;
@@ -38,7 +44,7 @@ export type BisContract = Readonly<{
 export class ContractError extends Error {}
 const sameScope = (a: ContractScope, b: ContractScope) =>
   a.network === b.network && a.operator === b.operator && a.playerId === b.playerId && a.gameId === b.gameId && a.exclusivityKey === b.exclusivityKey;
-export const contractResolved = (contract: ContractRecord) => ['claimed', 'refunded', 'failed'].includes(contract.financial);
+export const contractResolved = (contract: ContractRecord) => !contract.recoveryRequired && ['claimed', 'refunded', 'failed'].includes(contract.financial);
 const text = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= 1024;
 function timestamp(now: number) { if (!Number.isSafeInteger(now) || now < 0) throw new ContractError('Invalid contract timestamp.'); }
 function validateRequest(request: LtoRequest) {
@@ -57,6 +63,8 @@ export function validateContractLedger(value: unknown): asserts value is Contrac
   const ids = new Set<string>(), slots = new Set<string>(), attempts = new Set<string>();
   const scopeKey = (scope: ContractScope) => JSON.stringify([scope.network, scope.operator, scope.playerId, scope.gameId, scope.exclusivityKey]);
   for (const record of ledger.contracts) {
+    if(record.recoveryRequired!==undefined&&typeof record.recoveryRequired!=='boolean')throw new ContractError('Invalid recovery verification state.');
+    if(record.validationMode!==undefined&&!['browser-policy-v1','arkade-covenant-v2'].includes(record.validationMode))throw new ContractError('Invalid contract validation mode.');
     if(record?.operation?.failure!==undefined&&!Object.hasOwn(contractFailureMessages,record.operation.failure))throw new ContractError('Contract failure state is invalid.');
     validateRequest({ ...record, operationId: record.operation?.id });
     if ((record.approved !== undefined && typeof record.approved !== 'boolean') || record.version !== 1 || record.type !== 'lto' || ids.has(record.id) || !['funding','funded','claiming','refunding','unknown','claimed','refunded','failed'].includes(record.financial) ||
@@ -72,7 +80,10 @@ export function validateContractLedger(value: unknown): asserts value is Contrac
       (record.financial === 'funded' && !(record.operation.kind === 'fund' ? record.operation.submission === 'confirmed' : record.operation.submission === 'not-submitted')))
       throw new ContractError('Contract recovery state is inconsistent.');
     ids.add(record.id);
-    if (!contractResolved(record)) {
+    // Restored terminal evidence still blocks new offers through contractResolved
+    // and startLto, but multiple old histories are not competing active offers.
+    const restoredTerminal=record.recoveryRequired===true&&['claimed','refunded','failed'].includes(record.financial);
+    if (!contractResolved(record)&&!restoredTerminal) {
       const key = scopeKey(record.scope);
       if (slots.has(key)) throw new ContractError('Contract recovery has conflicting offers.');
       slots.add(key);
@@ -113,11 +124,13 @@ export function startLto(ledger: ContractLedger, request: LtoRequest, now: numbe
 export function presentContract(contract: ContractRecord, now: number): BisContract {
   timestamp(now);
   const eligibility = contractResolved(contract) ? 'resolved' : contract.ended ? 'ended' : now >= contract.expiresAt ? 'expired' : 'within-window';
-  const available = contract.financial === 'funded';
+  const available = !contract.recoveryRequired && contract.financial === 'funded';
   return {
     id: contract.id, type: 'lto', scope: { network: contract.scope.network, operator: contract.scope.operator, playerId: contract.scope.playerId, gameId: contract.scope.gameId, exclusivityKey: contract.scope.exclusivityKey },
     sessionId: contract.sessionId, purpose: contract.purpose, hostReference: contract.hostReference,
+    validationMode:contract.validationMode??'browser-policy-v1',validationDescription:contractValidationDescription(contract.validationMode??'browser-policy-v1'),
     amountSats: contract.amountSats, startedAt: contract.startedAt, expiresAt: contract.expiresAt, financial: contract.financial, approved: contract.approved ?? true, eligibility,
+    ...(contract.recoveryRequired?{recoveryRequired:true}:{}),
     canClaim: available && (contract.approved ?? true) && eligibility === 'within-window', canReject: available && eligibility === 'within-window', canRefund: available,
   };
 }

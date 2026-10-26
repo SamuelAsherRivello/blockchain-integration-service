@@ -71,7 +71,7 @@ export async function validateReleaseVersion({ previousVersion } = {}) {
   }
 
   const readme = await readText('README.md');
-  for (const route of ['admin', 'integration-marketplace']) {
+  for (const route of ['admin', 'marketplace']) {
     const marker = `/${route}/?v=${version}`;
     if (!readme.includes(marker)) throw new Error(`README.md is missing the ${route} cache-buster ${marker}.`);
   }

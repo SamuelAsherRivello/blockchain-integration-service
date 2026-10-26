@@ -1,7 +1,7 @@
 {
   "name": "blockchain-integration-service",
   "private": true,
-  "version": "0.0.26",
+  "version": "0.0.27",
   "type": "module",
   "workspaces": [
     "BIS/packages/*"
@@ -11,8 +11,8 @@
     "test": "node BIS/scripts/test.ts",
     "test:all": "npm run test && npm run test --workspace @spike/prototype-onboarding && npm run test --workspace @spike/prototype-faucet",
     "dev": "node BIS/scripts/dev-all.ts",
-    "dev:admin": "npm run dev --workspace @bis/integration-admin -- --port 5174 --strictPort",
-    "dev:marketplace": "npm run dev --workspace @bis/integration-marketplace -- --port 5176 --strictPort",
+    "dev:admin": "npm run dev",
+    "dev:marketplace": "npm run dev",
     "build": "npm run typecheck && npm run build --workspace @bis/integration && npm run build --workspace @bis/integration-admin && npm run build --workspace @bis/integration-marketplace && npm run build --workspace @spike/prototype-faucet",
     "build:all": "npm run build && npm run build --workspace @spike/prototype-onboarding",
     "typecheck": "tsc --noEmit",

@@ -2,6 +2,7 @@
 .env
 .env.*
 !BIS/packages/shared/.env.local.template
+!BIS/packages/bis-server/.env.local.template
 node_modules/
 dist/
 

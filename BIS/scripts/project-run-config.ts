@@ -12,7 +12,10 @@ export const projectRunConfig = {
   command: 'npm run dev',
   serverMode: 'shared',
   preferredPort: 5174,
-  routes: packageRoutes.map(({ label, route, readme = false }) => ({ label, route, readme })),
+  faucetPort: 5190,
+  portRange: { min: 5174, max: 5174 },
+  routes: packageRoutes.map(({ label, route, readme = false }) => ({ label, route, readme,
+    title: route === '/prototype-sandbox/' ? 'BIS - Prototype Faucet' : label })),
 };
 
 export function validateProjectRunConfig(config = projectRunConfig) {

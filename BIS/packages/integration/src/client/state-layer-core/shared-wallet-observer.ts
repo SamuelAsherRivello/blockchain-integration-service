@@ -1,12 +1,12 @@
 import type { watchActivity } from '../wallet-layer-arkade/activity.ts';
-import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
+import type { WalletAccount } from '../wallet-layer-arkade/account.ts';
 import type { BisTransaction } from './activity.ts';
 
 /** One live source, shared by the account lifetime and foreground consumers. */
 export function createSharedWalletObserver(source: typeof watchActivity) {
   type Listener = { publish: (rows: readonly BisTransaction[]) => void; end: (error?: unknown) => void };
   const listeners = new Set<Listener>();
-  let account: AccountSecret | undefined;
+  let account: WalletAccount | undefined;
   let operation: AbortController | undefined;
   let snapshot: readonly BisTransaction[] | undefined;
   let fetchedAt = 0;
@@ -60,7 +60,7 @@ export function createSharedWalletObserver(source: typeof watchActivity) {
     });
   };
   /** Replay preserves its source timestamp; readiness is not the observer lifetime. */
-  function first(nextAccount: AccountSecret, signal: AbortSignal) {
+  function first(nextAccount: WalletAccount, signal: AbortSignal) {
     return new Promise<{rows:readonly BisTransaction[];fetchedAt:number}>((resolve,reject)=>{
       const consumer=new AbortController();
       const abort=()=>{consumer.abort();reject(signal.reason);};

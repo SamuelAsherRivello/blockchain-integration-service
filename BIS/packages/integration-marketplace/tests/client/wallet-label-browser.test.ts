@@ -22,7 +22,8 @@ async function setup(t){
     // running preview is compiled. The measured context below has a cold browser
     // cache and has never initialized a wallet or loaded application modules.
     const warm=await browser.newContext();await warm.route(/^https:\/\//,route=>route.abort());
-    const page=await warm.newPage();await page.goto(`${base}/integration-marketplace/`,{waitUntil:'networkidle'});await warm.close();
+    const page=await warm.newPage();await page.goto(`${base}/marketplace/`,{waitUntil:'domcontentloaded'});
+    await page.getByTestId('player-wallet-label').waitFor({state:'visible',timeout:15000});await warm.close();
   }
   const context=await browser.newContext();t.after(()=>context.close());
   const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -61,9 +62,9 @@ test('cold Marketplace and reload show both real SDK addresses within 1.5 second
     });observer.observe(document,{childList:true,subtree:true,attributes:true});
   },f.expected);
   // Deliberately hold catalog too: connected address labels must not wait for it.
-  await f.page.route('**/integration-marketplace/catalog.json',async route=>{await new Promise(r=>setTimeout(r,2000));await route.continue().catch(()=>{});});
+  await f.page.route('**/marketplace/catalog.json',async route=>{await new Promise(r=>setTimeout(r,2000));await route.continue().catch(()=>{});});
   for(const pass of ['cold','reload']){
-    if(pass==='cold')await f.page.goto(`${f.base}/integration-marketplace/`,{waitUntil:'domcontentloaded'});else await f.page.reload({waitUntil:'domcontentloaded'});
+    if(pass==='cold')await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});else await f.page.reload({waitUntil:'domcontentloaded'});
     await f.page.waitForFunction(()=>window.walletLabelTimes.player!==undefined&&window.walletLabelTimes.game!==undefined);
     const times=await f.page.evaluate(()=>window.walletLabelTimes);
     const phases=await f.page.evaluate(()=>({domContentLoadedMs:performance.getEntriesByType('navigation')[0]?.domContentLoadedEventEnd,paints:performance.getEntriesByType('paint').map(entry=>({name:entry.name,startMs:entry.startTime})),configuration:performance.getEntriesByType('resource').filter(entry=>entry.name.endsWith('/v1/info')).map(entry=>({startMs:entry.startTime,durationMs:entry.duration,endMs:entry.responseEnd}))}));results.push({pass,...times,phases});
@@ -84,7 +85,7 @@ test('Player-only restoration never reuses the catalog Game Wallet address',{tim
     const request=indexedDB.deleteDatabase('bis-game-wallet-signet-v1');
     request.onsuccess=resolve;request.onerror=()=>reject(request.error);
   }));
-  await f.page.goto(`${f.base}/integration-marketplace/`,{waitUntil:'domcontentloaded'});
+  await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});
   await f.page.waitForFunction(expected=>document.querySelector('[data-testid="player-wallet-label"]')?.getAttribute('title')===expected,f.expected[0]);
   await f.page.waitForFunction(()=>document.querySelector('[data-testid="game-wallet-label"]')?.textContent==='Not connected');
   assert.equal(await f.page.getByTestId('game-wallet-label').getAttribute('title'),null);
@@ -94,7 +95,7 @@ test('Player-only restoration never reuses the catalog Game Wallet address',{tim
 
 test('slow, unavailable, mismatched and logged-out address labels remain truthful',{timeout:90000},async t=>{
   const f=await setup(t);
-  f.setMode('slow');await f.page.goto(`${f.base}/integration-marketplace/`,{waitUntil:'domcontentloaded'});
+  f.setMode('slow');await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});
   await f.page.getByTestId('player-wallet-label').waitFor();assert.equal(await f.page.getByTestId('player-wallet-label').innerText(),'Loading ...');
   await f.page.waitForFunction(()=>document.querySelector('[data-testid="player-wallet-label"]')?.title.startsWith('tark1'));
   for(const mode of ['offline','mismatch']){
@@ -107,7 +108,7 @@ test('slow, unavailable, mismatched and logged-out address labels remain truthfu
   f.setMode('normal');
   await f.page.goto(`${f.base}/__wallet_label_seed__`);
   await f.page.evaluate(async()=>{for(const name of ['bis-account-signet-v1','bis-game-wallet-signet-v1'])await new Promise((resolve,reject)=>{const r=indexedDB.deleteDatabase(name);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});});
-  await f.page.goto(`${f.base}/integration-marketplace/`,{waitUntil:'domcontentloaded'});
+  await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});
   await f.page.waitForFunction(()=>document.querySelector('[data-testid="player-wallet-label"]')?.textContent==='Not connected');
   assert.notEqual(await f.page.getByTestId('game-wallet-label').getAttribute('title'),f.expected[1]);
   assert.equal(f.counts().mutations,0);assert.deepEqual(f.errors,[]);

@@ -255,7 +255,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const viewKey = state.view === 'account-button' ? 'account-button' : gameWalletLogin ? 'game-wallet' : developer ? 'developer' : onboarding ? 'onboarding' : restoring ? 'restore-account' : recovery ? 'set-recovery-phrase' : savedRecovery ? 'get-recovery-phrase' : logout ? 'logout-confirmation' : state.phase === 'creating' ? 'create-account' : details ? 'account-details' : transfer ? 'swap' : send ? 'send' : receive ? 'receive' : 'account-menu';
   return <BackDismissalLayer enabled={backDismissalEnabled} onBack={handleBack} className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`} {...publicScope}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
-      <ViewTransition viewKey={viewKey}><AccountDialogShell network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={`${onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}${closingAccount ? ' bis-card-closing' : ''}`}
+      <ViewTransition viewKey={viewKey}><AccountDialogShell serverConnected={walletSnapshot?.source === 'server' && walletSnapshot.serverStatus === 'connected'} network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={`${onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}${closingAccount ? ' bis-card-closing' : ''}`}
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
         headingActions={gameWalletLogin && gameWallet ? <IconButton className="bis-title-icon" label="Refresh Game Wallet" tabIndex={-1} disabled={walletSnapshot?.status === 'loading'} onClick={()=>void gameWallet.refresh()}>
             <span className="bis-refresh-image" aria-hidden="true" />
@@ -280,7 +280,6 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
         {(savedRecovery || recovery || state.phase === 'creating') && <TestWalletWarning />}
         {(recovery || (savedRecovery && state.recoveryStatus === 'ready')) && <RecoveryPhrasePanel key={savedRecovery ? 'saved' : 'setup'} phrase={getControls(context).recovery()} session={recoverySession} disabled={busy} />}
         {state.error && !busy && <p role="alert">{state.error}</p>}
-        {restoreConfirmation && <ConfirmationDialog titleText="Create New Account?" bodyText={`This recovery phrase does not have an account on ${networkLabel(state.network ?? 'signet')} yet. Would you like to create one now?`} confirmLabel="Create Account" onConfirm={()=>void getControls(context).confirmRestoration()} onCancel={()=>getControls(context).cancelRestoration()} />}
         {gameWalletLogin && gameWallet ? <GameWalletLoginView wallet={gameWallet} onBack={() => setGameWalletLogin(false)} /> : assets || contracts || transfer || send ? null : restoring ? <AccountRestoreView context={context} phase={state.phase} /> : developer ? <div className="bis-actions">
           <div className="bis-copy-field-heading"><h3>Support</h3></div>
           <div className="bis-support-list">
@@ -293,8 +292,8 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
           <p>Allow easy account funding.</p>
           <button className="bis-button" disabled={!state.hasProfile || busy} onClick={() => { setDeveloperOpen(false); setDeveloperReturn(true); context.openAccountOnboarding?.(); }}>{onboardingLabel(state.onboarding,state.balance)}</button>
           <div className="bis-copy-field-heading"><h3>Game Wallet</h3></div>
-          {gameWallet && <p>In lieu of server.</p>}
-          {gameWallet && <button className="bis-button" disabled={!state.hasProfile} onClick={() => setGameWalletLogin(true)}>Game Wallet Login</button>}
+          {gameWallet && <p>{walletSnapshot?.source === 'server' ? 'Game wallet source: Server' : walletSnapshot?.serverMessage || 'Game wallet source: Manual'}</p>}
+          {gameWallet && <button className="bis-button" disabled={!state.hasProfile} onClick={() => setGameWalletLogin(true)}>{walletSnapshot?.source === 'server' ? 'Game Wallet' : 'Game Wallet Login'}</button>}
           <button ref={close} className="bis-button bis-back" onClick={() => setDeveloperOpen(false)}>Back</button>
         </div> : <div className="bis-actions">
           {menu && <button className="bis-button" onClick={()=>context.openAccountDetails()}>Accounts Details</button>}
@@ -313,6 +312,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
           {!(activity && transactionOpen) && <button ref={close} className="bis-button bis-back" disabled={state.phase === 'resetting' || state.phase === 'logging-out'} onClick={handleBack}>Back</button>}
         </div>}
       </AccountDialogShell></ViewTransition>}
+    {restoreConfirmation && <ConfirmationDialog titleText="Create New Account?" bodyText={`This recovery phrase does not have an account on ${networkLabel(state.network ?? 'signet')} yet. Would you like to create one now?`} confirmLabel="Create Account" onConfirm={()=>void getControls(context).confirmRestoration()} onCancel={()=>getControls(context).cancelRestoration()} />}
   </BackDismissalLayer>;
 }
 

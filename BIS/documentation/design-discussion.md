@@ -26,4 +26,6 @@ The root README and package READMEs explain entry points and commands. OpenSpec 
 
 ## Decision review trigger
 
+The milestone 1 bis-server change adds an optional Game Wallet remote signing identity while browser workflows retain preparation, submission and recovery. Its local implementation mounts on the shared Vite listener. Missing or unreachable servers retain explicit manual Game Wallet Login. Hosted signing, shared state and release acceptance remain tracked in [add-bis-server-game-wallet](../../openspec/changes/add-bis-server-game-wallet/proposal.md); a local signature test is not live network acceptance.
+
 Revisit these decisions when a change alters public host contracts, ownership across core/UI/adapter boundaries, supported network policy, recovery handling, or the project’s no-custom-server constraint.

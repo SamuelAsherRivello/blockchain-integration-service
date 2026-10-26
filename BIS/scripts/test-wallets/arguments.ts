@@ -60,14 +60,14 @@ export function argumentsFor(argv) {
   if (command === 'fund') {
     if (!values.account || !values.network || !values.operation || values.source !== 'faucet') fail('missing-funding-arguments');
     label(values.operation);
-    if (!['50000', '100000', '200000'].includes(values.amount)) fail('invalid-funding-amount');
+    if (!['1000', '50000', '100000', '200000'].includes(values.amount)) fail('invalid-funding-amount');
     if (values.api !== undefined) values.api = origin(values.api);
   }
   if (command === 'reconcile') label(values.operation);
   if (command === 'prepare') {
     if (!values.account || !values.network || !values.expect) fail('missing-preparation-target');
     if (values.source !== undefined) {
-      if (values.expect !== 'funded' || values.source !== 'faucet' || !values.operation || !['50000', '100000', '200000'].includes(values.amount)) fail('invalid-preparation-funding');
+      if (values.expect !== 'funded' || values.source !== 'faucet' || !values.operation || !['1000', '50000', '100000', '200000'].includes(values.amount)) fail('invalid-preparation-funding');
       label(values.operation);
       if (values.api !== undefined) values.api = origin(values.api);
     } else if (['amount', 'operation', 'api'].some(key => values[key] !== undefined)) fail('invalid-preparation-funding');

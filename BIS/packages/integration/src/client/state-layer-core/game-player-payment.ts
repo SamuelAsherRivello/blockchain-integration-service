@@ -1,5 +1,5 @@
 import {eligibleUnreservedCoins,walletReservations} from './wallet-reservations.ts';
-import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
+import type { WalletAccount } from '../wallet-layer-arkade/account.ts';
 import { quoteSend, submitSend, reconcileSend, type SendJournal } from '../wallet-layer-arkade/sending.ts';
 import { assertNoPendingBoarding, withWalletMutation } from './boarding-record.ts';
 import { assertNoPendingBurn } from './burning.ts';
@@ -30,7 +30,7 @@ export function assertPlayerPaymentAvailable(profileId: string,network:'signet'|
 const adapter = {quote: quoteSend, submit: submitSend, reconcile: reconcileSend};
 export function createGamePlayerPayments(dependencies = adapter) {
   return {
-    async pay(account: AccountSecret, recipient: BisPlayerRecipient, amountSats:number, signal: AbortSignal, current: () => boolean) {
+    async pay(account: WalletAccount, recipient: BisPlayerRecipient, amountSats:number, signal: AbortSignal, current: () => boolean) {
       return withWalletMutation(async () => {
         const network=account.network ?? 'signet';
         assertPlayerPaymentAvailable(account.profileId,network);
@@ -52,7 +52,7 @@ export function createGamePlayerPayments(dependencies = adapter) {
         return sendStatus(await dependencies.submit(account, quote, current, journal, true));
       }, account.profileId,account.network ?? 'signet');
     },
-    async check(account: AccountSecret, signal: AbortSignal) {
+    async check(account: WalletAccount, signal: AbortSignal) {
       return withWalletMutation(async () => sendStatus(await dependencies.reconcile(account, signal)), account.profileId,account.network ?? 'signet');
     },
   };

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { generateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 
 function storage(activeProfileId) {
   const accounts = new Map([
@@ -17,6 +19,24 @@ function storage(activeProfileId) {
     subscribe() { return () => {}; },
   };
 }
+
+test('first-use confirmation is outside the screen retained for outgoing animation',async()=>{
+  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
+  let context;
+  try{
+    const {BisAccountView}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/client.tsx');
+    const {createContext,getControls}=await server.ssrLoadModule('/BIS/packages/integration/src/client/state-layer-core/context.ts');
+    const phrase=generateMnemonic(wordlist);
+    context=createContext(storage(),undefined,async()=> 'new-public-profile',async()=>({phrase,profileId:'new-public-profile',networkAccountFound:false}));
+    await context.readyAsync();context.openRestoreAccount();
+    await getControls(context).restore(phrase);
+    assert.equal(context.getState().phase,'restore-confirmation');
+    const html=renderToStaticMarkup(createElement(BisAccountView,{context}));
+    assert.equal((html.match(/<dialog\b/g)??[]).length,1);
+    assert.ok(html.indexOf('<dialog')>html.lastIndexOf('</section>'),'the native modal must not be cloned with the outgoing Account screen');
+    assert.equal(html.includes(phrase),false);
+  }finally{context?.dispose();await server.close();}
+});
 
 test('Account UI does not expose saved profiles while preserving ordinary account routes',async()=>{
   const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});

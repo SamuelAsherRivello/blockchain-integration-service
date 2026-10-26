@@ -15,6 +15,7 @@ await mkdir(artifact, { recursive: true });
 await Promise.all([
   cp(landingPage, resolve(artifact, 'index.html')),
   cp(admin, resolve(artifact, 'admin'), { recursive: true }),
+  cp(marketplace, resolve(artifact, 'marketplace'), { recursive: true }),
   cp(marketplace, resolve(artifact, 'integration-marketplace'), { recursive: true }),
   cp(sandbox, resolve(artifact, 'prototype-sandbox'), { recursive: true }),
   cp(resolve(admin, 'assets'), resolve(artifact, 'assets'), { recursive: true }),

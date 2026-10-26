@@ -1,10 +1,11 @@
 import type { AccountSecret } from '../wallet-layer-arkade/account.ts';
+import type { WalletAccount } from '../wallet-layer-arkade/wallet-identity.ts';
 import type { TestNetwork } from './test-network.ts';
 
 type Envelope = { key: CryptoKey; iv: Uint8Array<ArrayBuffer>; encrypted: ArrayBuffer };
-export interface GameWalletStorage {
-  load(): Promise<AccountSecret | null>;
-  select(account: AccountSecret): Promise<void>;
+export interface GameWalletStorage<A extends WalletAccount = AccountSecret> {
+  load(): Promise<A | null>;
+  select(account: A): Promise<void>;
   logout(): Promise<void>;
   reset(): Promise<void>;
   subscribe(listener: () => void): () => void;
