@@ -58,6 +58,18 @@ test('six private slots are separate per network and retain priority', () => {
   assert.throws(() => walletCandidates('bitcoin' as never, values), /unsupported/);
 });
 
+test('network selection never falls back to the other network and duplicate identities are skipped', async () => {
+  const signetOnly = { BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_GAME_WALLET_SIGNET_02_MNEMONIC: phrases[0] };
+  const pool = createWalletPool(signetOnly);
+  const signet = await pool.publicWallets('signet');
+  assert.equal(signet.length, 1);
+  assert.equal(signet[0].slot, '01');
+  assert.equal(signet[0].network, 'signet');
+  assert.deepEqual(await pool.publicWallets('mutinynet'), []);
+  await assert.rejects(pool.select('mutinynet'), /No valid game wallet/);
+  assert.equal(JSON.stringify(signet).includes(phrases[0]), false);
+});
+
 test('first eligible balance wins; on-chain BTC is not Arkade-spendable sats', async () => {
   const visited: string[] = [];
   const pool = createWalletPool(values, async wallet => {
