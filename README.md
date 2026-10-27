@@ -49,6 +49,10 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 
 <a href="BIS/documentation/marketplace.png"><img src="BIS/documentation/marketplace.png" width="400" alt="BIS marketplace catalog" /></a>
 
+### Prototype Sandbox
+
+<a href="BIS/documentation/prototype-sandbox.png"><img src="BIS/documentation/prototype-sandbox.png" width="400" alt="BIS prototype sandbox Events demo" /></a>
+
 
 ## Live Demo
 
@@ -57,7 +61,7 @@ The BIS adds a Blockchain enabled ui and service layer to your games for Signet 
 
 * [BIS Admin](https://samuelasherrivello.github.io/blockchain-integration-service/admin/?v=0.0.27)
 * [BIS Marketplace](https://samuelasherrivello.github.io/blockchain-integration-service/marketplace/?v=0.0.27)
-* [Prototype Sandbox](https://samuelasherrivello.github.io/blockchain-integration-service/prototype-sandbox/?v=0.0.27), including the [Events demo](https://samuelasherrivello.github.io/blockchain-integration-service/prototype-sandbox/demo-21/?v=0.0.27).
+* [Prototype Sandbox](https://samuelasherrivello.github.io/blockchain-integration-service/prototype-sandbox/?v=0.0.27)
 
 ### Game
 
