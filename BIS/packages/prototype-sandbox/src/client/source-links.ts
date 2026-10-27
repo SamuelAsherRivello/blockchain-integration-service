@@ -1,16 +1,11 @@
-const directory = 'BIS/packages/prototype-sandbox/src/client/';
-export const SOURCE_FILES = {
-  app: directory + 'App.tsx',
-  events: directory + 'events-demo-source.ts',
-  upgrade: directory + 'asset-upgrade-demo-source.ts',
-  vault: directory + 'conditional-vault-demo-source.ts',
-};
+import { DEMO_FILES } from './demo-files.ts';
+
+const directory = 'BIS/packages/prototype-sandbox/src/client/demos/';
+export const SOURCE_FILES: Readonly<Record<string, string>> = Object.freeze(Object.fromEntries(DEMO_FILES.map(demo => [demo.id, directory + demo.file])));
 
 export function demoSourceFile(sourceId: string) {
-  if (sourceId === 'events-source') return SOURCE_FILES.events;
-  if (sourceId === 'asset-upgrade-source') return SOURCE_FILES.upgrade;
-  if (/^conditional-vault-(create|increment|claim|check)-source$/.test(sourceId)) return SOURCE_FILES.vault;
-  return SOURCE_FILES.app;
+  if (!Object.hasOwn(SOURCE_FILES, sourceId)) throw new Error('Unknown demo source: ' + sourceId);
+  return SOURCE_FILES[sourceId];
 }
 
 export function demoSourceUrl(sourceId: string, development: boolean) {

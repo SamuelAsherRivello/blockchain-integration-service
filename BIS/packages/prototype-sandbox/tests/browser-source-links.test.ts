@@ -1,34 +1,80 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import test from 'node:test';
 import { chromium } from 'playwright';
-import { DEMOS } from '../src/client/navigation.ts';
-import { SOURCE_FILES } from '../src/client/source-links.ts';
+import { createServer } from 'vite';
+import { developmentConfig } from '../../../scripts/dev-config.ts';
+import { DEMO_FILES } from '../src/client/demo-files.ts';
+import { demoSourceFile } from '../src/client/source-links.ts';
 
-const origin = process.env.PROTOTYPE_SANDBOX_URL ?? 'http://127.0.0.1:5174';
-test('every local demo source opens readable source in a new window without running it', { timeout: 60000 }, async t => {
-  const browser = await chromium.launch({ headless: true }); t.after(() => browser.close());
-  const page = await browser.newPage();
-  for (const demo of DEMOS) {
-    await page.goto(`${origin}${demo.path}`);
+test('all 21 panels, source viewers and Execute buttons use their registered file', { timeout: 120000 }, async t => {
+  const server = await createServer({ ...developmentConfig({ port: 0 }), cacheDir: resolve('output/cache/executable-demos'), logLevel: 'error' });
+  t.after(() => server.close());
+  await server.listen();
+  const address = server.httpServer!.address();
+  if (!address || typeof address === 'string') throw new Error('isolated-preview-address-missing');
+  const origin = `http://127.0.0.1:${address.port}`;
+  const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL ?? 'chrome' });
+  t.after(() => browser.close());
+  const context = await browser.newContext();
+  await context.route(/arkade\.sh|127\.0\.0\.1:707[45]/, route => route.abort());
+  await context.addInitScript(() => { localStorage.setItem('prototype-sandbox-visited', 'true'); });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  for (const demo of DEMO_FILES) {
+    await page.goto(`${origin}/prototype-sandbox/demo-${demo.number}/`);
+    const file = demoSourceFile(demo.id);
+    const expected = await readFile(resolve(file), 'utf8');
+    const panel = page.locator('[aria-label="Source code"]').first();
+    await panel.waitFor();
+    assert.deepEqual(await panel.locator('.sandbox-code-line').allTextContents(), expected.replace(/\r\n?/g, '\n').split('\n'), demo.id);
+    const definition = await page.evaluate(async id => {
+      const { demoDefinition } = await import('/BIS/packages/prototype-sandbox/src/client/demo-registry.ts');
+      const entry = demoDefinition(id);
+      const module = await import('/' + entry.file);
+      return { source: entry.source, sameRunner: entry.run === module.runDemo };
+    }, demo.id);
+    assert.equal(definition.source, expected, demo.id);
+    assert.equal(definition.sameRunner, true, demo.id);
     const link = page.getByRole('link', { name: 'Open source file', exact: true });
-    await link.waitFor();
-    assert.match(await link.getAttribute('href') ?? '', /^\/prototype-sandbox\/source-view\//);
     assert.equal(await link.getAttribute('target'), '_blank');
+    const popup = page.waitForEvent('popup');
+    await link.click();
+    const viewer = await popup;
+    await viewer.locator('#source-title').filter({ hasText: file }).waitFor();
+    await viewer.waitForFunction(() => !document.getElementById('source-content')!.textContent!.startsWith('Loading'));
+    assert.equal(await viewer.locator('#source-content').textContent(), expected, demo.id);
+    assert.equal(await viewer.locator('button,input,textarea').count(), 0);
+    await viewer.close();
+    assert.equal(await page.locator('textarea[aria-label="Demo output"]').inputValue(), '', 'opening source cannot execute ' + demo.id);
   }
-  for (const [demo, file] of [[1, SOURCE_FILES.app], [21, SOURCE_FILES.events], [20, SOURCE_FILES.upgrade], [14, SOURCE_FILES.vault]] as const) {
-    await page.goto(`${origin}/prototype-sandbox/demo-${demo}/`);
-    const opened = page.waitForEvent('popup');
-    await page.getByRole('link', { name: 'Open source file', exact: true }).click();
-    const source = await opened;
-    await source.locator('#source-title').filter({ hasText: file }).waitFor();
-    await source.waitForFunction(() => !document.getElementById('source-content')!.textContent!.startsWith('Loading'));
-    const text = await source.locator('pre').textContent();
-    assert.match(text ?? '', /import /);
-    assert.ok(!text?.startsWith('export default "'), 'raw Vite module wrapper is not displayed');
-    assert.equal(await source.locator('button,input,textarea').count(), 0);
-    await source.close();
-  }
-  const response = await page.goto(`${origin}/prototype-sandbox/source-view/?file=.env`);
-  assert.equal(response?.status(), 200);
+  await page.goto(`${origin}/prototype-sandbox/source-view/?file=.env`);
   await page.getByText('Source unavailable. Open a source link from a sandbox demo.').waitFor();
+  assert.deepEqual(errors, []);
+
+  // Dispatch fixtures prove every button calls the registered executable module.
+  // They never run SDK operations and do not establish live network acceptance.
+  const dispatch = await browser.newContext();
+  await dispatch.addInitScript(() => {
+    localStorage.setItem('prototype-sandbox-visited', 'true');
+    (window as any).__demoCalls = [];
+  });
+  await dispatch.route(/arkade\.sh|127\.0\.0\.1:707[45]/, route => route.abort());
+  await dispatch.route('**/demos/*.ts*', route => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.has('raw')) return route.continue();
+    const file = url.pathname.split('/').at(-1);
+    const result = { output: 'Dispatch fixture. No network operation.\nSuccess: true' };
+    return route.fulfill({ contentType: 'application/javascript', body: `export async function runDemo(context) { window.__demoCalls.push({ file: ${JSON.stringify(file)}, network: context.network, ...(context.amount !== undefined ? { amount: context.amount } : {}) }); return ${JSON.stringify(result)}; }` });
+  });
+  const testPage = await dispatch.newPage();
+  for (const demo of DEMO_FILES) {
+    await testPage.goto(`${origin}/prototype-sandbox/demo-${demo.number}/`);
+    if (demo.number === 12) await testPage.locator('#external-wallet-amount').fill('1234');
+    await testPage.locator('.sandbox-execute-button').click();
+    await testPage.waitForFunction(() => (window as any).__demoCalls.length === 1);
+    assert.deepEqual(await testPage.evaluate(() => (window as any).__demoCalls), [{ file: demo.file, network: 'signet', ...(demo.number === 12 ? { amount: '1234' } : {}) }], demo.id);
+  }
 });

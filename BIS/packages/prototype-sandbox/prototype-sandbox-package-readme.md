@@ -30,7 +30,7 @@ Create shows Demo, Tapscript, and Compiled tabs with the selected contract's act
 
 ## Results and recovery
 
-Output identifies results. Pending acknowledgement is not financial success. Events launch success means a window opened, not payment occurred. Contract retries reconcile original identifiers. Source buttons open readable local files in Vite and GitHub files on Pages.
+Each file in `src/client/demos/` supplies Execute, the code panel, and Open source. `demo-files.ts` registers all 21 files. Viewing source never executes it. Pending acknowledgement is not financial success.
 
 ## Verification and boundaries
 

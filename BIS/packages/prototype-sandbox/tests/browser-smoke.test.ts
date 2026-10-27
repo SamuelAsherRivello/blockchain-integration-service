@@ -47,9 +47,9 @@ test('each demo exposes an executable action and formatted output', { timeout: 6
     const sourceField = page.locator('[aria-label="Source code"]');
     await sourceField.waitFor();
     const source = await sourceField.textContent();
-    if([14,15,16,17].includes(demo.number))assert.match(source ?? '', /await (create|increment|check|claim)ConditionalVault\(/, demo.path);
-    else if (demo.number === 20) assert.match(source ?? '', /executeAssetUpgrade\(/, demo.path);
-    else assert.match(source ?? '', /console\.log\(['`]Demo: /, demo.path);
+    if([14,15,16,17].includes(demo.number))assert.match(source ?? '', /await demo(Create|Increment|Check|Claim)ConditionalVault\(/, demo.path);
+    else if (demo.number === 20) assert.match(source ?? '', /demoExecuteAssetUpgrade\(/, demo.path);
+    else assert.match(source ?? '', /export async function runDemo\(/, demo.path);
 
     const action = page.locator('.sandbox-demo button.sandbox-action-button').last();
     await action.waitFor();

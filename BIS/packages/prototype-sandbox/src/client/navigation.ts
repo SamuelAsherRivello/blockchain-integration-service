@@ -1,3 +1,5 @@
+import type { TestNetwork } from '../../../integration/src/client/state-layer-core/test-network.ts';
+
 export function sandboxBasePath(base = import.meta.env?.BASE_URL ?? '/') {
   const normalized = `/${base.replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/');
   return normalized.endsWith('/prototype-sandbox/') ? normalized : '/prototype-sandbox/';
@@ -139,4 +141,22 @@ export function isSetupPath(pathname = '') {
 
 export function isHomePath(pathname = '') {
   return `${String(pathname).replace(/\/+$/, '')}/` === HOME_PATH;
+}
+
+/** Network-scoped demo fields retain their established localStorage keys. */
+function demoInputKey(network: TestNetwork, field: string) {
+  if (!['signet', 'mutinynet'].includes(network)) throw new Error('Choose Signet or Mutinynet.');
+  if (typeof field !== 'string' || !field || field === NETWORK_STORAGE_KEY) throw new Error('Choose a network-specific demo input.');
+  return `${network}-${field}`;
+}
+
+export function demoGetInput(network: TestNetwork, field: string, storage = globalThis.localStorage) {
+  const key = demoInputKey(network, field);
+  if (field === 'wallet-1-address') return setupWalletProfileValues(network, storage).address1;
+  if (field === 'wallet-2-mnemonic') return setupWalletProfileValues(network, storage).mnemonic2;
+  return storage.getItem(key) ?? '';
+}
+
+export function demoSetInput(network: TestNetwork, field: string, value: string | number | bigint | boolean, storage = globalThis.localStorage) {
+  storage.setItem(demoInputKey(network, field), String(value));
 }

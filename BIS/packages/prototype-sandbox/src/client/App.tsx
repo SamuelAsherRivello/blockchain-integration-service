@@ -1,23 +1,19 @@
+import { demoVaultErrorMessage as vaultErrorMessage } from './vault-demo-runtime.ts';
+import { demoDefinition } from './demo-registry.ts';
+import { useExecutableDemo } from './use-executable-demo.ts';
+import { OPTIONAL_ASSET_PAYMENTS, optionalAssetPayment } from './asset-payment.ts';
+import { getWallet2BitcoinAddress } from './demo-bitcoin-address.ts';
 import { Children, Fragment, createContext, isValidElement, useContext, useEffect, useId, useRef, useState } from 'react';
-import { InMemoryContractRepository, InMemoryWalletRepository, IndexedDBWalletRepository, MnemonicIdentity, OnchainWallet, Ramps, RestArkProvider, Wallet } from '@arkade-os/sdk';
+import { MnemonicIdentity } from '@arkade-os/sdk';
 // The self-contained ESM distribution also bundles Mermaid's CommonJS helpers.
 import mermaid from 'mermaid/dist/mermaid.esm.min.mjs';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.ts';
-import { decodeArkadeAddress, validateArkadeAddress } from '../../../prototype-faucet/src/shared/faucet-core.ts';
-import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, faucetUrl, getActiveDemo, isHomePath, isSetupPath, localStorageGetItem, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from './navigation.ts';
-import { conditionalVaultArtifact, checkConditionalVault, claimConditionalVault, createConditionalVault, incrementConditionalVault, readStoredConditionalVault } from './conditional-vault.ts';
-import { LEVEL_ONE_ICON, LEVEL_ONE_TITLE, LEVEL_TWO_TITLE, createAssetUpgradeRequest, executeAssetUpgrade } from './asset-upgrade.ts';
-import { ASSET_UPGRADE_SOURCE } from './asset-upgrade-demo-source.ts';
-import { EVENTS_SOURCE } from './events-demo-source.ts';
-import { openEventsMonitor } from './events-popup.ts';
-import { sandboxWalletStorage } from './wallet-storage.ts';
-import { OPTIONAL_ASSET_PAYMENTS, optionalAssetPayment, assetTransferSats } from './asset-payment.ts';
+import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, faucetUrl, getActiveDemo, isHomePath, isSetupPath, demoGetInput, demoSetInput, setupNetworkValue, setupWalletProfileValues as demoGetWalletProfile, walletUrl } from './navigation.ts';
+import { conditionalVaultArtifact, readStoredConditionalVault as demoReadConditionalVaultDescriptor } from './conditional-vault.ts';
 import { demoSourceUrl } from './source-links.ts';
 import CONDITIONAL_VAULT_LANGUAGE_SOURCE from '../../../integration/src/client/wallet-layer-arkade/conditional-vault-program.ts?raw';
-import { conditionalVaultDemoSource } from './conditional-vault-demo-source.ts';
 import { DemoOutputScope, useDemoOutput } from './demo-output.ts';
-import { demoExplorerUrl, demoSupportsExplorer, firstArkTransaction } from './demo-explorer.ts';
-import {testNetwork} from '../../../integration/src/client/state-layer-core/test-network.ts';
+import { demoExplorerUrl, demoSupportsExplorer } from './demo-explorer.ts';
 import './style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
 
@@ -203,13 +199,6 @@ function DiagramContent({ code }) {
   </div>;
 }
 
-function DiagramSection({ code, label = 'Diagram' }) {
-  return <section className="sandbox-diagram prototype-section" aria-label={label}>
-    <div className="prototype-title-bar"><h2>{label}</h2></div>
-    <DiagramContent code={code} />
-  </section>;
-}
-
 function DocsContent({ href, topic, description, subheading, details, mainLink = false, linkLabel }) {
   return <div className="sandbox-docs-body">
     {description && <h2 className="sandbox-docs-description">{description}</h2>}
@@ -376,12 +365,11 @@ function SetupSection() {
 }
 
 function SetupNetworkProfile({ network }) {
-  const [values, setValues] = useState(() => setupWalletProfileValues(network));
+  const [values, setValues] = useState(() => demoGetWalletProfile(network));
   const [focusedField, setFocusedField] = useState(null);
   function submit(key, event) {
     event.preventDefault();
-    const storageKey = key === 'address1' ? walletProfileStorageKey(network, 'wallet-1-address') : walletProfileStorageKey(network, 'wallet-2-mnemonic');
-    window.localStorage.setItem(storageKey, values[key]);
+    demoSetInput(network, key === 'address1' ? 'wallet-1-address' : 'wallet-2-mnemonic', values[key]);
   }
   const fields = [
     ['address1', 'Wallet 1 Arkade Address'], ['mnemonic2', 'Wallet 2 Mnemonic'],
@@ -404,448 +392,6 @@ function SetupNetworkProfile({ network }) {
         </div>
       </form>)}
   </section>;
-}
-
-const BALANCE_SOURCE = `// Arrange
-import { ArkAddress } from '@arkade-os/sdk'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const address1 = localStorageGetItem('wallet-1-address')
-
-const bytesToHex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
-function getBaseURL(network, address) {
-  const { vtxoTaprootKey } = ArkAddress.decode(address)
-  const script = '5120' + bytesToHex(vtxoTaprootKey)
-  return 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
-}
-
-// Act
-const allResponse = await fetch(getBaseURL(network, address1))
-const availableResponse = await fetch(getBaseURL(network, address1) + '&spendableOnly=true')
-const { vtxos: allVtxos } = await allResponse.json()
-const { vtxos: availableVtxos } = await availableResponse.json()
-if (!allResponse.ok || !availableResponse.ok) throw new Error('The balance request failed.')
-
-// Assert
-const total = allVtxos.reduce((sum, vtxo) => sum + Number(vtxo.amount), 0)
-const available = availableVtxos.reduce((sum, vtxo) => sum + Number(vtxo.amount), 0)
-const success = allResponse.ok && availableResponse.ok
-
-console.log('Demo: Get Balance - Public Address')
-console.log('Address:', address1)
-console.log('Available:', available + ' sats')
-console.log('Total:', total + ' sats')
-console.log('VTXOs:', availableVtxos.length)
-console.log('Success:', success)`;
-
-const CREATE_WALLET_SOURCE = `// Arrange
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-import { sandboxWalletStorage } from './wallet-storage.ts'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: 'https://' + network + '.arkade.sh',
-  settlementConfig: false,
-  storage: sandboxWalletStorage(network, identity),
-})
-
-// Act
-const address = await wallet.getAddress()
-
-// Assert
-const success = Boolean(address)
-console.log('Demo: Create Wallet')
-console.log('Arkade Address:', address)
-console.log('Success:', success)`;
-
-const PRIVATE_BALANCE_SOURCE = `// Arrange
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-import { sandboxWalletStorage } from './wallet-storage.ts'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: 'https://' + network + '.arkade.sh',
-  settlementConfig: false,
-  storage: sandboxWalletStorage(network, identity),
-})
-
-// Act
-const balance = await wallet.getBalance()
-const address = await wallet.getAddress()
-const vtxos = await wallet.getVtxos()
-
-// Assert
-const success = Boolean(balance && address && Array.isArray(vtxos))
-console.log('Demo: Get Balance - Private Wallet')
-console.log('Address:', address)
-console.log('Available:', balance.available + ' sats')
-console.log('Total:', balance.total + ' sats')
-console.log('VTXOs:', vtxos.length)
-console.log('Success:', success)`;
-
-const SEND_PAYMENT_SOURCE = `// Arrange
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-import { sandboxWalletStorage } from './wallet-storage.ts'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const address1 = localStorageGetItem('wallet-1-address')
-
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: 'https://' + network + '.arkade.sh',
-  settlementConfig: false,
-  storage: sandboxWalletStorage(network, identity),
-})
-const contractManager = await wallet.getContractManager()
-await contractManager.refreshVtxos()
-await wallet.getVtxos()
-
-// Act
-const txid = await wallet.send({
-  address: address1,
-  amount: 100,
-})
-
-// Assert
-const success = Boolean(txid)
-console.log('Demo: Send Payment')
-console.log('Transaction ID:', txid)
-console.log('Success:', success)`;
-
-const EXTERNAL_WALLET_PAYMENT_SOURCE = `// Arrange
-const network = document.querySelector('#network').value
-const recipient = localStorage.getItem(network + '-wallet-1-address')
-
-const amountSats = 100
-
-// Act
-const request = 'bitcoin:?ark=' + encodeURIComponent(recipient) + '&amount=0.000001'
-const callback = new URL(window.location.href)
-callback.search = ''
-callback.hash = ''
-
-const wallet = new URL(network === 'signet'
-  ? 'https://signet.arkade.money/'
-  : 'https://mutinynet.arkade.money/')
-wallet.search = new URLSearchParams({
-  action: 'send',
-  request,
-  callback: callback.toString(),
-})
-window.open(wallet, '_blank', 'popup,width=480,height=840,resizable=yes,scrollbars=yes')
-
-// Assert
-console.log('Demo: Send Payment from External Wallet')
-console.log('Wallet URL:', wallet.toString())
-console.log('Success:', Boolean(wallet))`;
-
-const EXTERNAL_WALLET_RECEIVE_SOURCE = `// Arrange
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-import { sandboxWalletStorage } from './wallet-storage.ts'
-
-const network = document.querySelector('#network').value
-const wallet2Mnemonic = localStorage.getItem(network + '-wallet-2-mnemonic')
-
-const externalWalletAddress = new URL(window.location.href).searchParams.get('address')
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: NETWORKS[network].operator,
-  settlementConfig: false,
-  storage: sandboxWalletStorage(network, identity),
-})
-const contractManager = await wallet.getContractManager()
-
-// Act
-await contractManager.refreshVtxos()
-await wallet.getVtxos()
-
-const txid = await wallet.send({ address: externalWalletAddress, amount: 100 })
-
-// Assert
-console.log('Demo: Receive Payment to External Wallet')
-console.log('Transaction ID:', txid)
-console.log('Success:', Boolean(txid))`;
-
-const ONBOARD_SOURCE = `// Arrange
-import { Ramps } from '@arkade-os/sdk'
-
-const boardingAddress = await wallet.getBoardingAddress()
-
-// Act
-const txid = await new Ramps(wallet).onboard()
-
-// Assert
-console.log('Demo: Onboard Bitcoin')
-console.log('Boarding address:', boardingAddress)
-console.log('Onboarding transaction:', txid)
-console.log('Success:', Boolean(txid))`;
-
-const OFFBOARD_SOURCE = `// Arrange
-import { MnemonicIdentity, OnchainWallet, Ramps } from '@arkade-os/sdk'
-
-const onchainWallet = await OnchainWallet.create(identity, network)
-const destination = onchainWallet.address
-const { fees } = await wallet.arkProvider.getInfo()
-
-// Act
-const txid = await new Ramps(wallet).offboard(destination, fees)
-
-// Assert
-console.log('Demo: Offboard Bitcoin')
-console.log('Bitcoin destination:', destination)
-console.log('Offboarding transaction:', txid)
-console.log('Success:', Boolean(txid))`;
-
-const RECEIVE_PAYMENT_SOURCE = `// Arrange
-import { ArkAddress } from '@arkade-os/sdk'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const address1 = localStorageGetItem('wallet-1-address')
-
-const { vtxoTaprootKey } = ArkAddress.decode(address1)
-const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
-const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
-
-// Act
-const response = await fetch(getBaseURL(network, script) + '&spendableOnly=true')
-const { vtxos } = await response.json()
-if (!response.ok) throw new Error('The receive payment request failed.')
-
-// Assert
-const total = vtxos.reduce((sum, vtxo) => sum + Number(vtxo.amount), 0)
-if (vtxos.length === 0) throw new Error('Use Send Payment demo first.')
-const success = response.ok
-
-console.log('Demo: Receive Payment')
-console.log('Address:', address1)
-console.log('Total:', total + ' sats')
-console.log('VTXOs:', vtxos.length)
-console.log('Success:', success)`;
-
-const PAYMENT_HISTORY_SOURCE = `// Arrange
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-import { sandboxWalletStorage } from './wallet-storage.ts'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: 'https://' + network + '.arkade.sh',
-  settlementConfig: false,
-  storage: sandboxWalletStorage(network, identity),
-})
-await wallet.getVtxos()
-
-// Act
-const activities = await wallet.getActivityHistory()
-
-// Assert
-const success = Array.isArray(activities)
-console.log('Demo: Payment History')
-console.log('Activities:', activities.length)
-activities.forEach((activity, index) => console.log(\`Activity \${index + 1}:\`, activity.type ?? activity.amount ?? activity.key?.arkTxid ?? 'Activity'))
-console.log('Success:', success)`;
-
-const MINT_ASSET_SOURCE = `// Arrange
-import { InMemoryContractRepository, IndexedDBWalletRepository, MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const assetLabel = localStorageGetItem('asset-id')
-
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-const walletIdentity = identity.descriptor.match(/\[([0-9a-f]+)\//i)?.[1]
-if (!walletIdentity) throw new Error('Could not determine the wallet identity.')
-const walletDatabase = 'bis-prototype-sandbox-wallet-v1:' + network + ':' + walletIdentity
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: 'https://' + network + '.arkade.sh',
-  settlementConfig: false,
-  storage: {
-    walletRepository: new IndexedDBWalletRepository(walletDatabase),
-    contractRepository: new InMemoryContractRepository(),
-  },
-})
-const contractManager = await wallet.getContractManager()
-await contractManager.refreshVtxos()
-await wallet.getVtxos()
-
-// Act
-const { assetId } = await wallet.assetManager.issue({
-  amount: 1n,
-  metadata: {
-    ticker: assetLabel,
-    name: 'Sword Level 1',
-    title: 'Sword Level 1',
-    level: '1',
-    icon: 'https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/sword-1.png',
-    upgradeable: 'true',
-    upgradePath: 'sword',
-    nextLevel: '2',
-  },
-})
-localStorage.setItem(network + '-asset-id-' + assetLabel, assetId)
-localStorage.setItem(network + '-asset-id-' + assetLabel + '-level', '1')
-
-// Assert
-const success = Boolean(assetId)
-console.log('Demo: Mint Asset')
-console.log('Asset label:', assetLabel)
-console.log('Asset ID:', assetId)
-console.log('Display title: Sword Level 1')
-console.log('Metadata level: 1')
-console.log('Icon: https://samuelasherrivello.github.io/blockchain-integration-service/assets/marketplace/v1/sword-1.png')
-console.log('Success:', success)`;
-
-const SEND_ASSET_SOURCE = `// Arrange
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-import { sandboxWalletStorage } from './wallet-storage.ts'
-import { assetTransferSats } from './asset-payment.ts'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const address1 = localStorageGetItem('wallet-1-address')
-const assetLabel = localStorageGetItem('asset-id')
-const assetId = localStorageGetItem('asset-id-' + assetLabel)
-const optionalPaymentSats = localStorageGetItem('asset-payment-sats')
-
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: 'https://' + network + '.arkade.sh',
-  settlementConfig: false,
-  storage: sandboxWalletStorage(network, identity),
-})
-await wallet.getVtxos()
-
-if (!assetId) throw new Error('Use Mint Asset demo first.')
-
-// Act
-// Assets require carrier sats: currently 330 on both test networks, not a fee.
-// The optional payment defaults to 0 and is added to that carrier amount.
-const txid = await wallet.send({
-  address: address1,
-  amount: assetTransferSats(wallet.dustAmount, optionalPaymentSats),
-  assets: [{ assetId, amount: 1n }],
-})
-
-// Assert
-const success = Boolean(txid)
-console.log('Demo: Send Asset')
-console.log('Transaction ID:', txid)
-console.log('Success:', success)`;
-
-const RECEIVE_ASSET_SOURCE = `// Arrange
-import { ArkAddress } from '@arkade-os/sdk'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const address1 = localStorageGetItem('wallet-1-address')
-const assetLabel = localStorageGetItem('asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorageGetItem('asset-id-' + assetLabel)
-
-const { vtxoTaprootKey } = ArkAddress.decode(address1)
-const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
-const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
-
-// Act
-const response = await fetch(getBaseURL(network, script) + '&spendableOnly=true')
-const { vtxos } = await response.json()
-if (!response.ok) throw new Error('The receive asset request failed.')
-
-// Assert
-const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === assetId)
-if (matching.length === 0) throw new Error('Use Send Asset demo first.')
-const success = response.ok
-
-console.log('Demo: Receive Asset')
-console.log('Address:', address1)
-console.log('Asset filter:', assetLabel)
-console.log('VTXOs:', matching.length)
-console.log('Success:', success)`;
-
-const ASSET_HISTORY_SOURCE = `// Arrange
-import { MnemonicIdentity, Wallet } from '@arkade-os/sdk'
-import { sandboxWalletStorage } from './wallet-storage.ts'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const assetLabel = localStorageGetItem('asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorageGetItem('asset-id-' + assetLabel)
-
-const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false })
-const wallet = await Wallet.create({
-  identity,
-  arkServerUrl: 'https://' + network + '.arkade.sh',
-  settlementConfig: false,
-  storage: sandboxWalletStorage(network, identity),
-})
-await wallet.getVtxos()
-
-// Act
-const activities = await wallet.getActivityHistory()
-const matching = assetId === 'all' ? activities : activities.filter(activity => activity.assetId === assetId)
-
-// Assert
-const success = Array.isArray(activities)
-console.log('Demo: Asset History - Private Wallet')
-console.log('Asset filter:', assetLabel)
-console.log('Activities:', matching.length)
-matching.forEach((activity, index) => console.log(\`Activity \${index + 1}:\`, activity.type ?? activity.assetId ?? activity.amount ?? activity.key?.arkTxid ?? 'Activity'))
-console.log('Success:', success)`;
-
-const PUBLIC_ASSET_HISTORY_SOURCE = `// Arrange
-import { ArkAddress } from '@arkade-os/sdk'
-
-const network = localStorageGetItem('network')
-const wallet2Mnemonic = localStorageGetItem('wallet-2-mnemonic')
-const address1 = localStorageGetItem('wallet-1-address')
-const assetLabel = localStorageGetItem('asset-id')
-const assetId = assetLabel === 'all' ? 'all' : localStorageGetItem('asset-id-' + assetLabel)
-
-const { vtxoTaprootKey } = ArkAddress.decode(address1)
-const script = '5120' + Array.from(vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')
-const getBaseURL = (network, script) => 'https://' + network + '.arkade.sh/v1/indexer/vtxos?scripts=' + encodeURIComponent(script)
-
-// Act
-const response = await fetch(getBaseURL(network, script) + '&spendableOnly=true')
-const { vtxos } = await response.json()
-if (!response.ok) throw new Error('The asset history request failed.')
-
-// Assert
-const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === assetId)
-const success = response.ok
-console.log('Demo: Asset History - Public Address')
-console.log('Address:', address1)
-console.log('Asset filter:', assetLabel)
-console.log('VTXOs:', matching.length)
-matching.forEach((vtxo, index) => console.log(\`\${index + 1}:\`, vtxo.assetId ?? vtxo.amount ?? vtxo.txid ?? 'VTXO'))
-console.log('Success:', success)`;
-
-function addressScript(address) {
-  const decoded = decodeArkadeAddress(address);
-  return `5120${Array.from(decoded.vtxoTaprootKey, byte => byte.toString(16).padStart(2, '0')).join('')}`;
-}
-
-function getBaseURL(network, address) {
-  return `${NETWORKS[network].operator}/v1/indexer/vtxos?scripts=${encodeURIComponent(addressScript(address))}`;
 }
 
 function OutputSection({ title, output, elapsedMs, onRecover = undefined, recoverDisabled = true }) {
@@ -908,7 +454,7 @@ function useTimedOutput() {
 }
 
 function SourceCodeField({ id, source }) {
-  const sourceLines = source.split('\n');
+  const sourceLines = source.replace(/\r\n?/g, '\n').split('\n');
   const lineNumbers = sourceLines.map((_, index) => index + 1).join('\n');
   const lineNumbersRef = useRef(null);
   function escapeHtml(value) {
@@ -934,7 +480,7 @@ function SourceCodeField({ id, source }) {
 
 const ASSET_IDS = ['all', ...Array.from({ length: 10 }, (_, index) => String(index).padStart(4, '0'))];
 
-function AssetSelector({ network, value, onChange, includeAll = false, label = 'Asset ID', storageKey = 'asset-id' }) {
+function AssetSelector({ network, value, onChange, includeAll = false, label = 'AssetID', storageKey = 'asset-id' }) {
   const options = includeAll ? ASSET_IDS : ASSET_IDS.slice(1);
   const id = `${network}-${storageKey}`;
   return <label className="sandbox-inline-input" htmlFor={id}>
@@ -955,18 +501,21 @@ function inputText(node) {
   if (node == null || typeof node === 'boolean') return '';
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(inputText).join(' ');
+  if (isValidElement(node) && node.type === AssetSelector) return node.props.label ?? 'AssetID';
   return isValidElement(node) ? inputText(node.props.children) : '';
 }
 
 function containsFormControl(node) {
+  if (Array.isArray(node)) return node.some(containsFormControl);
   if (!isValidElement(node)) return false;
-  if (node.type === 'input' || node.type === 'select' || node.type === 'textarea') return true;
+  if (node.type === AssetSelector || node.type === 'input' || node.type === 'select' || node.type === 'textarea') return true;
   return containsFormControl(node.props.children);
 }
 
 function fieldIsEditable(nodes) {
   return nodes.some(node => {
     if (!isValidElement(node)) return false;
+    if (node.type === AssetSelector) return true;
     if (node.type === 'input' || node.type === 'select' || node.type === 'textarea') {
       return !node.props.readOnly && !node.props.disabled;
     }
@@ -989,16 +538,16 @@ function SortedDemoInputs({ children }) {
   fields.sort((left, right) => {
     const editableOrder = Number(fieldIsEditable(left)) - Number(fieldIsEditable(right));
     if (editableOrder !== 0) return editableOrder;
-    return inputText(left[0]).trim().localeCompare(inputText(right[0]).trim());
+    return inputText(left[0]).trim().localeCompare(inputText(right[0]).trim(), 'en', { sensitivity: 'base' });
   });
   return <>{fields.map((field, index) => <Fragment key={index}>{field}</Fragment>)}</>;
 }
 
-function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDescription, docsSubheading, docsDetails, input, sourceId, source, contractSource, compiledSource, output, elapsedMs, running, onExecute, onRecover = undefined, recoverDisabled = true, actionLabel = 'Execute', loadingText = demoTitle, loadingBody = loadingText }) {
+function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDescription, docsSubheading, docsDetails, input, sourceId, contractSource, compiledSource, output, elapsedMs, running, onExecute, onRecover = undefined, recoverDisabled = true, actionLabel = 'Execute', loadingText = demoTitle, loadingBody = loadingText }) {
   const [sourceTab, setSourceTab] = useState('demo');
   const showingContract = Boolean(contractSource) && sourceTab === 'contract';
   const showingCompiled = Boolean(compiledSource) && sourceTab === 'compiled';
-  const visibleSource = showingCompiled ? compiledSource : showingContract ? contractSource : source;
+  const visibleSource = showingCompiled ? compiledSource : showingContract ? contractSource : demoDefinition(sourceId).source;
   const visibleSourceId = showingContract ? `${sourceId}-contract` : sourceId;
   const tabs = ['demo', 'contract', ...(compiledSource ? ['compiled'] : [])];
   function moveSourceTab(event) {
@@ -1057,35 +606,23 @@ function LoadingPrompt({ open, bodyText }) {
   </div>;
 }
 
-function assetSelectionStorageKey(network) {
-  return `${network}-asset-id`;
-}
-
-function mintedAssetStorageKey(network, assetLabel) {
-  return `${network}-asset-id-${assetLabel}`;
-}
-
-function vaultSelectionStorageKey(network) {
-  return `${network}-vault-id`;
-}
-
 function useAssetSelection(network, includeAll = false) {
   const [assetId, setAssetId] = useState(() => {
-    const stored = window.localStorage.getItem(assetSelectionStorageKey(network));
+    const stored = demoGetInput(network, 'asset-id');
     const allowed = includeAll ? ASSET_IDS : ASSET_IDS.slice(1);
     const selected = allowed.includes(stored) ? stored : (includeAll ? 'all' : '0000');
-    window.localStorage.setItem(assetSelectionStorageKey(network), selected);
+    demoSetInput(network, 'asset-id', selected);
     return selected;
   });
   useEffect(() => {
-    const stored = window.localStorage.getItem(assetSelectionStorageKey(network));
+    const stored = demoGetInput(network, 'asset-id');
     const allowed = includeAll ? ASSET_IDS : ASSET_IDS.slice(1);
     const selected = allowed.includes(stored) ? stored : (includeAll ? 'all' : '0000');
-    window.localStorage.setItem(assetSelectionStorageKey(network), selected);
+    demoSetInput(network, 'asset-id', selected);
     setAssetId(selected);
   }, [network, includeAll]);
   function changeAssetId(value) {
-    window.localStorage.setItem(assetSelectionStorageKey(network), value);
+    demoSetInput(network, 'asset-id', value);
     setAssetId(value);
   }
   return [assetId, changeAssetId];
@@ -1093,51 +630,27 @@ function useAssetSelection(network, includeAll = false) {
 
 function useVaultSelection(network) {
   const [vaultId, setVaultId] = useState(() => {
-    const stored = window.localStorage.getItem(vaultSelectionStorageKey(network));
+    const stored = demoGetInput(network, 'vault-id');
     const selected = ASSET_IDS.slice(1).includes(stored) ? stored : '0000';
-    window.localStorage.setItem(vaultSelectionStorageKey(network), selected);
+    demoSetInput(network, 'vault-id', selected);
     return selected;
   });
   useEffect(() => {
-    const stored = window.localStorage.getItem(vaultSelectionStorageKey(network));
+    const stored = demoGetInput(network, 'vault-id');
     const selected = ASSET_IDS.slice(1).includes(stored) ? stored : '0000';
-    window.localStorage.setItem(vaultSelectionStorageKey(network), selected);
+    demoSetInput(network, 'vault-id', selected);
     setVaultId(selected);
   }, [network]);
   function changeVaultId(value) {
-    window.localStorage.setItem(vaultSelectionStorageKey(network), value);
+    demoSetInput(network, 'vault-id', value);
     setVaultId(value);
   }
   return [vaultId, changeVaultId];
 }
 
 function DemoCreateWallet({ network }) {
-  const walletProfile = setupWalletProfileValues(network);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-
-  async function execute() {
-    const currentMnemonic = setupWalletProfileValues(network).mnemonic2;
-    if (!currentMnemonic.trim()) {
-      setOutput('Enter Wallet 2 Mnemonic on Setup Input first.\nSuccess: false');
-      return;
-    }
-    const startedAt = begin();
-    setRunning(true);
-    setOutput('');
-    try {
-      const identity = MnemonicIdentity.fromMnemonic(currentMnemonic, { isMainnet: false });
-      const wallet = await Wallet.create({ identity, arkServerUrl: NETWORKS[network].operator, settlementConfig: false, storage: sandboxWalletStorage(network, identity) });
-      const address = await wallet.getAddress();
-      setOutput([`Arkade Address: ${address}`, `Success: ${Boolean(address)}`].join('\n'));
-      await wallet.dispose?.();
-    } catch (error) {
-      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
-    } finally {
-      finish(startedAt);
-      setRunning(false);
-    }
-  }
+  const walletProfile = demoGetWalletProfile(network);
+  const { output, elapsedMs, running, execute } = useExecutableDemo('create-wallet-source', network);
 
   return <>
     <LoadingPrompt open={running} bodyText="Create Wallet 2" />
@@ -1153,8 +666,8 @@ function DemoCreateWallet({ network }) {
       <div className="prototype-title-bar"><h2>Demo</h2><SourceFileButton sourceId="create-wallet-source" /></div>
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="create-wallet-source">Source code</label>
-        <SourceCodeField id="create-wallet-source" source={CREATE_WALLET_SOURCE} />
-        <DemoActionButton onClick={execute} disabled={running} />
+        <SourceCodeField id="create-wallet-source" source={demoDefinition('create-wallet-source').source} />
+        <DemoActionButton onClick={() => execute()} disabled={running} />
       </div>
     </section>
     <OutputSection title="Create Wallet" output={output} elapsedMs={elapsedMs} />
@@ -1162,40 +675,8 @@ function DemoCreateWallet({ network }) {
 }
 
 function DemoGetBalancePrivate({ network }) {
-  const walletProfile = setupWalletProfileValues(network);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-
-  async function execute() {
-    const currentMnemonic = setupWalletProfileValues(network).mnemonic2;
-    if (!currentMnemonic.trim()) {
-      setOutput('Enter Wallet 2 Mnemonic on Setup Input first.\nSuccess: false');
-      return;
-    }
-    const startedAt = begin();
-    setRunning(true);
-    setOutput('');
-    try {
-      const identity = MnemonicIdentity.fromMnemonic(currentMnemonic, { isMainnet: false });
-      const wallet = await Wallet.create({ identity, arkServerUrl: NETWORKS[network].operator, settlementConfig: false, storage: sandboxWalletStorage(network, identity) });
-      const balance = await wallet.getBalance();
-      const address = await wallet.getAddress();
-      const vtxos = await wallet.getVtxos();
-      setOutput([
-        `Address: ${address}`,
-        `Available: ${balance.available} sats`,
-        `Total: ${balance.total} sats`,
-        `VTXOs: ${vtxos.length}`,
-        `Success: ${Boolean(balance && address && Array.isArray(vtxos))}`,
-      ].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: firstArkTransaction(vtxos) } });
-      await wallet.dispose?.();
-    } catch (error) {
-      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
-    } finally {
-      finish(startedAt);
-      setRunning(false);
-    }
-  }
+  const walletProfile = demoGetWalletProfile(network);
+  const { output, elapsedMs, running, execute } = useExecutableDemo('private-balance-source', network);
 
   return <>
     <LoadingPrompt open={running} bodyText="Get balance for Wallet 2" />
@@ -1211,8 +692,8 @@ function DemoGetBalancePrivate({ network }) {
       <div className="prototype-title-bar"><h2>Demo</h2><SourceFileButton sourceId="private-balance-source" /></div>
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="private-balance-source">Source code</label>
-        <SourceCodeField id="private-balance-source" source={PRIVATE_BALANCE_SOURCE} />
-        <DemoActionButton onClick={execute} disabled={running} />
+        <SourceCodeField id="private-balance-source" source={demoDefinition('private-balance-source').source} />
+        <DemoActionButton onClick={() => execute()} disabled={running} />
       </div>
     </section>
     <OutputSection title="Private wallet - Get Balance" output={output} elapsedMs={elapsedMs} />
@@ -1220,39 +701,8 @@ function DemoGetBalancePrivate({ network }) {
 }
 
 function DemoGetBalancePublic({ network }) {
-  const walletProfile = setupWalletProfileValues(network);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-
-  async function execute() {
-    const startedAt = begin();
-    const currentAddress = setupWalletProfileValues(network).address1;
-    setRunning(true);
-    setOutput('');
-    try {
-      const allResponse = await fetch(getBaseURL(network, currentAddress));
-      const availableResponse = await fetch(`${getBaseURL(network, currentAddress)}&spendableOnly=true`);
-      const allResult = await allResponse.json();
-      const availableResult = await availableResponse.json();
-      if (!allResponse.ok || !availableResponse.ok) throw new Error(allResult.message || availableResult.message || 'The balance request failed.');
-      const allVtxos = allResult.vtxos ?? [];
-      const availableVtxos = availableResult.vtxos ?? [];
-      const totalSats = allVtxos.reduce((total, vtxo) => total + Number(vtxo.amount ?? 0), 0);
-      const availableSats = availableVtxos.reduce((total, vtxo) => total + Number(vtxo.amount ?? 0), 0);
-      setOutput([
-        `Address: ${currentAddress}`,
-        `Available: ${availableSats} sats`,
-        `Total: ${totalSats} sats`,
-        `VTXOs: ${availableVtxos.length}`,
-        `Success: ${allResponse.ok && availableResponse.ok}`,
-      ].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: firstArkTransaction(allVtxos) } });
-    } catch (error) {
-      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
-    } finally {
-      finish(startedAt);
-      setRunning(false);
-    }
-  }
+  const walletProfile = demoGetWalletProfile(network);
+  const { output, elapsedMs, running, execute } = useExecutableDemo('balance-source', network);
 
   return <>
     <LoadingPrompt open={running} bodyText="Get balance for public address" />
@@ -1268,100 +718,27 @@ function DemoGetBalancePublic({ network }) {
       <div className="prototype-title-bar"><h2>Demo</h2><SourceFileButton sourceId="balance-source" /></div>
       <div className="sandbox-demo-body">
         <label className="sandbox-code-label" htmlFor="balance-source">Source code</label>
-        <SourceCodeField id="balance-source" source={BALANCE_SOURCE} />
-        <DemoActionButton onClick={execute} disabled={running} />
+        <SourceCodeField id="balance-source" source={demoDefinition('balance-source').source} />
+        <DemoActionButton onClick={() => execute()} disabled={running} />
       </div>
     </section>
     <OutputSection title="Public address - Get Balance" output={output} elapsedMs={elapsedMs} />
   </>;
 }
 
-async function createDemoWallet(network, { isolated = false, signerOnly = false, freshContracts = false } = {}) {
-  const wallet2Mnemonic = setupWalletProfileValues(network).mnemonic2;
-  if (!wallet2Mnemonic.trim()) throw new Error('Enter Wallet 2 Mnemonic on Setup Input first.');
-  const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false });
-  const storage = isolated
-    ? { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() }
-    : sandboxWalletStorage(network, identity, freshContracts);
-  const wallet = await Wallet.create({
-    identity,
-    arkServerUrl: NETWORKS[network].operator,
-    walletMode: signerOnly ? 'static' : 'hd',
-    lookAheadWindow: 20,
-    settlementConfig: false,
-    storage,
-  });
-  // Contract Claim/Recover uses only the creator signature. It must not spend
-  // the two-minute window discovering unrelated HD addresses and balances.
-  if (signerOnly) return wallet;
-  const contractManager = await wallet.getContractManager();
-  await contractManager.refreshVtxos();
-  await wallet.getVtxos();
-  return wallet;
-}
-
-async function getWallet2BitcoinAddress(network) {
-  const wallet2Mnemonic = setupWalletProfileValues(network).mnemonic2;
-  if (!wallet2Mnemonic.trim()) throw new Error('Enter Wallet 2 Mnemonic on Setup Input first.');
-  const identity = MnemonicIdentity.fromMnemonic(wallet2Mnemonic, { isMainnet: false });
-  const onchainWallet = await OnchainWallet.create(identity, network);
-  return onchainWallet.address;
-}
-
-async function withFreshDemoWallet(network, operation, options) {
-  let lastError;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const wallet = await createDemoWallet(network, options);
-    try {
-      return await operation(wallet);
-    } catch (error) {
-      lastError = error;
-      if (!String(error?.message || error).includes('VTXO_NOT_FOUND') || attempt === 1) throw error;
-    } finally {
-      try { await wallet.dispose?.(); } catch { /* keep the next attempt available */ }
-    }
-    await new Promise(resolve => window.setTimeout(resolve, 250));
-  }
-  throw lastError;
-}
-
-function getMintedAssetId(network, assetLabel) {
-  return assetLabel === 'all' ? 'all' : window.localStorage.getItem(mintedAssetStorageKey(network, assetLabel)) || '';
-}
-
 function DemoOnboardBitcoin({ network }) {
-  const values = setupWalletProfileValues(network);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
+  const values = demoGetWalletProfile(network);
+  const { output, elapsedMs, running, execute } = useExecutableDemo('onboard-bitcoin-source', network);
 
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    let wallet;
-    let boardingAddress = '';
-    try {
-      wallet = await createDemoWallet(network, { isolated: true });
-      boardingAddress = await wallet.getBoardingAddress();
-      const txid = await new Ramps(wallet).onboard();
-      setOutput([`Boarding Address: ${boardingAddress}`, `Onboarding Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'bitcoin-transaction', identifier: txid } });
-    } catch (error) {
-      setOutput([...(boardingAddress ? [`Boarding Address: ${boardingAddress}`, 'Next: fund this address with testnet BTC, then retry.'] : []), `Error: ${error.message}`, 'Success: false'].join('\n'), { explorer: boardingAddress ? { network, kind: 'bitcoin-address', identifier: boardingAddress } : undefined });
-    } finally {
-      try { await wallet?.dispose?.(); } catch { /* keep the demo result visible */ }
-      finish(startedAt); setRunning(false);
-    }
-  }
-
-  return <OperationDemo demoTitle="Onboard Bitcoin" intro="Demonstrates moving Bitcoin into Arkade." diagram={DIAGRAMS.onboard} loadingText="Onboard Bitcoin" docsHref={DOCS_URLS.ramps} docsTopic="Ramps: onboarding Bitcoin" sourceId="onboard-bitcoin-source" source={ONBOARD_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Onboard Bitcoin" intro="Demonstrates moving Bitcoin into Arkade." diagram={DIAGRAMS.onboard} loadingText="Onboard Bitcoin" docsHref={DOCS_URLS.ramps} docsTopic="Ramps: onboarding Bitcoin" sourceId="onboard-bitcoin-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="onboard-bitcoin-mnemonic">Wallet 2 Mnemonic</label>
     <input id="onboard-bitcoin-mnemonic" value={maskMnemonic(values.mnemonic2)} readOnly />
   </>} />;
 }
 
 function DemoOffboardBitcoin({ network }) {
-  const values = setupWalletProfileValues(network);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
+  const values = demoGetWalletProfile(network);
+  const { output, elapsedMs, running, execute } = useExecutableDemo('offboard-bitcoin-source', network);
   const [destination, setDestination] = useState('');
 
   useEffect(() => {
@@ -1374,25 +751,7 @@ function DemoOffboardBitcoin({ network }) {
     return () => { active = false; };
   }, [network, values.mnemonic2]);
 
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    let wallet;
-    try {
-      wallet = await createDemoWallet(network, { isolated: true });
-      const destinationAddress = await getWallet2BitcoinAddress(network);
-      const { fees } = await wallet.arkProvider.getInfo();
-      const txid = await new Ramps(wallet).offboard(destinationAddress, fees);
-      setOutput([`Bitcoin Destination: ${destinationAddress}`, `Offboarding Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'bitcoin-transaction', identifier: txid } });
-    } catch (error) {
-      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
-    } finally {
-      try { await wallet?.dispose?.(); } catch { /* keep the demo result visible */ }
-      finish(startedAt); setRunning(false);
-    }
-  }
-
-  return <OperationDemo demoTitle="Offboard Bitcoin" intro="Demonstrates moving Bitcoin from Arkade back on-chain." diagram={DIAGRAMS.offboard} loadingText="Offboard Bitcoin" docsHref={DOCS_URLS.ramps} docsTopic="Ramps: offboarding Bitcoin" sourceId="offboard-bitcoin-source" source={OFFBOARD_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  return <OperationDemo demoTitle="Offboard Bitcoin" intro="Demonstrates moving Bitcoin from Arkade back on-chain." diagram={DIAGRAMS.offboard} loadingText="Offboard Bitcoin" docsHref={DOCS_URLS.ramps} docsTopic="Ramps: offboarding Bitcoin" sourceId="offboard-bitcoin-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="offboard-bitcoin-mnemonic">Wallet 2 Mnemonic</label>
     <input id="offboard-bitcoin-mnemonic" value={maskMnemonic(values.mnemonic2)} readOnly />
     <label htmlFor="offboard-bitcoin-destination">Bitcoin Destination</label>
@@ -1401,34 +760,15 @@ function DemoOffboardBitcoin({ network }) {
 }
 
 function DemoSendPayment({ network }) {
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    let wallet;
-    try {
-      wallet = await createDemoWallet(network);
-      const address1 = setupWalletProfileValues(network).address1;
-      const txid = await wallet.send({ address: address1, amount: 100 });
-      setOutput([`Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: txid } });
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-    try { await wallet?.dispose?.(); } catch { /* keep the demo result visible */ }
-  }
-  return <OperationDemo demoTitle="Send Payment" intro="Demonstrates sending a payment to an Arkade address." diagram={DIAGRAMS.sendPayment} loadingText="Send payment" docsHref={DOCS_URLS.sendPayment} docsTopic="Sending payments" sourceId="send-payment-source" source={SEND_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('send-payment-source', network);
+  return <OperationDemo demoTitle="Send Payment" intro="Demonstrates sending a payment to an Arkade address." diagram={DIAGRAMS.sendPayment} loadingText="Send payment" docsHref={DOCS_URLS.sendPayment} docsTopic="Sending payments" sourceId="send-payment-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="send-payment-mnemonic">Wallet 2 Mnemonic</label>
-    <input id="send-payment-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <input id="send-payment-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
     <label htmlFor="send-payment-address">Wallet 1 Address</label>
-    <input id="send-payment-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <input id="send-payment-address" value={demoGetWalletProfile(network).address1} readOnly />
     <label htmlFor="send-payment-amount">Amount</label>
     <input id="send-payment-amount" value="100 sats" readOnly />
   </>} />;
-}
-
-function vaultErrorMessage(error) {
-  const message = error instanceof Error ? error.message : '';
-  if (/^vault-[a-z-]+$/.test(message) || /^VaultID [0-9]{4} (?:is already taken\.|does not exist\.|has no verified active output\.)/.test(message) || message === 'Wallet2Mnemonic is required.') return message;
-  return 'vault-network-operation-unavailable';
 }
 
 function DemoConditionalVault({ network, action }) {
@@ -1440,9 +780,10 @@ function DemoConditionalVault({ network, action }) {
   const [creatorPublicKey, setCreatorPublicKey] = useState('');
   const [compiledSource, setCompiledSource] = useState('// The compiled artifact will be available here after "Execute"');
   useEffect(() => {
+    if (action !== 'create') return;
     let active = true;
     setCompiledSource('// The compiled artifact will be available here after "Execute"');
-    if (action === 'create') void readStoredConditionalVault(network, vaultId).then(descriptor => {
+    void demoReadConditionalVaultDescriptor(network, vaultId).then(descriptor => {
       if (active && descriptor) setCompiledSource(conditionalVaultArtifact(descriptor));
     }).catch(() => { /* Execute reports invalid stored data without exposing it in the page. */ });
     return () => { active = false; };
@@ -1453,49 +794,13 @@ function DemoConditionalVault({ network, action }) {
     setRunning(true); setElapsedMs(0);
     setOutput([`Network: ${network}`, `Vault ID: ${vaultIdSelection}`, 'Status: running', 'Waiting for network verification.'].join('\n'));
     try {
-      const values = setupWalletProfileValues(network);
-      let next = action === 'create' && !recover ? null : await readStoredConditionalVault(network, vaultId);
-      let result;
-      if (action === 'create' && !recover) {
-        if (!values.mnemonic2) throw new Error('Wallet2Mnemonic is required.');
-        const wallet = await createDemoWallet(network, { isolated: true });
-        try {
-          const created = await createConditionalVault(network, wallet, vaultId);
-          result = created;
-          next = created.inspection?.descriptor;
-        } finally { try { await wallet.dispose?.(); } catch { /* Preserve the original financial result. */ } }
-      } else if (action === 'increment' && recover !== true) {
-        if (!next) throw new Error(`VaultID ${vaultIdSelection} does not exist. Create it first in this browser.`);
-        result = await incrementConditionalVault(network, next);
-      } else if (action === 'claim' || recover === true) {
-        if (!values.mnemonic2) throw new Error('Wallet2Mnemonic is required.');
-        if (!next) throw new Error(`VaultID ${vaultIdSelection} does not exist.`);
-        const wallet = await createDemoWallet(network, { isolated: true, signerOnly: true });
-        try {
-          result = await claimConditionalVault(network, wallet, next, recover === true);
-        } finally { try { await wallet.dispose?.(); } catch { /* Preserve the original financial result. */ } }
-      } else {
-        if (!next) throw new Error(`VaultID ${vaultIdSelection} does not exist. Create it first in this browser.`);
-        result = { inspection: await checkConditionalVault(network, next) };
-      }
-      const inspected = result.inspection;
-      if (inspected) {
-        next = inspected.descriptor;
-        setCompiledSource(conditionalVaultArtifact(next));
-      }
-      const success = action === 'check' && !recover ? Boolean(inspected && ['locked','claimable','claimed','recovered','expired'].includes(inspected.status)) : result.outcome === 'verified' || result.outcome === 'already-resolved';
-      setOutput([`Network: ${network}`, `Vault ID: ${next?.id ?? vaultIdSelection}`, 'Amount: 1000 sats', 'Transaction fee: 0 sats', ...(result.outcome ? [`Outcome: ${result.outcome}`] : []),
-        ...(inspected ? [`Progress: ${inspected.progress ?? 'unknown'} / 3`, `Status: ${inspected.status}`, `Time left: ${Math.max(0, next.deadline - Math.floor(Date.now()/1000))} seconds`, `Deadline: ${new Date(next.deadline*1000).toISOString()}`, `Funding Transaction ID: ${next.funding.transactionId}`, ...inspected.evidence.map(e => `Verified Transaction ID: ${e.transactionId}`)] : []),
-        ...(result.reason ? [`Reason: ${result.reason}`] : []), `Success: ${success}`].join('\n'), {
-          explorer: inspected && ['locked', 'claimable', 'expired', 'claimed', 'recovered', 'pending'].includes(inspected.status) ? { network, kind: 'ark-transaction', identifier: inspected.evidence.at(-1)?.transactionId ?? next.funding.transactionId } : undefined,
-          recoverable: inspected?.status === 'expired' && Boolean(inspected.activeOutput),
-          vaultId: vaultIdSelection,
-          creatorPublicKey: inspected?.descriptor.creatorPublicKey,
-        });
+      const result = await demoDefinition(`conditional-vault-${action}-source`).run({ network, recover });
+      if (action === 'create' && result.compiledSource) setCompiledSource(result.compiledSource);
+      setOutput(result.output, result.details);
     } catch (error) { setOutput([`Error: ${vaultErrorMessage(error)}`, 'Success: false'].join('\n')); }
     finally { setElapsedMs(Math.round(performance.now() - startedAt)); setRunning(false); }
   }
-  const values = setupWalletProfileValues(network);
+  const values = demoGetWalletProfile(network);
   useEffect(() => {
     let active = true;
     setCreatorPublicKey('');
@@ -1516,10 +821,9 @@ function DemoConditionalVault({ network, action }) {
     claim: { intro: 'Demonstrates claiming funds from a completed conditional vault.', diagram: DIAGRAMS.vaultClaim },
     check: { intro: 'Demonstrates checking the verified state of a conditional vault.', diagram: DIAGRAMS.vaultCheck },
   }[action];
-  return <><OperationDemo demoTitle={titles[action]} intro={vaultOverview.intro} diagram={vaultOverview.diagram} loadingText={titles[action]} docsHref={DOCS_URLS.contracts} docsTopic="Arkade smart contracts" sourceId={`conditional-vault-${action}-source`} source={conditionalVaultDemoSource(action)} contractSource={action === 'create' ? contractSource : undefined} compiledSource={action === 'create' ? compiledSource : undefined} output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} onRecover={() => execute(true)} recoverDisabled={running || !details.recoverable || details.vaultId !== vaultIdSelection || !creatorPublicKey || creatorPublicKey !== details.creatorPublicKey} input={<>
+  return <><OperationDemo demoTitle={titles[action]} intro={vaultOverview.intro} diagram={vaultOverview.diagram} loadingText={titles[action]} docsHref={DOCS_URLS.contracts} docsTopic="Arkade smart contracts" sourceId={`conditional-vault-${action}-source`}  contractSource={action === 'create' ? contractSource : undefined} compiledSource={action === 'create' ? compiledSource : undefined} output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} onRecover={() => execute(true)} recoverDisabled={running || !details.recoverable || details.vaultId !== vaultIdSelection || !creatorPublicKey || creatorPublicKey !== details.creatorPublicKey} input={<>
     <AssetSelector network={network} value={vaultIdSelection} onChange={setVaultIdSelection} label="Vault ID" storageKey="vault-id" />
     {(action === 'create' || action === 'claim') && <><label htmlFor={`conditional-vault-mnemonic-${action}`}>Wallet 2 Mnemonic</label><input id={`conditional-vault-mnemonic-${action}`} value={maskMnemonic(values.mnemonic2)} readOnly /></>}
-    {action === 'check' && <><label htmlFor={`conditional-vault-address-${action}`}>Wallet 1 Public Address (reader only)</label><input id={`conditional-vault-address-${action}`} value={values.address1} readOnly /></>}
     <label htmlFor={`conditional-vault-amount-${action}`}>Vault Amount</label><input id={`conditional-vault-amount-${action}`} value="1000 sats" readOnly />
     <label htmlFor={`conditional-vault-target-${action}`}>Target Progress</label><input id={`conditional-vault-target-${action}`} value="3" readOnly />
   </>} />
@@ -1590,17 +894,8 @@ function DemoExternalWalletPayment({ network }) {
     setRunning(true);
     setOutput('');
     try {
-      const address = setupWalletProfileValues(network).address1;
-      const provider = new RestArkProvider(NETWORKS[network].operator);
-      const info = await provider.getInfo();
-      validateArkadeAddress(address, info, network);
-      const link = walletPaymentUrl({ network, address, amountSats: amount, callback: walletCallbackUrl(window.location.href) });
-      const popup = window.open(link, '_blank', 'popup,width=480,height=840,resizable=yes,scrollbars=yes');
-      if (!popup) {
-        window.location.assign(link);
-        return;
-      }
-    } catch (error) {
+      await demoDefinition('external-wallet-payment-source').run({ network, amount });
+  } catch (error) {
       setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
       finish(startedAt);
       startedAtRef.current = null;
@@ -1608,9 +903,9 @@ function DemoExternalWalletPayment({ network }) {
     }
   }
 
-  return <OperationDemo demoTitle="Send Payment from External Wallet" intro="Demonstrates sending a payment through an external wallet." diagram={DIAGRAMS.externalSend} loadingText="Get payment recipient" loadingBody={['EXTERNAL WALLET - Send Payment', '(See Wallet In External Window)']} docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" docsDescription="External Wallet?" docsSubheading="Pros/cons" docsDetails={<div className="sandbox-docs-details"><p>An external wallet is a separate Arkade wallet app that approves or receives the payment through a wallet link.</p><ul><li><strong>Pros:</strong> wallet keys stay outside the prototype.</li><li><strong>Cons:</strong> the popup must be available and the user must approve the handoff.</li></ul><blockquote><p>Everything shown in this prototype sandbox can be done with either an external wallet or an internal wallet.</p></blockquote></div>} sourceId="external-wallet-payment-source" source={EXTERNAL_WALLET_PAYMENT_SOURCE} output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Send Payment from External Wallet" input={<>
+  return <OperationDemo demoTitle="Send Payment from External Wallet" intro="Demonstrates sending a payment through an external wallet." diagram={DIAGRAMS.externalSend} loadingText="Get payment recipient" loadingBody={['EXTERNAL WALLET - Send Payment', '(See Wallet In External Window)']} docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" docsDescription="External Wallet?" docsSubheading="Pros/cons" docsDetails={<div className="sandbox-docs-details"><p>An external wallet is a separate Arkade wallet app that approves or receives the payment through a wallet link.</p><ul><li><strong>Pros:</strong> wallet keys stay outside the prototype.</li><li><strong>Cons:</strong> the popup must be available and the user must approve the handoff.</li></ul><blockquote><p>Everything shown in this prototype sandbox can be done with either an external wallet or an internal wallet.</p></blockquote></div>} sourceId="external-wallet-payment-source" output={output || callbackResult} elapsedMs={elapsedMs} running={running} onExecute={openWallet} actionLabel="Send Payment from External Wallet" input={<>
     <label htmlFor="external-wallet-address">Recipient: Wallet 1 Address</label>
-    <input id="external-wallet-address" value={setupWalletProfileValues(network).address1} readOnly spellCheck="false" />
+    <input id="external-wallet-address" value={demoGetWalletProfile(network).address1} readOnly spellCheck="false" />
     <label htmlFor="external-wallet-amount">Amount in sats</label>
     <input id="external-wallet-amount" value={amount} onChange={event => setAmount(event.target.value)} inputMode="numeric" spellCheck="false" autoComplete="off" />
   </>} />;
@@ -1634,12 +929,9 @@ function DemoExternalWalletReceivePayment({ network }) {
     setRunning(true);
     setOutput('');
     try {
-      const provider = new RestArkProvider(NETWORKS[network].operator);
-      const info = await provider.getInfo();
-      validateArkadeAddress(address, info, network);
-      const txid = await withFreshDemoWallet(network, wallet => wallet.send({ address, amount: 100 }));
-      setOutput([`External wallet address: ${address}`, `Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: txid } });
-    } catch (error) {
+      const result = await demoDefinition('external-wallet-receive-source').run({ network, externalAddress: address });
+      setOutput(result.output, result.details);
+  } catch (error) {
       setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
     } finally {
       finish(startedAt);
@@ -1680,292 +972,121 @@ function DemoExternalWalletReceivePayment({ network }) {
     return () => window.removeEventListener('message', receiveResult);
   }, [network]);
 
-  function receivePayment() {
+  async function receivePayment() {
     const startedAt = begin();
     waitingForWalletRef.current = startedAt;
     setRunning(true);
     setOutput('');
     try {
-      const link = walletConnectUrl({ network, callback: walletCallbackUrl(window.location.href) });
-      const popup = window.open(link, '_blank', 'popup,width=480,height=840,resizable=yes,scrollbars=yes');
-      if (!popup) {
-        window.location.assign(link);
-        return;
-      }
-    } catch (error) {
+      await demoDefinition('external-wallet-receive-source').run({ network });
+  } catch (error) {
       setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
       finish(startedAt);
       setRunning(false);
     }
   }
 
-  return <OperationDemo demoTitle="Receive Payment to External Wallet" intro="Demonstrates receiving a payment through an external wallet." diagram={DIAGRAMS.externalReceive} loadingText="Get external wallet address" loadingBody={['EXTERNAL WALLET - Send Payment', '(See Wallet In External Window)']} docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" docsDescription="External Wallet?" docsSubheading="Pros/cons" docsDetails={<div className="sandbox-docs-details"><p>An external wallet is a separate Arkade wallet app that approves or receives the payment through a wallet link.</p><ul><li><strong>Pros:</strong> wallet keys stay outside the prototype.</li><li><strong>Cons:</strong> the popup must be available and the user must approve the handoff.</li></ul><blockquote><p>Everything shown in this prototype sandbox can be done with either an external wallet or an internal wallet.</p></blockquote></div>} sourceId="external-wallet-receive-source" source={EXTERNAL_WALLET_RECEIVE_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={receivePayment} actionLabel="Receive Payment to External Wallet" input={<>
+  return <OperationDemo demoTitle="Receive Payment to External Wallet" intro="Demonstrates receiving a payment through an external wallet." diagram={DIAGRAMS.externalReceive} loadingText="Get external wallet address" loadingBody={['EXTERNAL WALLET - Send Payment', '(See Wallet In External Window)']} docsHref={DOCS_URLS.externalWallet} docsTopic="Arkade Wallet app links" docsDescription="External Wallet?" docsSubheading="Pros/cons" docsDetails={<div className="sandbox-docs-details"><p>An external wallet is a separate Arkade wallet app that approves or receives the payment through a wallet link.</p><ul><li><strong>Pros:</strong> wallet keys stay outside the prototype.</li><li><strong>Cons:</strong> the popup must be available and the user must approve the handoff.</li></ul><blockquote><p>Everything shown in this prototype sandbox can be done with either an external wallet or an internal wallet.</p></blockquote></div>} sourceId="external-wallet-receive-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={receivePayment} actionLabel="Receive Payment to External Wallet" input={<>
     <label htmlFor="external-wallet-receive-address">External Wallet Address</label>
     <input id="external-wallet-receive-address" value={externalAddress} readOnly placeholder="Choose an external wallet" spellCheck="false" />
     <label htmlFor="external-wallet-receive-mnemonic">Wallet 2 Mnemonic</label>
-    <input id="external-wallet-receive-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <input id="external-wallet-receive-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
     <label htmlFor="external-wallet-receive-amount">Amount</label>
     <input id="external-wallet-receive-amount" value="100 sats" readOnly />
   </>} />;
 }
 
 function DemoReceivePayment({ network }) {
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    try {
-      const address1 = setupWalletProfileValues(network).address1;
-      const response = await fetch(`${getBaseURL(network, address1)}&spendableOnly=true`);
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'The receive request failed.');
-      const vtxos = result.vtxos ?? [];
-      if (vtxos.length === 0) throw new Error('Use Send Payment demo first.');
-      const total = vtxos.reduce((sum, vtxo) => sum + Number(vtxo.amount ?? 0), 0);
-      setOutput([`Address: ${address1}`, `Total: ${total} sats`, `VTXOs: ${vtxos.length}`, `Success: ${response.ok}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: firstArkTransaction(vtxos) } });
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-  }
-  return <OperationDemo demoTitle="Receive Payment" intro="Demonstrates checking for a payment sent to an Arkade address." diagram={DIAGRAMS.receivePayment} loadingText="Get payment address" docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments" sourceId="receive-payment-source" source={RECEIVE_PAYMENT_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('receive-payment-source', network);
+  return <OperationDemo demoTitle="Receive Payment" intro="Demonstrates checking for a payment sent to an Arkade address." diagram={DIAGRAMS.receivePayment} loadingText="Get payment address" docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments" sourceId="receive-payment-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="receive-payment-address">Wallet 1 Address</label>
-    <input id="receive-payment-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <input id="receive-payment-address" value={demoGetWalletProfile(network).address1} readOnly />
   </>} />;
 }
 
-function numberedPreviews(items, getValue, label = 'Activity') {
-  return items.map((item, index) => `${label} ${index + 1}: ${getValue(item)}`);
-}
-
 function DemoPaymentHistory({ network }) {
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    try {
-      const wallet = await createDemoWallet(network);
-      const activities = await wallet.getActivityHistory();
-      setOutput([
-        `Activities: ${activities.length}`,
-        ...numberedPreviews(activities, activity => activity.type ?? activity.amount ?? activity.key?.arkTxid ?? 'Activity'),
-        `Success: ${Array.isArray(activities)}`,
-      ].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: firstArkTransaction(activities) } });
-      await wallet.dispose?.();
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-  }
-  return <OperationDemo demoTitle="Payment History" intro="Demonstrates reviewing a wallet’s payment history." diagram={DIAGRAMS.paymentHistory} loadingText="Get payment history" docsHref={DOCS_URLS.paymentHistory} docsTopic="Payment history" sourceId="payment-history-source" source={PAYMENT_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('payment-history-source', network);
+  return <OperationDemo demoTitle="Payment History" intro="Demonstrates reviewing a wallet’s payment history." diagram={DIAGRAMS.paymentHistory} loadingText="Get payment history" docsHref={DOCS_URLS.paymentHistory} docsTopic="Payment history" sourceId="payment-history-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="payment-history-mnemonic">Wallet 2 Mnemonic</label>
-    <input id="payment-history-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <input id="payment-history-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
   </>} />;
 }
 
 function DemoMintAsset({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    try {
-      const result = await withFreshDemoWallet(network, wallet => wallet.assetManager.issue({ amount: 1n, metadata: { ticker: assetId, name: LEVEL_ONE_TITLE, title: LEVEL_ONE_TITLE, level: '1', icon: LEVEL_ONE_ICON, upgradeable: 'true', upgradePath: 'sword', nextLevel: '2' } }), { freshContracts: true });
-      window.localStorage.setItem(mintedAssetStorageKey(network, assetId), result.assetId);
-      window.localStorage.setItem(`${mintedAssetStorageKey(network, assetId)}-level`, '1');
-      setOutput([`Asset label: ${assetId}`, `Asset ID: ${result.assetId}`, `Display title: ${LEVEL_ONE_TITLE}`, 'Metadata level: 1', `Icon: ${LEVEL_ONE_ICON}`, `Success: ${Boolean(result.assetId)}`].join('\n'), { explorer: { network, kind: 'asset', identifier: result.assetId } });
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-  }
-  return <OperationDemo demoTitle="Mint Asset" intro="Demonstrates creating a new Arkade asset." diagram={DIAGRAMS.mintAsset} loadingText="Mint asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Arkade supports issuing assets with or without a control asset. This demo showcases issuing without a control asset, so the asset has a fixed supply and cannot be reissued later.</p></div>} sourceId="mint-asset-source" source={MINT_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('mint-asset-source', network);
+  return <OperationDemo demoTitle="Mint Asset" intro="Demonstrates creating a new Arkade asset." diagram={DIAGRAMS.mintAsset} loadingText="Mint asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Arkade supports issuing assets with or without a control asset. This demo showcases issuing without a control asset, so the asset has a fixed supply and cannot be reissued later.</p></div>} sourceId="mint-asset-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="mint-asset-mnemonic">Wallet 2 Mnemonic</label>
-    <input id="mint-asset-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <input id="mint-asset-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} />
   </>} />;
 }
 
 function DemoSendAsset({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network);
-  const [paymentSats, setPaymentSats] = useState(() => optionalAssetPayment(localStorageGetItem('asset-payment-sats')));
-  useEffect(() => { setPaymentSats(optionalAssetPayment(localStorageGetItem('asset-payment-sats'))); }, [network]);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    try {
-      const wallet = await createDemoWallet(network);
-      const address1 = setupWalletProfileValues(network).address1;
-      const actualAssetId = getMintedAssetId(network, assetId);
-      if (!actualAssetId) throw new Error('Use Mint Asset demo first.');
-      const carrierSats = Number(wallet.dustAmount);
-      const amount = assetTransferSats(wallet.dustAmount, paymentSats);
-      const txid = await wallet.send({ address: address1, amount, assets: [{ assetId: actualAssetId, amount: 1n }] });
-      setOutput([`Transaction ID: ${txid}`, `Asset units: 1`, `Required carrier: ${carrierSats} sats`, `Optional payment: ${paymentSats} sats`, `Total sent: ${amount} sats and 1 asset unit`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: txid } });
-      await wallet.dispose?.();
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-  }
-  return <OperationDemo demoTitle="Send Asset" intro="Demonstrates sending an Arkade asset to an address." diagram={DIAGRAMS.sendAsset} loadingText="Send asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" source={SEND_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const [paymentSats, setPaymentSats] = useState(() => optionalAssetPayment(demoGetInput(network, 'asset-payment-sats')));
+  useEffect(() => { setPaymentSats(optionalAssetPayment(demoGetInput(network, 'asset-payment-sats'))); }, [network]);
+  const { output, elapsedMs, running, execute } = useExecutableDemo('send-asset-source', network);
+  return <OperationDemo demoTitle="Send Asset" intro="Demonstrates sending an Arkade asset to an address." diagram={DIAGRAMS.sendAsset} loadingText="Send asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label className="sandbox-inline-input" htmlFor="send-asset-payment"><span>Optional Payment Sats:</span>
       <select id="send-asset-payment" aria-describedby="send-asset-payment-help" value={paymentSats} onChange={event => {
         const value = optionalAssetPayment(event.target.value);
-        window.localStorage.setItem(`${network}-asset-payment-sats`, String(value));
+        demoSetInput(network, 'asset-payment-sats', value);
         setPaymentSats(value);
       }}>{OPTIONAL_ASSET_PAYMENTS.map(value => <option key={value} value={value}>{value}</option>)}</select>
       <small id="send-asset-payment-help" className="sandbox-asset-payment-help">Extra payment only. The asset also carries the SDK minimum, currently 330 sats. These sats go to Wallet 1, not to fees.</small>
     </label>
     <label htmlFor="send-asset-mnemonic">Wallet 2 Mnemonic</label>
-    <input id="send-asset-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <input id="send-asset-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
     <label htmlFor="send-asset-address">Wallet 1 Address</label>
-    <input id="send-asset-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <input id="send-asset-address" value={demoGetWalletProfile(network).address1} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} />
   </>} />;
 }
 
 function DemoReceiveAsset({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network, true);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    try {
-      const address1 = setupWalletProfileValues(network).address1;
-      const response = await fetch(`${getBaseURL(network, address1)}&spendableOnly=true`);
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'The receive request failed.');
-      const vtxos = result.vtxos ?? [];
-      const actualAssetId = getMintedAssetId(network, assetId);
-      const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === actualAssetId);
-      if (matching.length === 0) throw new Error('Use Send Asset demo first.');
-      setOutput([`Address: ${address1}`, `Asset filter: ${assetId}`, `VTXOs: ${matching.length}`, `Success: ${response.ok}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: firstArkTransaction(matching) } });
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-  }
-  return <OperationDemo demoTitle="Receive Asset" intro="Demonstrates checking for assets received at an address." diagram={DIAGRAMS.receiveAsset} loadingText="Get asset balance" docsHref={DOCS_URLS.receiveAsset} docsTopic="Check asset balance" sourceId="receive-asset-source" source={RECEIVE_ASSET_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('receive-asset-source', network);
+  return <OperationDemo demoTitle="Receive Asset" intro="Demonstrates checking for assets received at an address." diagram={DIAGRAMS.receiveAsset} loadingText="Get asset balance" docsHref={DOCS_URLS.receiveAsset} docsTopic="Check asset balance" sourceId="receive-asset-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="receive-asset-address">Wallet 1 Address</label>
-    <input id="receive-asset-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <input id="receive-asset-address" value={demoGetWalletProfile(network).address1} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
   </>} />;
 }
 
 function DemoAssetHistory({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network, true);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    try {
-      const wallet = await createDemoWallet(network);
-      const activities = await wallet.getActivityHistory();
-      const actualAssetId = getMintedAssetId(network, assetId);
-      const matching = assetId === 'all' ? activities : activities.filter(activity => activity.assetId === actualAssetId);
-      setOutput([
-        `Asset filter: ${assetId}`,
-        `Activities: ${matching.length}`,
-        ...numberedPreviews(matching, activity => activity.type ?? activity.assetId ?? activity.amount ?? activity.key?.arkTxid ?? 'Activity'),
-        `Success: ${Array.isArray(activities)}`,
-      ].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: firstArkTransaction(matching) } });
-      await wallet.dispose?.();
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-  }
-  return <OperationDemo demoTitle="Asset History - Private Wallet" intro="Demonstrates reviewing asset activity for a wallet." diagram={DIAGRAMS.privateAssetHistory} loadingText="Get asset history for Wallet 2" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="asset-history-source" source={ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('asset-history-source', network);
+  return <OperationDemo demoTitle="Asset History - Private Wallet" intro="Demonstrates reviewing asset activity for a wallet." diagram={DIAGRAMS.privateAssetHistory} loadingText="Get asset history for Wallet 2" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="asset-history-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="asset-history-mnemonic">Wallet 2 Mnemonic</label>
-    <input id="asset-history-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <input id="asset-history-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
   </>} />;
 }
 
 function DemoAssetHistoryPublic({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network, true);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    try {
-      const address1 = setupWalletProfileValues(network).address1;
-      const response = await fetch(`${getBaseURL(network, address1)}&spendableOnly=true`);
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'The asset history request failed.');
-      const vtxos = result.vtxos ?? [];
-      const actualAssetId = getMintedAssetId(network, assetId);
-      const matching = assetId === 'all' ? vtxos : vtxos.filter(vtxo => vtxo.assetId === actualAssetId);
-      setOutput([
-        `Address: ${address1}`,
-        `Asset filter: ${assetId}`,
-        `VTXOs: ${matching.length}`,
-        ...numberedPreviews(matching, vtxo => vtxo.assetId ?? vtxo.amount ?? vtxo.txid ?? 'VTXO', 'VTXO'),
-        `Success: ${response.ok}`,
-      ].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: firstArkTransaction(matching) } });
-    } catch (error) { setOutput([`Error: ${error.message}`, 'Success: false'].join('\n')); } finally { finish(startedAt); setRunning(false); }
-  }
-  return <OperationDemo demoTitle="Asset History - Public Address" intro="Demonstrates reviewing asset activity for a public address." diagram={DIAGRAMS.publicAssetHistory} loadingText="Get asset history for public address" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="public-asset-history-source" source={PUBLIC_ASSET_HISTORY_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('public-asset-history-source', network);
+  return <OperationDemo demoTitle="Asset History - Public Address" intro="Demonstrates reviewing asset activity for a public address." diagram={DIAGRAMS.publicAssetHistory} loadingText="Get asset history for public address" docsHref={DOCS_URLS.assetHistory} docsTopic="Check asset balance" sourceId="public-asset-history-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="public-asset-history-address">Wallet 1 Address</label>
-    <input id="public-asset-history-address" value={setupWalletProfileValues(network).address1} readOnly />
+    <input id="public-asset-history-address" value={demoGetWalletProfile(network).address1} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} includeAll />
   </>} />;
 }
 
 function DemoUpgradeAsset({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network);
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const [running, setRunning] = useState(false);
-  async function execute() {
-    const startedAt = begin();
-    setRunning(true); setOutput('');
-    let wallet;
-    try {
-      const sourceAssetId = getMintedAssetId(network, assetId);
-      if (!sourceAssetId) throw new Error('Use Mint Asset demo first so this wallet owns the level-one source asset.');
-      const sourceLevel = window.localStorage.getItem(`${mintedAssetStorageKey(network, assetId)}-level`) || '1';
-      wallet = await createDemoWallet(network, { freshContracts: true });
-      const result = await executeAssetUpgrade({ wallet, request: createAssetUpgradeRequest(network, assetId, sourceAssetId, sourceLevel) });
-      const record = result.record;
-      setOutput([
-        `Source Asset ID: ${record.sourceAssetId}`,
-        `Source Display Title: ${record.sourceTitle ?? LEVEL_ONE_TITLE}`,
-        `Source Metadata Level: ${record.sourceLevel ?? '1'}`,
-        `Replacement Asset ID: ${record.replacementAssetId ?? 'unresolved'}`,
-        `Replacement Display Title: ${record.replacementTitle ?? LEVEL_TWO_TITLE}`,
-        `Replacement Metadata Level: ${record.replacementLevel ?? '2'}`,
-        `Phase: ${record.phase}`,
-        ...(record.issueTransactionId ? [`Issue Transaction ID: ${record.issueTransactionId}`] : []),
-        ...(record.burnTransactionId ? [`Burn Transaction ID: ${record.burnTransactionId}`] : []),
-        ...(result.message ? [`Recovery: ${result.message}`] : []),
-        `Success: ${result.status === 'complete'}`,
-      ].join('\n'), result.status === 'complete' && record.replacementAssetId ? {
-        explorers: [
-          { label: 'Open On Explorer (Previous Item)', target: { network, kind: 'asset', identifier: record.sourceAssetId } },
-          { label: 'Open On Explorer (Current Item)', target: { network, kind: 'asset', identifier: record.replacementAssetId } },
-        ],
-      } : record.burnTransactionId ? { explorer: { network, kind: 'ark-transaction', identifier: record.burnTransactionId } } : undefined);
-      if (result.status === 'complete' && record.replacementAssetId) {
-        window.localStorage.setItem(mintedAssetStorageKey(network, assetId), record.replacementAssetId);
-        window.localStorage.setItem(`${mintedAssetStorageKey(network, assetId)}-level`, record.replacementLevel ?? '2');
-      }
-    } catch (error) {
-      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
-    } finally {
-      try { await wallet?.dispose?.(); } catch { /* keep the demo result visible */ }
-      finish(startedAt); setRunning(false);
-    }
-  }
-  return <OperationDemo demoTitle="Upgrade Asset" intro="Demonstrates replacing an upgradeable sword with its next immutable level in the same mnemonic-backed wallet. This is an issue-verify-burn sequence, not native reissuance." diagram={DIAGRAMS.assetUpgrade} loadingText="Upgrade asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Upgrade reads the source sword metadata, issues the next level with its matching title, level, and icon, verifies that the replacement is owned, then burns the source. Level 1 upgrades to Level 2, and Level 2 upgrades to Level 3. Level 3 is terminal.</p></div>} sourceId="asset-upgrade-source" source={ASSET_UPGRADE_SOURCE} output={output} elapsedMs={elapsedMs} running={running} onExecute={execute} input={<>
+  const { output, elapsedMs, running, execute } = useExecutableDemo('asset-upgrade-source', network);
+  return <OperationDemo demoTitle="Upgrade Asset" intro="Demonstrates replacing an upgradeable sword with its next immutable level in the same mnemonic-backed wallet. This is an issue-verify-burn sequence, not native reissuance." diagram={DIAGRAMS.assetUpgrade} loadingText="Upgrade asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Upgrade reads the source sword metadata, issues the next level with its matching title, level, and icon, verifies that the replacement is owned, then burns the source. Level 1 upgrades to Level 2, and Level 2 upgrades to Level 3. Level 3 is terminal.</p></div>} sourceId="asset-upgrade-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="asset-upgrade-mnemonic">Wallet 2 Mnemonic</label>
-    <input id="asset-upgrade-mnemonic" value={maskMnemonic(setupWalletProfileValues(network).mnemonic2)} readOnly />
+    <input id="asset-upgrade-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} />
   </>} />;
 }
 
 function DemoEvents({ network }) {
-  const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
-  const address = setupWalletProfileValues(network).address1;
-  function execute() {
-    const start = begin();
-    try {
-      decodeArkadeAddress(address);
-      openEventsMonitor(network, address);
-      setOutput('Monitor window opened. Wait for its listening message, then use another demo.\nNo payment has been initiated.\nSuccess: true');
-    } catch (error) { setOutput(`Error: ${error.message}\nSuccess: false`); }
-    finally { finish(start); }
-  }
+  const { output, elapsedMs, running, execute } = useExecutableDemo('events-source', network);
+  const address = demoGetWalletProfile(network).address1;
   return <OperationDemo demoTitle="Events" intro="Demonstrates listening for Wallet 1 activity in a separate window while using other demos." diagram={DIAGRAMS.events}
     docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments and listening for activity"
     docsDetails={<div className="sandbox-docs-details"><p>Keep the popup open and wait for "I'm listening . . ." before trying these demos:</p><ul>
@@ -1973,7 +1094,7 @@ function DemoEvents({ network }) {
       <li><a href="../demo-8/">Send Asset</a>: sends an asset to Wallet 1. First use Mint Asset to create it in Wallet 2.</li>
       <li><a href="../demo-12/">Send Payment from External Wallet</a>: approves a payment to Wallet 1 in an external wallet.</li>
     </ul><p>Mint Asset alone affects Wallet 2. Receive and history demos only read existing data. This popup observes the captured public address and network without a mnemonic. Changing Setup does not retarget an open monitor; execute Events again.</p></div>}
-    sourceId="events-source" source={EVENTS_SOURCE} output={output} elapsedMs={elapsedMs} running={false} onExecute={execute} input={<>
+    sourceId="events-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
       <label htmlFor="events-address">Wallet 1 Address</label><input id="events-address" value={address} readOnly />
       <label htmlFor="events-network">Network</label><input id="events-network" value={NETWORKS[network].label} readOnly />
     </>} />;
@@ -2012,7 +1133,7 @@ export function App({ pathname = window.location.pathname }) {
     document.title = `BIS - Prototype Sandbox${activeTitle ? ` - ${activeTitle}` : ''}`;
   }, [activeTitle]);
   const [network, setNetwork] = useState(() => setupNetworkValue());
-  setupWalletProfileValues(network);
+  demoGetWalletProfile(network);
   function changeNetwork(nextNetwork) {
     if (nextNetwork === network) return;
     if (!window.confirm(`Switch to ${NETWORKS[nextNetwork].label}? Its separate wallet profile will be used.`)) return;

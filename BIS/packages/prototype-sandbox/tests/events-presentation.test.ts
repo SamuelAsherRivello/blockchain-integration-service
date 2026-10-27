@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EVENT_DISPLAY_MS, EVENT_PULSE, presentActivity } from '../src/client/events-presentation.ts';
-import { EVENTS_SOURCE } from '../src/client/events-demo-source.ts';
+import { readFileSync } from 'node:fs';
 import { monitorUrl } from '../src/client/events-popup.ts';
+
+const EVENTS_SOURCE = readFileSync(new URL('../src/client/demos/events.ts', import.meta.url), 'utf8');
 
 test('three seconds of pulses, five-second display, cancellation and reduced motion', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
@@ -21,6 +23,6 @@ test('popup URL captures only public configuration and source has ordered sectio
   const url = new URL(monitorUrl('signet', 'public', 'http://localhost:5174/prototype-sandbox/demo-21/'));
   assert.equal(url.pathname, '/prototype-sandbox/events-monitor/');
   assert.deepEqual([...url.searchParams], [['network', 'signet'], ['address', 'public']]);
-  assert.deepEqual(EVENTS_SOURCE.match(/^\/\/ (Arrange|Act|Assert)$/gm), ['// Arrange', '// Act', '// Assert']);
+  assert.deepEqual(EVENTS_SOURCE.match(/\/\/ (Arrange|Act|Assert)$/gm), ['// Arrange', '// Act', '// Assert']);
   assert.ok(!EVENTS_SOURCE.includes('mnemonic'));
 });

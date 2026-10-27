@@ -1,13 +1,10 @@
-import { SOURCE_FILES } from './source-links.ts';
+import { DEMO_FILES } from './demo-files.ts';
+import { demoSourceFile } from './source-links.ts';
 import './source-view.css';
 
-// An allowlist, not an arbitrary filesystem reader. Raw imports never execute the demo.
-const sources = {
-  [SOURCE_FILES.app]: () => import('./App.tsx?raw'),
-  [SOURCE_FILES.events]: () => import('./events-demo-source.ts?raw'),
-  [SOURCE_FILES.upgrade]: () => import('./asset-upgrade-demo-source.ts?raw'),
-  [SOURCE_FILES.vault]: () => import('./conditional-vault-demo-source.ts?raw'),
-};
+// Only raw imports. Reading a file never imports its executable module.
+const raw = import.meta.glob<string>('./demos/*.ts', { query: '?raw', import: 'default' });
+const sources = Object.fromEntries(DEMO_FILES.map(demo => [demoSourceFile(demo.id), raw['./demos/' + demo.file]]));
 const file = new URLSearchParams(location.search).get('file') ?? '';
 const content = document.getElementById('source-content')!;
 if (!import.meta.env.DEV || !Object.hasOwn(sources, file)) {
@@ -15,6 +12,6 @@ if (!import.meta.env.DEV || !Object.hasOwn(sources, file)) {
 } else {
   document.title = `Source: ${file.split('/').at(-1)}`;
   document.getElementById('source-title')!.textContent = file;
-  try { content.textContent = (await sources[file]()).default; }
+  try { content.textContent = await sources[file](); }
   catch { content.textContent = 'Could not load this source file. Check the Vite server and reload.'; }
 }
