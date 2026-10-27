@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository} from '@arkade-os/sdk';
 import {projectConfiguredAddresses} from '../../src/client/wallet-layer-arkade/address-projection.ts';
 import {createAppWalletSession} from '../../src/client/wallet-layer-arkade/app-wallet-session.ts';
+import {probeGameSigner,remoteReadonlyIdentity} from '../../src/client/wallet-layer-arkade/server-wallet.ts';
 
 // Public BIP39 vector only. Provider calls are mocked; no transactions exist.
 const phrase='abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -35,6 +37,25 @@ test('address-only consumers share the role slot and finish before ownership ini
   const [first,second]=await Promise.all([owner.addresses('player',account,signal()),owner.addresses('player',account,signal())]);
   assert.deepEqual(first,second);assert.equal(creations,1);assert.equal(fullReady,false);
   gate.resolve();await full;assert.deepEqual(await owner.addresses('player',account,signal()),first);
+  await owner.dispose();
+});
+
+test('server Game address remains available from the read-only projection after wallet initialization',async t=>{
+  t.mock.method(RestArkProvider.prototype,'getInfo',async()=>info());
+  const compressedPublicKey=`02${key}`;
+  const profileId=createHash('sha256').update(Buffer.from(compressedPublicKey,'hex')).digest('hex');
+  const endpoint='https://signer.fixture/api/bis/';
+  const identity={protocol:1,network:'signet',gameId:'stealth-and-steel',profileId,publicKey:compressedPublicKey,token:'fixture-token',capabilities:['sign','signMessage','signerSession']};
+  const probe=await probeGameSigner('signet',{endpoint,fetcher:async()=>new Response(JSON.stringify(identity),{status:200})});
+  assert.equal(probe.status,'connected');
+  if(probe.status!=='connected')throw Error('Fixture signer was not connected.');
+  const owner=createAppWalletSession({createWallet:async config=>{
+    await config.arkProvider.getInfo();
+    return {getAddress:async()=>{throw Error('Signing-backed address getter must not run.');},getBoardingAddress:async()=>{throw Error('Signing-backed address getter must not run.');},dispose:async()=>{}};
+  }});
+  await owner.read('game',probe.account,signal(),async()=>undefined);
+  const addresses=await owner.addresses('game',probe.account,signal());
+  assert.deepEqual(addresses,await projectConfiguredAddresses(remoteReadonlyIdentity(probe.account),info(),'signet'));
   await owner.dispose();
 });
 

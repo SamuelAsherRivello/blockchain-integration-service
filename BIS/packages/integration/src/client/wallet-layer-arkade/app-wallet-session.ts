@@ -104,7 +104,8 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       const loadInfo = async () => {
         try {
           const info = await getInfo(); requireNetwork(info.network, network);
-          void projectConfiguredAddresses(identity,info,network).then(resolveAddresses,rejectAddresses);
+          const addressIdentity='server' in account?await readonlyIdentity(account):identity;
+          void projectConfiguredAddresses(addressIdentity,info,network).then(resolveAddresses,rejectAddresses);
           return info;
         } catch(error) {rejectAddresses(error);throw error;}
       };
@@ -237,7 +238,10 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
         const [arkadeAddress,bitcoinAddress]=await Promise.all([wallet.getAddress(),wallet.getBoardingAddress()]);
         return Object.freeze({arkadeAddress,bitcoinAddress});
       };
-      const result=await (slot.wallet ? borrow(role,account,active,fromWallet) : detached(slot.addresses,active));
+      // Hosted identities expose public addresses from the read-only projection.
+      // Calling Wallet.getAddress() can initialize the server signer session
+      // even though rendering an address needs no signing capability.
+      const result=await ('server' in account||!slot.wallet ? detached(slot.addresses,active) : borrow(role,account,active,fromWallet));
       active.throwIfAborted();
       if(!current(role,slot)||!same(slot,account))throw Error('Wallet session retired.');
       return result;

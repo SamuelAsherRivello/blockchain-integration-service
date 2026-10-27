@@ -81,7 +81,8 @@ export function createTreasureSession({ context, offers, gameWallet, now = Date.
       if(session||!candidate||typeof candidate.id!=='string'||candidate.reference!==`treasure:${candidate.id}`||typeof candidate.expiresAt!=='number'||!Number.isSafeInteger(candidate.expiresAt)||typeof candidate.status!=='string')return false;
       const expiresAt = candidate.expiresAt;
       const restored: TreasureSession = {id:candidate.id,reference:candidate.reference,expiresAt,status:'unavailable',network:candidate.network,reason:typeof candidate.reason==='string'?candidate.reason:undefined,offered:candidate.offered===true,
-        playerId:typeof candidate.playerId==='string'?candidate.playerId:undefined,gameId:typeof candidate.gameId==='string'?candidate.gameId:undefined,contractId:typeof candidate.contractId==='string'?candidate.contractId:undefined};
+        playerId:typeof candidate.playerId==='string'?candidate.playerId:undefined,gameId:typeof candidate.gameId==='string'?candidate.gameId:undefined,contractId:typeof candidate.contractId==='string'?candidate.contractId:undefined,
+        validationMode:candidate.validationMode==='browser-policy-v1'||candidate.validationMode==='arkade-covenant-v2'?candidate.validationMode:undefined};
       restored.gameVersion=typeof candidate.gameVersion==='number'?candidate.gameVersion:gameWallet.getState().selectionVersion;
       session = restored;
       generation++;publish();return true;
@@ -99,7 +100,7 @@ export function createTreasureSession({ context, offers, gameWallet, now = Date.
         const current = generation, startedAt = now();
         const player = context.getState(), game = gameWallet.getState(), id = newId();
         const reason = readinessReason(player, game);
-        session = {id,reference:`treasure:${id}`,network:player.network,playerId:player.profileId,gameId:game.profileId,gameVersion:game.selectionVersion,expiresAt:(Math.floor(startedAt/1000)+90)*1000,offered:false,reason,
+        session = {id,reference:`treasure:${id}`,network:player.network,playerId:player.profileId,gameId:game.profileId,gameVersion:game.selectionVersion,expiresAt:(Math.floor(startedAt/1000)+90)*1000,offered:false,reason,validationMode:validationSolution,
           status:!player.profileId?'missing-player':reason?'no-offer':'preparing'};
         publish();
         if (session.status !== 'preparing') return;

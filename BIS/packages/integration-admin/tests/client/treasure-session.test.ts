@@ -109,6 +109,29 @@ test('host default leaves automatic selection to BIS instead of choosing a brows
   assert.equal(s.controller.getState().validationMode,'arkade-covenant-v2');
 });
 
+test('uncertain explicit creation preserves its mode through recovery without issuing a fallback offer',async()=>{
+  const s=setup();
+  s.offers.start=async request=>{s.calls.push(['start',request]);return {status:'pending'};};
+  await s.controller.start('arkade-covenant-v2');
+  assert.equal(s.controller.getState().validationMode,'arkade-covenant-v2');
+  assert.equal(s.calls.filter(call=>call[0]==='start').length,1);
+
+  const saved=s.controller.snapshot();
+  s.controller.dispose({preserveSession:true});
+  const resumed=createTreasureSession({context:{getState:()=>s.player},gameWallet:{getState:()=>s.game},offers:s.offers,now:()=>1000});
+  assert.equal(resumed.restore(saved),true);
+  assert.equal(resumed.getState().validationMode,'arkade-covenant-v2');
+  assert.equal(s.calls.filter(call=>call[0]==='start').length,1);
+
+  s.records.push(s.record({validationMode:'arkade-covenant-v2'}));
+  await resumed.inspect();
+  assert.equal(resumed.getState().validationMode,'arkade-covenant-v2');
+  assert.equal(resumed.getState().status,'active');
+  assert.equal(s.calls.filter(call=>call[0]==='start').length,1);
+  assert.equal(s.calls.some(call=>call[0]==='start'&&call[1].validationSolution==='browser-policy-v1'),false);
+  resumed.dispose({preserveSession:true});
+});
+
 test('pending rejection keeps its persisted mode and financial pending state across expiry',async()=>{
   const s=setup();await s.controller.start('arkade-covenant-v2');
   s.records.push(s.record({validationMode:'arkade-covenant-v2'}));await s.controller.inspect();

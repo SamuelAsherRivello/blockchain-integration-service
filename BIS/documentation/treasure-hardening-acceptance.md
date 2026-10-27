@@ -396,6 +396,45 @@ run cannot be used for a new attempt. Recovery uses `recover` with the original
 mode, run ID and network. An observation timeout does not mark failure, release
 reservations, authorize fallback or launch replacement funding.
 
+### Reconcile a settled operation's exact fee
+
+If an older settled operation lacks fee metadata, use the read-only verifier:
+
+```powershell
+node BIS/scripts/reconcile-operation-fee.ts <settled-operation-id>
+```
+
+It takes the network and transaction ID from the encrypted journal, retrieves
+the exact transaction and its input-parent transactions from that network's
+indexer, and checks input value minus output value. It records the observed fee
+separately from the immutable intent and settled result. It cannot reconcile
+pending or unknown operations, accept a replacement transaction, or submit or
+sign anything. Unavailable or inconsistent wire evidence leaves the original
+journal unchanged.
+
+### 2026-10-27 Signet and Mutinynet closeout
+
+Protected Admin acceptance now has live Signet Browser-validation evidence for
+Claim, Reject, legacy 0.0.23 recovery with current creation disabled, and current
+session rollback with creation disabled. Each run verified the original 1,000-
+sat output and indexed funding/checkpoint/spend ancestry. The exact transaction
+IDs and C094 task status are retained in the game's
+`openspec/changes/productionize-treasure-chest-contract/tasks.md`.
+
+Mutinynet's remaining funded mode checks are stopped on wallet readiness. The
+default `market-remint-game` is reserved by unresolved operation
+`harden-asset-mint-m1` and has zero spendable sats. Other registered candidates
+reported zero spendable sats or unverified application journals. The local
+Mutinynet faucet has zero available sats (599,000 recoverable and 600,000
+boarding); onboarding remains a separate task. No Mutinynet transaction,
+onboarding attempt or journal override was made. Do not claim the Mutinynet
+Browser-validation or co-signer mode has live acceptance from this pass.
+
+Separate guarded read-only Admin probes on the existing Mutinynet pair selected
+Browser validation and Arkade co-signer in turn. Each displayed the selected
+mode, an enabled Game Wallet Details control, and no server-configuration
+error. They performed no signing or funding and do not replace live receipts.
+
 ### New live receipts
 
 | Configuration | Original funding | Verified original refund |
