@@ -74,7 +74,7 @@ export function createBisGameWallet(...args:Parameters<typeof createLocalGameWal
       liveBoardingState:(a,s)=>readLiveBoardingState(a,s,access),liveBoardingWait:(a,s)=>readLiveBoardingWait(a,s,access),
       deliver:(a,r,s,c)=>deliverWalletAsset(a,r,s,c,access),reconcileDelivery:(a,id,s)=>reconcileWalletAssetDelivery(a,id,s,access),
     },{
-      quote:(a,s)=>gameWalletBoarding.quote(a,s,access),submit:(a,q,c)=>gameWalletBoarding.submit(a,q,c,access),check:(a,s)=>gameWalletBoarding.check(a,s,access),
+      quote:(a,s,n)=>gameWalletBoarding.quote(a,s,n,access),submit:(a,q,c)=>gameWalletBoarding.submit(a,q,c,access),check:(a,s)=>gameWalletBoarding.check(a,s,access),
     },createGamePlayerPayments({quote:(a,r,n,s,p,i)=>quoteSend(a,r,n,s,p,i,access),submit:(a,q,c,j,p,i)=>submitSend(a,q,c,j,p,i,access),reconcile:reconcileSend}),assertPlayerPaymentAvailable,{
       availability:(a,s)=>loadMintAvailability(a,s,access),mint:(a,r,s,c)=>mintWalletAsset(a,r,s,c,access),
       list:(a,s)=>listWalletAssets(a,s,access),burn:(a,r,s,c)=>burnWalletAsset(a,r,s,c,access),
@@ -143,11 +143,12 @@ type GameWalletDependencies = {
 };
 // Adapter resource capabilities never become parameters in the public controller.
 type Two<F extends (...args:never[])=>unknown>=(a:Parameters<F>[0],b:Parameters<F>[1])=>ReturnType<F>;
+type Three<F extends (...args:never[])=>unknown>=(a:Parameters<F>[0],b:Parameters<F>[1],c:Parameters<F>[2])=>ReturnType<F>;
 type Four<F extends (...args:never[])=>unknown>=(a:Parameters<F>[0],b:Parameters<F>[1],c:Parameters<F>[2],d:Parameters<F>[3])=>ReturnType<F>;
 export type GameWalletPlayerOptions = { playerProfileId(): string | undefined; playerNetwork?(): TestNetwork | undefined; playerSubscribe?(listener:()=>void):()=>void; playerSessionKey?():string };
 export function createLocalGameWallet(options: GameWalletPlayerOptions, dependencies: GameWalletDependencies = {
   storage: createGameWalletStorage(), restore: restoreAccount, create: createAccount, addresses: loadAddresses, balance: loadBalance, watch: watchGameWalletEvents,
-}, boarding: {quote:Two<typeof gameWalletBoarding.quote>;submit:(a:WalletAccount,q:BoardingQuote,c:()=>boolean)=>ReturnType<typeof gameWalletBoarding.submit>;check:Two<typeof gameWalletBoarding.check>} = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting: {availability:Two<typeof loadMintAvailability>;mint:Four<typeof mintWalletAsset>;list?:Two<typeof listWalletAssets>;burn?:Four<typeof burnWalletAsset>} = {availability:loadMintAvailability,mint:mintWalletAsset,list:listWalletAssets,burn:burnWalletAsset}) {
+}, boarding: {quote:Three<typeof gameWalletBoarding.quote>;submit:(a:WalletAccount,q:BoardingQuote,c:()=>boolean)=>ReturnType<typeof gameWalletBoarding.submit>;check:Two<typeof gameWalletBoarding.check>} = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting: {availability:Two<typeof loadMintAvailability>;mint:Four<typeof mintWalletAsset>;list?:Two<typeof listWalletAssets>;burn?:Four<typeof burnWalletAsset>} = {availability:loadMintAvailability,mint:mintWalletAsset,list:listWalletAssets,burn:burnWalletAsset}) {
   const storage = dependencies.storage;
   let selectionVersion = 0, selectedProfileId: string | undefined;
   let state: BisGameWalletState = Object.freeze({status:'loading',selectionVersion});
@@ -415,9 +416,10 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
     getState: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     refresh,
-    async quoteBoarding() {
+    async quoteBoarding(requestedSats?: number) {
+      if (requestedSats !== undefined && (!Number.isSafeInteger(requestedSats) || requestedSats <= 0)) throw Error('Choose a positive whole-sat boarding amount.');
       const {account,signal}=await newOperationAccount({purpose:'boarding'});
-      return boarding.quote(account, signal);
+      return boarding.quote(account, signal, requestedSats);
     },
     async board(quote: BoardingQuote) {
       const account = await selectedAccount();

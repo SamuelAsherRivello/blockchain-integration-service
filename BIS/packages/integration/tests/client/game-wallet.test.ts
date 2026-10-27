@@ -136,17 +136,19 @@ test('A.G.2 reports unresolved boarding rather than awaiting balance and recover
 test('boarding uses selected game identity and rejects a quote from another wallet', async () => {
   const f = fixture(), calls = [];
   const boarding = {
-    quote: async account => { calls.push(account.profileId); return {profileId:account.profileId,direction:'to-arkade'}; },
+    quote: async (account, _signal, requestedSats) => { calls.push([account.profileId,requestedSats]); return {profileId:account.profileId,direction:'to-arkade',requestedSats}; },
     submit: async (account, quote, current) => { assert.equal(current(),true); calls.push(account.profileId); return {status:'pending'}; },
     check: async account => { calls.push(account.profileId); return {status:'idle'}; },
   };
   const c = createBisGameWallet({playerProfileId:()=> 'player'},f.dependencies,boarding);
   await tick(); await assert.rejects(c.quoteBoarding());
+  for (const invalid of [0,-1,1.5,Number.NaN,Number.POSITIVE_INFINITY]) await assert.rejects(c.quoteBoarding(invalid),/positive whole-sat/);
   await c.importWallet('game');
-  const quote = await c.quoteBoarding();
+  const quote = await c.quoteBoarding(1000);
+  assert.equal(quote.requestedSats,1000);
   await assert.rejects(c.board({...quote,profileId:'player'}));
   assert.equal((await c.board(quote)).status,'pending');
-  await c.checkBoarding(); assert.deepEqual(calls,['game','game','game']);
+  await c.checkBoarding(); assert.deepEqual(calls,[['game',1000],'game','game']);
   c.dispose();
 });
 function fixture() {

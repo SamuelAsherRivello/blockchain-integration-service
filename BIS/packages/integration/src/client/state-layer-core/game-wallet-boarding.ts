@@ -14,10 +14,10 @@ export function preserveGameBoarding(profileId: string) {
   if (localStorage.getItem(key) !== '1') throw Error('Recovery storage unavailable.');
 }
 export const gameWalletBoarding = {
-  async quote(account: WalletAccount, signal: AbortSignal,session?:RoleWalletAccess) {
+  async quote(account: WalletAccount, signal: AbortSignal, requestedSats?: number,session?:RoleWalletAccess) {
     eligibleUnreservedCoins([],walletReservations(account.profileId,account.network??'signet'));
 
-    return quoteBoarding(account, undefined, signal, 'to-arkade',session);
+    return quoteBoarding(account, requestedSats, signal, 'to-arkade',session);
   },
   async submit(account: WalletAccount, quote: BoardingQuote, current: () => boolean,session?:RoleWalletAccess) {
     return withWalletMutation(async () => {
