@@ -8,7 +8,7 @@
 
 ## 2. Hosted network acceptance
 
-- [ ] 2.1 Configure private Signet and Mutinynet test identities independently in the existing free-tier Vercel project and datastore; verify health and public identity routes for both without exposing secret values.
+- [x] 2.1 Configure private Signet and Mutinynet test identities independently in the existing free-tier Vercel project and datastore; verify health and public identity routes for both without exposing secret values. (Evidence: `output/reports/bis-server/two-network/2026-10-27/preview-qualification.md`; Preview-only allowlist, distinct Preview Redis endpoint, storage-ready health, both live identity routes ready with distinct public identities, no secrets exposed.)
 - [ ] 2.2 Exercise deployed policy rejection, request binding, quotas, idempotency, replay protection, concurrency, and cold starts separately on Signet and Mutinynet; save sanitized evidence under `output/reports/bis-server/two-network/`.
 - [ ] 2.3 Complete bounded real Signet signing acceptance using approved test wallets; verify actual network evidence and reconcile the operation before any competing spend.
 - [ ] 2.4 Complete bounded real Mutinynet signing acceptance using its separate approved test wallets; verify actual network evidence and reconcile the operation before any competing spend.
