@@ -66,6 +66,9 @@ const safe = (error: unknown) => {
   return "vault-network-operation-unavailable";
 };
 const terminal = new Set(["verified", "rejected"]);
+// Only a rejected preparation with no protected request or transaction can be retried.
+const blocksNewCreate = (entry: VaultJournalEntry) =>
+  entry.phase !== "rejected" || entry.recovery.length > 0 || Boolean(entry.transactionId);
 
 /** Demo operations run inside the adapter's locks, durable transport checkpoints
  * and network reconciliation. These callbacks never establish success alone. */
@@ -633,7 +636,7 @@ export function createArkadeConditionalVaultApi(
           }
           const duplicate = await journal.transaction((entries) =>
             entries.some(
-              (r) => r.operation === "create" && r.scope === binding,
+              (r) => r.operation === "create" && r.scope === binding && blocksNewCreate(r),
             ),
           );
           if (duplicate) throw Error(`VaultID ${request.id} is already taken.`);
@@ -685,8 +688,8 @@ export function createArkadeConditionalVaultApi(
           await journal.transaction((entries) => {
             if (
               entries.some(
-                (entry) =>
-                  entry.operation === "create" && entry.scope === binding,
+                  (entry) =>
+                  entry.operation === "create" && entry.scope === binding && blocksNewCreate(entry),
               )
             )
               throw Error(`VaultID ${request.id} is already taken.`);

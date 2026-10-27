@@ -124,15 +124,19 @@ export async function createConditionalVault(
   ).join("");
   if (await readStoredConditionalVault(network, id, creator))
     throw Error(`VaultID ${displayId} is already taken.`);
-  return remember(
-    await api(network, wallet).create({
-      network,
-      id: displayId,
-      walletReference: "wallet-2",
-      operationId: operationId(network, "create", `${creator}:${displayId}`),
-      durationSeconds: 120,
-    }),
-  );
+  const client = api(network, wallet);
+  const binding = `${creator}:${displayId}`;
+  const key = `bis-vault-original-operation:${network}:create:${binding}`;
+  const attempt = async () => {
+    const id = operationId(network, "create", binding);
+    const result = await client.create({ network, id: displayId, walletReference: "wallet-2", operationId: id, durationSeconds: 120 });
+    if (result.outcome === "rejected" && localStorage.getItem(key) === id) localStorage.removeItem(key);
+    return result;
+  };
+  let result = await attempt();
+  // A previously interrupted preparation with no submitted request can be replaced.
+  if (result.outcome === "rejected" && result.reason === "vault-original-request-not-submitted") result = await attempt();
+  return remember(result);
 }
 export async function checkConditionalVault(
   network: TestNetwork,

@@ -40,7 +40,9 @@ export function demoVaultResult(network: TestNetwork, selection: string, result:
       `Funding Transaction ID: ${next.funding.transactionId}`,
       ...inspected.evidence.map(e => `Verified Transaction ID: ${e.transactionId}`),
     ] : []),
-    ...(reason ? [`Reason: ${reason}`] : []), `Success: ${success}`,
+    ...(reason ? [`Reason: ${reason}`] : []),
+    ...(reason === 'vault-insufficient-funds' ? ['Next: fund Wallet 2 with at least 1000 spendable Arkade sats, then retry. Check its available balance in Get Balance (Private wallet).'] : []),
+    `Success: ${success}`,
   ].join('\n'), {
     explorer: inspected && next && ['locked', 'claimable', 'expired', 'claimed', 'recovered', 'pending'].includes(inspected.status)
       ? { network, kind: 'ark-transaction', identifier: inspected.evidence.at(-1)?.transactionId ?? next.funding.transactionId } : undefined,

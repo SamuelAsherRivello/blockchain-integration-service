@@ -140,6 +140,25 @@ test("duplicate create and operation-intent conflicts never acquire another fina
     /intent-conflict/,
   );
 });
+test("a rejected unsubmitted Create permits a new attempt, while a protected request still blocks it", async (t) => {
+  const f = await fixture();
+  const scope = `signet:5:${f.descriptor.creatorPublicKey}:0000`;
+  const original: VaultJournalEntry = {
+    operationId: 'insufficient', operation: 'create', scope, network: 'signet',
+    createdAt: 1, phase: 'rejected', recovery: [],
+  };
+  f.rows.push(original);
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async () => { requests++; throw new Error('capability unavailable'); });
+  const request = { operationId: 'retry', network: 'signet' as const, id: '0000', walletReference: 'creator', durationSeconds: 120 };
+  await assert.rejects(f.api.create(request), error => {
+    assert.doesNotMatch(String(error), /already taken/);
+    return true;
+  });
+  assert.ok(requests > 0);
+  original.recovery.push({ target: 'operator', request: ['protected'] });
+  await assert.rejects(f.api.create({ ...request, operationId: 'competing' }), /already taken/);
+});
 test("interrupted preparation is rejected truthfully without a replacement spend", async () => {
   const f = await fixture();
   f.setStatus("locked");
