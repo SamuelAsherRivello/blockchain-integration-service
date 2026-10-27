@@ -6,15 +6,27 @@ export const gameAdapter = Object.freeze({
   search: '?muteMusic=true&muteSFX=true',
   provenance: Object.freeze({
     packageName: '@bis/integration',
-    version: '0.0.21',
-    artifactSha256: '7418bdb7f0c6b51774d950a08c3613df296217957347829426e361f1c18e90b6',
+    version: '0.0.29',
+    artifactSha256: '3617a257a9d1e48084d9e845d9d911747735d3dff9dcd6f4bb9fb0d51d89aff6',
     evidencePath: 'stealth-steel/vendor/BIS_PROVENANCE.md',
   }),
 });
 
-const trustedPredecessor = Object.freeze({
+const trustedPredecessors = Object.freeze([
+  Object.freeze({
   packageName:'@bis/integration', version:'0.0.21',
   artifactSha256:'7418bdb7f0c6b51774d950a08c3613df296217957347829426e361f1c18e90b6',
+  evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md',
+  }),
+  Object.freeze({
+    packageName:'@bis/integration', version:'0.0.28',
+    artifactSha256:'6b318fb45a778ac8e136716e30ef63f89e036d65d8abb3ef2ab87f7352f23a46',
+    evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md',
+  }),
+]);
+const trustedCandidate = Object.freeze({
+  packageName:'@bis/integration', version:'0.0.29',
+  artifactSha256:'3617a257a9d1e48084d9e845d9d911747735d3dff9dcd6f4bb9fb0d51d89aff6',
   evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md',
 });
 const sameProvenance = (value, expected) => value && typeof value === 'object' && !Array.isArray(value) &&
@@ -28,10 +40,8 @@ export function reconcileGameRegistration(application, selectedOrigin, current =
       current.app !== 'game' || current.path !== gameAdapter.path || current.search !== gameAdapter.search)
     fail('game-registration-upgrade-refused');
   if (sameProvenance(application.provenance, current.provenance)) return application;
-  if (current.provenance.version !== '0.0.22' || !sameProvenance(application.provenance, trustedPredecessor) ||
-      current.provenance.packageName !== trustedPredecessor.packageName ||
-      current.provenance.evidencePath !== trustedPredecessor.evidencePath ||
-      !/^[a-f0-9]{64}$/.test(current.provenance.artifactSha256)) fail('game-registration-upgrade-refused');
+  if (!trustedPredecessors.some(previous => sameProvenance(application.provenance, previous)) ||
+      !sameProvenance(current.provenance, trustedCandidate)) fail('game-registration-upgrade-refused');
   return {...application, provenance:{...current.provenance}};
 }
 

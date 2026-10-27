@@ -30,8 +30,13 @@ export function ownedProfileKey(pairLabel, network, selectedOrigin, app, recover
   const scope = `${pairLabel}:${network}:${selectedOrigin}${app === 'marketplace' ? '' : `:${app}`}${recoveryProfile?`:recovery:${recoveryProfile}`:''}`;
   return createHash('sha256').update(scope).digest('hex').slice(0, 24);
 }
-export async function configureApplications(vault, selectedOrigin) {
-  const base = origin(selectedOrigin);
+export function playerRestoreEvidenceReady(evidence, expectedProfileId, allowConfirmation = false) {
+  if (!evidence || typeof expectedProfileId !== 'string' || !Array.isArray(evidence.playerIds)) return false;
+  return evidence.playerIds.includes(expectedProfileId) || allowConfirmation && evidence.confirmationOpen === true;
+}
+export async function configureApplications(vault, selectedOrigin, selectedApp) {
+  const base = origin(selectedOrigin, { app: selectedApp });
+  if (selectedApp !== undefined && selectedApp !== 'game') fail('invalid-application');
   return vault.transaction(state => {
     const existing = state.applications ?? [];
     if (!Array.isArray(existing)) fail('application-registry-invalid');
@@ -46,7 +51,7 @@ export async function configureApplications(vault, selectedOrigin) {
     // incompatible game row cannot leave other registrations partly changed.
     const applications = existing.map(row => row.app === 'game' && row.origin === base
       ? reconcileGameRegistration(row,base) : row);
-    for (const [app, path] of Object.entries(paths)) {
+    for (const [app, path] of Object.entries(paths).filter(([name]) => selectedApp === undefined || name === selectedApp)) {
       if (!applications.some(x => x.app === app && x.origin === base)) {
         applications.push({ app, origin: base, path, ...(app === 'game' ? { search: gameAdapter.search, provenance: { ...gameAdapter.provenance } } : {}) });
       }
@@ -59,7 +64,7 @@ export class OwnedBrowser {
   constructor(vault, options) { this.vault = vault; this.options = options; this.sessionId = randomUUID(); this.closed = false; }
   async start() {
     const { pair: pairLabel, origin: inputOrigin, app } = this.options;
-    const selectedOrigin = origin(inputOrigin);
+    const selectedOrigin = origin(inputOrigin, { app });
     // An unsupported adapter must never receive decrypted fixture material.
     if (!['marketplace', 'admin', 'game'].includes(app)) fail('app-adapter-not-yet-implemented');
     this.registration = await this.vault.transaction(async state => {
@@ -209,16 +214,17 @@ export class OwnedBrowser {
       await this.entry(player.phrase, '⚡ Restore');
       // A valid, empty identity needs the normal first-use confirmation.
       // Recovery entry disappearing alone does not mean login has completed.
-      const waitForSaved = async (predicate, value) => {
-        await pollOwnedObservation(() => this.page.evaluate(predicate, value), AbortSignal.timeout(30000));
+      const waitForSaved = async (profileId, allowConfirmation = false) => {
+        await pollOwnedObservation(async () => {
+          const evidence = await this.page.evaluate(() => ({
+            confirmationOpen: [...document.querySelectorAll('dialog[open] h2')].some(h => h.textContent === 'Create New Account?'),
+            playerIds: [...document.querySelectorAll('.bis-layer[data-bis-player-id]')].map(layer => layer.getAttribute('data-bis-player-id')),
+          }));
+          return playerRestoreEvidenceReady(evidence, profileId, allowConfirmation);
+        }, AbortSignal.timeout(30000));
       };
       this.restoreStage = 'player-confirmation-wait';
-      await waitForSaved(async ({ profileId, network }) => {
-        if ([...document.querySelectorAll('dialog[open] h2')].some(h => h.textContent === 'Create New Account?')) return true;
-        const { createAccountStorage } = await import('/BIS/packages/integration/src/client/state-layer-core/account-storage.ts');
-        return (await createAccountStorage(network).load()).account?.profileId === profileId;
-      },
-      { profileId: player.profileId, network: pair.network });
+      await waitForSaved(player.profileId, true);
       const firstUse = this.page.getByRole('dialog', { name: 'Create New Account?', exact: true });
       if (await this.page.evaluate(() => [...document.querySelectorAll('dialog[open] h2')].some(h => h.textContent === 'Create New Account?'))) {
         this.restoreStage = 'player-confirmation-click';
@@ -226,10 +232,7 @@ export class OwnedBrowser {
         await firstUse.getByRole('button', { name: 'Create Account', exact: true }).click();
       }
       this.restoreStage = 'player-connected-wait';
-      await waitForSaved(async ({ profileId, network }) => {
-        const { createAccountStorage } = await import('/BIS/packages/integration/src/client/state-layer-core/account-storage.ts');
-        return (await createAccountStorage(network).load()).account?.profileId === profileId;
-      }, { profileId: player.profileId, network: pair.network });
+      await waitForSaved(player.profileId);
       await this.page.waitForFunction(expected => {
         const layer = document.querySelector('.bis-layer[data-bis-player-id]');
         return !layer || layer.getAttribute('data-bis-player-id') === expected;
@@ -243,15 +246,36 @@ export class OwnedBrowser {
     await this.verifyNetwork();
     this.restoreStage = 'game-menu';
     await this.page.getByRole('button', { name: 'Developer', exact: true }).click();
-    await this.page.getByRole('button', { name: 'Game Wallet Login', exact: true }).click();
-    await this.page.getByRole('button', { name: /^(?:⚡ Restore Wallet|Log Out Game Wallet)$/ }).first().waitFor();
-    const restoreGame = this.page.getByRole('button', { name: '⚡ Restore Wallet', exact: true });
-    if (await restoreGame.isVisible()) {
-      if (!restoreMissing) fail('game-not-connected');
-      this.restoreStage = 'game-restore'; await restoreGame.click(); await this.entry(game.phrase, '⚡ Restore Wallet');
+    await this.page.getByRole('button', { name: /^(?:Game Wallet|Game Wallet Login)$/ }).click();
+    const serverSource = this.page.getByText('Game wallet source: Server', { exact: true });
+    if (await serverSource.count()) {
+      this.restoreStage = 'server-game-identity';
+      await serverSource.waitFor({ state: 'visible' });
+      const address = this.page.locator('.bis-card').last().getByLabel('Arkade address', { exact: true });
+      await address.waitFor({ state: 'visible' });
+      await this.page.waitForFunction(() => {
+        const card = [...document.querySelectorAll('.bis-card')].at(-1);
+        const value = card?.querySelector('input[aria-label="Arkade address"]')?.value;
+        return typeof value === 'string' && value.length > 0 && value !== '—';
+      }, undefined, { timeout: 30000, polling: 100 });
+      this.expected.serverGameAddress = await address.inputValue();
+      if (!this.expected.serverGameAddress || this.expected.serverGameAddress === '—') fail('server-game-identity-unavailable');
+      this.gameWalletSource = 'server';
+    } else {
+      await this.page.getByRole('button', { name: /^(?:⚡ Restore Wallet|Log Out Game Wallet)$/ }).first().waitFor();
+      const restoreGame = this.page.getByRole('button', { name: '⚡ Restore Wallet', exact: true });
+      if (await restoreGame.isVisible()) {
+        if (!restoreMissing) fail('game-not-connected');
+        this.restoreStage = 'game-restore'; await restoreGame.click(); await this.entry(game.phrase, '⚡ Restore Wallet');
+      }
+      this.gameWalletSource = 'manual';
     }
     this.restoreStage = 'game-identity';
-    await this.page.waitForFunction(expected => document.querySelector('input[aria-label="Arkade address"]')?.value === expected, this.expected.game.arkadeAddress);
+    const expectedGameAddress = this.gameWalletSource === 'server' ? this.expected.serverGameAddress : this.expected.game.arkadeAddress;
+    await this.page.waitForFunction(expected => {
+      const card = [...document.querySelectorAll('.bis-card')].at(-1);
+      return card?.querySelector('input[aria-label="Arkade address"]')?.value === expected;
+    }, expectedGameAddress);
     this.restoreStage = 'game-network';
     await this.verifyNetwork();
     this.restoreStage = 'private-clear';
@@ -283,11 +307,13 @@ export class OwnedBrowser {
     const playerId = await marker.getAttribute('data-bis-player-id');
     if (playerId !== player.profileId) fail('session-identity-invalidated');
     const gameAddress = await marker.getAttribute('data-bis-game-address');
-    if (gameAddress !== this.expected.game.arkadeAddress) fail('session-identity-invalidated');
-    if (screen === 'Game Wallet' && await this.page.getByLabel('Arkade address', { exact: true }).inputValue() !== this.expected.game.arkadeAddress) fail('session-identity-invalidated');
+    const expectedGameAddress = this.gameWalletSource === 'server' ? this.expected.serverGameAddress : this.expected.game.arkadeAddress;
+    if (gameAddress !== expectedGameAddress) fail('session-identity-invalidated');
+    if (screen === 'Game Wallet' && await this.page.locator('.bis-card').last().getByLabel('Arkade address', { exact: true }).inputValue() !== expectedGameAddress) fail('session-identity-invalidated');
     return { sessionId: this.sessionId, mode: 'owned', app: application.app, origin: application.origin, network: pair.network,
       player: { label: player.label, profileId: player.profileId, arkadeAddress: this.expected.player.arkadeAddress },
-      game: { label: game.label, profileId: game.profileId, arkadeAddress: this.expected.game.arkadeAddress },
+      game: { label: this.gameWalletSource === 'server' ? 'server-signer' : game.label,
+        profileId: this.gameWalletSource === 'server' ? 'server-signer' : game.profileId, arkadeAddress: expectedGameAddress, source: this.gameWalletSource },
       screen, ...(screen === 'Swap' ? {swap:await readSwapState(this.page)} : {}),
     };
   }

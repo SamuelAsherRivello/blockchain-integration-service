@@ -12,11 +12,12 @@ export function network(value) {
   if (value !== 'signet' && value !== 'mutinynet') fail('unsupported-network');
   return value;
 }
-export function origin(value) {
+export function origin(value, { app } = {}) {
   let url;
   try { url = new URL(value); } catch { fail('invalid-origin'); }
-  if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
-      url.username || url.password || url.pathname !== '/' || url.search || url.hash) fail('invalid-origin');
+  const loopback = url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
+  const publishedGame = app === 'game' && url.origin === 'https://samuelasherrivello.github.io' && url.protocol === 'https:';
+  if ((!loopback && !publishedGame) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) fail('invalid-origin');
   return url.origin;
 }
 export function argumentsFor(argv) {
@@ -29,6 +30,7 @@ export function argumentsFor(argv) {
       pair: { type: 'string' }, live: { type: 'boolean' },
       expect: { type: 'string' }, bitcoin: { type: 'string' }, arkade: { type: 'string' },
       app: { type: 'string' },
+      'recovery-profile': { type: 'string' },
       page: { type: 'string' },
       shared: { type: 'boolean' },
       source: { type: 'string' }, amount: { type: 'string' }, operation: { type: 'string' }, api: { type: 'string' },
@@ -40,11 +42,12 @@ export function argumentsFor(argv) {
   if (values.help || !command) return { command: 'help' };
   if (!commands.includes(command)) fail('unknown-command');
   if (values.network !== undefined) network(values.network);
-  if (values.origin !== undefined) values.origin = origin(values.origin);
   for (const key of ['account', 'player', 'game', 'pair']) if (values[key] !== undefined) label(values[key]);
   if (values.role !== undefined && !['player', 'game'].includes(values.role)) fail('invalid-role');
   if (values.scenario !== undefined && !scenarios.includes(values.scenario)) fail('invalid-scenario');
   if (values.app !== undefined && !['admin', 'marketplace', 'onboarding', 'faucet', 'game'].includes(values.app)) fail('invalid-application');
+  if (values.origin !== undefined) values.origin = origin(values.origin, { app: ['init', 'open'].includes(command) ? values.app : undefined });
+  if (command === 'init' && (values.app !== undefined && values.app !== 'game' || values.app === 'game' && !values.origin)) fail('invalid-application');
   if (command === 'create' && (!values.account || !values.network)) fail('missing-account-or-network');
   if (command === 'rotate' && (!values.account || !values.network)) fail('missing-account-or-network');
   readinessTarget(values);
@@ -52,6 +55,11 @@ export function argumentsFor(argv) {
   if (command === 'import' && (!values.input && !values.shared || values.input && values.shared)) fail('choose-one-private-input');
   if (command === 'assign' && (!values.pair || !values.player || !values.game || !values.network)) fail('missing-pair-arguments');
   if (command === 'open' && (!values.pair || !values.origin || !values.app)) fail('missing-browser-arguments');
+  if (values['recovery-profile'] !== undefined) {
+    if (command !== 'open' || !/^[a-z][a-z0-9-]{0,39}$/.test(values['recovery-profile'])) fail('invalid-recovery-profile');
+    values.recoveryProfile = values['recovery-profile'];
+    delete values['recovery-profile'];
+  }
   if (command === 'join') {
     if (!values.origin || values.app !== 'marketplace' || !values.api || !/^[a-fA-F0-9]{32}$/.test(values.page ?? ''))
       fail('missing-joined-connection-arguments');
@@ -73,9 +81,9 @@ export function argumentsFor(argv) {
     } else if (['amount', 'operation', 'api'].some(key => values[key] !== undefined)) fail('invalid-preparation-funding');
   }
   const allowed = {
-    init: ['origin'], import: ['input', 'shared'], create: ['account', 'network'], rotate: ['account', 'network'], status: ['network', 'account', 'live', 'expect', 'bitcoin', 'arkade'],
+    init: ['origin', 'app'], import: ['input', 'shared'], create: ['account', 'network'], rotate: ['account', 'network'], status: ['network', 'account', 'live', 'expect', 'bitcoin', 'arkade'],
     assign: ['pair', 'player', 'game', 'network'],
-    open: ['pair', 'origin', 'app'],
+    open: ['pair', 'origin', 'app', 'recoveryProfile'],
     join: ['origin', 'app', 'api', 'page'],
     fund: ['account', 'network', 'source', 'amount', 'operation', 'api'],
     reconcile: ['operation'],

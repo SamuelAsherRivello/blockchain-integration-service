@@ -8,7 +8,7 @@ const help = {
   available: ['init [--origin <exact-loopback-origin>]', 'import --shared | --input <private-absolute-path>', 'create --account <label> --network signet|mutinynet',
     'status [--account <label>] [--network signet|mutinynet] [--live [--expect empty|funded] [--bitcoin <sats>] [--arkade <sats>]]',
     'assign --pair <label> --player <label> --game <label> --network signet|mutinynet',
-    'open --pair <label> --origin <registered-origin> --app marketplace|admin',
+    'open --pair <label> --origin <registered-origin> --app marketplace|admin|game [--recovery-profile <isolated-name>]',
     'join --origin <exact-loopback-origin> --app marketplace --api <supplied-loopback-CDP-origin> --page <explicit-target-id>',
     'fund --account <label> --network signet|mutinynet --source faucet --amount 1000|50000|100000|200000 --operation <unique-label> [--api <loopback-origin>]',
     'reconcile --operation <original-faucet-operation-label>',
@@ -28,7 +28,7 @@ export async function execute(argv, { makeVault, inventory } = {}) {
   const vault = makeVault ? makeVault() : new Vault();
   if (command === 'init') {
     await vault.initialize();
-    if (values.origin) await (await import('./owned-browser.ts')).configureApplications(vault, values.origin);
+    if (values.origin) await (await import('./owned-browser.ts')).configureApplications(vault, values.origin, values.app);
     return { ok: true, initialized: true };
   }
   if (command === 'open') fail('open-requires-session-transport');
