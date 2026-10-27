@@ -45,6 +45,20 @@ test('owned-browser failure projection drops private fields and allows only know
   assert.deepEqual(publicAcceptanceBrowserFailure(null),{stage:'other',timeout:false,errorType:'other',flags:[]});
 });
 
+test('owned-browser operator transport diagnostics retain only fixed endpoint, status and error classes',()=>{
+  const secret='private-address-or-token';
+  const result=publicAcceptanceBrowserFailure({stage:'server-game-identity',operatorRequests:[
+    {kind:'failed',path:'/v1/info',errorClass:'network',body:secret},
+    {kind:'http',path:'/v1/info',status:503,body:secret},
+    {kind:'http',path:`/${secret}`,status:200},
+    {kind:'failed',path:'/v1/info',errorClass:secret},
+  ]});
+  assert.deepEqual(result.operatorRequests,[{kind:'failed',endpoint:'info',errorClass:'network'},
+    {kind:'http',endpoint:'info',status:503},{kind:'http',endpoint:'other'},
+    {kind:'failed',endpoint:'info'}]);
+  assert.equal(JSON.stringify(result).includes(secret),false);
+});
+
 test('diagnostic projection does not enumerate or read unrelated private properties',()=>{
   const input={name:'Error',code:'vault-locked',message:'original error'};
   Object.defineProperty(input,'phrase',{enumerable:true,get(){throw Error('must not read private input');}});

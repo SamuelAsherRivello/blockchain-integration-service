@@ -68,14 +68,39 @@ test('observations classify used accounts honestly, scope each network, and keep
   const sufficient = await observe(vault, { account: 'used', expect: 'funded', arkade: 1000 }, adapters);
   assert.deepEqual(sufficient.accounts[0].networks.map(row => row.readiness), ['ready', 'incomplete']);
   for (const changed of [{ balance: async () => { throw Error('private-sentinel'); } },
-    { assets: async () => { throw Error('private-sentinel'); } }, { pending: async () => { throw Error('private-sentinel'); } },
+    { assets: async () => { throw Error('private-sentinel'); } },
     { balance: async () => ({ ...funded, availableArkadeSats: 9999 }) }]) {
     const failure = await observe(vault, { account: 'used', expect: 'empty' }, { ...adapters, ...changed });
     assert.equal(failure.accounts[0].networks.every(row => row.readiness === 'unavailable' && row.balances === undefined), true);
     assert.equal(JSON.stringify(failure).includes('private-sentinel'), false);
   }
+  const pendingFailure = await observe(vault, { account: 'used', expect: 'empty' },
+    { ...adapters, pending: async () => { throw Error('private-sentinel'); } });
+  assert.equal(pendingFailure.accounts[0].networks.every(row => row.reads.appPending === 'unavailable' && row.balances !== undefined), true);
+  assert.equal(JSON.stringify(pendingFailure).includes('private-sentinel'), false);
   const noJournals = await observe(vault, { account: 'used', network: 'mutinynet', expect: 'empty' }, { balance: async () => zero, assets: async () => [] });
   assert.equal(noJournals.accounts[0].networks[0].reason, 'application-journals-unverified');
+});
+
+test('live observation isolates balance, asset and application-journal failures without error details', async () => {
+  const { vault } = await fixture();
+  const base = { balance: async () => funded, assets: async () => [], pending: async () => 0 };
+  const balanceFailed = await observe(vault, { account: 'used', network: 'signet', expect: 'funded', arkade: 1000 },
+    { ...base, balance: async () => { throw Error('private provider detail'); } });
+  assert.deepEqual(balanceFailed.accounts[0].networks[0].reads, { balance: 'failed', assets: 'ok', appPending: 'zero' });
+  assert.equal(balanceFailed.accounts[0].networks[0].reason, 'live-read-unavailable');
+  assert.equal(JSON.stringify(balanceFailed).includes('private provider detail'), false);
+
+  const assetsFailed = await observe(vault, { account: 'used', network: 'signet', expect: 'funded', arkade: 1000 },
+    { ...base, assets: async () => { throw Error('private indexer detail'); } });
+  assert.deepEqual(assetsFailed.accounts[0].networks[0].reads, { balance: 'ok', assets: 'failed', appPending: 'zero' });
+  assert.equal(assetsFailed.accounts[0].networks[0].reason, 'live-read-unavailable');
+
+  const journalFailed = await observe(vault, { account: 'used', network: 'signet', expect: 'funded', arkade: 1000 },
+    { ...base, pending: async () => { throw Error('private journal detail'); } });
+  assert.deepEqual(journalFailed.accounts[0].networks[0].reads, { balance: 'ok', assets: 'ok', appPending: 'unavailable' });
+  assert.equal(journalFailed.accounts[0].networks[0].reason, 'application-journals-unverified');
+  assert.equal(JSON.stringify(journalFailed).includes('private journal detail'), false);
 });
 
 test('funding recipient reservations also prevent ready classification, without poisoning the other network', async () => {

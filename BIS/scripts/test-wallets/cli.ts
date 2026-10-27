@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
 import { argumentsFor } from './arguments.ts';
 import { publicFailure, fail } from './errors.ts';
+import { publicAcceptanceBrowserFailure } from '../treasure-acceptance-diagnostics.ts';
 
 const help = {
   command: 'test-wallets',
@@ -60,7 +61,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       } else {
         const { Vault } = await import('./vault.ts');
         const { OwnedBrowser } = await import('./owned-browser.ts');
-        owner = new OwnedBrowser(new Vault(), parsed.values);
+        owner = new OwnedBrowser(new Vault(), { ...parsed.values, onPublicFailure: diagnostic => {
+          // Safe stage/error-class and operator status metadata only; never log
+          // private input, headers, response bodies, addresses, or page state.
+          process.stderr.write(`${JSON.stringify({ diagnostic: 'owned-browser', ...publicAcceptanceBrowserFailure(diagnostic) })}\n`);
+        } });
       }
       let input;
       try {

@@ -116,6 +116,24 @@ export class OwnedBrowser {
       }
       // Do not forward console/pageerror/request bodies or enable tracing/video.
       this.page = this.context.pages()[0] ?? await this.context.newPage();
+      // Keep only coarse public-operator transport outcomes for failed
+      // acceptance runs. Never retain request/response bodies or credentials.
+      const operatorRequests = [];
+      const operatorHost = pair.network === 'signet' ? 'signet.arkade.sh' : 'mutinynet.arkade.sh';
+      this.page.on('requestfailed', request => {
+        try {
+          const url = new URL(request.url());
+          if (url.hostname === operatorHost) operatorRequests.push({ kind: 'failed', path: url.pathname,
+            errorClass: /timeout/i.test(request.failure()?.errorText ?? '') ? 'timeout' : 'network' });
+        } catch { /* Ignore malformed or non-operator URLs. */ }
+      });
+      this.page.on('response', response => {
+        try {
+          const url = new URL(response.url());
+          if (url.hostname === operatorHost && response.status() >= 400) operatorRequests.push({ kind: 'http', path: url.pathname, status: response.status() });
+        } catch { /* Ignore malformed or non-operator URLs. */ }
+      });
+      this.operatorRequests = operatorRequests;
       this.context.on('page', page => { if (page !== this.page) void page.close().catch(() => {}); });
       await this.context.route('**/*', async route => {
         const request = route.request();
@@ -141,7 +159,8 @@ export class OwnedBrowser {
         errorType: ['Error','TypeError','ReferenceError'].includes(error?.name) ? error.name : 'other',
         undefinedName: String(error?.message).match(/\b([A-Za-z_$][\w$]*) is not defined/)?.[1],
         code: typeof error?.code === 'string' && /^[a-z-]+$/.test(error.code) ? error.code : undefined,
-        flags: ['outside of the viewport', 'intercepts pointer events', 'not stable', 'not visible', 'strict mode violation', 'not attached','dynamic','import','could not','fetch','storage','Storage','database','saved','crypto','closed','CSP','Content Security Policy','unsafe-eval'].filter(flag => String(error?.message).includes(flag)) });
+        flags: ['outside of the viewport', 'intercepts pointer events', 'not stable', 'not visible', 'strict mode violation', 'not attached','dynamic','import','could not','fetch','storage','Storage','database','saved','crypto','closed','CSP','Content Security Policy','unsafe-eval'].filter(flag => String(error?.message).includes(flag)),
+        operatorRequests: (this.operatorRequests ?? []).slice(-20) });
       await this.close();
       fail(`owned-browser-${this.restoreStage ?? stage}-unavailable`);
     }
@@ -247,11 +266,12 @@ export class OwnedBrowser {
     this.restoreStage = 'game-menu';
     await this.page.getByRole('button', { name: 'Developer', exact: true }).click();
     await this.page.getByRole('button', { name: /^(?:Game Wallet|Game Wallet Login)$/ }).click();
-    const serverSource = this.page.getByText('Game wallet source: Server', { exact: true });
+    const gameCard = this.page.locator('.bis-card').last();
+    const serverSource = gameCard.getByText('Game wallet source: Server', { exact: true });
     if (await serverSource.count()) {
       this.restoreStage = 'server-game-identity';
       await serverSource.waitFor({ state: 'visible' });
-      const address = this.page.locator('.bis-card').last().getByLabel('Arkade address', { exact: true });
+      const address = gameCard.getByLabel('Arkade address', { exact: true });
       await address.waitFor({ state: 'visible' });
       await this.page.waitForFunction(() => {
         const card = [...document.querySelectorAll('.bis-card')].at(-1);
@@ -310,11 +330,18 @@ export class OwnedBrowser {
     const expectedGameAddress = this.gameWalletSource === 'server' ? this.expected.serverGameAddress : this.expected.game.arkadeAddress;
     if (gameAddress !== expectedGameAddress) fail('session-identity-invalidated');
     if (screen === 'Game Wallet' && await this.page.locator('.bis-card').last().getByLabel('Arkade address', { exact: true }).inputValue() !== expectedGameAddress) fail('session-identity-invalidated');
+    const contracts = screen === 'Contracts' ? await this.page.locator('.bis-card').last().evaluate(card => {
+      const collection = card.querySelector('.bis-collection');
+      const text = [...card.querySelectorAll('.bis-item-list-notice p')].map(node => node.textContent?.trim());
+      return { loading: collection?.getAttribute('aria-busy') === 'true',
+        visibleRows: card.querySelectorAll('.bis-collection-list > li > button.bis-collection-item').length,
+        empty: text.includes('No contracts.'), unavailable: text.includes('Contracts are unavailable. Recovery records have been retained.') };
+    }) : undefined;
     return { sessionId: this.sessionId, mode: 'owned', app: application.app, origin: application.origin, network: pair.network,
       player: { label: player.label, profileId: player.profileId, arkadeAddress: this.expected.player.arkadeAddress },
       game: { label: this.gameWalletSource === 'server' ? 'server-signer' : game.label,
         profileId: this.gameWalletSource === 'server' ? 'server-signer' : game.profileId, arkadeAddress: expectedGameAddress, source: this.gameWalletSource },
-      screen, ...(screen === 'Swap' ? {swap:await readSwapState(this.page)} : {}),
+      screen, ...(contracts ? { contracts } : {}), ...(screen === 'Swap' ? {swap:await readSwapState(this.page)} : {}),
     };
   }
   async validateRegistration() {

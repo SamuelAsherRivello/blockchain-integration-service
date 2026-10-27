@@ -16,7 +16,7 @@ const reasons=new Set([
 const errorFlags=['unsafe-eval','Content Security Policy','dynamically imported module','strict mode violation','Execution context was destroyed','Failed to fetch'];
 const uiFlags=['Maximum update','hooks','is not defined','Cannot read properties','is not a function','initialization','Maximum call stack','undefined'];
 const browserStages=new Set(['profile','launch','addresses','navigate','restore','account-dialog','network-selection','player-restore',
-  'player-confirmation-wait','player-confirmation-click','player-connected-wait','player-details','game-menu','game-restore','game-identity','game-network','private-clear']);
+  'player-confirmation-wait','player-confirmation-click','player-connected-wait','player-details','game-menu','game-restore','game-identity','server-game-identity','game-network','private-clear']);
 const browserFlags=new Set(['outside of the viewport','intercepts pointer events','not stable','not visible','strict mode violation','not attached',
   'dynamic','import','could not','fetch','storage','Storage','database','saved','crypto','closed','CSP','Content Security Policy','unsafe-eval']);
 const names=new Set(['Error','TypeError','ReferenceError','RangeError','SyntaxError','console-error']);
@@ -35,8 +35,16 @@ export function publicAcceptanceUiError(message:unknown,name:unknown='console-er
 }
 export function publicAcceptanceBrowserFailure(details:unknown){
   const row=properties(details);
+  const operatorRequests=Array.isArray(row.operatorRequests)?row.operatorRequests.slice(-20).flatMap(value=>{
+    const request=properties(value),kind=request.kind==='failed'?'failed':request.kind==='http'?'http':undefined;
+    if(!kind)return[];
+    return [{kind,endpoint:request.path==='/v1/info'?'info':'other',
+      ...(kind==='failed'&&['timeout','network'].includes(String(request.errorClass))?{errorClass:request.errorClass}:{}),
+      ...(kind==='http'&&Number.isInteger(request.status)&&request.status>=400&&request.status<=599?{status:request.status}:{})}];
+  }):[];
   return {stage:typeof row.stage==='string'&&browserStages.has(row.stage)?row.stage:'other',timeout:row.timeout===true,
     errorType:typeof row.errorType==='string'&&names.has(row.errorType)?row.errorType:'other',
     ...(reason(row.code)?{code:reason(row.code)}:{}),
-    flags:Array.isArray(row.flags)?[...new Set(row.flags.slice(0,64).filter((flag):flag is string=>typeof flag==='string'&&browserFlags.has(flag)))]:[]};
+    flags:Array.isArray(row.flags)?[...new Set(row.flags.slice(0,64).filter((flag):flag is string=>typeof flag==='string'&&browserFlags.has(flag)))]:[],
+    ...(operatorRequests.length?{operatorRequests}:{})};
 }

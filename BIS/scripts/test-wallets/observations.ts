@@ -19,20 +19,30 @@ export async function observe(vault, options = {}, adapters = {}) {
   const observations = new Map();
   for (const account of selected) for (const selectedNetwork of options.network ? [options.network] : ['signet', 'mutinynet']) {
     const scope = { ...account, network: selectedNetwork }, signal = AbortSignal.timeout(30000);
-    let observation = { network: selectedNetwork, observedAt: new Date().toISOString(), readiness: 'unavailable', reason: 'live-read-unavailable' };
-    try {
-      const [balance, assets, pendingCount] = await boundedObservation(() => Promise.all([
-        (adapters.balance ?? loadBalance)(scope, signal), (adapters.assets ?? listWalletAssets)(scope, signal),
-        adapters.pending ? adapters.pending(scope, signal) : undefined,
-      ]), signal);
+    const [balanceResult, assetsResult, pendingResult] = await Promise.all([
+      boundedObservation(() => Promise.resolve().then(() => (adapters.balance ?? loadBalance)(scope, signal)), signal).then(value => ({status:'fulfilled',value}), () => ({status:'rejected'})),
+      boundedObservation(() => Promise.resolve().then(() => (adapters.assets ?? listWalletAssets)(scope, signal)), signal).then(value => ({status:'fulfilled',value}), () => ({status:'rejected'})),
+      adapters.pending
+        ? boundedObservation(() => Promise.resolve().then(() => adapters.pending(scope, signal)), signal).then(value => ({status:'fulfilled',value}), () => ({status:'rejected'}))
+        : Promise.resolve({status:'unavailable'}),
+    ]);
+    let pendingCount = pendingResult.status === 'fulfilled' && Number.isSafeInteger(pendingResult.value) && pendingResult.value >= 0
+      ? pendingResult.value : undefined;
+    const reads = { balance: balanceResult.status === 'fulfilled' ? 'ok' : 'failed',
+      assets: assetsResult.status === 'fulfilled' ? 'ok' : 'failed',
+      appPending: pendingCount === undefined ? 'unavailable' : pendingCount > 0 ? 'positive' : 'zero' };
+    let observation = { network: selectedNetwork, observedAt: new Date().toISOString(), reads,
+      readiness: 'unavailable', reason: 'live-read-unavailable' };
+    if (balanceResult.status === 'fulfilled' && assetsResult.status === 'fulfilled') {
+      const balance = balanceResult.value, assets = assetsResult.value;
       const names = ['availableSats', 'availableBitcoinSats', 'availableArkadeSats', 'totalSats', 'bitcoinSats', 'arkadeSats'];
-      if (!names.every(key => Number.isSafeInteger(balance[key]) && balance[key] >= 0) || !Array.isArray(assets) ||
-          balance.availableSats !== balance.availableArkadeSats || balance.totalSats !== balance.bitcoinSats + balance.arkadeSats ||
-          balance.availableBitcoinSats > balance.bitcoinSats || balance.availableArkadeSats > balance.arkadeSats) fail('live-read-invalid');
-      observation = { ...observation, ...classifyReadiness(balance, assets.length, target, pendingCount),
+      const valid = balance && names.every(key => Number.isSafeInteger(balance[key]) && balance[key] >= 0) && Array.isArray(assets) &&
+        balance.availableSats === balance.availableArkadeSats && balance.totalSats === balance.bitcoinSats + balance.arkadeSats &&
+        balance.availableBitcoinSats <= balance.bitcoinSats && balance.availableArkadeSats <= balance.arkadeSats;
+      if (valid) observation = { ...observation, ...classifyReadiness(balance, assets.length, target, pendingCount),
         ...(target ? { target } : {}), ...(pendingCount === undefined ? {} : { pendingCount }),
         balances: Object.fromEntries(names.map(key => [key, balance[key]])), assetCount: assets.length };
-    } catch { /* Do not report zero, persist arbitrary provider objects or echo private errors. */ }
+    }
     const reportedPending = await vault.transaction(async state => {
       await verifiedInventory(state);
       const current = state.accounts.find(row => row.label === account.label);

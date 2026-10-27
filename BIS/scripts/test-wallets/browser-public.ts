@@ -1,4 +1,15 @@
 import { fail } from './errors.ts';
+import { fileURLToPath } from 'node:url';
+
+let cleanupBundle: Promise<string> | undefined;
+async function productionCleanupBundle() {
+  return cleanupBundle ??= (async () => {
+    const { build } = await import('esbuild');
+    const result = await build({ entryPoints: [fileURLToPath(new URL('../../packages/integration/src/client/state-layer-core/logout-cleanup.ts', import.meta.url))],
+      bundle: true, platform: 'browser', format: 'iife', globalName: 'BISAcceptanceCleanup', write: false });
+    return result.outputFiles[0].text;
+  })();
+}
 
 export const publicScreens = ['Account', 'Accounts Details', 'Developer', 'Game Wallet', 'Send', 'Swap', 'Receive', 'Assets', 'Asset Detail', 'Transactions', 'Transaction Detail', 'Contracts', 'Contract Details'];
 export function browserEnvironment(env = process.env) {
@@ -35,9 +46,10 @@ export async function readLogoutCount(page) {
           .map(name => new URL(name)).filter(url => url.origin === location.origin &&
             (/\/node_modules\/\.vite\/deps\/@bis_integration\.js$/.test(url.pathname) ||
              /\/node_modules\/@bis\/integration\/src\/index\.ts$/.test(url.pathname)));
-        if (entries.length !== 1) throw Error('Public package entry unavailable.');
-        ({ pendingLogoutOperations } = await import(entries[0].href));
-        if (typeof pendingLogoutOperations !== 'function') throw Error('Public classifier unavailable.');
+        if (entries.length === 1) {
+          ({ pendingLogoutOperations } = await import(entries[0].href));
+          if (typeof pendingLogoutOperations !== 'function') throw Error('Public classifier unavailable.');
+        }
       } else {
         ({ pendingLogoutOperations } = await import('/BIS/packages/integration/src/client/state-layer-core/logout-cleanup.ts'));
       }
@@ -48,6 +60,27 @@ export async function readLogoutCount(page) {
       const view = { get length() { return localStorage.length; }, key: index => localStorage.key(index),
         getItem: key => ownerPrefixes.some(prefix => key.startsWith(prefix)) ? null : localStorage.getItem(key) };
       return pendingLogoutOperations(view).count;
+    }).catch(async error => {
+      // A production game bundle does not expose the package's ESM export as
+      // a standalone resource. Load the exact source classifier as a same-
+      // origin, read-only test script; never parse or return storage records.
+      if (page.url().includes('/blockchain-stealth-and-steel-game/')) {
+        const bundle = await productionCleanupBundle();
+        const url = new URL(`/__bis-acceptance-cleanup-${Date.now()}.js`, page.url()).href;
+        const route = await page.route(url, selected => selected.fulfill({ status: 200, contentType: 'application/javascript; charset=utf-8', body: bundle }));
+        try {
+          await page.addScriptTag({ url });
+          return await page.evaluate(() => {
+            const classifier = globalThis.BISAcceptanceCleanup?.pendingLogoutOperations;
+            if (typeof classifier !== 'function') throw Error('classifier-unavailable');
+            const ownerPrefixes = ['bis-game-wallet-boarding-owner:', 'bis-game-wallet-send-owner:', 'bis-game-wallet-mint-owner:', 'bis-game-wallet-burn-owner:', 'bis-game-wallet-delivery-owner:'];
+            const view = { get length() { return localStorage.length; }, key: index => localStorage.key(index),
+              getItem: key => ownerPrefixes.some(prefix => key.startsWith(prefix)) ? null : localStorage.getItem(key) };
+            return classifier(view).count;
+          });
+        } finally { await page.unroute(url, route); }
+      }
+      throw error;
     });
     if (!Number.isSafeInteger(count) || count < 0) fail('logout-readiness-unavailable');
     return count;
