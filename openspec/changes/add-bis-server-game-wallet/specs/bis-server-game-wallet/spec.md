@@ -49,18 +49,18 @@ BIS SHALL probe the known local or configured hosted API on initialization, play
 - **THEN** late replies cannot change the replacement scope and compatible probes are coalesced
 - **AND** player logout does not delete or log out the server identity
 
-### Requirement: Network-scoped priority wallet pools
-bis-server SHALL support three private mnemonic slots for each of Signet and Mutinynet. New selection SHALL use the first valid candidate in 01/02/03 order satisfying fresh, operation-appropriate balance requirements. Confirmed on-chain Bitcoin and Arkade-spendable sats SHALL remain distinct. Missing, malformed, duplicate, insufficient or unknown-balance candidates SHALL NOT qualify. Identity-only selection MAY use an unfunded wallet for receiving. Signing and recovery SHALL resolve the original selected profile without balance-driven replacement or cross-network fallback.
+### Requirement: Signet-only hosted wallet selection
+This release SHALL configure hosted Game Wallet signing for Signet only. Signet identity and signing use the selected private Signet test identity. Mutinynet hosted signing SHALL remain unavailable until the two-network qualification proposal is complete. Signing and recovery SHALL resolve the original selected profile without balance-driven replacement or cross-network fallback.
 
-#### Scenario: Candidate lacks Arkade-spendable funds
-- **WHEN** slot 01 has confirmed Bitcoin but insufficient available Arkade sats for the requested requirement and slot 02 satisfies it
-- **THEN** new selection uses slot 02 within that same network
-- **AND** existing slot-01 operations remain bound to slot 01
+#### Scenario: Signet signer is configured
+- **WHEN** a published consumer selects Signet and the private Signet identity is configured
+- **THEN** it resolves the Signet server identity and requests only Signet-scoped signatures
+- **AND** existing operations remain bound to the identity that created them
 
-#### Scenario: Unreachable balance provider
-- **WHEN** a candidate balance query fails or reaches its bounded timeout
-- **THEN** it does not qualify and the next candidate may be evaluated within the overall deadline
-- **AND** no cached balance or replacement signing identity is used as proof of eligibility
+#### Scenario: Mutinynet hosted signer is not released
+- **WHEN** a published consumer selects Mutinynet during proposal 1
+- **THEN** it reports hosted signing as unavailable and offers the explicit existing manual flow
+- **AND** it does not silently use the Signet identity or sign for Mutinynet
 
 ### Requirement: Signing parity with client-owned operations
 Server mode SHALL replace only the Game Wallet signing identity. Existing preparation, submission, provider reads, journals and reconciliation SHALL remain client-owned. Required transaction, message and signer-session methods SHALL work remotely for existing enabled workflows. Signatures SHALL NOT establish financial confirmation or alter fee payer, trophy eligibility or reward policy.

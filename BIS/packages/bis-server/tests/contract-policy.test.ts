@@ -105,7 +105,7 @@ test('hosted LTO policy binds Player proof, exact scope and linked signatures an
   for (const kind of ['fund', 'refund'] as const) {
     const f = await fixture(kind), proposed = f.build(), claims: SigningClaim[] = [];
     const env = { BIS_OWNER_TOKEN: 'contract-hosted-secret-'.repeat(3), BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0],
-      BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_CONTRACT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
+      BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet', BIS_PUBLIC_CONTRACT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
     const store: SigningStore = {
       ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,
       session: async () => { throw Error('Contract offchain signing does not use MuSig state.'); },
@@ -155,7 +155,7 @@ test('direct client contract lease obtains public or owner plans without exporti
   for (const privateOwner of [false, true]) {
     const f = await fixture(privateOwner ? 'refund' : 'fund'), prepared = f.build(), claims: SigningClaim[] = [], calls: { path: string; body: any }[] = [];
     const ownerToken = 'direct-contract-owner-test-'.repeat(3);
-    const env = { BIS_OWNER_TOKEN: ownerToken, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: String(!privateOwner),
+    const env = { BIS_OWNER_TOKEN: ownerToken, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: String(!privateOwner), BIS_PUBLIC_SIGNING_NETWORKS: 'signet',
       BIS_PUBLIC_CONTRACT_SIGNING: String(!privateOwner), BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
     const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,
       session: async () => { throw Error('No MuSig state expected.'); }, claim: async claim => { claims.push(claim); return { status: 'acquired', owner: claim.id }; }, complete: async () => {} };

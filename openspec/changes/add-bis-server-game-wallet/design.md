@@ -8,7 +8,7 @@ Installed SDK 0.4.79 exposes public-key methods, transaction signing, message si
 
 ## Goals / Non-Goals
 
-Goals: server-first Game Wallet signing locally and on Vercel; existing manual login when no server is running/findable; all three published consumers working at the milestone finish line. Player signatures and transaction preparation/submission/reconciliation stay client-owned.
+Goals: server-first Signet Game Wallet signing locally and on Vercel; existing manual login when no server is running/findable; all three published consumers working at this proposal's finish line. Mutinynet hosted signing remains unavailable until proposal 2. Player signatures and transaction preparation/submission/reconciliation stay client-owned.
 
 Non-goals: moving full mint/checkout/contract workflows into the server, a server operation journal, background completion while browsers are closed, game saves, anti-cheat, new rewards or fee-payer changes. These belong to the separate milestone 2 or later changes.
 
@@ -18,13 +18,13 @@ Non-goals: moving full mint/checkout/contract workflows into the server, a serve
 
 Use `BIS/packages/bis-server`, package `@bis/bis-server`, with a Node service layer, Vite middleware adapter and Vercel adapter. Load `BIS_GAME_WALLET_MNEMONIC` from server-only `.env.local` locally, with process environment precedence, and Vercel private environment configuration when hosted. Keep blank tracked templates and never use `VITE_` for signing secrets.
 
-Represent server wallets with public identity/source references, not dummy recovery phrases. Adapt only the game role/session identity boundary so games keep the public BIS contract and Player Wallet remains local. Preserve the browser's current operation preflight, reservations, preparation, submission, journal and reconciliation.
+Represent server wallets with public identity/source references, not dummy recovery phrases. Adapt only the game role/session identity boundary so games keep the public BIS contract and Player Wallet remains local. Preserve the browser's current operation preflight, reservations, preparation, submission, journal and reconciliation. Proposal 1 deploys and accepts Signet only; expose Mutinynet as unavailable to hosted signing.
 
 The versioned API exposes public identity/capabilities and authorized signing. Support public keys, transaction input indexes and foreign partial signatures, message signing, and the actual SDK signer-session interface exercised by existing workflows. Verify asynchronous HTTP compatibility with that interface before claiming parity. Session IDs, public nonces and partial signatures bind to one transcript; never expose secret nonce state or reuse it. Include HD/descriptor support if existing enabled workflows exercise it. An unsupported existing path is a milestone blocker, not permission to disable it silently.
 
 ### Resolution and manual fallback
 
-Development uses a known same-origin `/api/bis/` path, optionally forwarded to an explicitly configured local BIS server. Pages builds use an explicit public Vercel URL, never a loopback URL. Do not scan ports/hosts or treat arbitrary HTML as a server.
+Development uses a known same-origin `/api/bis/` path, optionally forwarded to an explicitly configured local BIS server. Pages builds use an explicit public Vercel URL, never a loopback URL. Do not scan ports/hosts or treat arbitrary HTML as a server. Proposal 1's hosted Signet route is enabled; a Mutinynet selection receives an explicit unavailable state and manual fallback until proposal 2.
 
 On initialization and player login/logout, make a short bounded connection attempt; also recheck on network/configuration changes and explicit Retry. Coalesce compatible probes and ignore superseded replies. Connected and compatible means server mode, no Game Wallet Login, and `Server` beside network/version.
 
@@ -40,13 +40,13 @@ Mount handlers in the root Vite listener beside current BIS package routes; no a
 
 Provide documented breakpoints/logging for client preparation, server signing and operator submission using sanitized metadata only. The adjacent game's Vite config proxies the known local API to the shared BIS Vite instance or mounts the exported server middleware. Local pages must not silently call production Vercel or share its signer/session store. Use separate test identities and state namespaces for local, Preview and production demos.
 
-### Vercel signing is part of milestone 1
+### Vercel Signet signing is part of proposal 1
 
 Deploy the same signing service to Vercel Node Functions while static UIs remain on Pages. Never rely on one warm process, local files or an in-memory lock for hosted correctness. A serverless-compatible shared store must support atomic signing-request claims, transcript/replay records, reservations and signing-session continuity where the SDK requires it. Proposed default is a Marketplace Redis integration, subject to available account/free-tier limits.
 
 Keep secret session state server-only and encrypted at rest if persisted. A restart or lost session must either resume the exact safe session or fail explicitly and preserve unresolved signing reservations. Test cold starts, separate instances, concurrent callers and lost responses. Lease expiry alone never proves that signed inputs are unspent. The minimal signing ledger is required here; the full wallet-operation journal is deferred.
 
-Use server-verifiable short-lived signing grants scoped to game, network, identity, operation ID and exact signing intent. For the public test demo, session issuance can be public but its authority is bounded by server-defined transaction/asset policies, per-request/rate/global spending caps and allowed signing purposes. Derive allowed destinations from validated request context, not from a client claim of trust. Persist cap consumption atomically. Privileged Admin actions require owner authentication supplied privately, never a key compiled into Pages. CORS/Origin allowlisting is an integration boundary, not authorization.
+Use server-verifiable short-lived signing grants scoped to game, network, identity, operation ID and exact signing intent. For the public Signet test demo, session issuance can be public but its authority is bounded by server-defined transaction/asset policies, per-request/rate/global spending caps and allowed signing purposes. Derive allowed destinations from validated request context, not from a client claim of trust. Persist cap consumption atomically. Privileged Admin actions require owner authentication supplied privately, never a key compiled into Pages. CORS/Origin allowlisting is an integration boundary, not authorization. Mutinynet signing authorization and acceptance belong to proposal 2.
 
 Keep public hosted signing restricted to configured disposable test-network identities. Local owner development sessions may permit the existing developer workflows; hosted policy must cover every enabled current action, or that missing parity blocks completion. This is not server validation of gameplay completion.
 
@@ -134,6 +134,6 @@ Implement only this milestone first. Test the signer locally, then through Verce
 
 Deploy bis-server with private test credentials and bounded public policy. Release BIS through the existing versioning and Pages contract, verify its exact deployment and both public demos, then export the tested immutable integration package plus SHA-256 manifest. Import that exact package into Stealth & Steel, update dependency/lockfile and matching release identities, add only required backend configuration/proxy changes, run the real contract checker and game publishing tests/build, and push the matching game release through its existing Pages workflow.
 
-Complete milestone 1 only after published Admin, Marketplace and Stealth & Steel demonstrate game-wallet signing against the Vercel deployment without Game Wallet Login, and a controlled unreachable-backend check exposes working manual login. Keep deterministic UI checks separate from approved live network evidence.
+Complete proposal 1 only after published Admin, Marketplace and Stealth & Steel demonstrate Signet game-wallet signing against the Vercel deployment without Game Wallet Login, a controlled unreachable-backend check exposes working manual login, and Mutinynet is visibly unavailable for hosted signing. Keep deterministic UI checks separate from approved live network evidence.
 
-Rollback disables new server requests while preserving signing/operation recovery records; manual login is available for separate new work. Never export the server mnemonic to a browser as rollback. Milestone 2 is separately deferred in host-bis-server-game-wallet.
+Rollback disables new server requests while preserving signing/operation recovery records; manual login is available for separate new work. Never export the server mnemonic to a browser as rollback. Proposal 2 qualifies Signet and Mutinynet together and hardens remaining multi-network behavior. Full-operation server execution remains separately deferred in host-bis-server-game-wallet.

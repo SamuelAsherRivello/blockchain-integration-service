@@ -231,6 +231,7 @@ export class BisService implements IBis {
     const player = this.#context.getState(), game = this.#gameWallet.getState();
     return frozenCopy({ revision: this.#revision, version, disposed: this.#disposed,
       account: { visible: !this.#disposed && player.view === 'account', hasProfile: !this.#disposed && player.hasProfile, phase: player.phase,
+        ...(player.network ? { network: player.network } : {}),
         ...(player.profileId ? { playerWallet: { profileId: player.profileId, network: player.network } } : {}),
         ...(game.profileId ? { gameWallet: { profileId: game.profileId, network: game.network, ...(game.source ? { source: game.source } : {}) } } : {}) },
       capabilities: {

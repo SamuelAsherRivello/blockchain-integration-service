@@ -44,7 +44,7 @@ async function fixture(t, playerSlot?: number) {
   const playerProfile=playerSlot===undefined?'player':[...profiles].find(([,slot])=>slot===playerSlot)![0];
   const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,
     claim: async () => { throw Error('No financial signing in this fixture.'); }, complete: async () => { throw Error('No financial signing in this fixture.'); }, session: async () => { throw Error('No financial signing in this fixture.'); } };
-  const handler = createHostedHandler({ pool, store, env: { ...values, BIS_OWNER_TOKEN: 'selection-test-owner-secret-'.repeat(3), BIS_PUBLIC_PAYMENT_SIGNING: 'true' } });
+  const handler = createHostedHandler({ pool, store, env: { ...values, BIS_OWNER_TOKEN: 'selection-test-owner-secret-'.repeat(3), BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet,mutinynet' } });
   let network: 'signet' | 'mutinynet' = 'signet', blocked = false, offlineSelection = false;
   let delayed: (() => void) | undefined;
   const fetcher: typeof fetch = async (url, init) => {

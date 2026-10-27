@@ -21,7 +21,7 @@ const intent = (key: string) => Intent.create({ type: 'register', onchain_output
 
 for (const owner of [false, true]) test(`hosted ${owner ? 'owner' : 'public'} batch grants complete bound cold-session MuSig without changing Game proof ownership`, async () => {
   const secret = 'hosted-batch-grant-fixture-'.repeat(3);
-  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
+  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
   const blobs = new Map<string, string>(), batchPins = new Map<string, string>(), rows = new Map<string, { digest: string; done: boolean; result?: unknown }>(), charges = new Set<string>(), claims: SigningClaim[] = [];
   let lock: string | undefined, cost = 0, writes = 0, infoReads = 0, advertised: bigint | undefined;
   const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,

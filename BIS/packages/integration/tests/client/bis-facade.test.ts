@@ -108,6 +108,12 @@ test('BisService owns private resources and routes game workflows through the tw
     assert.throws(() => { snapshot.account.hasProfile = false; }, TypeError);
     assert.equal('addresses' in snapshot.account.gameWallet, false);
     assert.equal(snapshot.account.gameWallet.source, 'manual');
+    assert.equal(snapshot.account.network, 'signet');
+    f.context.set({ view: 'account', hasProfile: false, profileId: undefined, phase: 'idle', network: 'mutinynet' });
+    const loggedOutMutinynet = f.service.getSnapshot();
+    assert.equal(loggedOutMutinynet.account.hasProfile, false);
+    assert.equal(loggedOutMutinynet.account.network, 'mutinynet');
+    assert.equal('playerWallet' in loggedOutMutinynet.account, false);
     f.wallet.set({ source: 'server' });
     assert.equal(f.service.getSnapshot().account.gameWallet.source, 'server');
     f.wallet.set({ source: undefined });

@@ -67,6 +67,25 @@ const safe = (error: unknown) => {
 };
 const terminal = new Set(["verified", "rejected"]);
 
+/** Demo operations run inside the adapter's locks, durable transport checkpoints
+ * and network reconciliation. These callbacks never establish success alone. */
+export type VaultDemoExecution = {
+  fund?: (context: {
+    wallet: Wallet;
+    parameters: Parameters<typeof compileConditionalVault>[0];
+  }) => Promise<string>;
+  spend?: (context: {
+    network: TestNetwork;
+    descriptor: VaultPublicDescriptor;
+    before: VaultInspection;
+    operation: "increment" | "claim" | "recover";
+    identity?: Wallet["identity"];
+    ark: RestArkProvider;
+    indexer: RestIndexerProvider;
+    emulator: RestEmulatorProvider;
+  }) => Promise<{ txid: string }>;
+};
+
 /** Arkade adapter entry. Game-facing requests/results contain no SDK or signer material. */
 export function createArkadeConditionalVaultApi(
   network: TestNetwork,
@@ -76,6 +95,7 @@ export function createArkadeConditionalVaultApi(
     lock?: Lock;
     now?: () => number;
     inspect?: (descriptor: VaultPublicDescriptor) => Promise<VaultInspection>;
+    execution?: VaultDemoExecution;
   } = {},
 ): ConditionalVaultApi {
   const journal = options.journal ?? createVaultJournal(network),
@@ -454,38 +474,46 @@ export function createArkadeConditionalVaultApi(
           info.signerPubkey.slice(2) !== descriptor.operatorPublicKey
         )
           throw Error("vault-operator-identity-mismatch");
-        const client = await arkade.Arkade.connect({
-          arkade: ark,
-          indexer,
-          emulator,
-          emulatorPubkey: `03${descriptor.emulatorPublicKey}`,
-          network: getNetwork(network),
-          identity: lease?.wallet.identity,
-        });
-        const built = compileVaultDescriptor(descriptor),
-          progress = before.progress!;
-        const state = built.states[progress],
-          contract = client.contract(state.program, state.args);
-        const destination =
-          operation === "increment"
-            ? hex.decode(descriptor.stateScripts[progress + 1])
-            : hex.decode(descriptor.creatorDestination);
         // The operator can materialize the spend before the co-signer's final HTTP
         // response. Race that response against verified receipts, not a timer-based
         // optimistic success. The signed request is already durable before dispatch.
+        const activeOutput = before.activeOutput;
+        const execute = async () => {
+          if (options.execution?.spend) return options.execution.spend({
+            network, descriptor, before, operation, identity: lease?.wallet.identity,
+            ark, indexer, emulator,
+          });
+          const client = await arkade.Arkade.connect({
+            arkade: ark,
+            indexer,
+            emulator,
+            emulatorPubkey: `03${descriptor.emulatorPublicKey}`,
+            network: getNetwork(network),
+            identity: lease?.wallet.identity,
+          });
+          const built = compileVaultDescriptor(descriptor),
+            progress = before.progress!;
+          const state = built.states[progress],
+            contract = client.contract(state.program, state.args);
+          const destination =
+            operation === "increment"
+              ? hex.decode(descriptor.stateScripts[progress + 1])
+              : hex.decode(descriptor.creatorDestination);
+          return sendConditionalVaultSpend(
+            contract,
+            emulator,
+            operation,
+            {
+              txid: activeOutput.transactionId,
+              vout: activeOutput.outputIndex,
+              value: 1000,
+            },
+            destination,
+            lease?.wallet.identity,
+          );
+        };
         let settled = false;
-        const submission = sendConditionalVaultSpend(
-          contract,
-          emulator,
-          operation,
-          {
-            txid: before.activeOutput.transactionId,
-            vout: before.activeOutput.outputIndex,
-            value: 1000,
-          },
-          destination,
-          lease?.wallet.identity,
-        ).then(
+        const submission = execute().then(
           async () => {
             settled = true;
             await update(request.operationId, (entry) => {
@@ -679,16 +707,18 @@ export function createArkadeConditionalVaultApi(
           originalProvider.submitTx = hooks.ark.submitTx.bind(hooks.ark);
           originalProvider.finalizeTx = hooks.ark.finalizeTx.bind(hooks.ark);
           try {
-            const target = built.states[0].script
-              .address(
-                getNetwork(network).hrp,
-                hex.decode(parameters.serverKey),
-              )
-              .encode();
+            const fund = async () => {
+              if (options.execution?.fund) return options.execution.fund({ wallet: lease.wallet, parameters });
+              const target = built.states[0].script
+                .address(
+                  getNetwork(network).hrp,
+                  hex.decode(parameters.serverKey),
+                )
+                .encode();
+              return lease.wallet.send({ address: target, amount: 1000 });
+            };
             let acknowledged = false;
-            const funding = lease.wallet
-              .send({ address: target, amount: 1000 })
-              .then(
+            const funding = fund().then(
                 async () => {
                   acknowledged = true;
                   return recoverCreate((await row(request.operationId))!);

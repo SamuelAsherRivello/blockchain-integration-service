@@ -43,7 +43,7 @@ async function fixture(enabled = true, assets = false, operationCap = '1000', ma
     },
   };
   let time = Date.now(), reads = 0;
-  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrase, BIS_SIGNING_DAILY_CAP_SATS: '10000', BIS_SIGNING_OPERATION_CAP_SATS: operationCap, BIS_PUBLIC_PAYMENT_SIGNING: String(enabled), BIS_PUBLIC_ASSET_SIGNING: String(assets) };
+  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrase, BIS_SIGNING_DAILY_CAP_SATS: '10000', BIS_SIGNING_OPERATION_CAP_SATS: operationCap, BIS_PUBLIC_PAYMENT_SIGNING: String(enabled), BIS_PUBLIC_SIGNING_NETWORKS: 'signet', BIS_PUBLIC_ASSET_SIGNING: String(assets) };
   const handler = () => createHostedHandler({ env, store, now: () => time, marketplaceReceipt, paymentContext: async options => {
     reads++; assert.ok([Buffer.from(await player.compressedPublicKey()).toString('hex'), options.gamePublicKey].includes(options.playerPublicKey));
     return { inputs: liveInputs, changeScript: change.pkScript, recipientScript: recipient.pkScript, serverUnrollScript: unroll, maximumExposureSats: options.maximumExposureSats };

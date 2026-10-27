@@ -278,19 +278,27 @@ transaction data and travel in JSON bodies, not headers. Tampering, changed
 requests, another connection and expiry are refused before a signing claim.
 
 This ordinary-payment path is off unless the private server configuration sets
-`BIS_PUBLIC_PAYMENT_SIGNING=true`. Do not enable it for the rollout yet. Public
-connection issuance now shares that opt-in flag, health still reports
-`publicSigning: false`, and asset/boarding/contract/settlement policies and full
-workflow acceptance remain required. The existing production deployment has not
-been changed by these handler additions. The retained client-wallet path now
+`BIS_PUBLIC_PAYMENT_SIGNING=true` and explicitly lists allowed test networks in
+`BIS_PUBLIC_SIGNING_NETWORKS` (comma-separated `signet` and/or `mutinynet`).
+When `VERCEL_ENV=preview`, only the isolated `BIS_PREVIEW_PUBLIC_PAYMENT_SIGNING`
+and `BIS_PREVIEW_PUBLIC_SIGNING_NETWORKS` values are used. Proposal 1 must list
+`signet` only and keep public settlement, contract and asset policies disabled
+for the Signet-only rollout. The approved Production values are configured, but
+take effect only when the deployed bundle contains these allowlist-aware
+handlers. Public connections, identity capabilities, health status and payment
+signing all reflect the network allowlist. Verify `publicSigning` and Signet
+identity capabilities after deployment; Mutinynet must remain unavailable. The
+separate deployment-proof route provides only a domain-separated Signet identity
+proof; it does not enable Mutinynet signing. Funded Signet workflow acceptance
+remains a separate release gate. The retained client-wallet path now
 captures original input references around `buildAndSubmitOffchainTx`, obtains a
 sealed plan for the root and reuses it for checkpoints. Tests exercise the real
 client adapter and hosted handler from an anonymous connection, without an owner
 credential. Connections consume the shared public quota and do not grant signing
 authority. Explicit invalid owner credentials are rejected rather than ignored.
-These are deterministic tests, not evidence that a public player can connect to
-production yet. Private Player data, proofs and
-plan references are not added to the public BIS API or browser persistence.
+These are deterministic tests, not evidence that a public player can sign a
+funded Signet operation. Private Player data, proofs and plan references are not
+added to the public BIS API or browser persistence.
 
 The Redis claim accepts an optional server-selected exposure group for linked
 protocol transactions. Atomic accounting charges the group once, checks its

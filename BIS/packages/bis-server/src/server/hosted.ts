@@ -37,6 +37,14 @@ async function jsonBody(request: Request): Promise<Record<string, any>> {
   return body;
 }
 const networkOf = (network: unknown): GameNetwork => { if (network !== 'signet' && network !== 'mutinynet') throw Error('Test network required.'); return network; };
+/** Public signer opt-in is scoped to an explicit test-network allowlist. */
+const publicSigningAllowed = (values: NodeJS.ProcessEnv, network: GameNetwork) => {
+  if (values.BIS_PUBLIC_PAYMENT_SIGNING !== 'true') return false;
+  const configured = values.BIS_PUBLIC_SIGNING_NETWORKS;
+  if (!configured) return false;
+  const networks = configured.split(',').map(value => value.trim());
+  return networks.every(value => value === 'signet' || value === 'mutinynet') && networks.includes(network);
+};
 const cap = (value: string | undefined, max: number) => { const number = Number(value ?? 0); if (!Number.isSafeInteger(number) || number < 0 || number > max) throw Error('Signing budget configuration invalid.'); return number; };
 const exactObject=(value:unknown,keys:readonly string[])=>!!value&&typeof value==='object'&&!Array.isArray(value)&&
   [Object.prototype,null].includes(Object.getPrototypeOf(value))&&Object.keys(value).sort().join(',')===[...keys].sort().join(',');
@@ -154,20 +162,22 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
     try {
       if (path === '/api/bis/health' && request.method === 'GET') {
         await store().ping();
-        return reply(request, 200, { service: 'bis-server', protocol: SIGNER_PROTOCOL, runtime: 'vercel', storage: 'ready', publicSigning: false, ownerSigning: authorization.configured,
+        return reply(request, 200, { service: 'bis-server', protocol: SIGNER_PROTOCOL, runtime: 'vercel', storage: 'ready',
+          publicSigning: publicSigningAllowed(values, 'signet') || publicSigningAllowed(values, 'mutinynet'), ownerSigning: authorization.configured,
           networks: { signet: (await pool.publicWallets('signet')).length, mutinynet: (await pool.publicWallets('mutinynet')).length } });
       }
       if (path === '/api/bis/identity' && request.method === 'GET') {
         const network = networkOf(url.searchParams.get('network') ?? 'signet');
         const wallet = await pool.select(network);
-        return reply(request, 200, { service: 'bis-server', protocol: SIGNER_PROTOCOL, gameId, network, publicKey: wallet.publicKey, profileId: wallet.profileId, slot: wallet.slot, capabilities: [], signingReady: false });
+        const capabilities = publicSigningAllowed(values, network) ? ['sign', 'signMessage', 'signerSession'] : [];
+        return reply(request, 200, { service: 'bis-server', protocol: SIGNER_PROTOCOL, gameId, network, publicKey: wallet.publicKey, profileId: wallet.profileId, slot: wallet.slot, capabilities, signingReady: capabilities.length > 0 });
       }
       if (request.method !== 'POST') return reply(request, 404, { error: 'Signer route not found.' });
       const body = await jsonBody(request);
       if(path==='/api/bis/treasure/checkpoint/complete'||path==='/api/bis/owner/treasure/checkpoint/complete'){
         const owner=path.startsWith('/api/bis/owner/'),recoveryError=()=>Error('Treasure recovery authorization is outside the checkpoint-completion policy.');
         if(owner)authorization.assertOwner(request.headers.get('authorization'));
-        else if(values.BIS_PUBLIC_PAYMENT_SIGNING!=='true')throw recoveryError();
+        else if(!publicSigningAllowed(values,'mutinynet'))throw recoveryError();
         const wrapperKeys=owner?['version','requestId','requestDigest','requestJson','connectionToken']:
           ['version','requestId','requestDigest','requestJson','connectionToken','playerToken'];
         if(!exactObject(body,wrapperKeys)||body.version!==1||typeof body.requestId!=='string'||!/^[a-z0-9-]{1,100}$/i.test(body.requestId)||
@@ -239,11 +249,13 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
       if (/^\/api\/bis\/(?:owner\/)?settlement\/(?:plan|authorize|batch|session\/authorize|finalization\/authorize)$/.test(path)) {
         const owner = path.startsWith('/api/bis/owner/');
         if (owner) authorization.assertOwner(request.headers.get('authorization'));
-        else if (values.BIS_PUBLIC_PAYMENT_SIGNING !== 'true' || values.BIS_PUBLIC_SETTLEMENT_SIGNING !== 'true') throw Error('Settlement authorization required.');
+        else if (values.BIS_PUBLIC_SETTLEMENT_SIGNING !== 'true') throw Error('Settlement authorization required.');
         const raw = body.request;
         if (!raw || typeof raw !== 'object' || raw.paymentPlan !== undefined || raw.ownerPlan !== undefined ||
             (owner ? raw.settlementPlan !== undefined : raw.ownerSettlementPlan !== undefined)) throw Error('Settlement authorization required.');
-        const network = networkOf(raw.network), wallet = await pool.original(network, raw.profileId);
+        const network = networkOf(raw.network);
+        if (!owner && !publicSigningAllowed(values, network)) throw Error('Settlement authorization required.');
+        const wallet = await pool.original(network, raw.profileId);
         const connection = authorization.connection(owner ? body.connectionToken ?? raw.connectionToken : request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '', { gameId, network, profileId: raw.profileId });
         const binding = { audience: url.origin, gameId, network, profileId: raw.profileId, operationId: raw.operationId, connectionId: connection.id };
         if (!owner) {
@@ -281,7 +293,7 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
         path==='/api/bis/owner/treasure/actor/plan'||path==='/api/bis/owner/treasure/actor/authorize'){
         const owner=path.startsWith('/api/bis/owner/'),authorizing=path.endsWith('/authorize');
         if(owner)authorization.assertOwner(request.headers.get('authorization'));
-        else if(values.BIS_PUBLIC_PAYMENT_SIGNING!=='true')throw Error('Player authorization required.');
+        else if(!publicSigningAllowed(values,'mutinynet'))throw Error('Player authorization required.');
         const wrapperKeys=owner?['request','connectionToken','contractPlayerPublicKey']:['request','playerToken'];
         if(!exactObject(body,wrapperKeys))throw Error('Treasure Game actor authorization is outside the signing policy.');
         const prepared=actorBody(body.request,authorizing),planToken=authorizing?prepared.treasureActorPlan:undefined;
@@ -320,10 +332,11 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
         return reply(request, 200, { ownerPlan: ownerPlans.plan(binding, undefined, validated,raw) });
       }
       if (path === '/api/bis/payment/plan' || path === '/api/bis/payment/authorize') {
-        if (values.BIS_PUBLIC_PAYMENT_SIGNING !== 'true') throw Error('Payment authorization required.');
         const raw = body.request;
         if (!raw || typeof raw !== 'object') throw Error('Payment authorization required.');
-        const network = networkOf(raw.network), wallet = await pool.original(network, raw.profileId);
+        const network = networkOf(raw.network);
+        if (!publicSigningAllowed(values, network)) throw Error('Payment authorization required.');
+        const wallet = await pool.original(network, raw.profileId);
         const connection = authorization.connection(request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '', { gameId, network, profileId: raw.profileId });
         const binding = { audience: url.origin, gameId, network, profileId: raw.profileId, operationId: raw.operationId, connectionId: connection.id };
         const player = players.verify(body.playerToken, { audience: url.origin, gameId, network, profileId: raw.profileId, operationId: raw.operationId });
@@ -381,7 +394,11 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
         return reply(request, 200, players.authenticate(body.challenge, body.signature, binding));
       }
       if (path === '/api/bis/proof') {
-        const network = networkOf(body.network), wallet = await pool.select(network);
+        const network = networkOf(body.network);
+        // Deployment verification exposes a domain-separated Signet identity
+        // proof only; it does not enable payment signing or Mutinynet signing.
+        if (network !== 'signet') throw Error('Public proof authorization required.');
+        const wallet = await pool.select(network);
         const id = randomUUID(), message = signingDigest(['bis-server-deployment-proof-v1', gameId, network, wallet.profileId, id, now()]);
         const claim: SigningClaim = { scope: `proof:${network}:${wallet.profileId}`, id, operationId: id, digest: message, inputs: [], transactionId: message, exposureSats: 0, dailyCapSats: 0, operationCapSats: 0, day: new Date(now()).toISOString().slice(0, 10) };
         const signature = await coordinatedSigning(store(), claim, async () => toHex(await MnemonicIdentity.fromMnemonic(wallet.mnemonic, { isMainnet: false }).signMessage(Buffer.from(message, 'hex'), 'schnorr')));
@@ -394,7 +411,7 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
         // callers still need a verified Player proof and an exact policy grant.
         // An explicitly supplied owner credential must never be ignored.
         const credential = request.headers.get('authorization');
-        if (credential !== null || values.BIS_PUBLIC_PAYMENT_SIGNING !== 'true') authorization.assertOwner(credential);
+        if (credential !== null || !publicSigningAllowed(values, network)) authorization.assertOwner(credential);
         else {
           if (!authorization.configured) throw Error('Private owner authorization required.');
           await store().consumePublicRequest(`${gameId}:${network}`, now());
@@ -417,7 +434,7 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
       const network = networkOf(body.network), digest = signingDigest(body);
       if(Object.hasOwn(body,'treasureActorPlan')||Object.hasOwn(body,'treasureActorProof')){
         const prepared=actorBody(body,true),message=actorMessage(prepared),authority=actorPlans.authority(prepared.treasureActorPlan);
-        if(authority==='public'&&values.BIS_PUBLIC_PAYMENT_SIGNING!=='true')throw Error('Player authorization required.');
+        if(authority==='public'&&!publicSigningAllowed(values,'mutinynet'))throw Error('Player authorization required.');
         const bearer=request.headers.get('authorization');
         if(authority==='public'&&bearer!==`Bearer ${prepared.connectionToken}`||authority==='owner'&&bearer!==null)
           throw Error('Treasure Game actor authorization is outside the signing policy.');
@@ -461,7 +478,7 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
         const owner = body.ownerSettlementPlan !== undefined;
         if (body.paymentPlan !== undefined || body.ownerPlan !== undefined || owner && body.settlementPlan !== undefined) throw Error('Settlement authorization required.');
         if (owner) authorization.assertOwner(request.headers.get('authorization'));
-        else if (values.BIS_PUBLIC_PAYMENT_SIGNING !== 'true' || values.BIS_PUBLIC_SETTLEMENT_SIGNING !== 'true') throw Error('Settlement authorization required.');
+        else if (!publicSigningAllowed(values, network) || values.BIS_PUBLIC_SETTLEMENT_SIGNING !== 'true') throw Error('Settlement authorization required.');
         const connection = authorization.connection(owner ? body.connectionToken : request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '', { gameId, network, profileId: body.profileId });
         const binding = { audience: url.origin, gameId, network, profileId: body.profileId, operationId: body.operationId, connectionId: connection.id };
         const authority = owner ? ownerSettlements : settlements, planToken = owner ? body.ownerSettlementPlan : body.settlementPlan;
@@ -497,7 +514,7 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
         return reply(request, 200, ownerPlans.response(result));
       }
       if (body.paymentPlan !== undefined) {
-        if (values.BIS_PUBLIC_PAYMENT_SIGNING !== 'true') throw Error('Payment authorization required.');
+        if (!publicSigningAllowed(values, network)) throw Error('Payment authorization required.');
         const connection = authorization.connection(request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '', { gameId, network, profileId: body.profileId });
         const binding = { audience: url.origin, gameId, network, profileId: body.profileId, operationId: body.operationId, connectionId: connection.id };
         const approved = payments.verify(request.headers.get('x-bis-signing-grant') ?? '', body.paymentPlan, body, binding);

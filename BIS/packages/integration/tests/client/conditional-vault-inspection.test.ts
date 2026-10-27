@@ -9,7 +9,7 @@ import {
 } from "../../src/client/wallet-layer-arkade/conditional-vault-descriptor.ts";
 import { inspectConditionalVault } from "../../src/client/wallet-layer-arkade/conditional-vault-inspection.ts";
 
-async function fixture(
+export async function fixture(
   network: "signet" | "mutinynet",
   terminal: "claim" | "recover" | null,
   steps = 3,

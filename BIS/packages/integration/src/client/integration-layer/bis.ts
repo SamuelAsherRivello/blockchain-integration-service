@@ -93,6 +93,8 @@ export type BisSnapshot = Readonly<{
     visible: boolean;
     hasProfile: boolean;
     phase: ReturnType<BisContext['getState']>['phase'];
+    /** Currently selected network, including before a player profile is connected. */
+    network?: BisNetwork;
     playerWallet?: BisWalletReference;
     gameWallet?: BisWalletReference;
   }>;

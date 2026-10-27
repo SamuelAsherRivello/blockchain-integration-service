@@ -97,7 +97,7 @@ for(const authority of ['owner','player-proof'] as const)test(`hosted V4 ${autho
     async consumePublicRequest(scope,now,limits){metrics.quotas++;return productionStore.consumePublicRequest(scope,now,limits);},
   };
   const env={BIS_OWNER_TOKEN:ownerToken,BIS_GAME_ID:gameId,BIS_GAME_WALLET_MUTINYNET_01_MNEMONIC:phrases[0],
-    BIS_PUBLIC_PAYMENT_SIGNING:'true',BIS_PUBLIC_CONTRACT_SIGNING:'true',BIS_SIGNING_OPERATION_CAP_SATS:'5000',BIS_SIGNING_DAILY_CAP_SATS:'10000'};
+    BIS_PUBLIC_PAYMENT_SIGNING:'true',BIS_PUBLIC_SIGNING_NETWORKS:'mutinynet',BIS_PUBLIC_CONTRACT_SIGNING:'true',BIS_SIGNING_OPERATION_CAP_SATS:'5000',BIS_SIGNING_DAILY_CAP_SATS:'10000'};
   const handler=createHostedHandler({env,store,now:()=>clock,pool:createWalletPool(env),paymentContext:options=>readPaymentContext(options,reader)});
   const calls:WireCall[]=[],publicHeader=(connectionToken:string)=>({Authorization:`Bearer ${connectionToken}`});
   let connectionToken='';

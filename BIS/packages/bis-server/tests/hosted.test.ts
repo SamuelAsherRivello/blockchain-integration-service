@@ -209,12 +209,30 @@ test('hosted identity/proof never return secrets or claim public signing readine
   assert.deepEqual(health.networks, { signet: 1, mutinynet: 1 });
   const identity = await (await handler(new Request('https://example.test/api/bis/identity?network=mutinynet'))).json();
   assert.equal(identity.slot, '02'); assert.deepEqual(identity.capabilities, []);
-  const proof = await (await handler(post('proof', { network: 'signet', message: 'must-be-ignored' }))).json();
+  const proofHandler = createHostedHandler({ env: { ...values, BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' }, store: memoryStore() });
+  const proof = await (await proofHandler(post('proof', { network: 'signet', message: 'must-be-ignored' }))).json();
   assert.equal(schnorr.verify(Buffer.from(proof.signature, 'hex'), Buffer.from(proof.message, 'hex'), Buffer.from(proof.publicKey.slice(2), 'hex')), true);
   assert.equal(JSON.stringify([health, identity, proof]).includes(phrase), false);
   assert.equal((await handler(post('connect', { network: 'signet', gameId: 'stealth-and-steel' }))).status, 403);
   assert.equal((await handler(post('proof', { network: 'bitcoin' }))).status, 503);
   assert.equal((await handler(post('proof', { network: 'signet' }, { Origin: 'https://evil.test' }))).status, 403);
+});
+test('public signing is explicitly network-scoped and fails closed for an unlisted test network', async () => {
+  const env = { ...values, BIS_OWNER_TOKEN: 'scoped-public-owner-secret-'.repeat(3), BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' };
+  const handler = createHostedHandler({ env, store: memoryStore() });
+  const signetIdentity = await (await handler(new Request('https://example.test/api/bis/identity?network=signet'))).json();
+  const mutinynetIdentity = await (await handler(new Request('https://example.test/api/bis/identity?network=mutinynet'))).json();
+  assert.equal(signetIdentity.signingReady, true);
+  assert.deepEqual(signetIdentity.capabilities, ['sign', 'signMessage', 'signerSession']);
+  assert.equal(mutinynetIdentity.signingReady, false);
+  assert.deepEqual(mutinynetIdentity.capabilities, []);
+  assert.equal((await handler(post('connect', { network: 'signet', gameId: 'stealth-and-steel' }))).status, 200);
+  assert.equal((await handler(post('connect', { network: 'mutinynet', gameId: 'stealth-and-steel' }))).status, 403);
+  assert.equal((await handler(post('proof', { network: 'mutinynet' }))).status, 403);
+  for (const configured of [undefined, '', 'signet,invalid', 'SIGNET']) {
+    const denied = createHostedHandler({ env: { ...env, BIS_PUBLIC_SIGNING_NETWORKS: configured }, store: memoryStore() });
+    assert.equal((await denied(post('connect', { network: 'signet', gameId: 'stealth-and-steel' }))).status, 403);
+  }
 });
 test('owner signing and exact response replay work across cold instances with scoped connection tokens', async () => {
   const secret = 'test-owner-secret-'.repeat(3), env = { ...values, BIS_OWNER_TOKEN: secret }, store = memoryStore();
@@ -239,7 +257,7 @@ test('opt-in public connections are rate limited and never authorize arbitrary o
     if (exhausted) throw Error('Public signing request limit exceeded.');
     consumed++;
   };
-  const env = { ...values, BIS_OWNER_TOKEN: secret, BIS_PUBLIC_PAYMENT_SIGNING: 'true' };
+  const env = { ...values, BIS_OWNER_TOKEN: secret, BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' };
   const handler = createHostedHandler({ env, store });
   const scope = { network: 'signet', gameId: 'stealth-and-steel' };
   const response = await handler(post('connect', scope));
@@ -266,7 +284,7 @@ test('opt-in public connections are rate limited and never authorize arbitrary o
 });
 
 test('V4 actor endpoints require Player proof, exact connection binding, coordinated Game signature and read-only replay',async()=>{
-  const secret='treasure-actor-route-secret-'.repeat(2),env={...values,BIS_OWNER_TOKEN:secret,BIS_PUBLIC_PAYMENT_SIGNING:'true'},store=memoryStore();
+  const secret='treasure-actor-route-secret-'.repeat(2),env={...values,BIS_OWNER_TOKEN:secret,BIS_PUBLIC_PAYMENT_SIGNING:'true',BIS_PUBLIC_SIGNING_NETWORKS:'mutinynet'},store=memoryStore();
   const counters={reads:0,claims:0,completions:0,quotas:0},readCompleted=store.readCompleted!.bind(store),claimSigning=store.claim.bind(store),completeSigning=store.complete.bind(store),consume=store.consumePublicRequest.bind(store);
   store.readCompleted=async input=>{counters.reads++;return readCompleted(input);};
   store.claim=async input=>{counters.claims++;return claimSigning(input);};
@@ -393,7 +411,7 @@ test('public connection selection checks fresh per-network requirements but orig
   const second = 'legal winner thank year wave sausage worth useful legal winner thank yellow';
   const secret = 'public-pool-test-secret-'.repeat(3), store = memoryStore(), visited: string[] = [];
   let drained = false;
-  const env = { ...values, BIS_GAME_WALLET_SIGNET_02_MNEMONIC: second, BIS_OWNER_TOKEN: secret, BIS_PUBLIC_PAYMENT_SIGNING: 'true' };
+  const env = { ...values, BIS_GAME_WALLET_SIGNET_02_MNEMONIC: second, BIS_OWNER_TOKEN: secret, BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' };
   const pool = createWalletPool(env, async wallet => {
     visited.push(`${wallet.network}:${wallet.slot}`);
     return { availableArkadeSats: wallet.slot === '02' && !drained ? 2000 : 0, availableBitcoinSats: 20000 };
@@ -418,9 +436,10 @@ test('public connection selection checks fresh per-network requirements but orig
   assert.equal((await handler(post('connect', { ...scope, profileId: funded.profileId, requirement: {} }))).status, 503);
   assert.equal((await handler(post('connect', { ...scope, profileId: 'ff'.repeat(32) }))).status, 503);
   assert.equal(createSigningAuthorization(secret).connection(funded.token, { ...scope, network: 'signet', profileId: funded.profileId }).profileId, funded.profileId);
-  // Signet's eligible slot must never qualify a request on Mutinynet.
-  assert.equal((await handler(post('connect', { ...scope, network: 'mutinynet', requirement: { arkadeSats: 1000 } }))).status, 503);
-  assert.equal(visited.at(-1), 'mutinynet:02');
+  // Mutinynet is outside this public signing allowlist; reject before any balance selection.
+  const beforeMutinynet = visited.length;
+  assert.equal((await handler(post('connect', { ...scope, network: 'mutinynet', requirement: { arkadeSats: 1000 } }))).status, 403);
+  assert.equal(visited.length, beforeMutinynet);
   const before = visited.length;
   const cancelled = new Request(post('connect', { ...scope, requirement: { arkadeSats: 1 } }), { signal: AbortSignal.abort() });
   assert.equal((await handler(cancelled)).status, 503);

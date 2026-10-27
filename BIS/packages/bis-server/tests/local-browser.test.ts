@@ -20,7 +20,7 @@ test.beforeEach(t=>{
 
 test('public Game Wallet view selects funded slot 02 without owner login and retains it after reload', { timeout: 60000 }, async t => {
   const second = 'legal winner thank year wave sausage worth useful legal winner thank yellow';
-  const env = { BIS_OWNER_TOKEN: randomUUID() + randomUUID(), BIS_GAME_WALLET_SIGNET_01_MNEMONIC: mnemonic, BIS_GAME_WALLET_SIGNET_02_MNEMONIC: second, BIS_PUBLIC_PAYMENT_SIGNING: 'true' };
+  const env = { BIS_OWNER_TOKEN: randomUUID() + randomUUID(), BIS_GAME_WALLET_SIGNET_01_MNEMONIC: mnemonic, BIS_GAME_WALLET_SIGNET_02_MNEMONIC: second, BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' };
   const reads: string[] = [], requests: any[] = [];
   const pool = createWalletPool(env, async wallet => { reads.push(wallet.slot); return {availableArkadeSats:wallet.slot==='02'?2000:0,availableBitcoinSats:20000}; });
   const wallets = await pool.publicWallets('signet'), expected = wallets.find(wallet => wallet.slot === '02')!;

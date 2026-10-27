@@ -84,7 +84,7 @@ test('server Game wallet preserves SDK implicit settlement selection before sign
 test('hosted client authorizes and Game-signs the SDK virtual-input forfeit using captured connectors', async t => {
   t.after(() => configureBisServer({}));
   const secret = 'virtual-forfeit-client-fixture-'.repeat(3), input = virtualCoin(), paths: string[] = [], claims: SigningClaim[] = [], blobs = new Map<string, string>(); let fetchError = '';
-  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
+  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
   const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,
     session: async (_claim, _owner, id, encrypted) => { if (encrypted !== undefined) blobs.set(id, encrypted); return blobs.get(id) ?? null; },
     claim: async claim => { claims.push(claim); return { status: 'acquired', owner: claim.id }; }, complete: async () => {} };
@@ -165,7 +165,7 @@ test('client captures an independent SDK registration snapshot and preserves big
 for (const owner of [false, true]) test(`retained ${owner ? 'owner' : 'public'} client captures SDK events before batch signing across fresh handlers`, async t => {
   t.after(() => configureBisServer({}));
   const secret = 'client-batch-fixture-'.repeat(4), paths: string[] = [], claims: SigningClaim[] = [], blobs = new Map<string, string>();
-  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
+  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
   const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,
     session: async (_claim, _owner, id, encrypted) => { if (encrypted !== undefined) blobs.set(id, encrypted); return blobs.get(id) ?? null; },
     claim: async claim => { claims.push(claim); return { status: 'acquired', owner: claim.id }; }, complete: async () => {} };
@@ -240,7 +240,7 @@ for (const owner of [false, true]) test(`retained ${owner ? 'owner' : 'public'} 
 for (const owner of [false, true]) test(`retained ${owner ? 'owner' : 'public'} client pins parallel settlement proofs to one plan and lease`, async t => {
   t.after(() => configureBisServer({}));
   const secret = 'settlement-client-secret-'.repeat(3), claims: SigningClaim[] = [], paths: string[] = [];
-  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
+  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0], BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet', BIS_PUBLIC_SETTLEMENT_SIGNING: 'true', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
   const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false, session: async () => { throw Error('No unvalidated MuSig session.'); },
     claim: async claim => { claims.push(claim); return { status: 'acquired', owner: claim.id }; }, complete: async () => {} };
   const fetcher: typeof fetch = async (url, init) => {

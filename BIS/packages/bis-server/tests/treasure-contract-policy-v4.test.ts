@@ -130,7 +130,7 @@ test('V4 ROOT claim-day and two CP families survive midnight, with exact recover
   async session(){return null;},async ping(){},async assetAllowed(){return false;},async consumePublicRequest(){counters.quotas++;},
  };
  const env={BIS_OWNER_TOKEN:secret,BIS_GAME_ID:gameId,BIS_GAME_WALLET_MUTINYNET_01_MNEMONIC:phrase,
-  BIS_PUBLIC_PAYMENT_SIGNING:'true',BIS_PUBLIC_CONTRACT_SIGNING:'true',BIS_SIGNING_OPERATION_CAP_SATS:'5000',BIS_SIGNING_DAILY_CAP_SATS:'10000'};
+  BIS_PUBLIC_PAYMENT_SIGNING:'true',BIS_PUBLIC_SIGNING_NETWORKS:'mutinynet',BIS_PUBLIC_CONTRACT_SIGNING:'true',BIS_SIGNING_OPERATION_CAP_SATS:'5000',BIS_SIGNING_DAILY_CAP_SATS:'10000'};
  let activeContext=context;
  const handler=createHostedHandler({env,store,now:()=>now,pool:createWalletPool(env),paymentContext:async()=>activeContext});
  const post=(path:string,body:unknown,headers:Record<string,string>={})=>new Request(`https://example.test/api/bis/${path}`,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)}),ownerHeader={Authorization:`Bearer ${secret}`};

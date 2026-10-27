@@ -1,6 +1,6 @@
 {
   "name": "@bis/integration-admin",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
-    "@bis/integration": "0.0.27",
+    "@bis/integration": "0.0.28",
     "mermaid": "^12.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

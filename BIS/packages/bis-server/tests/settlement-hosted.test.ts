@@ -21,7 +21,7 @@ const register = (amount = 15000n) => Intent.create({ type: 'register', onchain_
 
 for (const owner of [false, true]) test(`hosted ${owner ? 'owner' : 'public'} settlement proofs retain exact plan and reject changes before signing`, async () => {
   const claims: SigningClaim[] = [], secret = 'hosted-settlement-test-secret-'.repeat(3);
-  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: mnemonic, BIS_PUBLIC_PAYMENT_SIGNING: 'true',
+  const env = { BIS_OWNER_TOKEN: secret, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: mnemonic, BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet',
     BIS_PUBLIC_SETTLEMENT_SIGNING: 'false', BIS_SIGNING_OPERATION_CAP_SATS: '5000', BIS_SIGNING_DAILY_CAP_SATS: '10000' };
   const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,
     session: async () => { throw Error('Proof signing is not MuSig authority.'); }, claim: async claim => { claims.push(claim); return { status: 'acquired', owner: claim.id }; }, complete: async () => {} };

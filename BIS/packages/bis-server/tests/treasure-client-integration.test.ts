@@ -31,7 +31,7 @@ async function fixture(owner:boolean,loseRootAck=false){
   if(row){if(row.digest!==claim.digest)throw Error('Changed original digest');if(!row.done)throw Error('Original claim unresolved');return {status:'replay',result:structuredClone(row.result)};}
   acquired++;rows.set(key,{digest:claim.digest,done:false});return {status:'acquired',owner:key};
  },complete:async(claim,_owner,result)=>{const row=rows.get(claim.scope+':'+claim.id)!;row.result=structuredClone(result);row.done=true;completions.push(structuredClone(claim));}};
- const env={BIS_OWNER_TOKEN:ownerToken,BIS_GAME_WALLET_MUTINYNET_01_MNEMONIC:phrases[0],BIS_PUBLIC_PAYMENT_SIGNING:'true',BIS_PUBLIC_CONTRACT_SIGNING:'true',BIS_PUBLIC_ASSET_SIGNING:'false',BIS_SIGNING_OPERATION_CAP_SATS:'5000',BIS_SIGNING_DAILY_CAP_SATS:'10000'};
+ const env={BIS_OWNER_TOKEN:ownerToken,BIS_GAME_WALLET_MUTINYNET_01_MNEMONIC:phrases[0],BIS_PUBLIC_PAYMENT_SIGNING:'true',BIS_PUBLIC_SIGNING_NETWORKS:'mutinynet',BIS_PUBLIC_CONTRACT_SIGNING:'true',BIS_PUBLIC_ASSET_SIGNING:'false',BIS_SIGNING_OPERATION_CAP_SATS:'5000',BIS_SIGNING_DAILY_CAP_SATS:'10000'};
  let contextReads=0;const calls:Call[]=[],handler=createHostedHandler({env,store,now:()=>clock,paymentContext:options=>{contextReads++;return readPaymentContext(options,reader);}});
  const send=async(path:string,body:unknown,authorization:string|null=null,grant:string|null=null)=>{
   // Fresh-context reads use the real local clock; keep the injected handler
