@@ -28,7 +28,12 @@ On Vercel Preview deployments, bis-server SHALL resolve private signer, owner-to
 - **AND** Preview wallet secrets do not become accessible to Production
 
 ### Requirement: Server-first resolution with manual fallback
-BIS SHALL probe the known local or configured hosted API on initialization, player login/logout, network/configuration changes and Retry. A compatible server SHALL take precedence at a clean selection boundary. If no server is running or findable after a bounded reachability attempt, BIS SHALL offer the existing manual Game Wallet Login even when an endpoint was configured.
+BIS SHALL select Direct on Mutinynet without probing a BIS server, and Server by default on Signet. Server mode SHALL use bounded lifecycle probes of the known API. Unreachable Server mode SHALL offer explicit Direct login for independent new work, while reporting the actual connection error and preserving pending authority.
+
+#### Scenario: Direct Mutinynet with a configured server
+- **WHEN** the user selects Mutinynet while a BIS server endpoint is configured, stopped or unreachable
+- **THEN** existing local Game Wallet create/restore/login and all previously enabled actions remain available
+- **AND** the client sends no BIS server identity, connect, planning, grant or signing request for that Direct workflow
 
 #### Scenario: Server stopped or absent
 - **WHEN** the signer is stopped, the route is absent, or connection is refused
@@ -50,7 +55,7 @@ BIS SHALL probe the known local or configured hosted API on initialization, play
 - **AND** player logout does not delete or log out the server identity
 
 ### Requirement: Signet-only hosted wallet selection
-This release SHALL configure hosted Game Wallet signing for Signet only. Signet identity and signing use the selected private Signet test identity. Mutinynet hosted signing SHALL remain unavailable until the two-network qualification proposal is complete, across both public and owner-authenticated routes. Owner signing SHALL default to the configured public signing network allowlist unless a separate owner allowlist is explicitly configured. Signing and recovery SHALL resolve the original selected profile without balance-driven replacement or cross-network fallback.
+This release SHALL configure hosted Game Wallet signing for Signet only. Mutinynet SHALL use Direct and retain its existing feature set. Public and owner-authenticated Production routes SHALL reject hosted Mutinynet signing. Signing and recovery SHALL retain the original network/profile without balance-driven replacement. Any future hosted Mutinynet enablement requires separate qualification.
 
 #### Scenario: Signet signer is configured
 - **WHEN** a published consumer selects Signet and the private Signet identity is configured
@@ -58,8 +63,8 @@ This release SHALL configure hosted Game Wallet signing for Signet only. Signet 
 - **AND** existing operations remain bound to the identity that created them
 
 #### Scenario: Mutinynet hosted signer is not released
-- **WHEN** a published consumer selects Mutinynet during proposal 1
-- **THEN** it reports hosted signing as unavailable and offers the explicit existing manual flow
+- **WHEN** a published consumer selects Mutinynet for this release
+- **THEN** it enters the existing Direct flow without first attempting hosted signing
 - **AND** it does not silently use the Signet identity or sign for Mutinynet
 
 #### Scenario: Owner credentials cannot bypass the Mutinynet release boundary
@@ -69,6 +74,11 @@ This release SHALL configure hosted Game Wallet signing for Signet only. Signet 
 
 ### Requirement: Signing parity with client-owned operations
 Server mode SHALL replace only the Game Wallet signing identity. Existing preparation, submission, provider reads, journals and reconciliation SHALL remain client-owned. Required transaction, message and signer-session methods SHALL work remotely for existing enabled workflows. Signatures SHALL NOT establish financial confirmation or alter fee payer, trophy eligibility or reward policy.
+
+#### Scenario: All enabled features retain behavior
+- **WHEN** applicable wallet, payment, asset, Marketplace, continuation or Treasure actions run in Mutinynet Direct or Signet Server
+- **THEN** they retain their established amounts, destinations, ownership, asset change, user feedback and recovery behavior
+- **AND** an enabled action is not removed or disabled merely to satisfy the release checklist
 
 #### Scenario: Existing game-wallet transaction
 - **WHEN** a current workflow prepares a transaction

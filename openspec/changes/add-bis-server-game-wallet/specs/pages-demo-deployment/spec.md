@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Released demos integrate the Signet Vercel game signer
-The bis-server Signet release SHALL publish the Vercel signer and BIS Admin/Marketplace Pages clients configured to use it. Existing published application routes and immutable assets SHALL remain usable. Completion SHALL require exact deployment success and real Signet game-wallet signing acceptance, not only an identity probe. Mutinynet hosted signing SHALL remain unavailable until the two-network qualification proposal is complete.
+The release SHALL publish Signet Server and Mutinynet Direct through BIS Admin/Marketplace and the matching game. Existing routes and immutable assets SHALL remain usable. Completion SHALL require successful workflows and exact deployment/version evidence for both tuples. Hosted Mutinynet qualification SHALL NOT block the Direct release.
 
 #### Scenario: Published Admin and Marketplace
 - **WHEN** the Signet release is declared complete
@@ -24,6 +24,14 @@ The Signet release SHALL update Stealth & Steel with the exact verified BIS pack
 - **AND** pending server operations are not reassigned to the manual wallet
 
 #### Scenario: Mutinynet selected before qualification
-- **WHEN** the published game selects Mutinynet before proposal 2 is complete
-- **THEN** hosted signing is reported unavailable and the manual flow remains explicit
+- **WHEN** the published game selects Mutinynet while hosted Mutinynet remains unqualified
+- **THEN** it uses Direct, shows the upper-left mode label and supports all applicable existing features without a BIS server
 - **AND** the game does not select Signet keys or pretend that Mutinynet signing succeeded
+
+### Requirement: Local candidate integration precedes public release
+A frozen, verified integration archive SHALL be eligible for local game import before Pages publication. Final release SHALL use the same accepted immutable hash and matching complete versions after both required workflows pass. Changed archive bytes SHALL invalidate affected candidate evidence.
+
+#### Scenario: The game needs the candidate API before publication
+- **WHEN** BIS package checks, source provenance and archive inventory/hash pass
+- **THEN** the game may import that exact local candidate and run its acceptance checks
+- **AND** this local import does not claim live acceptance or public publication

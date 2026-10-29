@@ -1,5 +1,9 @@
 # Tasks
 
+## Deferred after the current release
+
+By the user's 2026-10-29 decision, this change is future hosted Mutinynet support. Preserve its existing task states. Do not execute or require its hosted Mutinynet configuration/acceptance during the current Mutinynet Direct + Signet Server release. Direct feature parity is mandatory in `add-bis-server-game-wallet`, the Treasure changes and the Sandbox Treasure Hunt change. A manual result cannot complete a hosted task here.
+
 ## 1. Network-scoped configuration and policy
 
 - [x] 1.1 Audit Signet and Mutinynet runtime configuration, environment isolation, caps, and state namespaces; add or correct any gap and verify focused server tests prove there is no cross-network fallback. (Evidence: `output/reports/bis-server/two-network/2026-10-27/network-policy-acceptance.md`; added explicit regression coverage for duplicate identity deduplication and no cross-network fallback.)

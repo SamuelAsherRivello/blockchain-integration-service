@@ -1,5 +1,9 @@
 # Design
 
+## Deferred execution boundary
+
+The 2026-10-29 user decision makes this a future hosted-Mutinynet change. Its two-hosted-network design below remains prospective. Current release routing is Mutinynet/Direct and Signet/Server, with independent regression and real contract evidence. No task in this proposal is a prerequisite for Direct Mutinynet. Keep its incomplete hosted signing criteria and original evidence unchanged.
+
 ## Context
 
 See `proposal.md` for motivation and scope. The Signet release establishes the deployed service, API, storage, and consumer wiring. Current implementation work already includes network-aware identity selection, but deployed acceptance has not proven Mutinynet configuration or signing. Keep test identities, authorization, caps, and storage isolated by network.

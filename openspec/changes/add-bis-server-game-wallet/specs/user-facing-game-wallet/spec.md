@@ -14,10 +14,20 @@ Game Wallet Developer Settings SHALL identify server/manual source and connectio
 - **THEN** settings exposes working manual Game Wallet Login and Retry
 - **AND** the player can explicitly log in a local game wallet for new work
 
-### Requirement: Server connection indicator in the BIS banner
-The shared BIS banner SHALL retain network and version and add the exact word `Server` only while a compatible server signer is connected. Failed connection checks SHALL remove the indicator. The indicator SHALL report signer connectivity, not funds availability or transaction confirmation.
+### Requirement: Workflow mode in the upper-left BIS header
+After network selection, the shared top header SHALL show exactly `Server` or `Direct` in its upper-left corner and retain network and BIS version. The label SHALL describe the selected workflow. Connection health, funds availability and transaction outcome SHALL be reported separately.
 
-#### Scenario: Connection changes
-- **WHEN** a valid signer connects and later becomes unreachable
-- **THEN** `Server` appears while connected and disappears after the failed check
-- **AND** manual mode shows no `Server` indicator and retains network/version
+#### Scenario: Mutinynet is selected
+- **WHEN** the user selects Mutinynet
+- **THEN** the header shows `Direct` at the upper-left with Mutinynet and the current BIS version
+- **AND** no BIS server connection is required
+
+#### Scenario: Signet server connection changes
+- **WHEN** Signet Server mode is connecting, connected or reports a connection failure
+- **THEN** its upper-left mode label remains `Server` and its distinct health status states the actual condition
+- **AND** the mode label alone does not claim readiness or transaction success
+
+#### Scenario: Explicit Direct fallback
+- **WHEN** the user explicitly selects Direct for independent new Signet work
+- **THEN** the upper-left label changes to `Direct` while network/version remain visible
+- **AND** pending Server operations keep their original authority and evidence

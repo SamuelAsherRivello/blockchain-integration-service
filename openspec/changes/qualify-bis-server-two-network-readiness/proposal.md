@@ -1,5 +1,9 @@
 # Proposal
 
+## Deferred hosted-network scope, 2026-10-29
+
+The user now requires Direct Mutinynet and Server Signet for the current release. This proposal remains future **hosted Mutinynet** qualification and is not required to ship or restore Direct Mutinynet. Its existing unfinished tasks and guarantees remain incomplete. Do not enable hosted Mutinynet, wait for it during the current release, or mark this proposal complete by replacing hosted acceptance with manual-wallet results. Current Direct regression and release work belong to `add-bis-server-game-wallet` and the linked Treasure/Sandbox changes.
+
 ## Why
 
 The Signet release provides a working hosted BIS server and game integration on one network. Operators and players also need the same verified behavior on Mutinynet before both networks can be presented as supported.
