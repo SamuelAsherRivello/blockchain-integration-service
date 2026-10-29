@@ -15,12 +15,13 @@ function fixture() {
 }
 const remote: any = { profileId: 'server-wallet', network: 'signet', server: { endpoint: '/api/bis/', publicKey: '02' + '11'.repeat(32), gameId: 'stealth-and-steel' } };
 
-test('missing server preserves explicit manual login and local storage', async () => {
+test('Signet Server absence preserves local data without activating a browser signer', async () => {
   const { backend, account } = fixture(); await backend.refresh();
   assert.equal(backend.source().source, 'manual');
-  assert.equal((await backend.storage.load())?.profileId, 'saved-manual');
-  await backend.storage.select({ profileId: 'manual-new', phrase: 'local-only' });
-  assert.equal(account().profileId, 'manual-new');
+  assert.equal(backend.source().workflowMode,'server');
+  assert.equal(await backend.storage.load(),null);
+  await assert.rejects(backend.storage.select({ profileId: 'manual-new', phrase: 'local-only' }),/server selected/);
+  assert.equal(account().profileId,'saved-manual');
 });
 
 test('server takes precedence without saving a secret or deleting the manual identity', async () => {
@@ -43,7 +44,7 @@ test('manual-only game service restores its selected local wallet even when a se
   const backend = createServerFirstStorage(local, () => 'signet', async () => ({ status: 'connected', account: remote }), undefined, undefined, true);
   await backend.refresh();
   assert.equal(backend.source().source, 'manual');
-  assert.equal(backend.source().serverStatus, 'connected');
+  assert.equal(backend.source().serverStatus, 'absent');assert.equal(backend.source().workflowMode,'local');
   await backend.storage.select({ profileId: 'wallet-2', phrase: 'unit-test-only' });
   assert.equal((await backend.storage.load())?.profileId, 'wallet-2');
   await backend.storage.logout();
@@ -52,15 +53,16 @@ test('manual-only game service restores its selected local wallet even when a se
   backend.storage.dispose();
 });
 
-test('server loss offers manual login but never activates retained identity; return does not replace manual selection', async () => {
-  const { backend, set } = fixture(); set({ status: 'connected', account: remote }); await backend.refresh();
+test('Signet outage keeps Server selected and does not import or erase a retained local identity', async () => {
+  const { backend, set,account } = fixture(); set({ status: 'connected', account: remote }); await backend.refresh();
   const original = await backend.storage.load();
   set({ status: 'absent', message: 'Stopped.' }); await backend.refresh();
   assert.equal(await backend.storage.load(), null);
-  await backend.storage.select({ profileId: 'explicit-manual', phrase: 'local' });
+  await assert.rejects(backend.storage.select({ profileId: 'explicit-manual', phrase: 'local' }),/server selected/);
+  assert.equal(backend.source().workflowMode,'server');assert.equal(account().profileId,'saved-manual');
   set({ status: 'connected', account: remote }); await backend.refresh();
-  assert.equal((await backend.storage.load())?.profileId, 'explicit-manual');
-  assert.equal(backend.source().source, 'manual'); assert.equal(original?.profileId, 'server-wallet');
+  assert.equal((await backend.storage.load())?.profileId, 'server-wallet');
+  assert.equal(backend.source().source, 'server'); assert.equal(original?.profileId, 'server-wallet');
 });
 
 test('reachable incompatible server stays an explicit error', async () => {
@@ -76,7 +78,7 @@ test('late probe response cannot replace a changed network', async () => {
   assert.equal(backend.source().source, 'manual');
 });
 
-test('source refresh pins each network profile and rejects a substitute after loss', async () => {
+test('source refresh pins Signet identity, skips Mutinynet resolution and rejects a substitute after loss', async () => {
   const { local, network } = fixture();
   const calls: { network: string; profileId?: string }[] = [];
   let replacement = false, absent = false;
@@ -88,7 +90,7 @@ test('source refresh pins each network profile and rejects a substitute after lo
   await backend.refresh(); await backend.refresh();
   assert.deepEqual(calls.slice(0, 2), [{ network: 'signet', profileId: undefined }, { network: 'signet', profileId: 'signet-original' }]);
   network.value = 'mutinynet'; await backend.refresh(); await backend.refresh();
-  assert.equal(calls.at(-1)?.profileId, 'mutinynet-original');
+  assert.equal(calls.length,2);assert.equal(backend.source().workflowMode,'local');
   network.value = 'signet'; absent = true; await backend.refresh();
   assert.equal(await backend.storage.load(), null);
   absent = false; replacement = true; await backend.refresh();
@@ -152,8 +154,32 @@ test('unreadable or unwriteable public selection does not silently select a fres
   await assert.rejects(unwritable.storage.load(), /could not be saved/);
   const absent = createServerFirstStorage(local, () => 'signet', async () => ({ status: 'absent', message: 'Stopped.' }), { load() { throw Error('denied'); }, save() {} });
   await absent.refresh();
-  await absent.storage.select({ profileId: 'explicit-manual', phrase: 'local-only' });
-  assert.equal((await absent.storage.load())?.profileId, 'explicit-manual');
+  await assert.rejects(absent.storage.select({ profileId: 'explicit-manual', phrase: 'local-only' }),/server selected/);
+  assert.equal(await absent.storage.load(),null);
+});
+
+test('Mutinynet Local resolves before probes or saved-server reads and keeps local wallet actions available',async()=>{
+ let stored:any=null,probes=0,rememberedReads=0,selections=0;
+ const local={load:async()=>stored,select:async account=>{stored=account;},logout:async()=>{stored=null;},reset:async()=>{stored=null;},subscribe:()=>()=>{},dispose(){}};
+ const backend=createServerFirstStorage(local,()=> 'mutinynet',async()=>{probes++;throw Error('Configured backend must not be used.');},{load(){rememberedReads++;throw Error('Must not read server metadata.');},save(){throw Error('Must not save server metadata.');}},async()=>{selections++;throw Error('Must not select a BIS signer.');});
+ await backend.refresh();assert.deepEqual(backend.source(),{workflowMode:'local',source:'manual',serverStatus:'absent',serverMessage:undefined});
+ const account={profileId:'local-mutinynet',network:'mutinynet' as const,phrase:'public-fixture'};
+ await backend.storage.select(account);assert.deepEqual(await backend.storage.load(),account);
+ assert.deepEqual(await backend.selectForOperation(account,{},new AbortController().signal,()=>true),account);
+ await backend.refresh();await backend.storage.logout();assert.equal(await backend.storage.load(),null);
+ await backend.storage.select(account);await backend.storage.reset();assert.equal(await backend.storage.load(),null);
+ assert.deepEqual([probes,rememberedReads,selections],[0,0,0]);
+ assert.equal('selectWorkflowMode' in backend,false);
+});
+
+test('a late Signet probe cannot overwrite Local Mutinynet or dispatch selection for its old Server account',async()=>{
+ let selected:'signet'|'mutinynet'='signet',resolve!:(result:any)=>void,probes=0,selections=0;
+ const account={profileId:'local-mutinynet',network:'mutinynet' as const,phrase:'public-fixture'},local={load:async()=>account,select:async()=>{},logout:async()=>{},reset:async()=>{},subscribe:()=>()=>{},dispose(){}};
+ const backend=createServerFirstStorage(local,()=>selected,async()=>{probes++;return new Promise(done=>{resolve=done;});},undefined,async()=>{selections++;return remote;});
+ const pending=backend.refresh();selected='mutinynet';await backend.refresh();resolve({status:'connected',account:remote});await pending;
+ assert.equal(backend.source().workflowMode,'local');assert.deepEqual(await backend.storage.load(),account);
+ await assert.rejects(backend.selectForOperation(remote,{},new AbortController().signal,()=>true),/original game wallet/i);
+ assert.deepEqual([probes,selections],[1,0]);
 });
 
 test('reload provenance rejects a different endpoint or local signer while original work remains unresolved', () => {

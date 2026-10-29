@@ -9,6 +9,7 @@ import type { BisGameContinueState } from '../state-layer-core/game-continue';
 import type { IBisGame, BisGameSession, BisGameEffectReceipt } from '../state-layer-core/bis-game';
 import type { TestNetwork } from '../state-layer-core/test-network';
 import type { ContractValidationMode } from '../state-layer-core/contract-validation';
+import type {GameWalletWorkflowMode} from '../state-layer-core/game-wallet-workflow';
 
 /** Main game-facing vocabulary. Lower-level APIs remain available to non-game consumers. */
 export type BisNetwork = TestNetwork;
@@ -103,6 +104,9 @@ export type BisSnapshot = Readonly<{
     phase: ReturnType<BisContext['getState']>['phase'];
     /** Currently selected network, including before a player profile is connected. */
     network?: BisNetwork;
+    workflowMode?:GameWalletWorkflowMode;
+    gameWalletServerStatus?:'connected'|'absent'|'error';
+    gameWalletStatus?:'loading'|'empty'|'ready'|'unavailable';
     playerWallet?: BisWalletReference;
     gameWallet?: BisWalletReference;
   }>;

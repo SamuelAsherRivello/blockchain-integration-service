@@ -236,8 +236,8 @@ export function GameWalletLoginView({ wallet, onBack }: { wallet: GameWallet; on
     finally { setLoggingOut(false); setBusy(false); }
   }
 
-  if (state.source === 'server' || state.serverStatus === 'error') return <div className="bis-actions">
-    <p role="status">{state.source === 'server' ? 'Game wallet source: Server' : 'Game server unavailable'}</p>
+  if (state.workflowMode==='server'||state.source === 'server' || state.serverStatus === 'error') return <div className="bis-actions">
+    <p role="status">{state.source === 'server' ? 'Game wallet source: Server' : state.status==='loading'?'Connecting to game server':'Game server unavailable'}</p>
     {state.source === 'server' && <FormValue label="Arkade address" value={state.addresses?.arkadeAddress ?? '—'} copyable disabled={!state.addresses?.arkadeAddress} />}
     {state.source === 'server' && <ServerBoardingView wallet={wallet} state={state} />}
     {state.serverMessage && <p role="alert">{state.serverMessage}</p>}

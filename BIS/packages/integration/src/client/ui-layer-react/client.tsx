@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Keyboa
 import { createRoot, type Root } from 'react-dom/client';
 import { getControls, type BisContext } from '../state-layer-core/context';
 import { createBisContext } from '../wallet-layer-arkade/context-composition';
+import {defaultGameWalletWorkflowMode} from '../state-layer-core/game-wallet-workflow';
 import './overlay.css';
 import { AccountRestoreView } from './RestoreAccount';
 import { AccountAddressesFormValue } from './AccountAddresses';
@@ -255,7 +256,7 @@ function BisAccountScreen({ context, gameWallet, hasItemSupport, hasAssetMinting
   const viewKey = state.view === 'account-button' ? 'account-button' : gameWalletLogin ? 'game-wallet' : developer ? 'developer' : onboarding ? 'onboarding' : restoring ? 'restore-account' : recovery ? 'set-recovery-phrase' : savedRecovery ? 'get-recovery-phrase' : logout ? 'logout-confirmation' : state.phase === 'creating' ? 'create-account' : details ? 'account-details' : transfer ? 'swap' : send ? 'send' : receive ? 'receive' : 'account-menu';
   return <BackDismissalLayer enabled={backDismissalEnabled} onBack={handleBack} className={`bis-layer ${assets ? 'bis-layer-assets' : ''} ${state.view === 'account' ? 'bis-layer-open' : ''}`} {...publicScope}>
     {state.view === 'account-button' ? <button ref={button} className="bis-button bis-primary" onClick={() => context.openAccountDialog()}><span aria-hidden="true">⚡</span> Account</button> :
-      <ViewTransition viewKey={viewKey}><AccountDialogShell serverConnected={walletSnapshot?.source === 'server' && walletSnapshot.serverStatus === 'connected'} hostedSigningUnavailable={!!gameWallet && state.network === 'mutinynet' && walletSnapshot?.source !== 'server'} network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={`${onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}${closingAccount ? ' bis-card-closing' : ''}`}
+      <ViewTransition viewKey={viewKey}><AccountDialogShell serverConnected={walletSnapshot?.source === 'server' && walletSnapshot.serverStatus === 'connected'} workflowMode={state.network?walletSnapshot?.workflowMode??defaultGameWalletWorkflowMode(state.network):undefined} serverHealth={walletSnapshot?.serverStatus==='connected'?'connected':walletSnapshot?.serverStatus==='error'?'unavailable':walletSnapshot?.status==='loading'?'connecting':'absent'} network={state.network === 'mutinynet' ? 'Mutinynet' : state.network === 'signet' ? 'Signet' : 'Choose'} className={`${onboarding ? ' bis-card-onboarding' : assets ? ` bis-card-assets${assetOpen ? ' bis-card-asset-detail' : ''}` : activity ? ' bis-card-activity' : ''}${closingAccount ? ' bis-card-closing' : ''}`}
         title={contracts ? contractOpen?'Contract Details':'Contracts' : activity && transactionOpen ? 'Transaction Detail' : title} headingRef={heading}
         headingActions={gameWalletLogin && gameWallet ? <IconButton className="bis-title-icon" label="Refresh Game Wallet" tabIndex={-1} disabled={walletSnapshot?.status === 'loading'} onClick={()=>void gameWallet.refresh()}>
             <span className="bis-refresh-image" aria-hidden="true" />

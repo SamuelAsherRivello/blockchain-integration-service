@@ -2,6 +2,7 @@ import type { GameWalletStorage } from './game-wallet-storage.ts';
 import type { WalletAccount } from '../wallet-layer-arkade/wallet-identity.ts';
 import { probeGameSigner, selectGameSigner, signerEndpoint, type ServerWalletReference, type SignerProbe, type ServerWalletRequirement } from '../wallet-layer-arkade/server-wallet.ts';
 import type { TestNetwork } from './test-network.ts';
+import {defaultGameWalletWorkflowMode} from './game-wallet-workflow.ts';
 
 type RememberedProfile = { load(network: TestNetwork): string | undefined; save(account: ServerWalletReference): void };
 /** Public source selection survives reload; credentials and signing plans never do. */
@@ -35,11 +36,18 @@ export function createServerFirstStorage(local: GameWalletStorage, network: () =
   let server: ServerWalletReference | undefined, lastNetwork: TestNetwork | undefined;
   const profiles = new Map<TestNetwork, string>();
   let result: SignerProbe = { status: 'absent', message: '' };
-  let manualSelected = manualOnly, hadServer = false, disposed = false, generation = 0;
+  let disposed = false, generation = 0;
   let probing: Promise<void> | undefined;
-  const source = () => ({ source: server && !manualSelected ? 'server' as const : 'manual' as const, serverStatus: result.status, serverMessage: result.status === 'connected' ? undefined : result.message });
+  const mode=()=>manualOnly?'local' as const:defaultGameWalletWorkflowMode(network());
+  const source = () => mode()==='local'
+    ?{workflowMode:'local' as const,source:'manual' as const,serverStatus:'absent' as const,serverMessage:undefined}
+    :{workflowMode:'server' as const,source:server?.network===network()?'server' as const:'manual' as const,serverStatus:lastNetwork===network()?result.status:'absent' as const,serverMessage:lastNetwork===network()&&result.status!=='connected'?result.message:undefined};
   async function refresh() {
     const selected = network();
+    if(mode()==='local'){
+      generation++;lastNetwork=selected;server=undefined;result={status:'absent',message:''};
+      return;
+    }
     if (probing && lastNetwork === selected) return probing;
     lastNetwork = selected;
     const current = ++generation;
@@ -49,7 +57,7 @@ export function createServerFirstStorage(local: GameWalletStorage, network: () =
       try { profileId = profiles.get(selected) ?? remembered?.load(selected); }
       catch { unreadable = true; }
       let next = await probe(selected, { profileId });
-      if (disposed || current !== generation || selected !== network()) return;
+      if (disposed || current !== generation || selected !== network() || mode()!=='server') return;
       // Metadata failure must not hide a genuinely absent backend or disable
       // manual login. A reachable substitute is never accepted as recovery.
       if (unreadable && next.status !== 'absent') next = { status: 'error', message: 'Original server wallet selection could not be read. Reconnect its signing source before retrying.' };
@@ -59,25 +67,26 @@ export function createServerFirstStorage(local: GameWalletStorage, network: () =
         catch { next = { status: 'error', message: 'Original server wallet selection could not be saved. Retry before starting work.' }; }
       }
       result = next; server = next.status === 'connected' ? next.account : undefined;
-      if (server) { hadServer = true; profiles.set(selected, server.profileId); }
+      if (server) profiles.set(selected, server.profileId);
     })();
     probing = work;
     try { await work; } finally { if (probing === work) probing = undefined; }
   }
   const storage: GameWalletStorage<WalletAccount> = {
     async load() {
-      if (result.status === 'error' && !manualSelected) throw Error(result.message);
-      if (server && !manualSelected) return server;
-      if (hadServer && !manualSelected) return null;
-      return local.load();
+      if(mode()==='local')return local.load();
+      if(lastNetwork===network()&&result.status==='error')throw Error(result.message);
+      if(server?.network===network())return server;
+      // Server failure must not activate an old browser signing identity.
+      return null;
     },
     async select(account) {
       if ('server' in account) throw Error('Server identities cannot be imported.');
-      if (server && !manualSelected) throw Error('Game server selected.');
-      await local.select(account); manualSelected = true;
+      if (mode()==='server') throw Error('Game server selected.');
+      await local.select(account);generation++;server=undefined;
     },
-    async logout() { if (server && !manualSelected) return; await local.logout(); manualSelected = manualOnly; },
-    async reset() { if (server && !manualSelected) return; await local.reset(); manualSelected = manualOnly; },
+    async logout() { if (mode()==='server') return; await local.logout(); },
+    async reset() { if (mode()==='server') return; await local.reset(); },
     subscribe: listener => local.subscribe(listener),
     dispose() { disposed = true; generation++; local.dispose(); },
   };
@@ -87,7 +96,7 @@ export function createServerFirstStorage(local: GameWalletStorage, network: () =
       const current = generation;
       const assertCurrent = (candidate?: WalletAccount) => {
         signal.throwIfAborted();
-        if (disposed || manualSelected || !server || generation !== current || server.profileId !== account.profileId || server.server.endpoint !== account.server.endpoint || network() !== account.network || !canReplace(candidate)) throw Error('Original game wallet has active or unresolved work. Reconcile before selecting another signer.');
+        if (disposed || mode()!=='server' || !server || generation !== current || server.profileId !== account.profileId || server.server.endpoint !== account.server.endpoint || network() !== account.network || !canReplace(candidate)) throw Error('Original game wallet has active or unresolved work. Reconcile before selecting another signer.');
       };
       assertCurrent();
       const next = await select(account, requirement, signal);

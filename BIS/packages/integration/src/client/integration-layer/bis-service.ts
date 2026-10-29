@@ -239,6 +239,8 @@ export class BisService implements IBis {
     return frozenCopy({ revision: this.#revision, version, disposed: this.#disposed,
       account: { visible: !this.#disposed && player.view === 'account', hasProfile: !this.#disposed && player.hasProfile, phase: player.phase,
         ...(player.network ? { network: player.network } : {}),
+        ...(player.network&&game.workflowMode ? {workflowMode:game.workflowMode}:{}),
+        ...(game.serverStatus ? {gameWalletServerStatus:game.serverStatus}:{}),gameWalletStatus:game.status,
         ...(player.profileId ? { playerWallet: { profileId: player.profileId, network: player.network } } : {}),
         ...(game.profileId ? { gameWallet: { profileId: game.profileId, network: game.network, ...(game.source ? { source: game.source } : {}) } } : {}) },
       capabilities: {

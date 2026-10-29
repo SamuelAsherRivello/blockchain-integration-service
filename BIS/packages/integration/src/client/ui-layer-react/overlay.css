@@ -315,8 +315,11 @@
 .bis-card-activity .bis-activity > .bis-report { flex-shrink: 1; }
 
 
-.bis-network-anchor { position: relative; display: inline-block; }
-.bis-version-label { position: absolute; left: 100%; top: 50%; transform: translateY(calc(-50% + 1px)); margin-left: 6px; white-space: nowrap; opacity: .3; font-size: 7px; letter-spacing: 0; text-transform: none; font-weight: 500; }
+.bis-network-label { display:flex;align-items:center;justify-content:space-between;gap:10px; }
+.bis-workflow-label { text-transform:none;white-space:nowrap; }
+.bis-network-anchor { display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap; }
+.bis-version-label { white-space: nowrap; opacity: .5; font-size: 7px; letter-spacing: 0; text-transform: none; font-weight: 500; }
+.bis-server-health { margin:0 0 8px;font-size:11px;color:#674a0c; }
 .bis-hosted-signing-status { margin: 0 0 10px; padding: 8px 10px; border: 1px solid #d8bb67; border-radius: 8px; background: #fff3ce; color: #674a0c; font-size: 12px; line-height: 1.4; }
 
 .bis-recovery-dialog { z-index: 2; }

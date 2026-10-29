@@ -27,6 +27,7 @@ import { walletSourceKey, type WalletAccount } from '../wallet-layer-arkade/wall
 import { createServerFirstStorage, createServerProfileMemory } from './server-first-game-wallet.ts';
 import { walletReservations } from './wallet-reservations.ts';
 import type { ServerWalletRequirement } from '../wallet-layer-arkade/server-wallet.ts';
+import type {GameWalletWorkflowMode} from './game-wallet-workflow.ts';
 import { readLocalMarketplaceCheckouts, readLocalMarketplaceCheckout } from './marketplace-checkout.ts';
 
 const hasPendingGameCheckout = (profileId:string) => readLocalMarketplaceCheckouts().some(record=>record.status==='pending'&&record.request.game.profileId===profileId);
@@ -36,6 +37,7 @@ export type BisGameWalletAvailabilityReason = 'player-wallet' | 'game-wallet' | 
 export type BisGameWalletOperationScope = Readonly<{playerProfileId?: string; gameProfileId?: string; network: TestNetwork; selectionVersion: number}>;
 export type BisGameWalletAvailability = Readonly<{available: boolean; reason: BisGameWalletAvailabilityReason; message: string; scope: BisGameWalletOperationScope}>;
 export type BisGameWalletState = Readonly<{
+  workflowMode?:GameWalletWorkflowMode;
   source?: 'server' | 'manual'; serverStatus?: 'connected' | 'absent' | 'error'; serverMessage?: string;
   status: 'loading' | 'empty' | 'ready' | 'unavailable';
   profileId?: string; addresses?: AccountAddresses; balance?: BalanceAmounts; message?: string; readStatus?: BisGameWalletReadStatus; selectionVersion?: number; playerConnected?: boolean; network?: TestNetwork;
@@ -59,7 +61,7 @@ export function createBisGameWallet(...args:Parameters<typeof createLocalGameWal
       playerSessionKey:()=>JSON.stringify([options.playerSessionKey?.()??[options.playerProfileId(),options.playerNetwork?.()],eligible()]),
     };
     const controller=createLocalGameWallet(effectiveOptions, {
-      storage, probe:backend.refresh, source:backend.source, restore:async(p,s,n)=>{
+      storage, probe:backend.refresh, source:backend.source,restore:async(p,s,n)=>{
         if(await identify(p)===options.playerProfileId())throw new WalletRoleConflictError('Select a separate Game Wallet.');
         // Restore validation must not depend on a complete retained-wallet
         // snapshot. A valid but empty/fresh Signet wallet still needs to be
@@ -131,7 +133,7 @@ export function createNetworkScopedGameWalletStorage(selectedNetwork: () => Test
 type GameWalletDependencies = {
   selectForOperation?(account:WalletAccount,requirement:ServerWalletRequirement,signal:AbortSignal,current:()=>boolean):Promise<WalletAccount>;
   probe?():Promise<void>;
-  source?():Pick<BisGameWalletState,'source'|'serverStatus'|'serverMessage'>;
+  source?():Pick<BisGameWalletState,'source'|'serverStatus'|'serverMessage'|'workflowMode'>;
   retire?():void;
   dispose?():void;
   liveBoardingState?:Two<typeof readLiveBoardingState>;
@@ -155,7 +157,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
 }, boarding: {quote:Three<typeof gameWalletBoarding.quote>;submit:(a:WalletAccount,q:BoardingQuote,c:()=>boolean)=>ReturnType<typeof gameWalletBoarding.submit>;check:Two<typeof gameWalletBoarding.check>} = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting: {availability:Two<typeof loadMintAvailability>;mint:Four<typeof mintWalletAsset>;list?:Two<typeof listWalletAssets>;burn?:Four<typeof burnWalletAsset>} = {availability:loadMintAvailability,mint:mintWalletAsset,list:listWalletAssets,burn:burnWalletAsset}) {
   const storage = dependencies.storage;
   let selectionVersion = 0, selectedProfileId: string | undefined;
-  let state: BisGameWalletState = Object.freeze({status:'loading',selectionVersion});
+  let state: BisGameWalletState = Object.freeze({status:'loading',...dependencies.source?.(),selectionVersion});
   let operation = new AbortController(), disposed = false, importing = false, refreshQueued = false;
   // A saved Game Wallet's public addresses do not authorize any operation. Start
   // deriving them while Player storage is hydrating so connected Marketplace
@@ -281,8 +283,9 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
   async function runRefresh() {
     if (disposed) return;
     if (importing) { refreshQueued = true; return; }
-    if(dependencies.probe)await dependencies.probe();
-    if(disposed)return;
+    const expectedScope=playerScope(),expectedNetwork=selectedNetwork();
+    if(dependencies.probe){publish({...state,status:'loading'});await dependencies.probe();}
+    if(disposed||expectedScope!==playerScope()||expectedNetwork!==selectedNetwork())return;
     if (!playerConnected()) { prewarmStoredAddresses(); begin(); selectProfile(undefined); publish({status:'empty',message:'Connect a Player Wallet before using the Game Wallet.'}); return; }
     const signal = begin(); publish({status:'loading', profileId:state.profileId, ...(state.addresses ? {addresses:state.addresses} : {}), ...(state.balance ? {balance:state.balance} : {})});
     try {
@@ -485,7 +488,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
       catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.',readStatus:'storage'}); return false; }
     },
     async importWallet(phrase: string) {
-      if(state.source==='server') { publish({...state,message:'The active BIS Game Wallet is controlled by the game server. Switch to a manual Game Wallet before restoring Setup Wallet 2.'}); return false; }
+      if(state.workflowMode==='server'||state.source==='server') { publish({...state,message:'The selected BIS Game Wallet is controlled by the game server. Retry its connection before starting new work.'}); return false; }
       if(state.serverStatus==='error'&&!options.manualWalletOnly) { publish({...state,message:state.serverMessage ?? 'The BIS Game Wallet source is unavailable. Check the connection and try again.'}); return false; }
       if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return false; }
       importing = true; const previous = state, signal = begin(); publish({...previous, status:'loading', message:undefined});
@@ -566,7 +569,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
       catch { return assetError('unavailable',state.profileId); }
     },
     async createWallet() {
-      if(state.source==='server'||state.serverStatus==='error')return;
+      if(state.workflowMode==='server'||state.source==='server'||state.serverStatus==='error')return;
       if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return; }
       importing = true;
       const signal = begin();

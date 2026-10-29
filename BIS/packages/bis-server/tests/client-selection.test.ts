@@ -243,6 +243,7 @@ test('network replacement during balance selection cannot activate a stale signe
   f.release(); await refused;
   assert.equal(f.wallet.getState().network, 'mutinynet');
   assert.equal(f.wallet.getState().profileId, active);
-  assert.equal(f.mutinynetProfiles.get(active!), 0);
+  assert.equal(active,undefined);assert.equal(f.wallet.getState().workflowMode,'local');
+  assert.equal(f.requests.some(row=>row.network==='mutinynet'),false);
   assert.equal(f.payments.length, 0);
 });
