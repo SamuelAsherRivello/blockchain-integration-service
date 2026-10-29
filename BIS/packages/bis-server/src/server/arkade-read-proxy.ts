@@ -27,17 +27,27 @@ function allowedVtxosQuery(params: URLSearchParams) {
 
 /** Only fixed Signet JSON reads needed to display wallet balances and public assets cross this boundary. */
 export function allowedSignetArkadeRead(url: URL): URL | undefined {
-  if (url.pathname === '/api/bis/arkade/signet/v1/info' && !url.search) return new URL('/v1/info', UPSTREAM);
-  if (url.pathname === '/api/bis/arkade/signet/v1/indexer/vtxos' && Buffer.byteLength(url.search) <= MAX_QUERY_BYTES && allowedVtxosQuery(url.searchParams)) {
+  // Vercel appends an unmatched named rewrite parameter to the function query.
+  // Accept it only when it exactly mirrors the already-routed public API path.
+  const query = new URLSearchParams(url.searchParams);
+  const rewritePath = query.getAll('path');
+  if (rewritePath.length) {
+    const expected = url.pathname.startsWith('/api/bis/') ? url.pathname.slice('/api/bis/'.length) : '';
+    if (rewritePath.length !== 1 || !expected || rewritePath[0] !== expected) return undefined;
+    query.delete('path');
+  }
+  const search = query.toString();
+  if (url.pathname === '/api/bis/arkade/signet/v1/info' && !search) return new URL('/v1/info', UPSTREAM);
+  if (url.pathname === '/api/bis/arkade/signet/v1/indexer/vtxos' && Buffer.byteLength(search) <= MAX_QUERY_BYTES && allowedVtxosQuery(query)) {
     const upstream = new URL('/v1/indexer/vtxos', UPSTREAM);
-    upstream.search = url.search;
+    upstream.search = search;
     return upstream;
   }
   const asset = url.pathname.match(/^\/api\/bis\/arkade\/signet\/v1\/indexer\/asset\/([^/]+)$/);
   if (asset) {
     let id: string;
     try { id = decodeURIComponent(asset[1]); } catch { return undefined; }
-    if (url.search || !/^[a-z0-9:_-]{1,128}$/i.test(id)) return undefined;
+    if (search || !/^[a-z0-9:_-]{1,128}$/i.test(id)) return undefined;
     return new URL(`/v1/indexer/asset/${encodeURIComponent(id)}`, UPSTREAM);
   }
   return undefined;

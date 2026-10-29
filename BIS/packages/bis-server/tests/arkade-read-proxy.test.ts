@@ -4,8 +4,15 @@ import { allowedSignetArkadeRead, proxySignetArkadeRead } from '../src/server/ar
 
 test('Signet proxy maps only the fixed Arkade info, vtxo and asset GET routes', () => {
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/info'))?.href, 'https://signet.arkade.sh/v1/info');
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/info?path=arkade%2Fsignet%2Fv1%2Finfo'))?.href, 'https://signet.arkade.sh/v1/info');
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/info?path=arkade%2Fmutinynet%2Fv1%2Finfo')), undefined);
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab&outpoints=' + 'a'.repeat(64) + ':0&page.size=100'))?.host, 'signet.arkade.sh');
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?path=arkade%2Fsignet%2Fv1%2Findexer%2Fvtxos&scripts=ab'))?.search, '?scripts=ab');
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/asset/' + 'a'.repeat(68)))?.pathname, '/v1/indexer/asset/' + 'a'.repeat(68));
+  const assetPath = '/api/bis/arkade/signet/v1/indexer/asset/' + 'a'.repeat(68);
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test' + assetPath + '?path=arkade%2Fsignet%2Fv1%2Findexer%2Fasset%2F' + 'a'.repeat(68)))?.pathname, '/v1/indexer/asset/' + 'a'.repeat(68));
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test' + assetPath + '?path=wrong')), undefined);
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test' + assetPath + '?extra=1')), undefined);
   for (const path of [
     '/api/bis/arkade/mutinynet/v1/info',
     '/api/bis/arkade/signet/v1/tx/submit',
@@ -19,7 +26,7 @@ test('Signet proxy maps only the fixed Arkade info, vtxo and asset GET routes', 
 
 test('proxy performs only bounded GETs to the fixed Signet host and returns sanitized JSON headers', async () => {
   let target = '';
-  const request = new Request('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab');
+  const request = new Request('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab&path=arkade%2Fsignet%2Fv1%2Findexer%2Fvtxos');
   const response = await proxySignetArkadeRead(request, async (input, init) => {
     target = String(input);
     assert.equal(init?.method, 'GET');
