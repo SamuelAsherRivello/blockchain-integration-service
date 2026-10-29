@@ -1,3 +1,5 @@
+import {hasVerifiedBoardingNonSubmission} from './test-wallets/boarding-non-submission.ts';
+
 export const acceptanceScenarios=['probe','readiness','claim','feedback-claim','identity-race','network-replacement','legacy-rollback','asset-claim','duplicate-claim','empty-duplicate-claim','lost-claim-ack','insufficient','session-rollback','reject','expiry','portable','recover','peer'] as const;
 export const needsAcceptanceReadDiagnostics=(scenario:string)=>['readiness','network-replacement'].includes(scenario);
 /** Public endpoint classes only. Never inspect headers, bodies, query strings,
@@ -36,7 +38,7 @@ export function validateOtherNetworkFixture(input:{originalNetwork:string;otherN
 /** Conservative rolling-day test grant. Count reserved and unknown operations
  * as well as completed ones, and never free this budget on a failed result.
  */
-export function assertAcceptanceBudget(records:readonly {createdAt:string;intent:{id:string;network:string;amountSats:number;feeSats:number|null}}[],
+export function assertAcceptanceBudget(records:readonly {createdAt:string;state?:string;resolution?:unknown;intent:{id:string;network:string;amountSats:number;feeSats:number|null}}[],
   intent:{id:string;network:string;amountSats:number;feeSats:number|null},now=Date.now()){
   const cost=(row:typeof intent)=>{
     if(!Number.isSafeInteger(row.amountSats)||row.amountSats<0||!Number.isSafeInteger(row.feeSats)||row.feeSats!<0)throw Error('acceptance-budget-unverified');
@@ -47,6 +49,7 @@ export function assertAcceptanceBudget(records:readonly {createdAt:string;intent
   let spent=0;
   for(const row of records){
     if(row.intent.id===intent.id||row.intent.network!==intent.network)continue;
+    if(hasVerifiedBoardingNonSubmission(row))continue;
     const created=Date.parse(row.createdAt);
     if(!Number.isFinite(created)||created>now)throw Error('acceptance-budget-unverified');
     if(created>=now-86400000)spent+=cost(row.intent);

@@ -6,7 +6,7 @@ import {SingleKey,DefaultVtxo,ArkAddress,Intent,Transaction,getNetwork,type Inte
 import {Address} from '@scure/btc-signer';
 import {base64,hex} from '@scure/base';
 import {planBoardingSdk,inspectBoardingIntent,traceBoardingReceipt,assertBoardingServerPath,type BoardingPlan} from '../scripts/funded-workflow-boarding.ts';
-import {validateLifecycleAssignment,assertLifecycleAuthority,lifecycleScope,assertLifecycleConnection,type LifecycleAssignment} from '../scripts/funded-workflow-lifecycle.ts';
+import {validateLifecycleAssignment,assertLifecycleAuthority,lifecycleScope,assertLifecycleConnection,retainLifecycleExecutionPlan,type LifecycleAssignment} from '../scripts/funded-workflow-lifecycle.ts';
 const game=SingleKey.fromHex('1'.padStart(64,'0')),operator=SingleKey.fromHex('2'.padStart(64,'0')),player=SingleKey.fromHex('3'.padStart(64,'0'));
 const gamePublicKey=hex.encode(await game.compressedPublicKey()),operatorPublicKey=hex.encode(await operator.compressedPublicKey()),playerPublicKey=hex.encode(await player.compressedPublicKey());
 const makeScript=async(delay:bigint)=>new DefaultVtxo.Script({pubKey:await game.xOnlyPublicKey(),serverPubKey:await operator.xOnlyPublicKey(),csvTimelock:{type:'seconds',value:delay}});
@@ -23,6 +23,15 @@ function fixture(value=1000){
  const wallet={dustAmount:330n,boardingTapscript:boarding,getBoardingUtxos:async()=>[coin(value)],onchainProvider:{getChainTip:async()=>({height:2})},getBoardingAddress:async()=>bitcoinAddress,getAddress:async()=>gameAddress};
  return {quote,wallet,input:{wallet,info,profileId:quote.profileId,network:'signet' as const,quote}};
 }
+test('execution retains the actual approved quote for original reconciliation',async()=>{
+ const a=assignment(),initial=await planBoardingSdk(fixture().input),actual={...initial,quote:{...initial.quote,expiresAt:initial.quote.expiresAt+1000}};
+ const run={phase:'prepared',plan:initial};const approved={...a,approvedFingerprint:actual.fingerprint,approvedOutpoints:actual.outpoints};
+ retainLifecycleExecutionPlan(run,actual,approved);
+ assert.deepEqual(run.plan,actual);assert.deepEqual((run as any).preparedPlan,initial);assert.equal(run.phase,'execution-started');
+ assert.throws(()=>retainLifecycleExecutionPlan(run,actual,approved));
+ assert.throws(()=>retainLifecycleExecutionPlan({phase:'prepared',plan:initial},{...actual,fingerprint:'f'.repeat(64)},approved));
+});
+
 test('installed SDK Ramps builds the unsigned exact Bitcoin Max boarding plan',async()=>{
  const f=fixture(),plan=await planBoardingSdk(f.input);
  assert.equal(plan.amountSats,1000);assert.equal(plan.feeSats,0);assert.deepEqual(plan.outpoints,[`${'11'.repeat(32)}:0`]);assert.deepEqual(plan.outputs,[{amount:'1000',script:hex.encode(offchain.pkScript)}]);assert.equal(plan.sourceKind,'confirmed-bitcoin-only');

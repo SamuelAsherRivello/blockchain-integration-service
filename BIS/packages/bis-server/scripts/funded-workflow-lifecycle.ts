@@ -37,6 +37,10 @@ export function assertLifecyclePlan(plan:LifecyclePlan,a:LifecycleAssignment){
  if(!plan||!Number.isSafeInteger(plan.amountSats)||plan.amountSats!==a.amountSats||plan.feeSats!==a.feeSats||!plan.outpoints?.length||plan.outpoints.length>100||
   plan.outpoints.some(point=>!/^[a-f0-9]{64}:\d+$/.test(point))||new Set(plan.outpoints).size!==plan.outpoints.length||!/^[a-f0-9]{64}$/.test(plan.fingerprint))throw Error('Original lifecycle quote unavailable.');
 }
+export function retainLifecycleExecutionPlan(run:any,plan:LifecyclePlan,a:LifecycleAssignment){
+ if(run.phase!=='prepared'||run.plan?.fingerprint!==plan.fingerprint||plan.fingerprint!==a.approvedFingerprint||!sameOutpoints(plan.outpoints,a.approvedOutpoints??[]))throw Error('Original lifecycle approval changed.');
+ assertLifecyclePlan(plan,a);run.preparedPlan??=run.plan;run.plan=structuredClone(plan);run.phase='execution-started';
+}
 export function assertLifecycleConnection(body:any,a:LifecycleAssignment){
  if(body?.network!==a.network||body.gameId!=='stealth-and-steel'||Object.keys(body).some(key=>!['gameId','network','profileId','requirement'].includes(key)))throw Error('Assigned server connection required.');
  if(body.profileId!==undefined){if(body.profileId!==a.gameProfileId||body.requirement!==undefined)throw Error('Original server identity required.');}
@@ -140,7 +144,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
    }
    if(ctx.plan.fingerprint!==a.approvedFingerprint||!sameOutpoints(ctx.plan.outpoints,a.approvedOutpoints!)||ctx.plan.fingerprint!==ctx.saved.plan.fingerprint)throw Error('Original lifecycle approval changed.');
    await assertReviewedSource(a);await owner.inspect();
-   await vault.transaction((state:any)=>{assertAtomicPaymentBudget(state.operations??[],{id:a.runId+'-lifecycle-reserve',network:a.network,amountSats:strategy.lifecycleCost(a),feeSats:0},clientExposure);const run=state.serverLifecycleRuns[a.runId];if(run.phase!=='prepared')throw Error('Original lifecycle already started.');run.phase='execution-started';});
+   await vault.transaction((state:any)=>{assertAtomicPaymentBudget(state.operations??[],{id:a.runId+'-lifecycle-reserve',network:a.network,amountSats:strategy.lifecycleCost(a),feeSats:0},clientExposure);retainLifecycleExecutionPlan(state.serverLifecycleRuns[a.runId],ctx.plan!,a);});
    ctx.financial=true;ctx.deadline=Date.now()+120000;stage='original-'+a.workflow;await strategy.execute(ctx);ctx.financial=false;
   }else{ctx.plan=ctx.saved.plan;ctx.sessionPublicKey=ctx.saved.sessionPublicKey;ctx.deadline=Date.now()+120000;}
   stage='original-read-only-reconciliation';const receipt=await boundedResult(strategy.observe(ctx),Math.max(1,ctx.deadline-Date.now()));

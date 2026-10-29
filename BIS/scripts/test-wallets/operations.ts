@@ -3,6 +3,7 @@ import { label, network, origin } from './arguments.ts';
 import { verifiedInventory } from './inventory.ts';
 import { fail } from './errors.ts';
 import {findTestActor,actorSource,canonicalServerSource} from './server-actors.ts';
+import {verifyBoardingNonSubmission,type BoardingNonSubmissionEvidence} from './boarding-non-submission.ts';
 
 const kinds = new Set(['faucet', 'btc-send', 'arkade-send', 'swap-to-bitcoin', 'arkade-to-bitcoin-funding', 'onboard', 'mint', 'burn', 'claim', 'refund']);
 const terminal = new Set(['settled', 'failed', 'cancelled']);
@@ -197,6 +198,21 @@ export class Operations {
       const record = find(state, id);
       if (record.state !== 'prepared') fail('submitted-operation-cannot-cancel');
       record.state = 'cancelled'; record.updatedAt = new Date().toISOString();
+      return snapshot(record);
+    });
+  }
+  async reconcileGuardedBoardingNotSubmitted(id:string, observe:(record:any)=>Promise<BoardingNonSubmissionEvidence>) {
+    label(id);
+    const before=await this.vault.transaction(state=>snapshot(find(state,id)));
+    if(before.state!=='unknown'||before.providerId!==undefined||typeof observe!=='function')fail('guarded-boarding-non-submission-unavailable');
+    const evidence=await observe(before);
+    return this.vault.transaction(state=>{
+      const record=find(state,id);
+      if(record.fingerprint!==before.fingerprint||record.state!==before.state||record.updatedAt!==before.updatedAt)fail('operation-state-changed');
+      const run=state.serverLifecycleRuns?.[evidence.runId];
+      const resolution=verifyBoardingNonSubmission(record,run,evidence);
+      record.state='cancelled';record.updatedAt=new Date().toISOString();record.resolution=resolution;
+      run.phase='not-submitted';run.originalReconciliations=1;run.nonSubmission=structuredClone(resolution);
       return snapshot(record);
     });
   }

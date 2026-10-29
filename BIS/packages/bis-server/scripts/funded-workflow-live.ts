@@ -7,6 +7,7 @@ import {hex,base64} from '@scure/base';
 import {decodeSigningValue} from '../../integration/src/client/wallet-layer-arkade/server-wallet-protocol.ts';
 import {createProtectedBrowserJournalReader,assertJournalAccess,type TestNetwork} from './protected-browser-journal.ts';
 import {vercelCurlConfig} from './vercel-curl-config.ts';
+import {hasVerifiedBoardingNonSubmission} from '../../../scripts/test-wallets/boarding-non-submission.ts';
 
 // Existing protected test tooling is dynamically loaded at this explicit bridge.
 // It is runtime-tested legacy script code outside the application tsconfig.
@@ -294,6 +295,7 @@ export function assertAtomicPaymentBudget(records:readonly any[],intent:{id:stri
   let total=cost+clientExposure;
   for(const row of records){
     if(row.intent?.id===intent.id||row.intent?.network!==intent.network)continue;
+    if(hasVerifiedBoardingNonSubmission(row))continue;
     const created=Date.parse(row.createdAt);
     if(!Number.isFinite(created)||created>now)throw Error('Protected budget timestamp unavailable.');
     if(created<now-86400000)continue;
