@@ -5,10 +5,13 @@ import { Script } from '@scure/btc-signer';
  * The deadline is a client eligibility rule; the cooperative refund has no timelock.
  * Claim and refund compete for the same output, so callers must reconcile uncertain spends.
  */
-export function buildLtoScript(params: {playerKey:Uint8Array;gameKey:Uint8Array;operatorKey:Uint8Array;secretHash:Uint8Array;exitDelay:bigint}) {
+export function buildLtoScript(params: {playerKey:Uint8Array;gameKey:Uint8Array;operatorKey:Uint8Array;secretHash:Uint8Array;exitDelay:bigint;prototypeSameWallet?:boolean}) {
   const {playerKey,gameKey,operatorKey,secretHash,exitDelay}=params;
   const keys=[playerKey,gameKey,operatorKey];
-  if(keys.some(k=>k.length!==32)||secretHash.length!==32||exitDelay<=0n||new Set(keys.map(k=>Array.from(k).join(','))).size!==3)throw Error('Invalid LTO script parameters.');
+  const same=(a:Uint8Array,b:Uint8Array)=>a.every((value,index)=>value===b[index]);
+  if(keys.some(k=>k.length!==32)||secretHash.length!==32||exitDelay<=0n||
+    params.prototypeSameWallet!==undefined&&typeof params.prototypeSameWallet!=='boolean'||
+    same(playerKey,operatorKey)||same(gameKey,operatorKey)||same(playerKey,gameKey)&&params.prototypeSameWallet!==true)throw Error('Invalid LTO script parameters.');
   const conditionScript=Script.encode(['SHA256',secretHash,'EQUAL']);
   const claim=ConditionMultisigTapscript.encode({conditionScript,pubkeys:[playerKey,operatorKey]}).script;
   const refund=MultisigTapscript.encode({pubkeys:[gameKey,operatorKey]}).script;
