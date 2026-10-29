@@ -17,7 +17,10 @@ export function playerProofMessage(scope: PlayerChallenge): Uint8Array {
     scope.audience, scope.gameId, scope.network, scope.profileId, scope.operationId, scope.playerPublicKey, scope.nonce, scope.expires]));
 }
 
-export function assertPlayerChallenge(scope: PlayerChallenge, expected: PlayerProofBinding & { playerPublicKey: string }, now = Date.now()) {
+export const playerProofClientClockSkewMs = 5000;
+
+export function assertPlayerChallenge(scope: PlayerChallenge, expected: PlayerProofBinding & { playerPublicKey: string }, now = Date.now(), maximumFutureSkewMs = 0) {
   playerProofMessage(scope);
-  if (Object.entries(expected).some(([key, value]) => Reflect.get(scope, key) !== value) || scope.expires <= now || scope.expires > now + 60000) throw Error('Player proof scope or deadline changed.');
+  if (!Number.isSafeInteger(maximumFutureSkewMs) || maximumFutureSkewMs < 0 || maximumFutureSkewMs > playerProofClientClockSkewMs ||
+    Object.entries(expected).some(([key, value]) => Reflect.get(scope, key) !== value) || scope.expires <= now || scope.expires > now + 60000 + maximumFutureSkewMs) throw Error('Player proof scope or deadline changed.');
 }

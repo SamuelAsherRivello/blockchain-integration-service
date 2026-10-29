@@ -6,7 +6,7 @@ import { createPlayerAuthorization } from '../src/server/player-authorization.ts
 import { createSigningAuthorization, signingDigest } from '../src/server/signing-authorization.ts';
 import { createHostedHandler } from '../src/server/hosted.ts';
 import { authenticatePlayerProof } from '../../integration/src/client/wallet-layer-arkade/player-proof-client.ts';
-import { playerProofMessage, type PlayerProofBinding } from '../../integration/src/client/wallet-layer-arkade/player-proof-protocol.ts';
+import { assertPlayerChallenge, playerProofMessage, type PlayerProofBinding } from '../../integration/src/client/wallet-layer-arkade/player-proof-protocol.ts';
 import { toHex } from '../../integration/src/client/wallet-layer-arkade/server-wallet-protocol.ts';
 
 // Published BIP39 fixture only. No network funds or private operator values.
@@ -84,8 +84,24 @@ test('browser signs only its reconstructed typed challenge and sends public proo
   assert.equal(JSON.stringify(fixture.requests).includes(secret), false);
 });
 
+test('browser accepts a server clock up to five seconds ahead without extending server expiry', async () => {
+  for (const skew of [1, 3000, 5000]) {
+    const fixture = transport(() => 100000 + skew);
+    const result = await authenticatePlayerProof({ endpoint: binding.audience + '/api/bis/', identity, binding, signal: new AbortController().signal, fetcher: fixture.fetcher, now: () => 100000 });
+    assert.equal(fixture.server.verify(result.token, binding).playerPublicKey, playerPublicKey);
+    assert.equal(fixture.requests.length, 2);
+  }
+  const outside = transport(() => 105001);
+  await assert.rejects(authenticatePlayerProof({ endpoint: binding.audience + '/api/bis/', identity, binding, signal: new AbortController().signal, fetcher: outside.fetcher, now: () => 100000 }), /scope or deadline/);
+  assert.equal(outside.requests.length, 1);
+  const authority = createPlayerAuthorization(secret, () => 100000), challenge = authority.challenge({ ...binding, playerPublicKey });
+  assert.throws(() => assertPlayerChallenge(challenge.scope, { ...binding, playerPublicKey }, 99999), /deadline/);
+  assert.throws(() => assertPlayerChallenge({ ...challenge.scope, expires: 100000 }, { ...binding, playerPublicKey }, 100000, 5000), /deadline/);
+  assert.throws(() => assertPlayerChallenge(challenge.scope, { ...binding, playerPublicKey }, 100000, 5001), /deadline/);
+});
+
 test('browser refuses changed audience, key, operation or deadline before asking its identity to sign', async () => {
-  for (const changed of [{ audience: 'https://other.test' }, { playerPublicKey: '02' + 'b'.repeat(64) }, { operationId: 'other-operation' }, { expires: 100000 }, { expires: 160001 }]) {
+  for (const changed of [{ audience: 'https://other.test' }, { playerPublicKey: '02' + 'b'.repeat(64) }, { operationId: 'other-operation' }, { expires: 100000 }, { expires: 165001 }]) {
     const fixture = transport(() => 100000, body => ({ ...body, scope: { ...body.scope, ...changed } }));
     let signed = false;
     const guarded = Object.create(identity);
@@ -129,7 +145,7 @@ test('actual hosted routes authenticate player proofs but still refuse public co
 });
 
 test('browser rejects expired or unbounded authority responses', async () => {
-  for (const expires of [100000, 700001, NaN]) {
+  for (const expires of [100000, 705001, NaN]) {
     const fixture = transport();
     const fetcher: typeof fetch = async (input, init) => {
       const response = await fixture.fetcher(input, init);

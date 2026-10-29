@@ -1,5 +1,5 @@
 import type { Identity } from '@arkade-os/sdk';
-import { assertPlayerChallenge, playerProofMessage, type PlayerChallenge, type PlayerProofBinding } from './player-proof-protocol.ts';
+import { assertPlayerChallenge, playerProofClientClockSkewMs, playerProofMessage, type PlayerChallenge, type PlayerProofBinding } from './player-proof-protocol.ts';
 import { toHex } from './server-wallet-protocol.ts';
 
 /** App composition supplies the local Player identity. Only its public key and
@@ -24,7 +24,9 @@ export async function authenticatePlayerProof(options: {
   };
   const challenge = await send('player/challenge', { ...options.binding, playerPublicKey });
   const scope = challenge.scope as PlayerChallenge;
-  assertPlayerChallenge(scope, { ...binding, playerPublicKey }, options.now?.() ?? Date.now());
+  // A slightly faster server clock must not reject its fresh 60-second proof.
+  // Server authentication retains its exact expiry and default zero tolerance.
+  assertPlayerChallenge(scope, { ...binding, playerPublicKey }, options.now?.() ?? Date.now(), playerProofClientClockSkewMs);
   if (typeof challenge.challenge !== 'string' || challenge.challenge.length > 4096) throw Error('Invalid player challenge.');
   const message = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(playerProofMessage(scope))));
   signal.throwIfAborted();
@@ -33,6 +35,6 @@ export async function authenticatePlayerProof(options: {
   const result = await send('player/authenticate', { ...options.binding, challenge: challenge.challenge, signature });
   signal.throwIfAborted();
   const now = options.now?.() ?? Date.now();
-  if (typeof result.token !== 'string' || !result.token || result.token.length > 4096 || !Number.isSafeInteger(result.expires) || result.expires <= now || result.expires > now + 600000) throw Error('Invalid player authority response.');
+  if (typeof result.token !== 'string' || !result.token || result.token.length > 4096 || !Number.isSafeInteger(result.expires) || result.expires <= now || result.expires > now + 600000 + playerProofClientClockSkewMs) throw Error('Invalid player authority response.');
   return Object.freeze({ token: result.token as string, expires: result.expires as number, playerPublicKey });
 }
