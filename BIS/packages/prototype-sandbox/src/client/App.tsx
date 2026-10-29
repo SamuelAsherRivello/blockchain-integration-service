@@ -3,6 +3,7 @@ import { demoDefinition } from './demo-registry.ts';
 import { useExecutableDemo } from './use-executable-demo.ts';
 import { OPTIONAL_ASSET_PAYMENTS, optionalAssetPayment } from './asset-payment.ts';
 import { getWallet2BitcoinAddress } from './demo-bitcoin-address.ts';
+import { CleanWalletControl } from './clean-wallet-control.tsx';
 import { Children, Fragment, createContext, isValidElement, useContext, useEffect, useId, useRef, useState } from 'react';
 import { MnemonicIdentity } from '@arkade-os/sdk';
 // The self-contained ESM distribution also bundles Mermaid's CommonJS helpers.
@@ -336,34 +337,44 @@ export function Navigation({ activeDemo, homeActive = false, setupActive = false
 
 function SetupSection() {
   return <div className="sandbox-setup">
-    <DocsSection
-      href={DOCS_URLS.wallet}
-      linkLabel="Create or restore an Arkade wallet"
-    />
-    <section className="prototype-section" aria-label="Setup Input">
-      <div className="prototype-title-bar"><h2>Setup Input</h2></div>
+    <DocsSection href={DOCS_URLS.wallet} linkLabel="Create or restore an Arkade wallet" />
+    <section className="prototype-section" aria-label="Setup">
+      <div className="prototype-title-bar"><h2>Setup</h2></div>
       <div className="sandbox-setup-fields">
-        <div className="sandbox-setup-guidance">
-          <p>The demos require at least 2 wallets on your one preferred network.</p>
-          <ul className="sandbox-setup-wallet-links">
-            <li><a href={walletUrl('signet')} target="_blank" rel="noreferrer">Create wallet for Signet</a></li>
-            <li><a href={walletUrl('mutinynet')} target="_blank" rel="noreferrer">Create wallet for Mutinynet</a></li>
-          </ul>
-          <p>Then fund the Arkade balance in the wallets on your one preferred network. 50000 sats is sufficient.</p>
-          <ul className="sandbox-setup-wallet-links">
-            <li><a href={faucetUrl('signet')} target="_blank" rel="noreferrer">Fund wallet on Signet</a></li>
-            <li><a href={faucetUrl('mutinynet')} target="_blank" rel="noreferrer">Fund wallet on Mutinynet</a></li>
-          </ul>
-        </div>
-        <hr className="sandbox-setup-divider" />
-        <div className="sandbox-setup-profiles">
-          {NETWORK_IDS.map(profileNetwork => <SetupNetworkProfile key={profileNetwork} network={profileNetwork} />)}
-        </div>
+        <section className="sandbox-setup-group" aria-labelledby="sandbox-setup-creating-wallet">
+          <h3 id="sandbox-setup-creating-wallet">Creating wallet</h3>
+          <div className="sandbox-setup-guidance">
+            <p>The demos require at least 2 wallets on your one preferred network.</p>
+            <ul className="sandbox-setup-wallet-links">
+              <li><a href={walletUrl('signet')} target="_blank" rel="noreferrer">Create wallet for Signet</a></li>
+              <li><a href={walletUrl('mutinynet')} target="_blank" rel="noreferrer">Create wallet for Mutinynet</a></li>
+            </ul>
+          </div>
+        </section>
+        <section className="sandbox-setup-group" aria-labelledby="sandbox-setup-funding-wallet">
+          <h3 id="sandbox-setup-funding-wallet">Funding wallet</h3>
+          <div className="sandbox-setup-guidance">
+            <p>Fund the Arkade balance in the wallets on your one preferred network. 50000 sats is sufficient.</p>
+            <ul className="sandbox-setup-wallet-links">
+              <li><a href={faucetUrl('signet')} target="_blank" rel="noreferrer">Fund wallet on Signet</a></li>
+              <li><a href={faucetUrl('mutinynet')} target="_blank" rel="noreferrer">Fund wallet on Mutinynet</a></li>
+            </ul>
+          </div>
+        </section>
+        <section className="sandbox-setup-group" aria-labelledby="sandbox-setup-storing-wallet">
+          <h3 id="sandbox-setup-storing-wallet">Storing wallet</h3>
+          <p className="sandbox-setup-note">Populate all fields for the demos to work.</p>
+          <div className="sandbox-setup-profiles">{NETWORK_IDS.map(profileNetwork => <SetupNetworkProfile key={profileNetwork} network={profileNetwork} />)}</div>
+        </section>
+        <section className="sandbox-setup-group" aria-labelledby="sandbox-setup-maintenance">
+          <h3 id="sandbox-setup-maintenance">Maintenance</h3>
+          <p className="sandbox-setup-note">Running this is optional, but if any demos have issues, try it; it may fix them.</p>
+          <div className="sandbox-setup-profiles">{NETWORK_IDS.map(profileNetwork => <SetupNetworkMaintenance key={profileNetwork} network={profileNetwork} />)}</div>
+        </section>
       </div>
     </section>
   </div>;
 }
-
 function SetupNetworkProfile({ network }) {
   const [values, setValues] = useState(() => demoGetWalletProfile(network));
   const [focusedField, setFocusedField] = useState(null);
@@ -394,6 +405,9 @@ function SetupNetworkProfile({ network }) {
   </section>;
 }
 
+function SetupNetworkMaintenance({ network }) {
+  return <section className="sandbox-setup-profile" aria-label={`${NETWORKS[network].label} wallet maintenance`}><h3>{NETWORKS[network].label}</h3><CleanWalletControl network={network} /></section>;
+}
 function OutputSection({ title, output, elapsedMs, onRecover = undefined, recoverDisabled = true }) {
   const { scope, details } = useDemoOutput();
   const explorerUrl = demoExplorerUrl(scope, details.explorer);
