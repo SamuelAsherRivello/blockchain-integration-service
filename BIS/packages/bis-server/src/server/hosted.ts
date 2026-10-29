@@ -102,7 +102,7 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
   const values = options.env ?? readPrivateEnvironment({ hosted: true });
   const gameId = values.BIS_GAME_ID ?? 'stealth-and-steel';
   const now = options.now ?? Date.now, pool = options.pool ?? createWalletPool(values);
-  const authorization = createSigningAuthorization(values.BIS_OWNER_TOKEN, now);
+  const authorization = createSigningAuthorization(values.BIS_OWNER_TOKEN, now, values.BIS_OWNER_ACCESS_TOKEN);
   const players = createPlayerAuthorization(values.BIS_OWNER_TOKEN, now);
   const payments = createPaymentAuthorization(values.BIS_OWNER_TOKEN, now);
   const ownerPlans = createPaymentAuthorization(values.BIS_OWNER_TOKEN, now, 'owner');

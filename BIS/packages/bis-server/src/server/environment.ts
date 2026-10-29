@@ -6,7 +6,7 @@ export const environmentPath = fileURLToPath(new URL('../../.env.local', import.
 export type SignerEnvironmentOptions = { env?: NodeJS.ProcessEnv; path?: string; hosted?: boolean };
 export type SignerConfiguration = { mnemonic?: string; network: 'signet' | 'mutinynet'; gameId: string; enabled?: boolean; walletEnvironment?: NodeJS.ProcessEnv };
 const previewIsolatedKeys = [
-  'BIS_OWNER_TOKEN', 'BIS_SIGNING_DAILY_CAP_SATS', 'BIS_SIGNING_OPERATION_CAP_SATS',
+  'BIS_OWNER_TOKEN', 'BIS_OWNER_ACCESS_TOKEN', 'BIS_SIGNING_DAILY_CAP_SATS', 'BIS_SIGNING_OPERATION_CAP_SATS',
   'BIS_GAME_WALLET_MNEMONIC', 'BIS_GAME_WALLET_NETWORK', 'BIS_SERVER_ENABLED', 'BIS_GAME_ID', 'BIS_ALLOWED_ORIGINS',
   'BIS_PUBLIC_ASSET_SIGNING', 'BIS_PUBLIC_CONTRACT_SIGNING', 'BIS_PUBLIC_PAYMENT_SIGNING', 'BIS_PUBLIC_SETTLEMENT_SIGNING', 'BIS_PUBLIC_SIGNING_NETWORKS', 'BIS_OWNER_SIGNING_NETWORKS',
   'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_URL', 'KV_REST_API_TOKEN',

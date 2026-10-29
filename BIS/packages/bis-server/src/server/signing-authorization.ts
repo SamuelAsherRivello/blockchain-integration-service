@@ -8,8 +8,11 @@ const equal = (left: string, right: string) => {
 };
 export type SigningScope = { gameId: string; network: GameNetwork; profileId: string; operationId: string; digest: string; expires: number; purpose: 'owner-signing' };
 export type ConnectionScope = { gameId: string; network: GameNetwork; profileId: string; id: string; expires: number; purpose: 'connection' };
-export function createSigningAuthorization(ownerSecret: string | undefined, now = Date.now) {
+// The cryptographic secret also protects durable recovery. A separate bearer
+// credential can change owner access without changing those existing keys.
+export function createSigningAuthorization(ownerSecret: string | undefined, now = Date.now, ownerAccessToken: string | undefined = ownerSecret) {
   const configured = typeof ownerSecret === 'string' && ownerSecret.length >= 32;
+  const ownerAccessConfigured = typeof ownerAccessToken === 'string' && ownerAccessToken.length >= 32;
   const mac = (value: string) => createHmac('sha256', ownerSecret!).update(`bis-signing-grant-v1:${value}`).digest('base64url');
   return {
     configured,
@@ -31,7 +34,7 @@ export function createSigningAuthorization(ownerSecret: string | undefined, now 
       return scope;
     },
     assertOwner(authorization: string | null) {
-      if (!configured || !equal(authorization ?? '', `Bearer ${ownerSecret}`)) throw Error('Private owner authorization required.');
+      if (!configured || !ownerAccessConfigured || !equal(authorization ?? '', `Bearer ${ownerAccessToken}`)) throw Error('Private owner authorization required.');
     },
     issue(authorization: string | null, scope: Omit<SigningScope, 'expires' | 'purpose'>) {
       this.assertOwner(authorization);
