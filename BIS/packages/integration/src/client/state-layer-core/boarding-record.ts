@@ -31,6 +31,11 @@ export const boardingFailureLabels={
   'nonce-state-missing':'Signing nonce state missing',
   'asset-destination-missing':'Owned asset destination missing',
   'asset-output-missing':'Asset allocation does not match the Arkade change output index',
+  'player-authority-invalid':'Player authorization response is invalid',
+  'player-scope-changed':'Player session changed during authorization',
+  'player-account-changed':'Saved Player account changed during authorization',
+  'signer-encoding-invalid':'Signing request could not be encoded',
+  'server-operation-ended':'Original server signing operation ended',
 } as const;
 export type BoardingFailure={code:keyof typeof boardingFailureLabels;observedAt:number;stage?:BoardingStage;action?:BoardingAction;sdkVersion?:string;batchId?:string;endReason?:BoardingRecord['diagnostic']};
 /** Diagnostic payloads are optional. Discard malformed detail, never the reservation. */
@@ -50,6 +55,11 @@ function failureCode(error:unknown):BoardingFailure['code'] {
     if(!(error instanceof Error))return 'unknown';
     if(error.name==='ServerResponseMismatchError')return /^asset output not found in asset group [a-f0-9]{68} at index [0-9]{1,10}$/.test(error.message)?'asset-output-missing':'response-mismatch';
     switch(error.message) {
+      case 'Invalid player authority response.':return 'player-authority-invalid';
+      case 'Original Player scope is unavailable.':case 'Original Player scope changed.':return 'player-scope-changed';
+      case 'Original Player account is unavailable.':case 'Original Player account changed.':return 'player-account-changed';
+      case 'Unsupported signer value.':case 'Secret signing nonces cannot cross the transport.':return 'signer-encoding-invalid';
+      case 'Original settlement signing operation ended.':case 'Original game signing operation ended. Reconcile before retrying.':return 'server-operation-ended';
       case 'event stream closed':return 'event-stream-closed';
       case 'Sweep tap tree root not set':return 'sweep-root-missing';
       case 'vtxo tree not initialized':return 'vtxo-tree-missing';

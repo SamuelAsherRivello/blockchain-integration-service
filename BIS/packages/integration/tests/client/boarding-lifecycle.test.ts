@@ -52,6 +52,19 @@ test('asset index mismatch retains a specific safe code instead of losing the va
  assert.ok(!JSON.stringify(readBoardingRecord('lifecycle').failure).includes('PRIVATE_SENTINEL'));
 });
 
+test('post-authentication failures retain exact safe categories without raw exception data',()=>{
+ const attempt=createBoardingAttempt('operation',()=>true,2000,'lifecycle',()=>1000);
+ const cases=[['Invalid player authority response.','player-authority-invalid'],['Original Player scope is unavailable.','player-scope-changed'],['Original Player scope changed.','player-scope-changed'],['Original Player account is unavailable.','player-account-changed'],['Original Player account changed.','player-account-changed'],['Unsupported signer value.','signer-encoding-invalid'],['Secret signing nonces cannot cross the transport.','signer-encoding-invalid'],['Original settlement signing operation ended.','server-operation-ended'],['Original game signing operation ended. Reconcile before retrying.','server-operation-ended']];
+ for(const [message,code] of cases){
+  const error=new Error(message);error.privateProof='PRIVATE_SENTINEL';
+  attempt.interrupted('settlement-interrupted',error);
+  const failure=readBoardingRecord('lifecycle').failure;
+  assert.equal(failure.code,code);assert.ok(!JSON.stringify(failure).includes(message));assert.ok(!JSON.stringify(failure).includes('PRIVATE_SENTINEL'));
+  attempt.interrupted('settlement-interrupted',new Error(message+' PRIVATE_SENTINEL'));
+  assert.equal(readBoardingRecord('lifecycle').failure.code,'unknown');
+ }
+});
+
 test('failure metadata is an allowlisted projection, including adversarial payloads',()=>{
  const attempt=createBoardingAttempt('operation',()=>true,2000,'lifecycle',()=>1000);
  attempt.beforeRegister();attempt.registered('intent');

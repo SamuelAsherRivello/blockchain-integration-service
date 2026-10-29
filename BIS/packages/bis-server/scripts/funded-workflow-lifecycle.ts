@@ -21,6 +21,11 @@ export type LifecycleStrategy={workflow:LifecycleAssignment['workflow'];source:s
  cleanup?:(ctx:LifecycleContext)=>Promise<void>};
 export const lifecycleHash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const sameOutpoints=(left:readonly string[],right:readonly string[])=>JSON.stringify([...left].sort())===JSON.stringify([...right].sort());
+/** Private journal metadata only. Never retain URL credentials or query data. */
+export function lifecycleRequestMetadata(value:string,method:string){
+ const url=new URL(value);
+ return Object.freeze({origin:url.origin,path:url.pathname.slice(0,512),method:['GET','HEAD','OPTIONS','POST','PUT','PATCH','DELETE'].includes(method)?method:'unknown'});
+}
 type RequestRecord={path:string;body:any;grant?:string};
 /** Proof endpoints cannot spend. Keep their disk latency out of the client's
  * short proof deadline, then persist them before any financial dispatch.
@@ -111,7 +116,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
   const cors={'Access-Control-Allow-Origin':'http://127.0.0.1:5174','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, X-BIS-Signing-Grant'};
   const allowed=()=>ctx.financial&&Date.now()<ctx.deadline;
   const proxy=async(route:any)=>{
-   const request=route.request(),url=new URL(request.url());let guardStage='transport',guardPath='other',guardedBody:unknown;
+   const request=route.request(),url=new URL(request.url()),boundary=lifecycleRequestMetadata(request.url(),request.method()),financialWindowOpenAtRequest=allowed();let guardStage='transport',guardPath=boundary.path,guardedBody:unknown;
    try{
     if(url.origin===serverOrigin&&url.pathname.startsWith('/api/bis/')){
      const path=url.pathname.slice('/api/bis/'.length);
@@ -158,7 +163,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
     if(!allowed())throw Error('Original observation expired.');ctx.counts.provider++;return route.continue();
    }catch{
     await requestJournal.flush().catch(()=>{});
-    await ctx.save(run=>{if(run){run.guardFailures??=[];run.guardFailures.push({path:guardPath,stage:guardStage,observedAt:new Date().toISOString(),...(guardedBody===undefined?{}:{request:guardedBody})});}}).catch(()=>{});
+    await ctx.save(run=>{if(run){run.guardFailures??=[];run.guardFailures.push({path:guardPath,stage:guardStage,requestOrigin:boundary.origin,requestMethod:boundary.method,financialWindowOpenAtRequest,observedAt:new Date().toISOString(),...(guardedBody===undefined?{}:{request:guardedBody})});}}).catch(()=>{});
     return route.abort('blockedbyclient').catch(()=>{});
    }
   };

@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createDeferredProofJournal} from '../scripts/funded-workflow-lifecycle.ts';
+import {createDeferredProofJournal,lifecycleRequestMetadata} from '../scripts/funded-workflow-lifecycle.ts';
+
+test('early refusal metadata preserves the request boundary without URL credentials or query data',()=>{
+ const value=lifecycleRequestMetadata('https://private-user:private-password@signet.arkade.sh/v1/batch/registerIntent?token=private-token#private-fragment','POST');
+ assert.deepEqual(value,{origin:'https://signet.arkade.sh',path:'/v1/batch/registerIntent',method:'POST'});
+ assert.equal(JSON.stringify(value).includes('private-'),false);
+ assert.equal(lifecycleRequestMetadata('https://signet.arkade.sh/'+'a'.repeat(600),'UNEXPECTED').path.length,512);
+ assert.equal(lifecycleRequestMetadata('https://signet.arkade.sh/','UNEXPECTED').method,'unknown');
+});
 
 test('nonfinancial proof responses avoid disk waits but financial dispatch waits for the complete durable log',async()=>{
  let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;}),calls:any[]=[],events:string[]=[];
