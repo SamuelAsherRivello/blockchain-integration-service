@@ -9,11 +9,13 @@ import {MnemonicIdentity,ReadonlyWallet,InMemoryWalletRepository,InMemoryContrac
 import {operatorInfo,publicPhrases,seedWalletLabels} from './wallet-label-fixture.ts';
 
 const output=new URL('../../../../../output/reports/marketplace-wallet-labels/',import.meta.url);
+let viteCache:Promise<string>|undefined;
 async function setup(t){
   await mkdir(output,{recursive:true});
   let base=process.env.BIS_WALLET_LABEL_BASE_URL;
   if(!base){
-    const config=developmentConfig({port:0});config.cacheDir=await mkdtemp(new URL('vite-',output));config.server.hmr=false;
+    const signerConfig={network:'signet' as const,gameId:'stealth-and-steel',enabled:true,mnemonic:publicPhrases[1]};
+    const config=developmentConfig({port:0,signerConfig});viteCache??=mkdtemp(new URL('vite-',output));config.cacheDir=await viteCache;config.server.hmr=false;
     const server=await createServer(config);await server.listen();t.after(()=>server.close());base=server.resolvedUrls.local[0].replace(/\/$/,'');
   }
   const browser=await chromium.launch({headless:true,...(process.env.BIS_PLAYWRIGHT_CHANNEL?{channel:process.env.BIS_PLAYWRIGHT_CHANNEL}:{})});t.after(()=>browser.close());
@@ -22,7 +24,7 @@ async function setup(t){
     // running preview is compiled. The measured context below has a cold browser
     // cache and has never initialized a wallet or loaded application modules.
     const warm=await browser.newContext();await warm.route(/^https:\/\//,route=>route.abort());
-    const page=await warm.newPage();await page.goto(`${base}/marketplace/`,{waitUntil:'domcontentloaded'});
+    const page=await warm.newPage();await page.goto(`${base}/marketplace/`,{waitUntil:'domcontentloaded',timeout:60000});
     await page.getByTestId('player-wallet-label').waitFor({state:'visible',timeout:15000});await warm.close();
   }
   const context=await browser.newContext();t.after(()=>context.close());
@@ -46,6 +48,16 @@ async function setup(t){
   });
   await context.route(/https:\/\/mempool\./,async route=>{
     ownershipReads++;await new Promise(resolve=>setTimeout(resolve,5000));await route.fulfill({contentType:'application/json',body:'[]'}).catch(()=>{});
+  });
+  await context.route(/\/api\/bis\/arkade\/signet\/v1\//,async route=>{
+    const pathname=new URL(route.request().url()).pathname;
+    if(pathname.endsWith('/v1/info')){
+      configReads++;await new Promise(resolve=>setTimeout(resolve,mode==='slow'?1500:250));
+      if(mode==='offline'){await route.fulfill({status:503,body:'fixture offline'});return;}
+      await route.fulfill({contentType:'application/json',body:JSON.stringify({...operatorInfo,network:mode==='mismatch'?'mutinynet':'signet'})});return;
+    }
+    ownershipReads++;await new Promise(resolve=>setTimeout(resolve,5000));
+    await route.fulfill({contentType:'application/json',body:JSON.stringify({vtxos:[],contracts:[],txs:[],nextCursor:''})}).catch(()=>{});
   });
   await seedWalletLabels(page,base,accounts);
   return {page,context,base,expected,errors,accounts,setMode:value=>{mode=value;},counts:()=>({configReads,ownershipReads,mutations})};
@@ -85,6 +97,13 @@ test('Player-only restoration never reuses the catalog Game Wallet address',{tim
     const request=indexedDB.deleteDatabase('bis-game-wallet-signet-v1');
     request.onsuccess=resolve;request.onerror=()=>reject(request.error);
   }));
+  // Keep the Player identity available while representing a backend with no
+  // automatically selected Game signer for this restoration case.
+  await f.context.route('**/api/bis/connect',async route=>{
+    const body=route.request().postDataJSON() as {profileId?:string};
+    if(body.profileId===undefined)return route.fulfill({status:404,contentType:'application/json',body:'{"error":"No Game signer selected for this test."}'});
+    return route.continue();
+  });
   await f.page.goto(`${f.base}/marketplace/`,{waitUntil:'domcontentloaded'});
   await f.page.waitForFunction(expected=>document.querySelector('[data-testid="player-wallet-label"]')?.getAttribute('title')===expected,f.expected[0]);
   await f.page.waitForFunction(()=>document.querySelector('[data-testid="game-wallet-label"]')?.textContent==='Not connected');
