@@ -5,16 +5,16 @@ import {SingleKey} from '@arkade-os/sdk';
 import {register} from './test-wallets/inventory.ts';
 import {findTestActor,actorSource} from './test-wallets/server-actors.ts';
 import {Operations} from './test-wallets/operations.ts';
-import {verifyBoardingNonSubmission,hasVerifiedBoardingNonSubmission} from './test-wallets/boarding-non-submission.ts';
+import {verifyBoardingNonSubmission,hasVerifiedBoardingNonSubmission,reviewedBoardingAbortSources} from './test-wallets/boarding-non-submission.ts';
 import {assertAcceptanceBudget} from './treasure-acceptance-policy.ts';
 import {assertAtomicPaymentBudget} from '../packages/bis-server/scripts/funded-workflow-live.ts';
 
-async function fixture(){
+async function fixture(reviewedAbort=false){
  const state:any={version:1,revision:1,accounts:[],pairs:[]},vault={transaction:async(use:any)=>use(state)};
  await register(vault,[{label:'player',phrase:'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'}],'supplied');
  const publicKey=Buffer.from(await SingleKey.fromHex('1'.padStart(64,'0')).compressedPublicKey()).toString('hex');
  state.serverActors={game:{endpoint:'https://fixture.vercel.app/api/bis/',network:'signet',publicKey,profileId:createHash('sha256').update(Buffer.from(publicKey,'hex')).digest('hex'),grant:{active:true,networks:['signet'],source:'user-approved-hosted-test-actor'}}};
- const game=findTestActor(state,'game'),player=state.accounts[0],runId='srv-board-fixture',ledger=new Operations(vault);
+ const game=findTestActor(state,'game'),player=state.accounts[0],runId=reviewedAbort?'srv-board-2990c-1029':'srv-board-fixture',ledger=new Operations(vault);
  await ledger.prepare({id:runId+'-board',account:'game',profileId:game.profileId,generation:1,network:'signet',kind:'btc-send',recipient:'boarding:'+game.profileId,amountSats:2990,feeSats:0,sourceOrigin:'http://127.0.0.1:5174',serverSource:actorSource(game)});
  const record=await ledger.submit(runId+'-board',async()=>{throw Error('Fixture abort before dispatch.');});
  const sourceHashes=Object.fromEntries(['live','lifecycle','boarding'].map(name=>[`BIS/packages/bis-server/scripts/funded-workflow-${name}.ts`,'a'.repeat(64)]));
@@ -26,6 +26,14 @@ async function fixture(){
  const evidence:any={kind:'guarded-boarding-not-submitted-v1',runId,operationFingerprint:record.fingerprint,scope:run.scope,sourceHashes,
   closedBrowser:{profileKey:createHash('sha256').update(`fixture-pair:signet:http://127.0.0.1:5174:admin:recovery:life-${runId}`).digest('hex').slice(0,24),observedAt:new Date().toISOString(),reopenedOriginalProfile:true,closed:true},
   browserRecord:{id:'original-browser-record',profileId:game.profileId,network:'signet',status:'not-submitted',phase:'prepared',createdAt:Date.parse(record.createdAt),inputs:[{txid:'c'.repeat(64),vout:1}],quote:{fingerprint:'d'.repeat(64),profileId:game.profileId,amountSats:2990}}};
+ if(reviewedAbort){
+  Object.assign(sourceHashes,reviewedBoardingAbortSources);Object.assign(a,{candidateId:'signet:01',boardingExecutionMs:300000,endpoint:game.server.endpoint,serverPublicKey:game.server.publicKey});
+  const scope=run.serverRequests[0].body;
+  run.serverRequests.push({path:'player/authenticate',body:{gameId:scope.gameId,network:scope.network,profileId:scope.profileId,operationId:scope.operationId,challenge:'protected-challenge-value',signature:'01'.repeat(64)}});
+  run.originalReconciliations=1;run.originalInspectionStartedAt=record.updatedAt;
+  run.guardFailures=[{stage:'transport',path:'other',observedAt:record.createdAt}];
+  evidence.reviewedPreDispatchAbort={kind:'remote-only-pre-dispatch-abort-2026-10-29',sourceCommit:'b64244146387c5b15c6ade2cef86d61fca24a939',originalInspectionStartedAt:run.originalInspectionStartedAt,guardFailure:structuredClone(run.guardFailures[0])};
+ }
  return {state,vault,ledger,record,run,evidence};
 }
 
@@ -37,6 +45,57 @@ test('closed challenge-only boarding resolves as not submitted without a fabrica
  assert.equal(f.run.phase,'not-submitted');assert.equal(f.run.originalReconciliations,1);assert.equal(hasVerifiedBoardingNonSubmission(resolved),true);
  assert.equal(JSON.stringify(resolved).includes('must-not-be-stored'),false);
  await assert.rejects(f.ledger.reconcileGuardedBoardingNotSubmitted(f.record.intent.id,async()=>f.evidence));
+});
+
+test('the reviewed c abort proves zero dispatch while retaining its guard and consumed inspection',async()=>{
+ const f=await fixture(true),guard=structuredClone(f.run.guardFailures);f.evidence.reviewedPreDispatchAbort.extra='PRIVATE_SENTINEL';
+ assert.throws(()=>verifyBoardingNonSubmission(f.record,f.run,f.evidence));
+ const resolved=await f.ledger.reconcileGuardedBoardingNotSubmitted(f.record.intent.id,async()=>f.evidence);
+ assert.equal(hasVerifiedBoardingNonSubmission(resolved),true);assert.equal(resolved.providerId,undefined);assert.equal(resolved.resolution.networkOutcome,'not-submitted');
+ assert.equal(resolved.resolution.previousUpdatedAt,f.record.updatedAt);assert.equal(f.run.originalReconciliations,1);assert.deepEqual(f.run.guardFailures,guard);
+ assert.deepEqual(resolved.resolution.proof.reviewedPreDispatchAbort.guardFailure,guard[0]);assert.equal(JSON.stringify(resolved.resolution).includes('PRIVATE_SENTINEL'),false);
+ await assert.rejects(f.ledger.reconcileGuardedBoardingNotSubmitted(f.record.intent.id,async()=>f.evidence));
+});
+
+test('a pre-dispatch guard never permits another case, driver, local signer or financial path',async()=>{
+ const f=await fixture(true);
+ for(const mutate of [
+  (r:any,e:any,s:any)=>r.assignment.runId='another-case',
+  (r:any,e:any,s:any)=>r.assignment.network='mutinynet',
+  (r:any,e:any,s:any)=>r.assignment.candidateId='signet:02',
+  (r:any,e:any,s:any)=>r.assignment.amountSats=2991,
+  (r:any,e:any,s:any)=>r.assignment.boardingExecutionMs=120000,
+  (r:any,e:any,s:any)=>r.assignment.playerProfileId=r.assignment.gameProfileId,
+  (r:any,e:any,s:any)=>r.originalReconciliations=0,
+  (r:any,e:any,s:any)=>r.originalReconciliations=2,
+  (r:any,e:any,s:any)=>r.originalInspectionStartedAt='invalid',
+  (r:any,e:any,s:any)=>e.reviewedPreDispatchAbort.sourceCommit='0'.repeat(40),
+  (r:any,e:any,s:any)=>e.reviewedPreDispatchAbort.guardFailure.path='changed',
+  (r:any,e:any,s:any)=>r.guardFailures.push(r.guardFailures[0]),
+  (r:any,e:any,s:any)=>r.guardFailures[0].stage='financial-intent',
+  (r:any,e:any,s:any)=>r.guardFailures[0].path='sign',
+  (r:any,e:any,s:any)=>r.guardFailures[0].request={method:'sign'},
+  (r:any,e:any,s:any)=>r.guardFailures[0].observedAt='invalid',
+  (r:any,e:any,s:any)=>r.serverRequests.pop(),
+  (r:any,e:any,s:any)=>r.serverRequests.push({path:'settlement/plan'}),
+  (r:any,e:any,s:any)=>r.successfulServerSigns=[{method:'sign'}],
+  (r:any,e:any,s:any)=>r.providerRequests=[{path:'/v1/batch/registerIntent'}],
+  (r:any,e:any,s:any)=>r.successfulServerSigns={length:0},
+  (r:any,e:any,s:any)=>r.providerRequests={length:0},
+  (r:any,e:any,s:any)=>r.providerStages={length:0},
+  (r:any,e:any,s:any)=>r.originalRegistration=null,
+  (r:any,e:any,s:any)=>r.originalCommitment='',
+  (r:any,e:any,s:any)=>r.planToken='present',
+  (r:any,e:any,s:any)=>s.accounts.push({label:'local-copy',profileId:r.assignment.gameProfileId,phrase:'PUBLIC fixture'}),
+  (r:any,e:any,s:any)=>delete s.serverActors.game,
+  (r:any,e:any,s:any)=>s.serverActors.game.phrase='PUBLIC fixture',
+  (r:any,e:any,s:any)=>s.serverActors.game.grant.active=false,
+ ]){const r=structuredClone(f.run),e=structuredClone(f.evidence),s=structuredClone(f.state);mutate(r,e,s);assert.throws(()=>verifyBoardingNonSubmission(f.record,r,e,s));}
+ for(const path of Object.keys(reviewedBoardingAbortSources)){
+  const r=structuredClone(f.run),e=structuredClone(f.evidence);r.assignment.sourceHashes[path]='0'.repeat(64);e.sourceHashes=structuredClone(r.assignment.sourceHashes);
+  assert.throws(()=>verifyBoardingNonSubmission(f.record,r,e,f.state));
+ }
+ assert.equal(f.state.operations[0].state,'unknown');
 });
 
 test('the exact ordered auth-only pair permits non-submission without retaining proof credentials',async()=>{

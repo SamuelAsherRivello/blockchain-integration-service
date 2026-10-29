@@ -210,7 +210,7 @@ export class Operations {
       const record=find(state,id);
       if(record.fingerprint!==before.fingerprint||record.state!==before.state||record.updatedAt!==before.updatedAt)fail('operation-state-changed');
       const run=state.serverLifecycleRuns?.[evidence.runId];
-      const resolution=verifyBoardingNonSubmission(record,run,evidence);
+      const resolution=verifyBoardingNonSubmission(record,run,evidence,state);
       record.state='cancelled';record.updatedAt=new Date().toISOString();record.resolution=resolution;
       run.phase='not-submitted';run.originalReconciliations=1;run.nonSubmission=structuredClone(resolution);
       return snapshot(record);
