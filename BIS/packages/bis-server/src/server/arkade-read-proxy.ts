@@ -1,7 +1,9 @@
 const UPSTREAM = 'https://signet.arkade.sh';
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_QUERY_BYTES = 8 * 1024;
-const MAX_VTXO_PAGE_SIZE = 100;
+// RestIndexerProvider defaults to 500 results per page. Keep that SDK default
+// usable while retaining a bounded request and a 2 MiB response cap.
+const MAX_VTXO_PAGE_SIZE = 500;
 
 function allowedVtxosQuery(params: URLSearchParams) {
   const allowed = new Set(['scripts', 'outpoints', 'spendableOnly', 'spentOnly', 'recoverableOnly', 'pendingOnly', 'renewableOnly', 'after', 'before', 'page.index', 'page.size']);
@@ -19,7 +21,8 @@ function allowedVtxosQuery(params: URLSearchParams) {
         if (!outpoint || Number(outpoint[2]) > 0xffff_ffff) return false;
       }
       if (['spendableOnly', 'spentOnly', 'recoverableOnly', 'pendingOnly', 'renewableOnly'].includes(key) && value !== 'true' && value !== 'false') return false;
-      if (['after', 'before', 'page.index', 'page.size'].includes(key) && (!/^(0|[1-9][0-9]{0,8})$/.test(value) || (key === 'page.size' && Number(value) > MAX_VTXO_PAGE_SIZE))) return false;
+      if (['after', 'before'].includes(key) && !/^(?:0|[1-9][0-9]{0,8}|[A-Za-z0-9_-]{1,128})$/.test(value)) return false;
+      if (['page.index', 'page.size'].includes(key) && (!/^(0|[1-9][0-9]{0,8})$/.test(value) || (key === 'page.size' && Number(value) > MAX_VTXO_PAGE_SIZE))) return false;
     }
   }
   return true;

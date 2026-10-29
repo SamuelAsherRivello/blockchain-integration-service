@@ -51,8 +51,8 @@ test('public Game Wallet view selects funded slot 02 without owner login and ret
   assert.match(await page.locator('.bis-version-label').innerText(),/Server/);
   assert.equal(JSON.stringify(requests).includes(env.BIS_OWNER_TOKEN),false);
 });
-test('local Signet Arkade reads use the bounded same-origin relay and reject unsupported writes', { timeout: 30000 }, async t => {
-  const config = developmentConfig({ port: 0, signerConfig: { mnemonic, enabled: true, network: 'signet' as const, gameId: 'stealth-and-steel' } });
+test('local Signet Arkade reads use the bounded same-origin relay without requiring a local signer', { timeout: 30000 }, async t => {
+  const config = developmentConfig({ port: 0, signerConfig: { enabled: false, network: 'signet' as const, gameId: 'stealth-and-steel' } });
   config.cacheDir = `output/reports/bis-server/local-browser-arkade-read-${process.pid}`;
   const server = await createServer(config); await server.listen();
   t.after(() => server.close());

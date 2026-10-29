@@ -33,7 +33,6 @@ export function createSignerMiddleware(config: SignerConfiguration = loadSignerE
     if (process.env.VERCEL || !/^(127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/.test(host) || (request.headers.origin && request.headers.origin !== `http://${host}`) || request.headers['sec-fetch-site'] === 'cross-site') {
       json(response, 403, { error: 'Local game signer access denied.' }); return;
     }
-    if (config.enabled === false || (!config.mnemonic && !pooled)) { json(response, 404, { error: 'Game signer disabled or not configured.' }); return; }
     if (path.startsWith('/api/bis/arkade/')) {
       try {
         const url = new URL(request.url ?? '/', `http://${host}`);
@@ -47,6 +46,7 @@ export function createSignerMiddleware(config: SignerConfiguration = loadSignerE
       } catch { json(response, 502, { error: 'Signet Arkade read service is unavailable.' }); }
       return;
     }
+    if (config.enabled === false || (!config.mnemonic && !pooled)) { json(response, 404, { error: 'Game signer disabled or not configured.' }); return; }
     try {
       if (path === '/api/bis/identity' && request.method === 'GET') {
         const network = new URL(request.url!, 'http://localhost').searchParams.get('network') ?? config.network;

@@ -1,12 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { allowedSignetArkadeRead, proxySignetArkadeRead } from '../src/server/arkade-read-proxy.ts';
+import { createSignerMiddleware } from '../src/server/vite.ts';
 
 test('Signet proxy maps only the fixed Arkade info, vtxo and asset GET routes', () => {
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/info'))?.href, 'https://signet.arkade.sh/v1/info');
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/info?path=arkade%2Fsignet%2Fv1%2Finfo'))?.href, 'https://signet.arkade.sh/v1/info');
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/info?path=arkade%2Fmutinynet%2Fv1%2Finfo')), undefined);
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab&outpoints=' + 'a'.repeat(64) + ':0&page.size=100'))?.host, 'signet.arkade.sh');
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=' + 'ab'.repeat(34) + '&page.index=0&page.size=500'))?.search, '?scripts=' + 'ab'.repeat(34) + '&page.index=0&page.size=500');
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab&after=AbCdEf012-_xy&page.index=0&page.size=500'))?.search, '?scripts=ab&after=AbCdEf012-_xy&page.index=0&page.size=500');
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab&page.size=501')), undefined);
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab&after=' + 'a'.repeat(129))), undefined);
+  assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?scripts=ab&after=../../private')), undefined);
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/vtxos?path=arkade%2Fsignet%2Fv1%2Findexer%2Fvtxos&scripts=ab'))?.search, '?scripts=ab');
   assert.equal(allowedSignetArkadeRead(new URL('https://bis.test/api/bis/arkade/signet/v1/indexer/asset/' + 'a'.repeat(68)))?.pathname, '/v1/indexer/asset/' + 'a'.repeat(68));
   const assetPath = '/api/bis/arkade/signet/v1/indexer/asset/' + 'a'.repeat(68);
@@ -19,7 +25,7 @@ test('Signet proxy maps only the fixed Arkade info, vtxo and asset GET routes', 
     '/api/bis/arkade/signet/v1/indexer/script/subscribe',
     '/api/bis/arkade/signet/v1/indexer/vtxos?admin=true',
     '/api/bis/arkade/signet/v1/indexer/vtxos?scripts=xyz',
-    '/api/bis/arkade/signet/v1/indexer/vtxos?page.size=101',
+    '/api/bis/arkade/signet/v1/indexer/vtxos?page.size=501',
     '/api/bis/arkade/signet/v1/indexer/asset/%2f%2fevil.test',
   ]) assert.equal(allowedSignetArkadeRead(new URL('https://bis.test' + path)), undefined, path);
 });
@@ -47,6 +53,32 @@ test('unsupported methods and routes never call the upstream', async () => {
   assert.equal((await proxySignetArkadeRead(new Request('https://bis.test/api/bis/arkade/signet/v1/tx/submit'), fetcher)).status, 404);
   assert.equal((await proxySignetArkadeRead(new Request('https://bis.test/api/bis/arkade/mutinynet/v1/info'), fetcher)).status, 404);
   assert.equal(calls, 0);
+});
+
+test('local Signet read proxy works when no local signer is configured', async () => {
+  const previousFetch = globalThis.fetch;
+  const requested: string[] = [];
+  globalThis.fetch = async input => {
+    requested.push(String(input));
+    return Response.json({ network: 'signet' });
+  };
+  try {
+    const { middleware } = createSignerMiddleware({ enabled: false, network: 'signet', gameId: 'test' });
+    let statusCode = 0, body = '';
+    const response = {
+      setHeader() {},
+      end(value?: string) { body = value ?? ''; },
+    };
+    await middleware(
+      { url: '/api/bis/arkade/signet/v1/info', method: 'GET', headers: { host: '127.0.0.1:5174' } } as any,
+      response as any,
+      () => { throw new Error('Read proxy should handle this route.'); },
+    );
+    statusCode = (response as any).statusCode;
+    assert.equal(statusCode, 200);
+    assert.deepEqual(JSON.parse(body), { network: 'signet' });
+    assert.deepEqual(requested, ['https://signet.arkade.sh/v1/info']);
+  } finally { globalThis.fetch = previousFetch; }
 });
 
 test('invalid and oversized upstream responses fail closed', async () => {
