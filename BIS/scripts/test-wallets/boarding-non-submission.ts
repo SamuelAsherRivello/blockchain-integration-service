@@ -31,15 +31,20 @@ export function verifyBoardingNonSubmission(record:any,run:any,evidence:Boarding
   for(const path of ['funded-workflow-live','funded-workflow-lifecycle','funded-workflow-boarding'])
     if(!/^[a-f0-9]{64}$/.test(a.sourceHashes?.[`BIS/packages/bis-server/scripts/${path}.ts`]??''))throw denied();
   if(run.successfulServerSigns?.length||run.providerRequests?.length||run.providerStages?.length||run.originalRegistration||run.originalCommitment||run.originalSubmit||
-    run.sessionPublicKey||run.planToken||run.batchToken||run.batchId||!Array.isArray(run.serverRequests)||run.serverRequests.length!==1)throw denied();
+    run.sessionPublicKey||run.planToken||run.batchToken||run.batchId||run.guardFailures?.length||!Array.isArray(run.serverRequests)||![1,2].includes(run.serverRequests.length))throw denied();
   const request=run.serverRequests[0],body=request.body;
   if(request.path!=='player/challenge'||request.grant!==undefined||body?.gameId!=='stealth-and-steel'||body.network!==a.network||body.profileId!==a.gameProfileId||
     !/^[a-zA-Z0-9-]{1,100}$/.test(body.operationId??'')||!/^0[23][a-f0-9]{64}$/.test(body.playerPublicKey??'')||
     createHash('sha256').update(Buffer.from(body.playerPublicKey,'hex')).digest('hex')!==a.playerProfileId)throw denied();
+  if(run.serverRequests.length===2){
+    const next=run.serverRequests[1],auth=next.body;
+    if(next.path!=='player/authenticate'||next.grant!==undefined||auth?.gameId!==body.gameId||auth.network!==body.network||auth.profileId!==body.profileId||auth.operationId!==body.operationId||
+      typeof auth.challenge!=='string'||!auth.challenge||auth.challenge.length>4096||!/^([a-f0-9]{2}){64}$/.test(auth.signature??''))throw denied();
+  }
   const proof={kind:evidence.kind,runId:evidence.runId,operationFingerprint:evidence.operationFingerprint,scope:evidence.scope,sourceHashes:{...evidence.sourceHashes},
     closedBrowser:{profileKey:closed.profileKey,observedAt:closed.observedAt,reopenedOriginalProfile:true,closed:true},
     browserRecord:{id:b.id,profileId:b.profileId,network:b.network,status:b.status,phase:b.phase,createdAt:b.createdAt,inputs:b.inputs.map(({txid,vout})=>({txid,vout})),
-      quote:{fingerprint:b.quote.fingerprint,profileId:b.quote.profileId,amountSats:b.quote.amountSats}},requestPaths:['player/challenge'],financialDispatches:0,successfulSignatures:0};
+      quote:{fingerprint:b.quote.fingerprint,profileId:b.quote.profileId,amountSats:b.quote.amountSats}},requestPaths:run.serverRequests.map((row:any)=>row.path),financialDispatches:0,successfulSignatures:0};
   const resolution={kind:'verified-guarded-boarding-non-submission',previousState:'unknown',previousUpdatedAt:record.updatedAt,networkOutcome:'not-submitted',verified:true,exposureSats:0,proof};
   return {...resolution,digest:hash(resolution)};
 }

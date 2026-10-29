@@ -39,6 +39,28 @@ test('closed challenge-only boarding resolves as not submitted without a fabrica
  await assert.rejects(f.ledger.reconcileGuardedBoardingNotSubmitted(f.record.intent.id,async()=>f.evidence));
 });
 
+test('the exact ordered auth-only pair permits non-submission without retaining proof credentials',async()=>{
+ const f=await fixture(),scope=f.run.serverRequests[0].body;
+ f.run.serverRequests.push({path:'player/authenticate',body:{gameId:scope.gameId,network:scope.network,profileId:scope.profileId,operationId:scope.operationId,challenge:'protected-challenge-value',signature:'01'.repeat(64)}});
+ const resolved=await f.ledger.reconcileGuardedBoardingNotSubmitted(f.record.intent.id,async()=>f.evidence);
+ assert.equal(hasVerifiedBoardingNonSubmission(resolved),true);
+ assert.deepEqual(resolved.resolution.proof.requestPaths,['player/challenge','player/authenticate']);
+ assert.equal(JSON.stringify(resolved.resolution).includes('protected-challenge-value'),false);
+});
+
+test('reordered, extra, mismatched or financial requests never qualify as an auth-only pair',async()=>{
+ const f=await fixture(),scope=f.run.serverRequests[0].body;
+ f.run.serverRequests.push({path:'player/authenticate',body:{gameId:scope.gameId,network:scope.network,profileId:scope.profileId,operationId:scope.operationId,challenge:'protected-challenge-value',signature:'01'.repeat(64)}});
+ for(const mutate of [
+  (r:any)=>r.serverRequests.reverse(),(r:any)=>r.serverRequests.push(r.serverRequests[1]),
+  (r:any)=>r.serverRequests[1].path='settlement/plan',(r:any)=>r.serverRequests[1].path='sign',
+  (r:any)=>r.serverRequests[1].grant='financial-grant',(r:any)=>r.serverRequests[1].body.gameId='another-game',
+  (r:any)=>r.serverRequests[1].body.network='mutinynet',(r:any)=>r.serverRequests[1].body.profileId='a'.repeat(64),
+  (r:any)=>r.serverRequests[1].body.operationId='another-operation',(r:any)=>r.serverRequests[1].body.signature='bad',
+  (r:any)=>r.guardFailures=[{stage:'financial-intent'}],(r:any)=>r.planToken='financial-plan',
+ ]){const run=structuredClone(f.run);mutate(run);assert.throws(()=>verifyBoardingNonSubmission(f.record,run,f.evidence));}
+});
+
 test('any financial request or incomplete original evidence refuses non-submission',async()=>{
  const f=await fixture();
  for(const mutate of [

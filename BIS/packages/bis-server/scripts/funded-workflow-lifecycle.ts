@@ -20,6 +20,25 @@ export type LifecycleStrategy={workflow:LifecycleAssignment['workflow'];source:s
  cleanup?:(ctx:LifecycleContext)=>Promise<void>};
 export const lifecycleHash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const sameOutpoints=(left:readonly string[],right:readonly string[])=>JSON.stringify([...left].sort())===JSON.stringify([...right].sort());
+type RequestRecord={path:string;body:any;grant?:string};
+/** Proof endpoints cannot spend. Keep their disk latency out of the client's
+ * short proof deadline, then persist them before any financial dispatch.
+ */
+export function createDeferredProofJournal(persist:(records:RequestRecord[])=>Promise<void>){
+ let pending:RequestRecord[]=[],tail=Promise.resolve(),failed=false;
+ const flush=async(extra:RequestRecord[]=[])=>{
+  if(failed)throw Error('Original request journal unavailable.');
+  const batch=[...pending,...extra];pending=[];if(!batch.length){await tail;if(failed)throw Error('Original request journal unavailable.');return;}
+  const work=tail.then(async()=>{if(failed)throw Error('Original request journal unavailable.');await persist(batch);});
+  tail=work.catch(()=>{failed=true;pending.unshift(...batch);});await work;
+ };
+ return {async record(path:string,body:any,grant?:string){
+  if(failed)throw Error('Original request journal unavailable.');
+  const row={path,body:structuredClone(body),grant};
+  if(['player/challenge','player/authenticate'].includes(path)){if(pending.length>=2)throw Error('Original proof request limit exceeded.');pending.push(row);return;}
+  await flush([row]);
+ },flush};
+}
 export function validateLifecycleAssignment(value:any,workflow:LifecycleAssignment['workflow']):LifecycleAssignment{
  const {authorizationMode,workflow:given,ltoAction,...base}=value??{};validatePaymentAssignment(base);
  if(workflow==='boarding'&&ltoAction!==undefined||workflow==='standard-lto'&&ltoAction!==undefined&&!['claim','reject-refund'].includes(ltoAction))throw Error('Exact LTO action required.');
@@ -66,6 +85,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
    return ledger.submit(id,async()=>({providerId:await boundedResult(run(),Math.max(1,ctx.deadline-Date.now()))}));
   }};
  const transaction=vault.transaction.bind(vault);
+ const requestJournal=createDeferredProofJournal(async records=>{await ctx.save(run=>{if(!run)throw Error('Original lifecycle unavailable.');run.serverRequests??=[];run.serverRequests.push(...records);});});
  vault.transaction=async(use:any,options?:any)=>transaction(async(state:any)=>{
   const ids=new Set((state.operations??[]).map((row:any)=>row.intent.id)),result=await use(state);
   for(const row of state.operations??[])if(!ids.has(row.intent.id)){
@@ -88,15 +108,16 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
   const cors={'Access-Control-Allow-Origin':'http://127.0.0.1:5174','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, X-BIS-Signing-Grant'};
   const allowed=()=>ctx.financial&&Date.now()<ctx.deadline;
   const proxy=async(route:any)=>{
-   const request=route.request(),url=new URL(request.url());
+   const request=route.request(),url=new URL(request.url());let guardStage='transport',guardPath='other',guardedBody:unknown;
    try{
     if(url.origin===serverOrigin&&url.pathname.startsWith('/api/bis/')){
      const path=url.pathname.slice('/api/bis/'.length);
+     guardPath=path;guardStage='request-scope';
      if(request.method()==='OPTIONS'){
       if(request.headers().origin!=='http://127.0.0.1:5174'||request.headers()['access-control-request-method']!=='POST')throw Error('Unassigned preflight.');
       return route.fulfill({status:204,headers:cors});
      }
-     if(request.method()!=='POST'||(request.postDataBuffer()?.length??0)>1024*1024)throw Error('Unexpected server transport.');const body=request.postDataJSON();
+     if(request.method()!=='POST'||(request.postDataBuffer()?.length??0)>1024*1024)throw Error('Unexpected server transport.');const body=request.postDataJSON();guardedBody=body;
      if(path==='connect')assertLifecycleConnection(body,a);
      else{
       if(!allowed()||ctx.counts.server>=100)throw Error('Signing disabled.');
@@ -105,17 +126,20 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
        if(path==='player/challenge'&&(!/^0[23][a-f0-9]{64}$/.test(body.playerPublicKey??'')||createHash('sha256').update(Buffer.from(body.playerPublicKey,'hex')).digest('hex')!==a.playerProfileId))throw Error('Original Player proof key changed.');
        await strategy.operationScope?.(ctx,path,body);
        if(ctx.serverOperationId&&body.operationId!==ctx.serverOperationId)throw Error('Original signing operation changed.');ctx.serverOperationId=body.operationId;
+       await requestJournal.record(path,body,request.headers()['x-bis-signing-grant']);
       }else{
        const raw=body.request??body;
        if(raw.network!==a.network||raw.profileId!==a.gameProfileId||typeof raw.operationId!=='string')throw Error('Original signing scope changed.');
        await strategy.operationScope?.(ctx,path,raw);
        if(ctx.serverOperationId&&raw.operationId!==ctx.serverOperationId)throw Error('Original signing scope changed.');
-       ctx.serverOperationId=raw.operationId;await strategy.server(ctx,path,body);
+       ctx.serverOperationId=raw.operationId;guardStage='financial-journal';await requestJournal.record(path,body,request.headers()['x-bis-signing-grant']);
+       guardStage='financial-intent';await strategy.server(ctx,path,body);
       }
-      await ctx.save(run=>{run.serverRequests??=[];run.serverRequests.push({path,body,grant:request.headers()['x-bis-signing-grant']});});
      }
      const useCached=path==='connect'&&cached&&body.requirement===undefined;
      const headers=acceptanceProxyHeaders(request.headers());
+     guardStage='remote-transport';
+     if(path!=='connect'&&!allowed())throw Error('Original observation expired.');
      const response=useCached?cached:await remoteRequest(a.endpoint,path,body,headers,env);if(useCached)cached=undefined as any;else ctx.counts.server++;
      if(path==='connect')assertLifecycleResponse(response,a);
      if(path.endsWith('settlement/plan')&&response.status===200){const info=JSON.parse(response.text),token=info[a.authorizationMode==='owner'?'ownerSettlementPlan':'settlementPlan'];if(!/^0[23][a-f0-9]{64}$/.test(info.sessionPublicKey??'')||typeof token!=='string'||!token)throw Error('Original session key unavailable.');ctx.sessionPublicKey=info.sessionPublicKey;ctx.planToken=token;await ctx.save(run=>{run.sessionPublicKey=info.sessionPublicKey;run.planToken=token;});}
@@ -126,10 +150,14 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
     }
     if(['GET','HEAD','OPTIONS'].includes(request.method())||url.origin===`https://${a.network}.arkade.sh`&&url.pathname.startsWith('/v1/indexer/'))return route.continue();
     if(!allowed()||url.origin!==`https://${a.network}.arkade.sh`||ctx.counts.provider>=20)throw Error('Unassigned lifecycle provider call.');
-    const body=request.postDataJSON();await strategy.provider(ctx,url.pathname,body);
+    const body=request.postDataJSON();guardedBody=body;guardPath=url.pathname;guardStage='provider-intent';await strategy.provider(ctx,url.pathname,body);
     await ctx.save(run=>{run.providerRequests??=[];run.providerRequests.push({path:url.pathname,body});});
     if(!allowed())throw Error('Original observation expired.');ctx.counts.provider++;return route.continue();
-   }catch{return route.abort('blockedbyclient').catch(()=>{});}
+   }catch{
+    await requestJournal.flush().catch(()=>{});
+    await ctx.save(run=>{if(run){run.guardFailures??=[];run.guardFailures.push({path:guardPath,stage:guardStage,observedAt:new Date().toISOString(),...(guardedBody===undefined?{}:{request:guardedBody})});}}).catch(()=>{});
+    return route.abort('blockedbyclient').catch(()=>{});
+   }
   };
   stage='owned-player-only-browser';owner=new ServerPaymentBrowser(vault,{pair:a.pair,origin:'http://127.0.0.1:5174',app:'admin',stableSource:true,recoveryProfile:'life-'+a.runId});ctx.owner=owner;
   owner.acceptance={assignment:a,proxy,ownerToken:env.BIS_ACCEPTANCE_OWNER_TOKEN,...(browserEndpoint?{browserEndpoint}:{})};await owner.start();await owner.inspect();
@@ -154,7 +182,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
  }catch{
   ctx.financial=false;if(mode!=='prepare')await ctx.save(run=>{if(run?.phase==='execution-started')run.phase='unresolved';}).catch(()=>{});
   throw Error(`Lifecycle acceptance stopped at ${stage}; preserve original protected journals.`);
- }finally{ctx.financial=false;await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});}
+ }finally{ctx.financial=false;let journalUnavailable=false;try{await requestJournal.flush();}catch{journalUnavailable=true;}await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});if(journalUnavailable)throw Error('Original request journal unavailable; preserve protected recovery.');}
 }
 export async function lifecycleCli(strategy:LifecycleStrategy){
  for(const method of ['log','info','warn','error','debug','trace','dir'] as const)console[method]=()=>{};
