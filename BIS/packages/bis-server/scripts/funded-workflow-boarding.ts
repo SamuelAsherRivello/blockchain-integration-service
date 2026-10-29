@@ -34,9 +34,10 @@ export async function planBoardingSdk(input:{wallet:any;info:any;profileId:strin
  const binding={profileId:input.profileId,network:input.network,inputs:inputs.map((coin:any)=>({txid:coin.txid,vout:coin.vout,value:coin.value})),outputs,bitcoinAddress,policyFingerprint:policy.fingerprint};
  return {amountSats:quote.amountSats,feeSats:0,outpoints,fingerprint:lifecycleHash(binding),quote,outputs,bitcoinAddress,gameAddress,policyFingerprint:policy.fingerprint,sourceKind:'confirmed-bitcoin-only'};
 }
-export function inspectBoardingIntent(tx:Transaction,context:TrustedSettlementContext,plan:BoardingPlan,message?:string,requireSignatures=false){
+export function inspectBoardingIntent(tx:Transaction,context:TrustedSettlementContext,plan:BoardingPlan,message?:string,requireSignatures=false,allowDelete=false){
  const verified=validateSettlementIntent(tx,context);
- if(verified.kind!=='register'||verified.exposureSats!==plan.feeSats||!sameOutpoints(verified.sourceOutpoints,plan.outpoints)||!isDeepStrictEqual(verified.outputs,plan.outputs))throw Error('Approved original boarding intent changed.');
+ const deletion=allowDelete&&!requireSignatures&&verified.kind==='delete'&&verified.outputs.length===0;
+ if((verified.kind!=='register'&&!deletion)||verified.exposureSats!==plan.feeSats||!sameOutpoints(verified.sourceOutpoints,plan.outpoints)||!deletion&&!isDeepStrictEqual(verified.outputs,plan.outputs))throw Error('Approved original boarding intent changed.');
  if(message!==undefined){const encoded=RawPSBTV0.decode(tx.toPSBT(0)).global.genericSignedMessage;if(!(encoded instanceof Uint8Array)||new TextDecoder().decode(encoded)!==message||Intent.encodeMessage(JSON.parse(message))!==message)throw Error('Original registration message changed.');}
  if(requireSignatures)for(let index=0;index<tx.inputsLength;index++)verifyTapscriptSignatures(tx,index,[context.gamePublicKey.slice(-64)],[],[1]);
  return verified;
@@ -105,7 +106,7 @@ export const boardingStrategy:LifecycleStrategy={workflow:'boarding',source:impo
    if(ctx.planToken||body.sessionKeyMode!=='operation-v1'||!sameOutpoints((body.outpoints??[]).map((coin:any)=>`${coin.txid}:${coin.vout}`),ctx.plan!.outpoints))throw Error('Original boarding plan changed.');
    const args=decodeSigningValue(raw.args);inspectBoardingIntent(Transaction.fromPSBT(args[0].toPSBT()),await trusted(ctx),ctx.plan as BoardingPlan);
   }else if(path.endsWith('settlement/authorize')||path==='sign'&&raw.method==='sign'&&!raw.settlementFinalization){
-   const args=decodeSigningValue(raw.args);inspectBoardingIntent(Transaction.fromPSBT(args[0].toPSBT()),{...await trusted(ctx),sessionPublicKey:ctx.sessionPublicKey},ctx.plan as BoardingPlan);
+   const args=decodeSigningValue(raw.args);inspectBoardingIntent(Transaction.fromPSBT(args[0].toPSBT()),{...await trusted(ctx),sessionPublicKey:ctx.sessionPublicKey},ctx.plan as BoardingPlan,undefined,false,true);
   }else if(path.endsWith('settlement/batch')){
    const value=decodeSigningValue(body.commitment);if(typeof value?.toPSBT!=='function')throw Error('Original batch commitment unavailable.');
    await ctx.save(run=>{if(run.originalCommitment)throw Error('Original batch changed.');run.originalCommitment=base64.encode(value.toPSBT());});

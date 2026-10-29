@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {ArkAddress,SingleKey,Transaction} from '@arkade-os/sdk';
 import {base64,hex} from '@scure/base';
 import {encodeSigningValue} from '../../integration/src/client/wallet-layer-arkade/server-wallet-protocol.ts';
-import {validatePaymentAssignment,assertExecutionAuthority,assignmentScope,assertAtomicPaymentBudget,inspectPaymentPlan,inspectOriginalSubmission,verifyPaymentReceipt,acceptanceBrowserEndpoint,acceptanceDocumentPolicy,acceptanceProxyHeaders,type PaymentAssignment} from '../scripts/funded-workflow-live.ts';
+import {validatePaymentAssignment,assertExecutionAuthority,assertProtectedSessionSources,assignmentScope,assertAtomicPaymentBudget,inspectPaymentPlan,inspectOriginalSubmission,verifyPaymentReceipt,acceptanceBrowserEndpoint,acceptanceDocumentPolicy,acceptanceProxyHeaders,type PaymentAssignment} from '../scripts/funded-workflow-live.ts';
 import {assertPublicEligibilityReference} from '../scripts/tests/funded-workflow-preflight.ts';
 
 const sourceHash='a'.repeat(64),fingerprint='b'.repeat(64);
@@ -14,6 +14,15 @@ const paths=['BIS/packages/bis-server/scripts/funded-workflow-live.ts','BIS/pack
 test('controlled Node transport preserves real signing authority without spoofing browser origin or cookies',()=>{
   assert.deepEqual(acceptanceProxyHeaders({origin:'http://127.0.0.1:5174',authorization:'Bearer fixture-token','x-bis-signing-grant':'fixture-grant',cookie:'unrelated-cookie'}),
     {'Content-Type':'application/json',Authorization:'Bearer fixture-token','X-BIS-Signing-Grant':'fixture-grant'});
+});
+
+test('operation-scoped protection requires every reviewed helper and permits only its exact PowerShell paths',async()=>{
+ const a=await assignment(),required=['BIS/scripts/test-wallets/protector-session.ts','BIS/scripts/test-wallets/protector-worker.ps1','BIS/scripts/test-wallets/protector.ps1'];
+ assert.throws(()=>assertProtectedSessionSources(a),/protector sources/);
+ const sourceHashes={...a.sourceHashes,...Object.fromEntries(required.map(path=>[path,sourceHash]))};
+ assert.doesNotThrow(()=>validatePaymentAssignment({...a,sourceHashes}));assert.doesNotThrow(()=>assertProtectedSessionSources({sourceHashes}));
+ for(const path of required){const missing={...sourceHashes};delete missing[path];assert.throws(()=>assertProtectedSessionSources({sourceHashes:missing}));}
+ assert.throws(()=>validatePaymentAssignment({...a,sourceHashes:{...sourceHashes,'BIS/scripts/test-wallets/unreviewed.ps1':sourceHash}}),/source path/);
 });
 
 test('public eligibility binds the real readonly key without accepting a mnemonic or replacement source',async()=>{

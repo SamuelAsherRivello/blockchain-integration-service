@@ -20,6 +20,7 @@ const {loadAddresses}=await legacy('../../integration/src/client/wallet-layer-ar
 const {verifiedInventory}=await legacy('../../../scripts/test-wallets/inventory.ts');
 const {findTestActor,actorSource,assertAssignedServerActor}=await legacy('../../../scripts/test-wallets/server-actors.ts');
 const {createProtectedVaultCaseJournalReader,prepareAssignedCase,preparePaymentCaseQuote}=await legacy('./tests/funded-workflow-preflight.ts');
+const {windowsProtectorSession}=await legacy('../../../scripts/test-wallets/protector-session.ts');
 
 export type PaymentAssignment=Readonly<{
   runId:string;network:TestNetwork;pair:string;candidateId:string;
@@ -45,7 +46,7 @@ export function validatePaymentAssignment(value:any):PaymentAssignment{
   if(endpoint.protocol!=='https:'||!endpoint.hostname.endsWith('.vercel.app')||endpoint.username||endpoint.password||endpoint.port||endpoint.search||endpoint.hash||endpoint.pathname!=='/api/bis/')throw Error('Reviewed protected Vercel endpoint required.');
   if(!value.sourceHashes||typeof value.sourceHashes!=='object'||!Object.keys(value.sourceHashes).length)throw Error('Reviewed source hashes required.');
   for(const path of ['BIS/packages/bis-server/scripts/funded-workflow-live.ts','BIS/packages/bis-server/scripts/protected-browser-journal.ts','BIS/packages/bis-server/scripts/tests/funded-workflow-preflight.ts'])if(!validHash(value.sourceHashes[path]))throw Error('The executable and journal source hashes are required.');
-  for(const [path,hash] of Object.entries(value.sourceHashes))if(!/^BIS\/(?:packages\/(?:bis-server|integration)\/(?:scripts|src)\/|scripts\/test-wallets\/)[A-Za-z0-9/_-]+\.tsx?$/.test(path)||!validHash(hash))throw Error('Invalid reviewed source path.');
+  for(const [path,hash] of Object.entries(value.sourceHashes))if((!/^BIS\/(?:packages\/(?:bis-server|integration)\/(?:scripts|src)\/|scripts\/test-wallets\/)[A-Za-z0-9/_-]+\.tsx?$/.test(path)&&!/^BIS\/scripts\/test-wallets\/protector(?:-worker)?\.ps1$/.test(path))||!validHash(hash))throw Error('Invalid reviewed source path.');
   if(value.approvedOutpoints!==undefined&&(!Array.isArray(value.approvedOutpoints)||!value.approvedOutpoints.length||value.approvedOutpoints.length>100||new Set(value.approvedOutpoints).size!==value.approvedOutpoints.length||value.approvedOutpoints.some((point:unknown)=>typeof point!=='string'||!/^[a-f0-9]{64}:\d+$/.test(point))))throw Error('Invalid approved source inputs.');
   if(value.approvedFingerprint!==undefined&&!validHash(value.approvedFingerprint))throw Error('Invalid approved payment fingerprint.');
   return Object.freeze(value);
@@ -64,6 +65,10 @@ export async function assertReviewedSource(assignment:PaymentAssignment){
     const target=resolve(repositoryRoot,path),inside=relative(repositoryRoot,target);
     if(inside.startsWith('..')||isAbsolute(inside)||createHash('sha256').update(await readFile(target)).digest('hex')!==expected)throw Error('Reviewed source changed.');
   }
+}
+export function assertProtectedSessionSources(assignment:Pick<PaymentAssignment,'sourceHashes'>){
+  for(const path of ['BIS/scripts/test-wallets/protector-session.ts','BIS/scripts/test-wallets/protector-worker.ps1','BIS/scripts/test-wallets/protector.ps1'])
+    if(!validHash(assignment.sourceHashes[path]))throw Error('Reviewed operation-scoped protector sources required.');
 }
 function decodeTx(encoded:string){return /^[a-f0-9]+$/i.test(encoded)?Transaction.fromRaw(hex.decode(encoded)):Transaction.fromPSBT(base64.decode(encoded));}
 
@@ -309,7 +314,8 @@ export function assertAtomicPaymentBudget(records:readonly any[],intent:{id:stri
 export async function runPaymentAcceptance(assignment:PaymentAssignment,mode:PaymentMode,env:NodeJS.ProcessEnv=process.env){
   assignment=validatePaymentAssignment(assignment);
   assertExecutionAuthority(assignment,mode,assignment.runId,env);await assertReviewedSource(assignment);
-  const vault=new Vault(),ledger=new Operations(vault),operationId=assignment.runId+'-pay',scope=assignmentScope(assignment);
+  assertProtectedSessionSources(assignment);
+  const protector=windowsProtectorSession(),vault=new Vault({protector}),ledger=new Operations(vault),operationId=assignment.runId+'-pay',scope=assignmentScope(assignment);
   let stage='registered-identity',owner:any,financialEnabled=false,quote:any,recipient='',plannedTxid:string|undefined;
   let serverRequests=0,signRequests=0,providerRequests=0,clientExposure=0,observationDeadline=0;
   const originalTransaction=vault.transaction.bind(vault);
@@ -476,8 +482,10 @@ export async function runPaymentAcceptance(assignment:PaymentAssignment,mode:Pay
     throw Error(`Acceptance stopped at ${stage}; inspect only the original protected case.`);
   }finally{
     financialEnabled=false;
-    await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});
-    await owner?.close().catch(()=>{});
+    try{
+      await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});
+      await owner?.close().catch(()=>{});
+    }finally{await protector.close();}
   }
 }
 export async function boundedResult<T>(work:Promise<T>,milliseconds:number):Promise<T>{

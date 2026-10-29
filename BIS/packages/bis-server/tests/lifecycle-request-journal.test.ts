@@ -32,8 +32,15 @@ test('failed persistence blocks financial dispatch and every later financial req
 
 test('proof buffering is bounded and does not defer provider or signing records',async()=>{
  const calls:string[][]=[];const journal=createDeferredProofJournal(async rows=>{calls.push(rows.map(row=>row.path));});
- await journal.record('player/challenge',{});await journal.record('player/authenticate',{});
+ for(let index=0;index<4;index++){await journal.record('player/challenge',{});await journal.record('player/authenticate',{});}
  await assert.rejects(journal.record('player/authenticate',{}),/limit/);
  await journal.record('sign',{});await journal.record('/v1/batch/registerIntent',{});
- assert.deepEqual(calls,[['player/challenge','player/authenticate','sign'],['/v1/batch/registerIntent']]);
+ assert.deepEqual(calls,[[...Array.from({length:4},()=>['player/challenge','player/authenticate']).flat(),'sign'],['/v1/batch/registerIntent']]);
+});
+
+test('parallel SDK register and delete ownership proofs retain both auth pairs before dispatch',async()=>{
+ const saved:any[]=[];const journal=createDeferredProofJournal(async rows=>{saved.push(...rows);});
+ await Promise.all(['register','delete'].map(async proof=>{await journal.record('player/challenge',{proof});await journal.record('player/authenticate',{proof});}));
+ await journal.record('settlement/authorize',{});
+ assert.equal(saved.length,5);assert.equal(saved.filter(row=>row.path==='player/authenticate').length,2);assert.equal(saved[4].path,'settlement/authorize');
 });

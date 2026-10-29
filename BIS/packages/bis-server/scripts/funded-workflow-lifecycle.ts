@@ -1,14 +1,15 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {createHash} from 'node:crypto';
-import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertAtomicPaymentBudget,ServerPaymentBrowser,remoteRequest,boundedResult,acceptanceProxyHeaders,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
+import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertProtectedSessionSources,assertAtomicPaymentBudget,ServerPaymentBrowser,remoteRequest,boundedResult,acceptanceProxyHeaders,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
 import {createProtectedBrowserJournalReader} from './protected-browser-journal.ts';
 const legacy=(path:string)=>import(new URL(path,import.meta.url).href);
 const {Vault,repositoryRoot}=await legacy('../../../scripts/test-wallets/vault.ts');
 const {Operations}=await legacy('../../../scripts/test-wallets/operations.ts');
 const {verifiedInventory}=await legacy('../../../scripts/test-wallets/inventory.ts');
 const {findTestActor,actorSource,assertAssignedServerActor}=await legacy('../../../scripts/test-wallets/server-actors.ts');
-export type LifecycleAssignment=PaymentAssignment&Readonly<{workflow:'boarding'|'standard-lto';authorizationMode:'owner'|'player-proof';ltoAction?:'claim'|'reject-refund'}>;
+const {windowsProtectorSession}=await legacy('../../../scripts/test-wallets/protector-session.ts');
+export type LifecycleAssignment=PaymentAssignment&Readonly<{workflow:'boarding'|'standard-lto';authorizationMode:'owner'|'player-proof';ltoAction?:'claim'|'reject-refund';boardingExecutionMs?:number}>;
 export type LifecyclePlan={fingerprint:string;outpoints:string[];amountSats:number;feeSats:number;[key:string]:any};
 export type LifecycleContext={a:LifecycleAssignment;mode:PaymentMode;owner:any;plan?:LifecyclePlan;saved:any;deadline:number;financial:boolean;serverOperationId?:string;sessionPublicKey?:string;planToken?:string;batchToken?:string;batchId?:string;
  save:(use:(run:any,state:any)=>any)=>Promise<any>;read:()=>Promise<any>;ledger:any;vault:any;counts:{server:number;sign:number;provider:number;sessionSign:number};
@@ -35,17 +36,18 @@ export function createDeferredProofJournal(persist:(records:RequestRecord[])=>Pr
  return {async record(path:string,body:any,grant?:string){
   if(failed)throw Error('Original request journal unavailable.');
   const row={path,body:structuredClone(body),grant};
-  if(['player/challenge','player/authenticate'].includes(path)){if(pending.length>=2)throw Error('Original proof request limit exceeded.');pending.push(row);return;}
+  if(['player/challenge','player/authenticate'].includes(path)){if(pending.length>=8)throw Error('Original proof request limit exceeded.');pending.push(row);return;}
   await flush([row]);
  },flush};
 }
 export function validateLifecycleAssignment(value:any,workflow:LifecycleAssignment['workflow']):LifecycleAssignment{
- const {authorizationMode,workflow:given,ltoAction,...base}=value??{};validatePaymentAssignment(base);
+ const {authorizationMode,workflow:given,ltoAction,boardingExecutionMs,...base}=value??{};validatePaymentAssignment(base);
+ if(boardingExecutionMs!==undefined&&(workflow!=='boarding'||!Number.isSafeInteger(boardingExecutionMs)||boardingExecutionMs<120000||boardingExecutionMs>300000))throw Error('Bounded boarding execution allowance required.');
  if(workflow==='boarding'&&ltoAction!==undefined||workflow==='standard-lto'&&ltoAction!==undefined&&!['claim','reject-refund'].includes(ltoAction))throw Error('Exact LTO action required.');
  if(given!==workflow||!['owner','player-proof'].includes(authorizationMode)||workflow==='standard-lto'&&base.amountSats!==1000)throw Error('Exact lifecycle assignment required.');
  for(const path of ['BIS/packages/bis-server/scripts/funded-workflow-lifecycle.ts',`BIS/packages/bis-server/scripts/funded-workflow-${workflow==='standard-lto'?'lto':'boarding'}.ts`])
   if(!/^[a-f0-9]{64}$/.test(base.sourceHashes[path]??''))throw Error('Reviewed lifecycle source required.');
- return Object.freeze({...base,workflow,authorizationMode,...(workflow==='standard-lto'?{ltoAction:ltoAction??'claim'}:{})});
+ return Object.freeze({...base,workflow,authorizationMode,...(workflow==='standard-lto'?{ltoAction:ltoAction??'claim'}:{}),...(boardingExecutionMs===undefined?{}:{boardingExecutionMs})});
 }
 export function assertLifecycleAuthority(a:LifecycleAssignment,mode:string,runId:string,env:NodeJS.ProcessEnv,runtime=process.versions.node){
  assertExecutionAuthority(a,mode,runId,env,runtime);
@@ -75,7 +77,8 @@ export function assertLifecycleResponse(response:{status:number;text:string},a:L
 }
 export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMode,strategy:LifecycleStrategy,env:NodeJS.ProcessEnv=process.env){
  const a=validateLifecycleAssignment(assignment,strategy.workflow);assertLifecycleAuthority(a,mode,a.runId,env);await assertReviewedSource(a);
- const vault=new Vault(),ledger=new Operations(vault),scope=lifecycleScope(a);let owner:any,stage='protected-registration',clientExposure=0;
+ assertProtectedSessionSources(a);
+ const protector=windowsProtectorSession(),vault=new Vault({protector}),ledger=new Operations(vault),scope=lifecycleScope(a);let owner:any,stage='protected-registration',clientExposure=0;
  const ctx:LifecycleContext={a,mode,owner:undefined,saved:undefined,deadline:0,financial:false,vault,ledger,counts:{server:0,sign:0,provider:0,sessionSign:0},
   save:use=>vault.transaction((state:any)=>{state.serverLifecycleRuns??={};return use(state.serverLifecycleRuns[a.runId],state);}),
   read:async()=> (await vault.read({initialize:false})).serverLifecycleRuns?.[a.runId],
@@ -150,7 +153,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
     }
     if(['GET','HEAD','OPTIONS'].includes(request.method())||url.origin===`https://${a.network}.arkade.sh`&&url.pathname.startsWith('/v1/indexer/'))return route.continue();
     if(!allowed()||url.origin!==`https://${a.network}.arkade.sh`||ctx.counts.provider>=20)throw Error('Unassigned lifecycle provider call.');
-    const body=request.postDataJSON();guardedBody=body;guardPath=url.pathname;guardStage='provider-intent';await strategy.provider(ctx,url.pathname,body);
+    const body=request.postDataJSON();guardedBody=body;guardPath=url.pathname;guardStage='provider-journal';await requestJournal.flush();guardStage='provider-intent';await strategy.provider(ctx,url.pathname,body);
     await ctx.save(run=>{run.providerRequests??=[];run.providerRequests.push({path:url.pathname,body});});
     if(!allowed())throw Error('Original observation expired.');ctx.counts.provider++;return route.continue();
    }catch{
@@ -173,7 +176,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
    if(ctx.plan.fingerprint!==a.approvedFingerprint||!sameOutpoints(ctx.plan.outpoints,a.approvedOutpoints!)||ctx.plan.fingerprint!==ctx.saved.plan.fingerprint)throw Error('Original lifecycle approval changed.');
    await assertReviewedSource(a);await owner.inspect();
    await vault.transaction((state:any)=>{assertAtomicPaymentBudget(state.operations??[],{id:a.runId+'-lifecycle-reserve',network:a.network,amountSats:strategy.lifecycleCost(a),feeSats:0},clientExposure);retainLifecycleExecutionPlan(state.serverLifecycleRuns[a.runId],ctx.plan!,a);});
-   ctx.financial=true;ctx.deadline=Date.now()+120000;stage='original-'+a.workflow;await strategy.execute(ctx);ctx.financial=false;
+   ctx.financial=true;ctx.deadline=Date.now()+(a.boardingExecutionMs??120000);stage='original-'+a.workflow;await strategy.execute(ctx);ctx.financial=false;
   }else{ctx.plan=ctx.saved.plan;ctx.sessionPublicKey=ctx.saved.sessionPublicKey;ctx.deadline=Date.now()+120000;}
   stage='original-read-only-reconciliation';const receipt=await boundedResult(strategy.observe(ctx),Math.max(1,ctx.deadline-Date.now()));
   if(mode==='run'&&ctx.counts.sign<1)throw Error('Actual remote signing not observed.');
@@ -182,7 +185,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
  }catch{
   ctx.financial=false;if(mode!=='prepare')await ctx.save(run=>{if(run?.phase==='execution-started')run.phase='unresolved';}).catch(()=>{});
   throw Error(`Lifecycle acceptance stopped at ${stage}; preserve original protected journals.`);
- }finally{ctx.financial=false;let journalUnavailable=false;try{await requestJournal.flush();}catch{journalUnavailable=true;}await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});if(journalUnavailable)throw Error('Original request journal unavailable; preserve protected recovery.');}
+ }finally{ctx.financial=false;let journalUnavailable=false;try{try{await requestJournal.flush();}catch{journalUnavailable=true;}await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});}finally{await protector.close();}if(journalUnavailable)throw Error('Original request journal unavailable; preserve protected recovery.');}
 }
 export async function lifecycleCli(strategy:LifecycleStrategy){
  for(const method of ['log','info','warn','error','debug','trace','dir'] as const)console[method]=()=>{};

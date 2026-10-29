@@ -7,13 +7,14 @@ import {decodeSigningValue,SIGNER_PROTOCOL} from '../../integration/src/client/w
 import {readPaymentContext} from '../src/server/payment-context.ts';
 import {assertCanonicalSigningTransaction} from '../src/server/offchain-policy.ts';
 import {createProtectedBrowserJournalReader} from './protected-browser-journal.ts';
-import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertAtomicPaymentBudget,remoteRequest,ServerPaymentBrowser,boundedPoll,boundedResult,acceptanceProxyHeaders,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
+import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertProtectedSessionSources,assertAtomicPaymentBudget,remoteRequest,ServerPaymentBrowser,boundedPoll,boundedResult,acceptanceProxyHeaders,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
 import {assetHash,assetBudgetSats,assetRequest,prepareAssetSdkPlan,validateAssetPlan,decodeAssetTransaction,inspectAssetSubmission,inspectAssetFinalization,observeAssetReceipt,type AssetStep,type AssetPlan,type AssetAuthorization} from './funded-workflow-asset-plan.ts';
 const legacy=(path:string)=>import(new URL(path,import.meta.url).href);
 const {Vault,repositoryRoot}=await legacy('../../../scripts/test-wallets/vault.ts');
 const {Operations}=await legacy('../../../scripts/test-wallets/operations.ts');
 const {verifiedInventory}=await legacy('../../../scripts/test-wallets/inventory.ts');
 const {findTestActor,actorSource,assertAssignedServerActor}=await legacy('../../../scripts/test-wallets/server-actors.ts');
+const {windowsProtectorSession}=await legacy('../../../scripts/test-wallets/protector-session.ts');
 export type AssetAssignment=PaymentAssignment&Readonly<{step:AssetStep;lineageId:string;authorizationMode:AssetAuthorization;predecessorRunId?:string;assetId?:string}>;
 const same=(a:readonly string[],b:readonly string[])=>JSON.stringify([...a].sort())===JSON.stringify([...b].sort());
 export function validateAssetAssignment(value:any):AssetAssignment{
@@ -142,7 +143,8 @@ export async function checkBrowserAssetReceipt(page:any,input:{step:AssetStep;op
 
 export async function runAssetAcceptance(assignment:AssetAssignment,mode:PaymentMode,env:NodeJS.ProcessEnv=process.env){
   const a=validateAssetAssignment(assignment);assertAssetAuthority(a,mode,a.runId,env);await assertReviewedSource(a);
-  const vault=new Vault(),ledger=new Operations(vault),scope=assetScope(a),operationId=a.runId+'-'+a.step,sourceOperationId=a.runId+'-asset';
+  assertProtectedSessionSources(a);
+  const protector=windowsProtectorSession(),vault=new Vault({protector}),ledger=new Operations(vault),scope=assetScope(a),operationId=a.runId+'-'+a.step,sourceOperationId=a.runId+'-asset';
   let owner:any,stage='registered-owner-lineage',financial=false,deadline=0,plan:AssetPlan|undefined,privatePrevious:any,initialConnection:any,clientExposure=0;
   let serverRequests=0,signRequests=0,providerRequests=0,primaryPlans=0,proofOperationId:string|undefined,signingOperationId:string|undefined;
   const planPath=a.authorizationMode==='owner'?'owner/plan':'payment/plan',authorizePath=a.authorizationMode==='owner'?'owner/authorize':'payment/authorize';
@@ -293,7 +295,7 @@ export async function runAssetAcceptance(assignment:AssetAssignment,mode:Payment
     financial=false;if(mode!=='prepare')await vault.transaction((state:any)=>{const run=state.serverAssetRuns?.[a.runId];if(run?.phase==='execution-started')run.phase='unresolved';}).catch(()=>{});
     throw Error(`Owner asset acceptance stopped at ${stage}; preserve original private journals.`);
   }finally{
-    financial=false;await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});
+    financial=false;try{await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});}finally{await protector.close();}
   }
 }
 if(import.meta.main){

@@ -18,6 +18,14 @@ function assignment():LifecycleAssignment{
  return {runId:'boarding-case-01',network:'signet',pair:'test-pair',candidateId:'signet:01',playerProfileId:createHash('sha256').update(Buffer.from(playerPublicKey,'hex')).digest('hex'),gameProfileId:createHash('sha256').update(Buffer.from(gamePublicKey,'hex')).digest('hex'),serverPublicKey:gamePublicKey,endpoint:'https://reviewed-example.vercel.app/api/bis/',amountSats:1000,feeSats:0,workflow:'boarding',authorizationMode:'owner',sourceHashes:Object.fromEntries(required.map(path=>['BIS/packages/bis-server/scripts/'+path+'.ts','a'.repeat(64)]))};
 }
 const coin=(value=1000)=>({txid:'11'.repeat(32),vout:0,value,status:{confirmed:true,block_height:1,block_time:Math.floor(Date.now()/1000)-10},tapTree:boarding.encode(),intentTapLeafScript:boarding.forfeit(),forfeitTapLeafScript:boarding.forfeit()});
+test('boarding execution allowance is explicit, scope-bound and limited to five minutes',()=>{
+ const a=assignment();
+ assert.equal(validateLifecycleAssignment(a,'boarding').boardingExecutionMs,undefined);
+ const bounded=validateLifecycleAssignment({...a,boardingExecutionMs:300000},'boarding');
+ assert.equal(bounded.boardingExecutionMs,300000);assert.notEqual(lifecycleScope(a),lifecycleScope(bounded));
+ for(const boardingExecutionMs of [119999,300001,NaN,Infinity,'300000',120000.1])assert.throws(()=>validateLifecycleAssignment({...a,boardingExecutionMs},'boarding'));
+ assert.throws(()=>validateLifecycleAssignment({...a,workflow:'standard-lto',boardingExecutionMs:300000},'standard-lto'));
+});
 function fixture(value=1000){
  const quote={profileId:'c'.repeat(64),direction:'to-arkade',amountSats:value,inputSats:value,maxSats:value,feeSats:0,netSats:value,bitcoinAfterSats:0,arkadeAfterSats:value,totalAfterSats:value,expiresAt:Date.now()+60000,fingerprint:'d'.repeat(64)};
  const wallet={dustAmount:330n,boardingTapscript:boarding,getBoardingUtxos:async()=>[coin(value)],onchainProvider:{getChainTip:async()=>({height:2})},getBoardingAddress:async()=>bitcoinAddress,getAddress:async()=>gameAddress};
@@ -66,6 +74,16 @@ test('real SDK BIP322 intent and Game signatures bind exact inputs, value and me
  assert.throws(()=>inspectBoardingIntent(signed,context,{...plan,outputs:[{amount:'999',script:hex.encode(offchain.pkScript)}]}));
  assert.throws(()=>inspectBoardingIntent(signed,context,plan,Intent.encodeMessage({...message,expire_at:1}),true));
  const unsignedAgain=Intent.create(message,[...context.inputs],[{amount:1000n,script:offchain.pkScript}]);assert.throws(()=>inspectBoardingIntent(unsignedAgain,context,plan,Intent.encodeMessage(message),true));
+});
+
+test('SDK delete ownership proof is allowed only on the exact original signing scope, never registration',async()=>{
+ const plan=await planBoardingSdk(fixture().input),context={inputs:[coin() as IntentCoin],gamePublicKey,arkadeScript:offchain.pkScript,bitcoinScript:boarding.pkScript,dustAmount:330n,maximumExposureSats:1000};
+ const deletion=Intent.create({type:'delete',expire_at:0},[...context.inputs],[]),pending=Intent.create({type:'get-pending-tx',expire_at:0},[...context.inputs],[]);
+ assert.throws(()=>inspectBoardingIntent(deletion,context,plan));
+ assert.equal(inspectBoardingIntent(deletion,context,plan,undefined,false,true).kind,'delete');
+ assert.throws(()=>inspectBoardingIntent(deletion,context,plan,undefined,true,true));
+ assert.throws(()=>inspectBoardingIntent(pending,context,plan,undefined,false,true));
+ assert.throws(()=>inspectBoardingIntent(deletion,context,{...plan,outpoints:['f'.repeat(64)+':0']},undefined,false,true));
 });
 async function receiptFixture(){
  const plan=await planBoardingSdk(fixture().input),root=new Transaction({version:3});root.addInput({txid:'11'.repeat(32),index:0});root.addOutput({script:offchain.pkScript,amount:1000n});
