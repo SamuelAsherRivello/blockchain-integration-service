@@ -49,25 +49,33 @@ export async function readCandidateBalance(wallet: SelectedWallet, signal: Abort
   })]); } finally { signal.removeEventListener('abort', abort); }
 }
 export function createWalletPool(values: NodeJS.ProcessEnv, balance = readCandidateBalance, candidateTimeoutMs = 4000) {
-  const byNetwork = new Map<GameNetwork, Promise<SelectedWallet[]>>();
-  async function candidates(network: GameNetwork) {
-    let pending = byNetwork.get(network);
-    if (!pending) {
-      pending = (async () => {
-        const wallets: SelectedWallet[] = [], profiles = new Set<string>();
-        for (const candidate of walletCandidates(network, values)) {
-          try {
-            const identity = MnemonicIdentity.fromMnemonic(candidate.mnemonic, { isMainnet: false });
-            const publicKey = hex(await identity.compressedPublicKey());
-            const profileId = createHash('sha256').update(Buffer.from(publicKey, 'hex')).digest('hex');
-            if (!profiles.has(profileId)) { wallets.push({ ...candidate, publicKey, profileId }); profiles.add(profileId); }
-          } catch { /* A malformed slot is ineligible. Never include SDK/phrase details in diagnostics. */ }
-        }
-        return wallets;
-      })();
-      byNetwork.set(network, pending);
+  let candidatesByNetwork: Promise<Record<GameNetwork, SelectedWallet[]>> | undefined;
+  async function loadCandidates(network: GameNetwork) {
+    const wallets: SelectedWallet[] = [], profiles = new Set<string>();
+    for (const candidate of walletCandidates(network, values)) {
+      try {
+        const identity = MnemonicIdentity.fromMnemonic(candidate.mnemonic, { isMainnet: false });
+        const publicKey = hex(await identity.compressedPublicKey());
+        const profileId = createHash('sha256').update(Buffer.from(publicKey, 'hex')).digest('hex');
+        if (!profiles.has(profileId)) { wallets.push({ ...candidate, publicKey, profileId }); profiles.add(profileId); }
+      } catch { /* A malformed slot is ineligible. Never include SDK/phrase details in diagnostics. */ }
     }
-    return pending;
+    return wallets;
+  }
+  async function candidates(network: GameNetwork) {
+    if (network !== 'signet' && network !== 'mutinynet') throw Error('Game signer network unsupported.');
+    if (!candidatesByNetwork) {
+      candidatesByNetwork = (async () => {
+        const [signet, mutinynet] = await Promise.all([loadCandidates('signet'), loadCandidates('mutinynet')]);
+        const mutinynetProfiles = new Set(mutinynet.map(wallet => wallet.profileId));
+        const crossNetworkDuplicates = new Set(signet.filter(wallet => mutinynetProfiles.has(wallet.profileId)).map(wallet => wallet.profileId));
+        return {
+          signet: signet.filter(wallet => !crossNetworkDuplicates.has(wallet.profileId)),
+          mutinynet: mutinynet.filter(wallet => !crossNetworkDuplicates.has(wallet.profileId)),
+        };
+      })();
+    }
+    return (await candidatesByNetwork)[network];
   }
   return {
     async select(network: GameNetwork, requirement: WalletRequirement = {}, signal = AbortSignal.timeout(15000)) {

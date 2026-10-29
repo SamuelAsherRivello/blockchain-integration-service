@@ -51,6 +51,20 @@ test('public Game Wallet view selects funded slot 02 without owner login and ret
   assert.match(await page.locator('.bis-version-label').innerText(),/Server/);
   assert.equal(JSON.stringify(requests).includes(env.BIS_OWNER_TOKEN),false);
 });
+test('local Signet Arkade reads use the bounded same-origin relay and reject unsupported writes', { timeout: 30000 }, async t => {
+  const config = developmentConfig({ port: 0, signerConfig: { mnemonic, enabled: true, network: 'signet' as const, gameId: 'stealth-and-steel' } });
+  config.cacheDir = `output/reports/bis-server/local-browser-arkade-read-${process.pid}`;
+  const server = await createServer(config); await server.listen();
+  t.after(() => server.close());
+  const browser = await chromium.launch({ headless: true, ...(process.env.BIS_PLAYWRIGHT_CHANNEL ? { channel: process.env.BIS_PLAYWRIGHT_CHANNEL } : {}) });
+  t.after(() => browser.close());
+  const page = await browser.newPage(), base = server.resolvedUrls!.local[0];
+  const info = await page.request.get(new URL('/api/bis/arkade/signet/v1/info', base).href);
+  assert.equal(info.status(), 200);
+  assert.equal((await info.json()).network, 'signet');
+  assert.equal((await page.request.get(new URL('/api/bis/arkade/mutinynet/v1/info', base).href)).status(), 404);
+  assert.equal((await page.request.post(new URL('/api/bis/arkade/signet/v1/tx/submit', base).href, { data: { signedArkTx: {} } })).status(), 405);
+});
 for (const enabled of [true, false]) test(`same Vite server: ${enabled ? 'Server banner and public wallet' : 'manual login without server'}`, { timeout: 60000 }, async t => {
   const signerConfig = { mnemonic, enabled, network: 'signet' as const, gameId: 'stealth-and-steel' };
   const config = developmentConfig({ port: 0, signerConfig });

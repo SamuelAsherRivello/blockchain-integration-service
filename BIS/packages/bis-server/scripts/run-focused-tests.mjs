@@ -15,6 +15,7 @@ const run = (args) => {
 if (suite === 'focused') {
   process.exitCode = run(['--test', '--test-concurrency=1',
     'tests/deployment-preflight.test.ts', 'tests/signer.test.ts', 'tests/hosted.test.ts',
+    'tests/arkade-write-proxy.test.ts', 'tests/arkade-write-hosted.test.ts',
     'tests/player-authorization.test.ts', 'tests/client-selection.test.ts',
     'tests/settlement-authorization.test.ts', 'tests/settlement-hosted.test.ts',
     'tests/settlement-session-authorization.test.ts', 'tests/settlement-session-identity.test.ts',

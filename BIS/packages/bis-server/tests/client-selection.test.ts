@@ -18,6 +18,11 @@ const phrases = [
   'legal winner thank year wave sausage worth useful legal winner thank yellow',
   'letter advice cage absurd amount doctor acoustic avoid letter advice cage above',
 ];
+const mutinynetPhrases = [
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon carbon',
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon dune',
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon grocery',
+];
 function installStorage(t) {
   const storageDescriptor=Object.getOwnPropertyDescriptor(globalThis,'localStorage'), navigatorDescriptor=Object.getOwnPropertyDescriptor(globalThis,'navigator');
   const rows=new Map<string,string>();
@@ -31,7 +36,10 @@ function installStorage(t) {
 async function fixture(t, playerSlot?: number) {
   installStorage(t);
   configureBisServer({}); t.after(() => configureBisServer({}));
-  const values = Object.fromEntries(['SIGNET', 'MUTINYNET'].flatMap(network => phrases.map((phrase, i) => [`BIS_GAME_WALLET_${network}_0${i + 1}_MNEMONIC`, phrase])));
+  const values = Object.fromEntries([
+    ...phrases.map((phrase, i) => [`BIS_GAME_WALLET_SIGNET_0${i + 1}_MNEMONIC`, phrase]),
+    ...mutinynetPhrases.map((phrase, i) => [`BIS_GAME_WALLET_MUTINYNET_0${i + 1}_MNEMONIC`, phrase]),
+  ]);
   const amounts = { signet: [0, 2000, 3000], mutinynet: [4000, 0, 0] };
   const bitcoin = [20000,20000,20000], quoted: any[] = [], minted: any[] = [], delivered: any[] = [], burned: any[] = [];
   const assets:Record<string,string>[]=[{},{},{}];
@@ -41,6 +49,7 @@ async function fixture(t, playerSlot?: number) {
     return { availableArkadeSats: amounts[wallet.network][Number(wallet.slot) - 1], availableBitcoinSats: bitcoin[Number(wallet.slot)-1], mintMinimumSats:546,boardingMinimumSats:1000,assets:assets[Number(wallet.slot)-1] };
   });
   const profiles = new Map((await pool.publicWallets('signet')).map(wallet => [wallet.profileId, Number(wallet.slot) - 1]));
+  const mutinynetProfiles = new Map((await pool.publicWallets('mutinynet')).map(wallet => [wallet.profileId, Number(wallet.slot) - 1]));
   const playerProfile=playerSlot===undefined?'player':[...profiles].find(([,slot])=>slot===playerSlot)![0];
   const store: SigningStore = { ping: async () => {}, consumePublicRequest: async () => {}, assetAllowed: async () => false,
     claim: async () => { throw Error('No financial signing in this fixture.'); }, complete: async () => { throw Error('No financial signing in this fixture.'); }, session: async () => { throw Error('No financial signing in this fixture.'); } };
@@ -70,7 +79,7 @@ async function fixture(t, playerSlot?: number) {
   }, check: async () => { throw Error('No network receipts in this fixture.'); } }, () => {}, {availability:async account=>({canMint:true,minimumSats:546,availableSats:amounts[account.network!][profiles.get(account.profileId)!]}),mint:async account=>{minted.push(account);return {status:'error',code:'unavailable',message:'No financial mint in this fixture.'};},burn:async account=>{burned.push(account);throw Error('Deterministic burn boundary reached.');}});
   t.after(() => wallet.dispose());
   await wallet.refresh(false);
-  return { wallet, backend, amounts, bitcoin, assets, quoted, minted, delivered, burned, balanceReads, requests, payments, profiles, block: (value: boolean) => { blocked = value; }, network: (value: typeof network) => { network = value; }, offline: () => { offlineSelection = true; }, delay: (started: () => void) => { delayed = started; }, release: () => release() };
+  return { wallet, backend, amounts, bitcoin, assets, quoted, minted, delivered, burned, balanceReads, requests, payments, profiles, mutinynetProfiles, block: (value: boolean) => { blocked = value; }, network: (value: typeof network) => { network = value; }, offline: () => { offlineSelection = true; }, delay: (started: () => void) => { delayed = started; }, release: () => release() };
 }
 
 test('client mint availability uses SDK dust and boarding quote independently selects confirmed Bitcoin', async t => {
@@ -234,6 +243,6 @@ test('network replacement during balance selection cannot activate a stale signe
   f.release(); await refused;
   assert.equal(f.wallet.getState().network, 'mutinynet');
   assert.equal(f.wallet.getState().profileId, active);
-  assert.equal(f.profiles.get(active!), 0);
+  assert.equal(f.mutinynetProfiles.get(active!), 0);
   assert.equal(f.payments.length, 0);
 });

@@ -1,10 +1,14 @@
 import { MAX_OPERATION_EXPOSURE_SATS, MAX_DAILY_EXPOSURE_SATS } from './signing-limits.ts';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { MnemonicIdentity, Transaction, Extension, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk';
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { SIGNER_PROTOCOL, decodeSigningValue, encodeSigningValue, toHex } from '../../../integration/src/client/wallet-layer-arkade/server-wallet-protocol.ts';
 import { createWalletPool, type WalletRequirement } from './wallet-pool.ts';
 import { readPrivateEnvironment, type GameNetwork } from './environment.ts';
+import { proxySignetArkadeRead } from './arkade-read-proxy.ts';
+import { finalizeSignetArkadeTransaction, preservesArkadeSignatures, sameArkadeSignatureMaterial, sameUnsignedArkadePsbtMetadata, submitSignetArkadeTransaction, validSignetArkadeFinalize, validSignetArkadeSubmit, verifySignetSubmissionAuthorizations } from './arkade-write-proxy.ts';
+import { createRedisArkadeSubmissionStore, type ArkadeSubmissionStore } from './arkade-submission-store.ts';
 import { createSigningAuthorization, signingDigest } from './signing-authorization.ts';
 import { coordinatedSigning, coordinatedTreasureCheckpointSigning, createRedisSigningStore, type SigningStore, type SigningClaim, type TreasureCheckpointClaim } from './signing-store.ts';
 import { executeHostedSigning } from './hosted-session.ts';
@@ -94,7 +98,7 @@ function verifyActorResult(result:unknown,message:Uint8Array,publicKey:string){
  * stays closed until the public workflow policies pass acceptance. Owner grants
  * bind the exact request, identity, network and operation; no wallet secret is a token.
  */
-export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: SigningStore; pool?: ReturnType<typeof createWalletPool>; now?: () => number; paymentContext?: typeof readPaymentContext; settlementContext?: typeof readSettlementContext; settlementBatchInfo?: typeof readSettlementBatchInfo; marketplaceReceipt?: typeof readMarketplacePaymentReceipt; actorAuthorizationReader?:(scope:AuthenticatedTreasureActorScope)=>TreasureActorAuthorizationReader } = {}) {
+export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: SigningStore; submissionStore?: ArkadeSubmissionStore; pool?: ReturnType<typeof createWalletPool>; now?: () => number; arkadeFetch?: typeof fetch; paymentContext?: typeof readPaymentContext; settlementContext?: typeof readSettlementContext; settlementBatchInfo?: typeof readSettlementBatchInfo; marketplaceReceipt?: typeof readMarketplacePaymentReceipt; actorAuthorizationReader?:(scope:AuthenticatedTreasureActorScope)=>TreasureActorAuthorizationReader } = {}) {
   const values = options.env ?? readPrivateEnvironment({ hosted: true });
   const gameId = values.BIS_GAME_ID ?? 'stealth-and-steel';
   const now = options.now ?? Date.now, pool = options.pool ?? createWalletPool(values);
@@ -135,6 +139,8 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
   };
   let shared = options.store;
   const store = () => shared ??= createRedisSigningStore(values);
+  let sharedSubmissions = options.submissionStore;
+  const submissions = () => sharedSubmissions ??= createRedisArkadeSubmissionStore(values);
   const origins = new Set((values.BIS_ALLOWED_ORIGINS ?? 'https://samuelasherrivello.github.io').split(',').map(value => value.trim()).filter(Boolean));
   const reply = (request: Request, status: number, body: unknown) => {
     const headers = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', Vary: 'Origin' });
@@ -168,6 +174,79 @@ export function createHostedHandler(options: { env?: NodeJS.ProcessEnv; store?: 
       return response;
     }
     if (values.BIS_SERVER_ENABLED === 'false') return reply(request, 404, { error: 'Game signer disabled.' });
+    if (path === '/api/bis/arkade/signet/v1/tx/submit' || path === '/api/bis/arkade/signet/v1/tx/finalize') {
+      if (request.method !== 'POST') return reply(request, 405, { error: 'Arkade writes require POST.' });
+      let authorizationVerified=false;
+      try {
+        const raw = await jsonBody(request), finalize = path.endsWith('/finalize');
+        const keys = finalize ? ['arkTxid', 'finalCheckpointTxs', 'authorizations', 'operationId', 'signedArkTx', 'checkpointTxs'] :
+          ['signedArkTx', 'checkpointTxs', 'authorizations', 'operationId'];
+        if (!exactObject(raw, keys) || typeof raw.operationId !== 'string' || !/^[a-z0-9-]{1,100}$/i.test(raw.operationId) ||
+          !Array.isArray(raw.authorizations) || raw.authorizations.length < 1 || raw.authorizations.length > 33) throw Error('Arkade submission authorization is invalid.');
+        const submitted = { signedArkTx: raw.signedArkTx, checkpointTxs: finalize ? raw.finalCheckpointTxs : raw.checkpointTxs };
+        if (!validSignetArkadeSubmit(submitted)) throw Error('Arkade submission authorization is invalid.');
+        if (finalize && (!validSignetArkadeSubmit({ signedArkTx: raw.signedArkTx, checkpointTxs: raw.checkpointTxs }) ||
+          !validSignetArkadeFinalize({ arkTxid: raw.arkTxid, finalCheckpointTxs: raw.finalCheckpointTxs }) ||
+          raw.checkpointTxs.length !== raw.finalCheckpointTxs.length)) throw Error('Arkade finalization authorization is invalid.');
+        const operationId = raw.operationId as string;
+        const verified = await verifySignetSubmissionAuthorizations({
+          gameId, operationId, authorizations: raw.authorizations, signedArkTx: raw.signedArkTx, checkpointTxs: submitted.checkpointTxs,
+          store: store(), verifyConnection: (token, profileId) => {
+            authorization.connection(token, { gameId, network: 'signet', profileId }); return true;
+          },
+        });
+        authorizationVerified=true;
+        const scope = `${gameId}:signet:${verified.profileId}`;
+        await store().consumePublicRequest(`${gameId}:signet`, now(), { perMinute: 30, perDay: 300 });
+        const submissionStore = submissions();
+        if (finalize) {
+          const rootPrior = await submissionStore.read({ stage: 'submit', scope, operationId, transactionId: verified.transactionId });
+          if (raw.arkTxid !== verified.transactionId || rootPrior.status !== 'completed' || !rootPrior.result || typeof rootPrior.result !== 'object' ||
+            (rootPrior.result as Record<string, unknown>).arkTxid !== raw.arkTxid) throw Error('Original Arkade submit receipt is unavailable. Reconcile before finalization.');
+          const prior = rootPrior.result as Record<string, unknown>;
+          if (typeof prior.finalArkTx!=='string'||
+            !sameUnsignedArkadePsbtMetadata(Transaction.fromPSBT(Buffer.from(prior.finalArkTx,'base64')),Transaction.fromPSBT(Buffer.from(raw.signedArkTx as string,'base64')))||
+            !sameArkadeSignatureMaterial(Transaction.fromPSBT(Buffer.from(prior.finalArkTx,'base64')),Transaction.fromPSBT(Buffer.from(raw.signedArkTx as string,'base64')))||
+            !Array.isArray(prior.signedCheckpointTxs) || prior.signedCheckpointTxs.length !== (raw.finalCheckpointTxs as unknown[]).length ||
+            (prior.signedCheckpointTxs as string[]).some((value, index) => {
+              const priorTx=Transaction.fromPSBT(Buffer.from(value,'base64')),
+                submittedTx=Transaction.fromPSBT(Buffer.from((raw.checkpointTxs as string[])[index],'base64')),
+                finalTx=Transaction.fromPSBT(Buffer.from((raw.finalCheckpointTxs as string[])[index],'base64'));
+              return !sameUnsignedArkadePsbtMetadata(priorTx,submittedTx)||!sameArkadeSignatureMaterial(priorTx,submittedTx)||
+                !sameUnsignedArkadePsbtMetadata(priorTx,finalTx)||!preservesArkadeSignatures(priorTx,finalTx);
+            }))
+            throw Error('Arkade finalization differs from the original submit receipt.');
+        }
+        const stage = finalize ? 'finalize' : 'submit';
+        const digest = createHash('sha256').update(JSON.stringify(raw)).digest('hex');
+        const key = { stage, scope, operationId, transactionId: verified.transactionId, digest } as const;
+        const claim = await submissionStore.claim(key);
+        if (claim.status === 'conflict') return reply(request, 409, { error: 'Arkade submission request changed. Reconcile before retrying.' });
+        if (claim.status === 'pending') return reply(request, 409, { error: 'Arkade submission outcome is unresolved. Reconcile before retrying.' });
+        if (claim.status === 'replay') return finalize ? reply(request, 204, null) : reply(request, 200, claim.result);
+        const result = finalize
+          ? (await finalizeSignetArkadeTransaction({ arkTxid: raw.arkTxid as string, finalCheckpointTxs: raw.finalCheckpointTxs as string[] }, options.arkadeFetch), { finalized: true })
+          : await submitSignetArkadeTransaction({ signedArkTx: raw.signedArkTx as string, checkpointTxs: raw.checkpointTxs as string[] }, options.arkadeFetch);
+        if (!await submissionStore.complete(key, claim.owner, result)) return reply(request, 503, { error: 'Arkade submission receipt persistence is unresolved. Reconcile before retrying.' });
+        return finalize ? reply(request, 204, null) : reply(request, 200, result);
+      } catch {
+        return authorizationVerified
+          ? reply(request, 503, { error: 'Arkade submission or its durable journal is unresolved. Reconcile before retrying.' })
+          : reply(request, 403, { error: 'Arkade transaction is not bound to a completed Signet authorization.' });
+      }
+    }
+    if (path.startsWith('/api/bis/arkade/')) {
+      const forwarded = request.headers.get('x-forwarded-for')?.trim() ?? '';
+      const client = isIP(forwarded) ? forwarded : 'unknown';
+      const quota = createHash('sha256').update(client).digest('hex').slice(0, 32);
+      try { await store().consumePublicRequest(`${gameId}-${quota}:signet`, now(), { perMinute: 60, perDay: 600 }); }
+      catch { return reply(request, 429, { error: 'Signet Arkade read request limit exceeded or unavailable.' }); }
+      const proxied = await proxySignetArkadeRead(request, options.arkadeFetch);
+      const headers = new Headers(proxied.headers);
+      if (origin && origins.has(origin)) headers.set('Access-Control-Allow-Origin', origin);
+      headers.set('Vary', 'Origin');
+      return new Response(proxied.body, { status: proxied.status, headers });
+    }
     try {
       if (path === '/api/bis/health' && request.method === 'GET') {
         await store().ping();

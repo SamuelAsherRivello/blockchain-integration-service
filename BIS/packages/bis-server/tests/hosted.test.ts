@@ -200,7 +200,7 @@ test('connection credentials survive instances but cannot change scope, become g
   time += 600000; assert.throws(() => cold.connection(token, scope), /authorization/);
 });
 const phrase = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-const values = { BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrase, BIS_GAME_WALLET_MUTINYNET_02_MNEMONIC: phrase, BIS_OWNER_SIGNING_NETWORKS: 'signet,mutinynet' };
+const values = { BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrase, BIS_GAME_WALLET_MUTINYNET_02_MNEMONIC: 'legal winner thank year wave sausage worth useful legal winner thank yellow', BIS_OWNER_SIGNING_NETWORKS: 'signet,mutinynet' };
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) => new Request('https://example.test/api/bis/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
 test('hosted identity/proof never return secrets or claim public signing readiness', async () => {
   const handler = createHostedHandler({ env: values, store: memoryStore() });
@@ -216,6 +216,25 @@ test('hosted identity/proof never return secrets or claim public signing readine
   assert.equal((await handler(post('connect', { network: 'signet', gameId: 'stealth-and-steel' }))).status, 403);
   assert.equal((await handler(post('proof', { network: 'bitcoin' }))).status, 503);
   assert.equal((await handler(post('proof', { network: 'signet' }, { Origin: 'https://evil.test' }))).status, 403);
+});
+test('hosted Arkade read relay keeps CORS origin and global disable policy', async () => {
+  let calls = 0, quota: { scope: string; limits?: { perMinute: number; perDay: number } } | undefined;
+  const store = memoryStore();
+  store.consumePublicRequest = async (scope, _now, limits) => { quota = { scope, limits }; };
+  const handler = createHostedHandler({ env: values, store, arkadeFetch: async input => {
+    calls++;
+    assert.equal(String(input), 'https://signet.arkade.sh/v1/info');
+    return Response.json({ network: 'signet' });
+  } });
+  const read = await handler(new Request('https://example.test/api/bis/arkade/signet/v1/info', { headers: { Origin: 'https://samuelasherrivello.github.io', 'X-Forwarded-For': '198.51.100.2' } }));
+  assert.equal(read.status, 200);
+  assert.equal(read.headers.get('Access-Control-Allow-Origin'), 'https://samuelasherrivello.github.io');
+  assert.deepEqual(await read.json(), { network: 'signet' });
+  assert.match(quota?.scope ?? '', /^stealth-and-steel-[a-f0-9]{32}:signet$/);
+  assert.deepEqual(quota?.limits, { perMinute: 60, perDay: 600 });
+  const denied = createHostedHandler({ env: { ...values, BIS_SERVER_ENABLED: 'false' }, store: memoryStore(), arkadeFetch: async () => { calls++; return Response.json({}); } });
+  assert.equal((await denied(new Request('https://example.test/api/bis/arkade/signet/v1/info'))).status, 404);
+  assert.equal(calls, 1);
 });
 test('public signing is explicitly network-scoped and fails closed for an unlisted test network', async () => {
   const env = { ...values, BIS_OWNER_TOKEN: 'scoped-public-owner-secret-'.repeat(3), BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' };
@@ -343,7 +362,7 @@ test('V4 actor endpoints require Player proof, exact connection binding, coordin
   store.complete=async(input,owner,result)=>{counters.completions++;return completeSigning(input,owner,result);};
   store.consumePublicRequest=async(...args)=>{counters.quotas++;return consume(...args);};
   let now=1_800_000_001_000,reads=0;
-  const game=MnemonicIdentity.fromMnemonic(phrase,{isMainnet:false}),[player,operator]=[2,3].map(n=>SingleKey.fromHex(n.toString(16).padStart(64,'0')));
+   const game=MnemonicIdentity.fromMnemonic(values.BIS_GAME_WALLET_MUTINYNET_02_MNEMONIC,{isMainnet:false}),[player,operator]=[2,3].map(n=>SingleKey.fromHex(n.toString(16).padStart(64,'0')));
   const gamePublicKey=toHex(await game.compressedPublicKey()),playerPublicKey=toHex(await player.compressedPublicKey()),operatorPublicKey=toHex(await operator.compressedPublicKey());
   const gameKey=fromHex(gamePublicKey.slice(2)),playerKey=fromHex(playerPublicKey.slice(2)),operatorKey=fromHex(operatorPublicKey.slice(2));
   const exitScript=CSVMultisigTapscript.encode({pubkeys:[operatorKey],timelock:{type:'seconds',value:86016n}});
@@ -460,7 +479,7 @@ test('V4 actor endpoints require Player proof, exact connection binding, coordin
 });
 
 test('public connection selection checks fresh per-network requirements but original connections keep their profile', async () => {
-  const second = 'legal winner thank year wave sausage worth useful legal winner thank yellow';
+  const second = 'letter advice cage absurd amount doctor acoustic avoid letter advice cage above';
   const secret = 'public-pool-test-secret-'.repeat(3), store = memoryStore(), visited: string[] = [];
   let drained = false;
   const env = { ...values, BIS_GAME_WALLET_SIGNET_02_MNEMONIC: second, BIS_OWNER_TOKEN: secret, BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' };

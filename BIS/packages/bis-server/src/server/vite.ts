@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createLocalSigner } from './signer.ts';
 import { loadSignerEnvironment, type SignerConfiguration } from './environment.ts';
 import { createWalletPool } from './wallet-pool.ts';
+import { proxySignetArkadeRead } from './arkade-read-proxy.ts';
 
 const json = (response: ServerResponse, code: number, value: unknown) => {
   response.statusCode = code; response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); response.end(JSON.stringify(value));
@@ -26,12 +27,25 @@ export function createSignerMiddleware(config: SignerConfiguration = loadSignerE
   async function middleware(request: IncomingMessage, response: ServerResponse, next: (error?: unknown) => void) {
     const path = (request.url ?? '').split('?')[0];
     if (!path.startsWith('/api/bis/')) { next(); return; }
-    if (config.enabled === false || (!config.mnemonic && !pooled)) { json(response, 404, { error: 'Game signer disabled or not configured.' }); return; }
     // This adapter grants developer signing authority only on a loopback host.
     // It cannot become a public signer merely by binding Vite to 0.0.0.0.
     const host = request.headers.host ?? '';
     if (process.env.VERCEL || !/^(127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/.test(host) || (request.headers.origin && request.headers.origin !== `http://${host}`) || request.headers['sec-fetch-site'] === 'cross-site') {
       json(response, 403, { error: 'Local game signer access denied.' }); return;
+    }
+    if (config.enabled === false || (!config.mnemonic && !pooled)) { json(response, 404, { error: 'Game signer disabled or not configured.' }); return; }
+    if (path.startsWith('/api/bis/arkade/')) {
+      try {
+        const url = new URL(request.url ?? '/', `http://${host}`);
+        const proxied = await proxySignetArkadeRead(new Request(url, { method: request.method }));
+        response.statusCode = proxied.status;
+        for (const name of ['Content-Type', 'Cache-Control', 'X-Content-Type-Options', 'Allow']) {
+          const value = proxied.headers.get(name);
+          if (value) response.setHeader(name, value);
+        }
+        response.end(Buffer.from(await proxied.arrayBuffer()));
+      } catch { json(response, 502, { error: 'Signet Arkade read service is unavailable.' }); }
+      return;
     }
     try {
       if (path === '/api/bis/identity' && request.method === 'GET') {

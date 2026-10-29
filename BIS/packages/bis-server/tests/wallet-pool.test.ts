@@ -8,7 +8,13 @@ const phrases = [
   'legal winner thank year wave sausage worth useful legal winner thank yellow',
   'letter advice cage absurd amount doctor acoustic avoid letter advice cage above',
 ];
-const values = Object.fromEntries(['SIGNET', 'MUTINYNET'].flatMap(network => phrases.map((phrase, index) => [`BIS_GAME_WALLET_${network}_0${index + 1}_MNEMONIC`, phrase])));
+const mutinynetPhrases = [
+  'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong',
+  'absurd amount doctor acoustic avoid letter advice cage absurd amount doctor adjust',
+  'acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter affair',
+];
+const values = Object.fromEntries([['SIGNET', phrases], ['MUTINYNET', mutinynetPhrases]].flatMap(([network, candidates]) =>
+  (candidates as string[]).map((phrase, index) => [`BIS_GAME_WALLET_${network}_0${index + 1}_MNEMONIC`, phrase])));
 
 test('hosted Preview uses only Preview-prefixed signer and Redis secrets', () => {
   const production = {
@@ -71,6 +77,24 @@ test('network selection never falls back to the other network and duplicate iden
   assert.deepEqual(await pool.publicWallets('mutinynet'), []);
   await assert.rejects(pool.select('mutinynet'), /No valid game wallet/);
   assert.equal(JSON.stringify(signet).includes(phrases[0]), false);
+});
+
+test('a signer identity duplicated across Signet and Mutinynet is ineligible in both pools', async () => {
+  const shared = phrases[0];
+  const pool = createWalletPool({ ...values, BIS_GAME_WALLET_MUTINYNET_01_MNEMONIC: shared }, async () => ({
+    availableArkadeSats: 2000,
+    availableBitcoinSats: 0,
+  }));
+  const [signet, mutinynet] = await Promise.all([pool.publicWallets('signet'), pool.publicWallets('mutinynet')]);
+  assert.deepEqual(signet.map(wallet => wallet.slot), ['02', '03']);
+  assert.deepEqual(mutinynet.map(wallet => wallet.slot), ['02', '03']);
+  assert.equal(signet.some(wallet => mutinynet.some(other => other.profileId === wallet.profileId)), false);
+  const duplicatedOnly = createWalletPool({
+    BIS_GAME_WALLET_SIGNET_01_MNEMONIC: shared,
+    BIS_GAME_WALLET_MUTINYNET_01_MNEMONIC: shared,
+  });
+  await assert.rejects(duplicatedOnly.select('signet'), /No valid game wallet/);
+  await assert.rejects(duplicatedOnly.select('mutinynet'), /No valid game wallet/);
 });
 
 test('first eligible balance wins; on-chain BTC is not Arkade-spendable sats', async () => {
