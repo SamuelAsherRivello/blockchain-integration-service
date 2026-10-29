@@ -485,7 +485,8 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
       catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.',readStatus:'storage'}); return false; }
     },
     async importWallet(phrase: string) {
-      if(state.source==='server'||(state.serverStatus==='error'&&!options.manualWalletOnly))return false;
+      if(state.source==='server') { publish({...state,message:'The active BIS Game Wallet is controlled by the game server. Switch to a manual Game Wallet before restoring Setup Wallet 2.'}); return false; }
+      if(state.serverStatus==='error'&&!options.manualWalletOnly) { publish({...state,message:state.serverMessage ?? 'The BIS Game Wallet source is unavailable. Check the connection and try again.'}); return false; }
       if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return false; }
       importing = true; const previous = state, signal = begin(); publish({...previous, status:'loading', message:undefined});
       try {

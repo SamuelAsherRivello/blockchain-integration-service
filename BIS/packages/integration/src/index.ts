@@ -15,7 +15,7 @@ export type {
   BisGameRewardRequest, BisGameRewardState, BisGameEquipmentDefinition,
   BisGameEquipmentFamily, BisGameEquipmentTier, BisGameEquipmentItem,
   BisGameEquipmentSlots, BisGameEquipmentState, BisContractRequest,
-  BisContractState, BisContractQueryResult,
+  BisContractState, BisContractQueryResult, BisGameWalletRestoreResult,
 } from './client/integration-layer/bis';
 export type { BisServiceOptions, BisServiceContinueDeliveryOptions, BisServiceResetResult, BisServiceResetErrorCode } from './client/integration-layer/bis-service';
 export { BisServiceResetError } from './client/integration-layer/bis-service';

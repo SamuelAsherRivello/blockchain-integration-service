@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { bisMarketplaceItems, marketplaceItemMetadata } from '../../src/client/state-layer-core/equipment.ts';
+import type { BisGameWalletRestoreResult } from '../../src/index.ts';
 
 // Isolated unit adapters, never installed in an application or used as live evidence.
 function observable(initial) {
@@ -18,7 +19,7 @@ function fixture() {
   let session = { gameId: 'unit-game', gameSessionId: 'run-1' };
   const context = observable({ view: 'empty', hasProfile: true, profileId: 'player', phase: 'active', network: 'signet' });
   const wallet = observable({ status: 'ready', profileId: 'game-wallet', network: 'signet', source: 'manual', playerConnected: true, balance: { availableSats: 5000 } });
-  let contracts = [], resetFailure = false, mintWait;
+  let contracts = [], resetFailure = false, mintWait, importError;
   const importedPhrases = [];
   Object.assign(context, {
     readyAsync: async () => {},
@@ -36,7 +37,7 @@ function fixture() {
     },
     controls: { forceReset: async () => context.set({ hasProfile: false, profileId: undefined, phase: 'idle', view: 'empty' }) },
   });
-  Object.assign(wallet, { refresh: async () => {}, importWallet: async phrase => { importedPhrases.push(phrase); return true; }, logout: async () => { wallet.set({ status: 'empty', profileId: undefined, addresses: undefined }); }, reset: async () => !resetFailure });
+  Object.assign(wallet, { refresh: async () => {}, importWallet: async phrase => { importedPhrases.push(phrase); if (importError) { wallet.set({ message: importError }); return false; } return true; }, logout: async () => { wallet.set({ status: 'empty', profileId: undefined, addresses: undefined }); }, reset: async () => !resetFailure });
   const lto = observable({});
   Object.assign(lto, {
     checkContractsAsync: async () => ({ status: 'ready', contracts }), reconcile: async () => {},
@@ -55,7 +56,7 @@ function fixture() {
   };
   return { context, wallet, lto, ui, host, events, effects, requests, contextEvents, importedPhrases,
     replaceRun: () => { session = { gameId: 'unit-game', gameSessionId: 'run-2' }; },
-    endRun: () => { session = undefined; }, failReset: value => { resetFailure = value; },
+    endRun: () => { session = undefined; }, failReset: value => { resetFailure = value; }, failImport: message => { importError = message; },
     delayMint: promise => { mintWait = promise; },
     publishContracts: values => { contracts = values; lto.set({}); },
   };
@@ -139,7 +140,15 @@ test('BisService owns private resources and routes game workflows through the tw
   });
   await t.test('Setup wallet restoration forwards only through the public BIS facade', async () => {
     const f = create();
-    assert.equal(await f.service.restoreGameWalletAsync('unit-test-mnemonic'), true);
+    const result: BisGameWalletRestoreResult = await f.service.restoreGameWalletAsync('unit-test-mnemonic');
+    assert.deepEqual(result, { success: true });
+    assert.deepEqual(f.importedPhrases, ['unit-test-mnemonic']);
+  });
+  await t.test('Setup wallet restoration reports a refusal from the Game Wallet', async () => {
+    const f = create();
+    f.failImport('The active BIS Game Wallet is controlled by the game server.');
+    const result: BisGameWalletRestoreResult = await f.service.restoreGameWalletAsync('unit-test-mnemonic');
+    assert.deepEqual(result, { success: false, message: 'The active BIS Game Wallet is controlled by the game server.' });
     assert.deepEqual(f.importedPhrases, ['unit-test-mnemonic']);
   });
   await t.test('manual-only Game Wallet service configuration reaches the private wallet factory', () => {

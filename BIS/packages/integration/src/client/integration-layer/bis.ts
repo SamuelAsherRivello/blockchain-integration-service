@@ -91,6 +91,7 @@ export type BisContractQueryResult = Readonly<{
   status: 'ready' | 'unavailable';
   contracts: readonly BisContractState[];
 }>;
+export type BisGameWalletRestoreResult = Readonly<{ success: true }> | Readonly<{ success: false; message: string }>;
 
 export type BisSnapshot = Readonly<{
   revision: number;
@@ -123,7 +124,7 @@ export interface IBis {
   mount(container: HTMLElement): void;
   openAccountDialog(): void;
   /** Restore the supplied recovery phrase as the distinct BIS Game Wallet for the active Player account. */
-  restoreGameWalletAsync(phrase: string): Promise<boolean>;
+  restoreGameWalletAsync(phrase: string): Promise<BisGameWalletRestoreResult>;
   isLoadingUIVisible(): boolean;
   showLoadingUI(): void;
   hideLoadingUI(): void;

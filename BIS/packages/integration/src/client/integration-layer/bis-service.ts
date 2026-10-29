@@ -220,7 +220,13 @@ export class BisService implements IBis {
   }
   mount(container: HTMLElement) { this.#assertAlive(); this.#ui.mount(container); }
   openAccountDialog() { this.#assertAlive(); this.#context.openAccountDialog(); }
-  restoreGameWalletAsync(phrase: string) { this.#assertAlive(); return this.#gameWallet.importWallet(phrase); }
+  async restoreGameWalletAsync(phrase: string) {
+    this.#assertAlive();
+    const success = await this.#gameWallet.importWallet(phrase);
+    if (success) return { success: true as const };
+    const message = this.#gameWallet.getState().message ?? 'Game Wallet restoration failed. Check the recovery phrase and try again.';
+    return { success: false as const, message };
+  }
   isLoadingUIVisible() { return !this.#disposed && this.#ui.isLoadingUIVisible(); }
   showLoadingUI() { this.#assertAlive(); if (!this.isLoadingUIVisible()) this.#ui.showLoadingUI(); }
   hideLoadingUI() { if (!this.#disposed && this.isLoadingUIVisible()) this.#ui.hideLoadingUI(); }
