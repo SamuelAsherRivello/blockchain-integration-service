@@ -12,7 +12,8 @@
     "verify:redis": "node scripts/verify-redis.ts",
     "verify:deployment-preflight": "node scripts/preflight-deployment.ts",
     "verify:vercel-instances": "node scripts/verify-vercel-instances.ts",
-    "build:deployment": "node scripts/build-deployment.ts"
+    "build:deployment": "node scripts/build-deployment.ts",
+    "build:vercel": "node scripts/build-vercel.ts"
   },
   "dependencies": { "@arkade-os/sdk": "0.4.79", "@upstash/redis": "1.39.0" },
   "devDependencies": { "esbuild": "0.28.2" }

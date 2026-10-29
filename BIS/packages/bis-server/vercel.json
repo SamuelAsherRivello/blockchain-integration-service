@@ -1,7 +1,7 @@
 {
   "framework": null,
   "installCommand": "cd ../../.. && npm ci",
-  "buildCommand": "mkdir -p .vercel && printf '{\"projectId\":\"prj_fB8jmOumMbfEabORTxeVxTysjXVx\",\"orgId\":\"team_WmJXbDRfQvVbFiB3uUicIoIR\"}\\n' > .vercel/project.json && cd ../../.. && npm run build:deployment --workspace @bis/bis-server && cd BIS/packages/bis-server && mkdir -p api public && cp dist/deployment/api/index.mjs api/index.mjs && cp dist/deployment/public/index.html public/index.html",
+  "buildCommand": "cd ../../.. && npm run build:vercel --workspace @bis/bis-server",
   "functions": {
     "api/index.mjs": {
       "maxDuration": 30
