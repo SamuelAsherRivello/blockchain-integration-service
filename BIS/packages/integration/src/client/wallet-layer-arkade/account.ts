@@ -2,7 +2,7 @@ import { MnemonicIdentity, ReadonlyWallet, RestArkProvider, InMemoryWalletReposi
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { phraseWords, validRecovery } from '../state-layer-core/recovery-validation.ts';
-import { testNetwork, type TestNetwork } from '../state-layer-core/test-network.ts';
+import { arkadeReadEndpointForRuntime, testNetwork, type TestNetwork } from '../state-layer-core/test-network.ts';
 import type { RoleWalletAccess } from './adapter-session.ts';
 
 export const SIGNET_OPERATOR = 'https://signet.arkade.sh';
@@ -24,13 +24,14 @@ export function requireNetwork(network: string, expected: TestNetwork) {
   if (network !== expected) throw new Error(`Operator network mismatch: expected ${testNetwork(expected).label}.`);
 }
 export function operatorFor(network: TestNetwork = 'signet') { return testNetwork(network).operator; }
+export function arkadeReadOperatorFor(network: TestNetwork = 'signet') { return arkadeReadEndpointForRuntime(network); }
 export async function createAccount(signal: AbortSignal, network: TestNetwork = 'signet', session?:RoleWalletAccess): Promise<AccountSecret> {
   return restoreAccount(generateMnemonic(wordlist), signal, network,session);
 }
 export async function restoreAccount(input: string, signal: AbortSignal, network: TestNetwork = 'signet', session?:RoleWalletAccess): Promise<AccountSecret> {
   if (!validRecovery(input)) throw new Error('Invalid recovery phrase.');
   const phrase = phraseWords(input).join(' ');
-  const operator = operatorFor(network);
+  const operator = arkadeReadOperatorFor(network);
   const response = await fetch(`${operator}/v1/info`, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) });
   if (!response.ok) throw new Error('Test service unavailable.');
   requireNetwork((await response.json()).network, network);

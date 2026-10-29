@@ -1,6 +1,6 @@
 import { readonlyIdentity } from './wallet-identity.ts';
 import { ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
-import { requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
+import { arkadeReadOperatorFor, requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
 import type { RoleWalletAccess } from './adapter-session.ts';
@@ -52,10 +52,10 @@ export async function loadBalance(account: WalletAccount, signal: AbortSignal, s
   if (!response.ok) throw new Error('Balance unavailable.');
   requireNetwork((await response.json()).network,network);
   signal.throwIfAborted();
-  const arkProvider = new RestArkProvider(operator);
+  const arkProvider = new RestArkProvider(arkadeReadOperatorFor(network));
   const getInfo = arkProvider.getInfo.bind(arkProvider);
   arkProvider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
-  const indexerProvider = shareIndexerReads(new RestIndexerProvider(operator),operator);
+  const indexerProvider = shareIndexerReads(new RestIndexerProvider(arkadeReadOperatorFor(network)),operator);
   // SDK synchronization can catch provider errors and return its repository.
   // Latch failures so a concurrent watcher success cannot erase that evidence.
   let indexerFailed = false;

@@ -1,6 +1,6 @@
 import { readonlyIdentity } from './wallet-identity.ts';
 import { ReadonlyWallet, RestArkProvider, RestIndexerProvider, EsploraProvider, InMemoryWalletRepository, InMemoryContractRepository, assetMintResolver, type ArkTransaction } from '@arkade-os/sdk';
-import { requireNetwork, operatorFor, type WalletAccount } from './account.ts';
+import { arkadeReadOperatorFor, requireNetwork, operatorFor, type WalletAccount } from './account.ts';
 import { testNetwork } from '../state-layer-core/test-network.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
@@ -119,10 +119,10 @@ export async function watchActivity(account: WalletAccount, signal: AbortSignal,
     return observeActivityWallet(Promise.resolve(borrowed),signal,publish);
   },false);
   const network=account.network ?? 'signet',operator=operatorFor(network);
-  const arkProvider = new RestArkProvider(operator);
+  const arkProvider = new RestArkProvider(arkadeReadOperatorFor(network));
   const getInfo = arkProvider.getInfo.bind(arkProvider);
   arkProvider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
-  const indexerProvider = shareIndexerReads(new RestIndexerProvider(operator),operator);
+  const indexerProvider = shareIndexerReads(new RestIndexerProvider(arkadeReadOperatorFor(network)),operator);
   const onchainProvider = new EsploraProvider(testNetwork(network).explorerApiUrl, { forcePolling: true, pollingInterval: 15000 });
   let failed = false;
   const getVtxos = indexerProvider.getVtxos.bind(indexerProvider);

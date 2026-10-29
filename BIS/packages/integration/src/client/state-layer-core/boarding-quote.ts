@@ -1,5 +1,11 @@
 // Explicit confirmation is available; every submission still revalidates its quote and durable operation gate.
 export const boardingSubmissionEnabled = true;
+export type BoardingQuoteInput = Readonly<{
+  txid: string;
+  vout: number;
+  valueSats: number;
+  assets: readonly Readonly<{ assetId: string; amount: string }>[];
+}>;
 export type BitcoinFundingDestination = Readonly<{purpose:'bitcoin-funding'; bitcoinAddress:string; network:'signet'|'mutinynet'}>;
 export function validateBitcoinFundingDestination(value:BitcoinFundingDestination|undefined,direction:BoardingQuote['direction'],network:string) {
   if(value===undefined)return;
@@ -10,6 +16,7 @@ export function validateBitcoinFundingDestination(value:BitcoinFundingDestinatio
 export type BoardingQuote = Readonly<{
   profileId: string; direction: 'to-arkade' | 'to-bitcoin'; amountSats: number; feeSats: number; netSats: number;
   maxSats: number; inputSats?: number; bitcoinAfterSats: number; arkadeAfterSats: number; totalAfterSats: number;
+  inputOutpoints?: readonly BoardingQuoteInput[];
   expiresAt: number; fingerprint: string;
   destination?:BitcoinFundingDestination;
 }>;
@@ -17,6 +24,7 @@ export type BoardingQuote = Readonly<{
 export function assertQuoteUnchanged(reviewed: BoardingQuote, fresh: BoardingQuote, now = Date.now()) {
   if (reviewed.expiresAt <= now || reviewed.profileId !== fresh.profileId || reviewed.direction !== fresh.direction ||
       reviewed.fingerprint !== fresh.fingerprint || reviewed.amountSats !== fresh.amountSats ||
+      JSON.stringify(reviewed.inputOutpoints) !== JSON.stringify(fresh.inputOutpoints) ||
       JSON.stringify(reviewed.destination)!==JSON.stringify(fresh.destination) ||
       reviewed.maxSats !== fresh.maxSats || reviewed.inputSats !== fresh.inputSats ||
       reviewed.feeSats !== fresh.feeSats || reviewed.netSats !== fresh.netSats ||

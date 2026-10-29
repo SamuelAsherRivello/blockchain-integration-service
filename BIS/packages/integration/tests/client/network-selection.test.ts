@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestNetworkSession, isTestNetwork, networkLabel, testNetwork } from '../../src/client/state-layer-core/test-network.ts';
+import { arkadeReadEndpointFor, createTestNetworkSession, isTestNetwork, networkLabel, testNetwork } from '../../src/client/state-layer-core/test-network.ts';
 import { formatTransactionDetail, transactionExplorerUrl } from '../../src/client/state-layer-core/activity.ts';
 import { formatTransferRecoveryReport } from '../../src/client/state-layer-core/boarding-status.ts';
 import { operatorFor, requireNetwork } from '../../src/client/wallet-layer-arkade/account.ts';
@@ -58,6 +58,16 @@ test('operator configuration is selected exactly and rejects a cross-network res
   assert.match(formatTransferRecoveryReport({status:'pending'}, 'mutinynet'), /Network: Mutinynet/);
   requireNetwork('mutinynet', 'mutinynet');
   assert.throws(() => requireNetwork('signet', 'mutinynet'), /mismatch/);
+});
+
+test('Signet browser reads use the configured BIS relay without changing canonical network identity', () => {
+  assert.equal(arkadeReadEndpointFor('signet', 'https://bis.example/api/bis/'), 'https://bis.example/api/bis/arkade/signet');
+  assert.equal(arkadeReadEndpointFor('signet', undefined, true), '/api/bis/arkade/signet');
+  assert.equal(arkadeReadEndpointFor('signet', 'https://production.example/api/bis/', true), '/api/bis/arkade/signet');
+  assert.equal(arkadeReadEndpointFor('mutinynet', 'https://bis.example/api/bis/'), 'https://mutinynet.arkade.sh');
+  assert.equal(arkadeReadEndpointFor('signet', 'http://bis.example/api/bis/'), 'https://signet.arkade.sh');
+  assert.equal(arkadeReadEndpointFor('signet', 'https://bis.example/other/'), 'https://signet.arkade.sh');
+  assert.equal(testNetwork('signet').operator, 'https://signet.arkade.sh');
 });
 
 test('contract inspection uses the active player profile and Mutinynet operator', t => {

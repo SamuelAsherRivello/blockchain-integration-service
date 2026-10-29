@@ -113,7 +113,7 @@ export class BisService implements IBis {
         return frozenCopy(gameLogoutRecheck(await boundedGameLogoutAuthorization(host.confirmPlayerLogoutAsync({authorizationId}))));
       },
     });
-    wallet = createBisGameWallet({ playerProfileId: () => this.#context.getState().profileId, playerNetwork: () => this.#context.getState().network, playerSubscribe:this.#context.subscribe, playerSessionKey:()=>JSON.stringify([this.#context.getState().profileId,this.#context.getState().network]) });
+    wallet = createBisGameWallet({ playerProfileId: () => this.#context.getState().profileId, playerNetwork: () => this.#context.getState().network, playerSubscribe:this.#context.subscribe, playerSessionKey:()=>JSON.stringify([this.#context.getState().profileId,this.#context.getState().network]), manualWalletOnly: options.manualGameWalletOnly === true });
     this.#gameWallet = wallet;
     this.#lto = createBisLto({ context: this.#context, gameWallet: wallet });
     this.#equipment = createBisEquipment(this.#context);
@@ -220,6 +220,7 @@ export class BisService implements IBis {
   }
   mount(container: HTMLElement) { this.#assertAlive(); this.#ui.mount(container); }
   openAccountDialog() { this.#assertAlive(); this.#context.openAccountDialog(); }
+  restoreGameWalletAsync(phrase: string) { this.#assertAlive(); return this.#gameWallet.importWallet(phrase); }
   isLoadingUIVisible() { return !this.#disposed && this.#ui.isLoadingUIVisible(); }
   showLoadingUI() { this.#assertAlive(); if (!this.isLoadingUIVisible()) this.#ui.showLoadingUI(); }
   hideLoadingUI() { if (!this.#disposed && this.isLoadingUIVisible()) this.#ui.hideLoadingUI(); }
@@ -335,8 +336,9 @@ export class BisService implements IBis {
     if (this.#endedOffers.has(request.offerSessionId) || (existing && !this.#current(existing))) return { status: 'unavailable' };
     const origin = existing ?? this.#capture(); if (!origin) return { status: 'unavailable' };
     if (!this.#offerOrigins.has(request.offerSessionId)) this.#offerOrigins.set(request.offerSessionId, origin);
-    const { offerSessionId, ...rest } = frozenCopy(request);
-    const result = await this.#lto.start({ ...rest, sessionId: offerSessionId });
+    const { offerSessionId, validationMode, ...rest } = frozenCopy(request);
+    const result = await this.#lto.start({ ...rest, sessionId: offerSessionId,
+      ...(validationMode ? { validationSolution: validationMode } : {}) });
     void this.#readContracts().catch(()=>{}); return frozenCopy(result);
   }
   queryContractsAsync(filter: BisContractFilter = {}) { return this.#readContracts(filter); }

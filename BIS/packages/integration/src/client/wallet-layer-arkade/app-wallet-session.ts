@@ -1,11 +1,11 @@
 import { signingIdentity, readonlyIdentity, walletSourceKey } from './wallet-identity.ts';
 import { Wallet, MnemonicIdentity, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, InMemoryIntentRepository, IndexedDBIntentRepository, EsploraProvider } from '@arkade-os/sdk';
 import {testNetwork} from '../state-layer-core/test-network.ts';
-import { operatorFor, requireNetwork, type WalletAccount } from './account.ts';
+import { arkadeReadOperatorFor, operatorFor, requireNetwork, type WalletAccount } from './account.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
 import { projectConfiguredAddresses } from './address-projection.ts';
 import type { AccountAddresses } from './addresses.ts';
-import type { ServerSigningOperation, ServerContractIntent } from './server-wallet.ts';
+import { finalizeServerArkadeTransaction, submitServerArkadeTransaction, type ServerSigningOperation, type ServerContractIntent } from './server-wallet.ts';
 import {serverTreasureAuthority,createLeasedTreasureServerTransport,type TreasureServerPersistence} from './server-wallet.ts';
 import type { AppPlayerProof } from './app-player-proof.ts';
 import { prepareServerSettlement, captureServerSettlementEvent, selectImplicitServerSettlement } from './server-settlement.ts';
@@ -94,7 +94,8 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     if (!slot) {
       const controller = new AbortController();
       const network = account.network ?? 'signet', operator = operatorFor(network);
-      const arkProvider = new RestArkProvider(operator);
+      const readOperator = arkadeReadOperatorFor(network);
+      const arkProvider = new RestArkProvider(readOperator);
       let resolveAddresses!: (value:AccountAddresses) => void;
       let rejectAddresses!: (reason:unknown) => void;
       const addresses = new Promise<AccountAddresses>((resolve,reject)=>{resolveAddresses=resolve;rejectAddresses=reject;});
@@ -126,7 +127,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       const identity = signingIdentity(account, () => signingOperation.active);
       const config: Configuration = {
         identity,
-        arkProvider, indexerProvider: shareIndexerReads(new RestIndexerProvider(operator), operator),
+        arkProvider, indexerProvider: shareIndexerReads(new RestIndexerProvider(readOperator), operator),
         onchainProvider:new EsploraProvider(testNetwork(network).explorerApiUrl,{forcePolling:true,pollingInterval:15000}),
         storage: {
           walletRepository: new InMemoryWalletRepository(),
@@ -179,7 +180,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
     try { leaseSignal.throwIfAborted(); }
     catch(error){release?.();throw error;}
     if (!current(role, slot)) {release?.();throw Error('Wallet session retired.');}
-    const signingOperation: ServerSigningOperation | undefined = exclusive ? Object.freeze({ id: crypto.randomUUID(), signal: leaseSignal, playerProof: options.playerProof, payment: {}, settlement: {} }) : undefined;
+    const signingOperation: ServerSigningOperation | undefined = exclusive ? Object.freeze({ id: crypto.randomUUID(), signal: leaseSignal, playerProof: options.playerProof, payment: {}, settlement: {},submission:{authorizations:[]} }) : undefined;
     if (signingOperation) slot.signingOperation.active = signingOperation;
     slot.users++;
     const execution=Promise.resolve().then(async()=>{
@@ -187,6 +188,12 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
       if (!signingOperation || !('server' in account) || typeof resource.buildAndSubmitOffchainTx !== 'function') return use(wallet,leaseSignal);
       const original = resource.buildAndSubmitOffchainTx;
       const originalSettle = resource.settle;
+      const arkProvider=resource.arkProvider;
+      const originalArkSubmit=arkProvider?.submitTx,originalArkFinalize=arkProvider?.finalizeTx;
+      if(arkProvider){
+        arkProvider.submitTx=async(signedArkTx,checkpointTxs)=>submitServerArkadeTransaction(account,signingOperation,signedArkTx,checkpointTxs);
+        arkProvider.finalizeTx=async(arkTxid,finalCheckpointTxs)=>finalizeServerArkadeTransaction(account,signingOperation,arkTxid,finalCheckpointTxs);
+      }
       if (typeof originalSettle === 'function' && role === 'game') resource.settle = async function(params, callback) {
         leaseSignal.throwIfAborted();
         const selected = params ?? await selectImplicitServerSettlement(this);
@@ -212,7 +219,7 @@ export function createAppWalletSession<W extends Disposable = Wallet>(options: {
         finally { signingOperation.payment!.active = previous; }
       };
       try { return await use(wallet,leaseSignal); }
-      finally { resource.buildAndSubmitOffchainTx = original; resource.settle = originalSettle; }
+      finally { resource.buildAndSubmitOffchainTx = original; resource.settle = originalSettle;if(arkProvider){arkProvider.submitTx=originalArkSubmit;arkProvider.finalizeTx=originalArkFinalize;} }
     }).then(result=>{
         leaseSignal.throwIfAborted();
         if (!current(role, slot)) throw Error('Wallet session retired.');

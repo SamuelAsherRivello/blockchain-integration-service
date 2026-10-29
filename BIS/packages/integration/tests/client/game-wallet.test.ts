@@ -158,6 +158,41 @@ function fixture() {
   const dependencies = {storage, restore:async phrase=>{if(phrase==='invalid')throw Error('sensitive');return {phrase,profileId:phrase};},addresses:async a=>({arkadeAddress:`tark1${a.profileId}`,bitcoinAddress:`tb1${a.profileId}`}),balance:async()=>({availableSats:1000,totalSats:1000,bitcoinSats:0,arkadeSats:1000})};
   return {dependencies,saved,listeners,storage,setPlayerProfileId:value=>{playerProfileId=value;},create:()=>createBisGameWallet({playerProfileId:()=> playerProfileId},dependencies)};
 }
+test('prewarmed public Game Wallet addresses are reused when the Player connects',async()=>{
+  const f=fixture();let playerProfileId:string|undefined;let addressReads=0,releasePrewarm:undefined|(()=>void);
+  f.storage.load=async()=>({phrase:'game',profileId:'game',network:'signet'});
+  f.dependencies.addresses=async account=>{
+    addressReads++;
+    if(addressReads===1)return new Promise(resolve=>{releasePrewarm=()=>resolve({arkadeAddress:`tark1${account.profileId}`,bitcoinAddress:`tb1${account.profileId}`});});
+    return {arkadeAddress:`tark1${account.profileId}`,bitcoinAddress:`tb1${account.profileId}`};
+  };
+  const c=createLocalGameWallet({playerProfileId:()=>playerProfileId},f.dependencies);
+  await tick();await tick();
+  assert.equal(c.getState().status,'empty');assert.equal(c.getState().addresses,undefined);assert.equal(addressReads,1);
+  playerProfileId='player';const refresh=c.refresh();await tick();releasePrewarm?.();await refresh;
+  assert.equal(c.getState().status,'ready');assert.equal(c.getState().addresses?.arkadeAddress,'tark1game');assert.equal(addressReads,1);
+  c.dispose();
+});
+test('Player refresh does not wait for an address prewarm whose wallet identity is not yet known',async()=>{
+  const f=fixture();let playerProfileId:string|undefined,storageReads=0,addressReads=0,releasePrewarm:undefined|(()=>void);
+  const saved={phrase:'game',profileId:'game',network:'signet' as const};
+  f.storage.load=async()=>{
+    storageReads++;
+    if(storageReads===1)return new Promise<typeof saved>(resolve=>{releasePrewarm=()=>resolve(saved);});
+    return saved;
+  };
+  f.dependencies.addresses=async account=>{addressReads++;return {arkadeAddress:`tark1${account.profileId}`,bitcoinAddress:`tb1${account.profileId}`};};
+  const c=createLocalGameWallet({playerProfileId:()=>playerProfileId},f.dependencies);
+  await tick();await tick();
+  assert.equal(storageReads,1);
+  playerProfileId='player';
+  await c.refresh();
+  assert.equal(c.getState().status,'ready');
+  assert.equal(c.getState().addresses?.arkadeAddress,'tark1game');
+  assert.equal(addressReads,1);
+  c.dispose();
+  releasePrewarm?.();
+});
 test('import retains wallets, reselects without duplicates and restores last selection',async()=>{
   const f=fixture(),c=f.create();await tick();
   assert.equal(await c.importWallet('a'),true);assert.equal(await c.importWallet('b'),true);assert.equal(await c.importWallet('a'),true);

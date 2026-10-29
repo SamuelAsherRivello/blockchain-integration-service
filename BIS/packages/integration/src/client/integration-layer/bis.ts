@@ -8,10 +8,15 @@ import type { BisEquipmentSlots, BisEquipmentState } from '../state-layer-core/e
 import type { BisGameContinueState } from '../state-layer-core/game-continue';
 import type { IBisGame, BisGameSession, BisGameEffectReceipt } from '../state-layer-core/bis-game';
 import type { TestNetwork } from '../state-layer-core/test-network';
+import type { ContractValidationMode } from '../state-layer-core/contract-validation';
 
 /** Main game-facing vocabulary. Lower-level APIs remain available to non-game consumers. */
 export type BisNetwork = TestNetwork;
-export type BisOptions = Readonly<{ getBisGame(): IBisGame | undefined }>;
+export type BisOptions = Readonly<{
+  getBisGame(): IBisGame | undefined;
+  /** Keep this facade on imported local Game Wallets even when a server signer is connected. */
+  manualGameWalletOnly?: boolean;
+}>;
 export type BisDisposeOptions = Readonly<{ preserveContracts?: boolean }>;
 export type BisWalletReference = Readonly<{
   profileId: string;
@@ -76,6 +81,8 @@ export type BisContractRequest = Readonly<{
   startedAt: number;
   expiresAt: number;
   exclusivityKey: string;
+  /** Optional pre-funding validation mode. Omit to preserve automatic selection for existing callers. */
+  validationMode?: ContractValidationMode;
   approveUponCreation?: boolean;
 }>;
 /** Legacy sessionId remains financial storage identity; offerSessionId names it explicitly. */
@@ -115,6 +122,8 @@ export interface IBis {
   readyAsync(): Promise<void>;
   mount(container: HTMLElement): void;
   openAccountDialog(): void;
+  /** Restore the supplied recovery phrase as the distinct BIS Game Wallet for the active Player account. */
+  restoreGameWalletAsync(phrase: string): Promise<boolean>;
   isLoadingUIVisible(): boolean;
   showLoadingUI(): void;
   hideLoadingUI(): void;

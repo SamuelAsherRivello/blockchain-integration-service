@@ -4,7 +4,7 @@ import { encodeAssetMetadata } from './asset-metadata.ts';
 import { shareIndexerReads } from './indexer-reads.ts';
 import type { RoleWalletAccess } from './adapter-session.ts';
 import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
-import { requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
+import { arkadeReadOperatorFor, requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
 import type { TestNetwork } from '../state-layer-core/test-network.ts';
 import { AssetError, checkMintRecord, readAssetRecords, writeAssetRecord, assetBaseUnits, decodeListedMetadataValue, normalizeAssetMetadata, type BisAsset, type BisMintAssetRequest, type BisMintAssetResult } from '../state-layer-core/assets.ts';
 import { BIS_LATEST_ASSET_FORMAT_VERSION, resolveBisAssetFormat } from '../state-layer-core/asset-format.ts';
@@ -77,7 +77,7 @@ export async function readFreshAssets(wallet: AssetWallet): Promise<OwnedAsset[]
 
 function providers(signal: AbortSignal, beforeSubmit?: () => void, afterSubmit?: (transactionId: string) => void, network: TestNetwork = 'signet') {
   const operator=operatorFor(network);
-  const arkProvider = new RestArkProvider(operator), indexerProvider = shareIndexerReads(new RestIndexerProvider(operator),operator);
+  const readOperator=arkadeReadOperatorFor(network), arkProvider = new RestArkProvider(readOperator), indexerProvider = shareIndexerReads(new RestIndexerProvider(readOperator),operator);
   const getInfo = arkProvider.getInfo.bind(arkProvider);
   arkProvider.getInfo = async () => { signal.throwIfAborted(); const info = await getInfo(); requireNetwork(info.network,network); return info; };
   let failed = false;

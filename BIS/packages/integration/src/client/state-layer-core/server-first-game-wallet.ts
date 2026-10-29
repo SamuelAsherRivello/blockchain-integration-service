@@ -31,11 +31,11 @@ export function createServerProfileMemory(storage: Pick<Storage, 'getItem' | 'se
   };
 }
 
-export function createServerFirstStorage(local: GameWalletStorage, network: () => TestNetwork, probe: (network: TestNetwork, options?: { profileId?: string }) => Promise<SignerProbe> = probeGameSigner, remembered?: RememberedProfile, select = selectGameSigner) {
+export function createServerFirstStorage(local: GameWalletStorage, network: () => TestNetwork, probe: (network: TestNetwork, options?: { profileId?: string }) => Promise<SignerProbe> = probeGameSigner, remembered?: RememberedProfile, select = selectGameSigner, manualOnly = false) {
   let server: ServerWalletReference | undefined, lastNetwork: TestNetwork | undefined;
   const profiles = new Map<TestNetwork, string>();
   let result: SignerProbe = { status: 'absent', message: '' };
-  let manualSelected = false, hadServer = false, disposed = false, generation = 0;
+  let manualSelected = manualOnly, hadServer = false, disposed = false, generation = 0;
   let probing: Promise<void> | undefined;
   const source = () => ({ source: server && !manualSelected ? 'server' as const : 'manual' as const, serverStatus: result.status, serverMessage: result.status === 'connected' ? undefined : result.message });
   async function refresh() {
@@ -76,8 +76,8 @@ export function createServerFirstStorage(local: GameWalletStorage, network: () =
       if (server && !manualSelected) throw Error('Game server selected.');
       await local.select(account); manualSelected = true;
     },
-    async logout() { if (server && !manualSelected) return; await local.logout(); manualSelected = false; },
-    async reset() { if (server && !manualSelected) return; await local.reset(); manualSelected = false; },
+    async logout() { if (server && !manualSelected) return; await local.logout(); manualSelected = manualOnly; },
+    async reset() { if (server && !manualSelected) return; await local.reset(); manualSelected = manualOnly; },
     subscribe: listener => local.subscribe(listener),
     dispose() { disposed = true; generation++; local.dispose(); },
   };

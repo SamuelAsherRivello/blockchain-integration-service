@@ -1,6 +1,6 @@
 import { readonlyIdentity } from './wallet-identity.ts';
 import { ReadonlyWallet, RestArkProvider, InMemoryWalletRepository, InMemoryContractRepository } from '@arkade-os/sdk';
-import { requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
+import { arkadeReadOperatorFor, requireNetwork, operatorFor, withTemporaryWallet, type WalletAccount } from './account.ts';
 import { validRecovery } from '../state-layer-core/recovery-validation.ts';
 import type { RoleWalletAccess } from './adapter-session.ts';
 
@@ -13,7 +13,7 @@ export async function loadAddresses(account: WalletAccount, signal: AbortSignal,
     return Object.freeze({arkadeAddress,bitcoinAddress});
   }
   signal.throwIfAborted();
-  const network=account.network ?? 'signet', provider = new RestArkProvider(operatorFor(network));
+  const network=account.network ?? 'signet', provider = new RestArkProvider(arkadeReadOperatorFor(network));
   const getInfo = provider.getInfo.bind(provider);
   provider.getInfo = async () => { const info = await getInfo(); requireNetwork(info.network,network); return info; };
   return withTemporaryWallet(ReadonlyWallet.create({

@@ -58,6 +58,31 @@ export function testNetwork(network: TestNetwork): TestNetworkDefinition {
   return definitions[network];
 }
 
+/** REST reads in a browser use the same-origin BIS relay when configured. The canonical
+ * operator above remains unchanged for wallet identity, journals and recovery scope. */
+export function arkadeReadEndpointFor(network: TestNetwork, bisServerUrl?: string, local = false): string {
+  if (network !== 'signet') return testNetwork(network).operator;
+  if (local) return '/api/bis/arkade/signet';
+  const configured = bisServerUrl?.trim();
+  if (!configured) return testNetwork(network).operator;
+  try {
+    if (configured.startsWith('/')) {
+      return testNetwork(network).operator;
+    }
+    const endpoint = new URL(configured.endsWith('/') ? configured : `${configured}/`);
+    if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || !endpoint.pathname.endsWith('/api/bis/')) return testNetwork(network).operator;
+    return new URL('arkade/signet', endpoint).toString().replace(/\/$/, '');
+  } catch {
+    return testNetwork(network).operator;
+  }
+}
+
+export function arkadeReadEndpointForRuntime(network: TestNetwork): string {
+  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  const local = typeof location !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  return arkadeReadEndpointFor(network, env?.VITE_BIS_SERVER_URL, local);
+}
+
 export function networkLabel(network: TestNetwork | undefined): string {
   return network ? testNetwork(network).label : 'N/A';
 }

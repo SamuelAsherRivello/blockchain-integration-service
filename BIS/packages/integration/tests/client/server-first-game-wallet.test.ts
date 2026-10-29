@@ -31,6 +31,27 @@ test('server takes precedence without saving a secret or deleting the manual ide
   await assert.rejects(backend.storage.select({ profileId: 'other', phrase: 'local' }), /server selected/);
 });
 
+test('manual-only game service restores its selected local wallet even when a server signer is connected', async () => {
+  let selected: any = null;
+  const local = {
+    load: async () => selected,
+    select: async account => { selected = account; },
+    logout: async () => { selected = null; },
+    reset: async () => { selected = null; },
+    subscribe: () => () => {}, dispose() {},
+  };
+  const backend = createServerFirstStorage(local, () => 'signet', async () => ({ status: 'connected', account: remote }), undefined, undefined, true);
+  await backend.refresh();
+  assert.equal(backend.source().source, 'manual');
+  assert.equal(backend.source().serverStatus, 'connected');
+  await backend.storage.select({ profileId: 'wallet-2', phrase: 'unit-test-only' });
+  assert.equal((await backend.storage.load())?.profileId, 'wallet-2');
+  await backend.storage.logout();
+  assert.equal(await backend.storage.load(), null);
+  assert.equal(backend.source().source, 'manual');
+  backend.storage.dispose();
+});
+
 test('server loss offers manual login but never activates retained identity; return does not replace manual selection', async () => {
   const { backend, set } = fixture(); set({ status: 'connected', account: remote }); await backend.refresh();
   const original = await backend.storage.load();

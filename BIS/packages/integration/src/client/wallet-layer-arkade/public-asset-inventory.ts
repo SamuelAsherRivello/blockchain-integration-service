@@ -1,13 +1,13 @@
 import { ArkAddress, RestIndexerProvider, hasTerminalSpend } from '@arkade-os/sdk';
 import { normalizeAssetMetadata, type BisAsset } from '../state-layer-core/assets.ts';
 import { resolveBisAssetFormat } from '../state-layer-core/asset-format.ts';
-import { testNetwork, type TestNetwork } from '../state-layer-core/test-network.ts';
+import { arkadeReadEndpointForRuntime, type TestNetwork } from '../state-layer-core/test-network.ts';
 
 /** Public-address read only: no wallet construction, storage or signing. */
 export async function loadPublicAssetInventory(address: string, signal: AbortSignal, network: TestNetwork): Promise<readonly BisAsset[]> {
   signal.throwIfAborted();
   const script=Array.from(ArkAddress.decode(address).pkScript,byte=>byte.toString(16).padStart(2,'0')).join('');
-  const indexer=new RestIndexerProvider(testNetwork(network).operator);
+  const indexer=new RestIndexerProvider(arkadeReadEndpointForRuntime(network));
   const result=await indexer.getVtxos({scripts:[script]});
   signal.throwIfAborted();
   const totals=new Map<string,bigint>();

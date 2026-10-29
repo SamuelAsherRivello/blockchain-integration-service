@@ -19,6 +19,7 @@ function fixture() {
   const context = observable({ view: 'empty', hasProfile: true, profileId: 'player', phase: 'active', network: 'signet' });
   const wallet = observable({ status: 'ready', profileId: 'game-wallet', network: 'signet', source: 'manual', playerConnected: true, balance: { availableSats: 5000 } });
   let contracts = [], resetFailure = false, mintWait;
+  const importedPhrases = [];
   Object.assign(context, {
     readyAsync: async () => {},
     onEvent: fn => { contextEvents.add(fn); return () => contextEvents.delete(fn); },
@@ -35,7 +36,7 @@ function fixture() {
     },
     controls: { forceReset: async () => context.set({ hasProfile: false, profileId: undefined, phase: 'idle', view: 'empty' }) },
   });
-  Object.assign(wallet, { refresh: async () => {}, logout: async () => { wallet.set({ status: 'empty', profileId: undefined, addresses: undefined }); }, reset: async () => !resetFailure });
+  Object.assign(wallet, { refresh: async () => {}, importWallet: async phrase => { importedPhrases.push(phrase); return true; }, logout: async () => { wallet.set({ status: 'empty', profileId: undefined, addresses: undefined }); }, reset: async () => !resetFailure });
   const lto = observable({});
   Object.assign(lto, {
     checkContractsAsync: async () => ({ status: 'ready', contracts }), reconcile: async () => {},
@@ -52,7 +53,7 @@ function fixture() {
     presentConfirmedPlayerRewardAsync: async input => { effects.push(input); return { status: 'applied' }; },
     onBisEvent: event => events.push(event),
   };
-  return { context, wallet, lto, ui, host, events, effects, requests, contextEvents,
+  return { context, wallet, lto, ui, host, events, effects, requests, contextEvents, importedPhrases,
     replaceRun: () => { session = { gameId: 'unit-game', gameSessionId: 'run-2' }; },
     endRun: () => { session = undefined; }, failReset: value => { resetFailure = value; },
     delayMint: promise => { mintWait = promise; },
@@ -73,7 +74,7 @@ test('BisService owns private resources and routes game workflows through the tw
   const mocks = new Map([
     ['/wallet-layer-arkade/context-composition.ts', `export const createBisContext=()=>globalThis.${key}.context;`],
     ['/state-layer-core/context.ts', 'export const getControls=context=>context.controls;export const invalidateContractPresentation=()=>{};'],
-    ['/state-layer-core/game-wallet.ts', `export const createBisGameWallet=()=>globalThis.${key}.wallet;`],
+    ['/state-layer-core/game-wallet.ts', `export const createBisGameWallet=options=>{globalThis.${key}.walletOptions=options;return globalThis.${key}.wallet;}`],
     ['/state-layer-core/lto-service.ts', `export const createBisLto=()=>globalThis.${key}.lto;`],
     ['/ui-layer-react/client.tsx', `export const createBisUi=()=>globalThis.${key}.ui;`],
   ]);
@@ -93,9 +94,9 @@ test('BisService owns private resources and routes game workflows through the tw
     await server.close();
   });
   const { BisService } = await server.ssrLoadModule('/BIS/packages/integration/src/client/integration-layer/bis-service.ts');
-  function create() {
+  function create(options = {}) {
     const f = fixture(); globalThis[key] = f;
-    const service = new BisService({ getBisGame: () => f.host });
+    const service = new BisService({ getBisGame: () => f.host, ...options });
     t.after(() => service.dispose({ preserveContracts: true }));
     return { ...f, service, replaceHost: host => { f.host = host; } };
   }
@@ -135,6 +136,15 @@ test('BisService owns private resources and routes game workflows through the tw
     let calls = 0;
     f.host.onBisEvent = () => { calls++; f.service.openAccountDialog(); throw Error('unit host failure'); };
     assert.doesNotThrow(() => f.context.set({ view: 'empty' })); assert.ok(calls <= 2);
+  });
+  await t.test('Setup wallet restoration forwards only through the public BIS facade', async () => {
+    const f = create();
+    assert.equal(await f.service.restoreGameWalletAsync('unit-test-mnemonic'), true);
+    assert.deepEqual(f.importedPhrases, ['unit-test-mnemonic']);
+  });
+  await t.test('manual-only Game Wallet service configuration reaches the private wallet factory', () => {
+    const f = create({ manualGameWalletOnly: true });
+    assert.equal(globalThis[key].walletOptions.manualWalletOnly, true);
   });
   await t.test('Player disconnect logs out the active Game Wallet', async () => {
     const f = create(); await f.service.readyAsync();
@@ -282,6 +292,12 @@ test('BisService owns private resources and routes game workflows through the tw
     assert.equal(f.effects.length, 1); assert.equal(f.effects[0].kind, 'sats'); assert.equal(f.effects[0].amountSats, 1250);
     assert.equal(f.effects[0].gameSession.gameSessionId, 'run-1');
     await f.service.endContractSessionAsync('offer-session'); assert.equal(f.requests.at(-1).ended, 'offer-session');
+  });
+  await t.test('explicit public validation mode is forwarded to LTO', async () => {
+    const f = create(), now = Date.now();
+    await f.service.startContractAsync({ offerSessionId: 'mode-offer', purpose: 'treasureLTO', hostReference: 'treasure:mode-offer',
+      amountSats: 1000, startedAt: now, expiresAt: now + 90000, exclusivityKey: 'treasure', validationMode: 'browser-policy-v1' });
+    assert.equal(f.requests[0].validationSolution, 'browser-policy-v1');
   });
   await t.test('late sats confirmation keeps financial truth without affecting a replacement run', async () => {
     const f=create(),now=Date.now();

@@ -16,9 +16,9 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
   Object.defineProperty(globalThis,'document',{configurable:true,value:new EventTarget()});
   let envelope;
   const storage=createContractStorage({read:async()=>structuredClone(envelope),write:async(next,revision)=>{assert.equal(envelope?.revision??0,revision);envelope=structuredClone(next);}});
-  const calls=[],toasts=[],storageErrors=[];
+  const calls=[],toasts=[],storageErrors=[],validationPreferences=[];
   const dependencies={storage:{load:()=>storage.load(),save:async(...args)=>{try{return await storage.save(...args);}catch(error){storageErrors.push(error.message);throw error;}}},playerStorage:{load:async()=>({account:{profileId:'player'}})},gameStorage:{load:async()=>({profileId:'game'}),dispose(){}},
-    prepare:async()=>({secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'}),
+    prepare:async(_game,_player,_operator,options)=>{validationPreferences.push(options.preference);return {secretHex:'12'.repeat(32),playerKey:'23'.repeat(32),gameKey:'34'.repeat(32),operatorKey:'45'.repeat(32),exitDelay:'512',gameScript:'00',playerScript:'01',contractScript:'02'};},
     reconcile:async(record,recovery)=>({record,recovery}),resume:async(record,recovery)=>({record,recovery}),
     submit:async(record,recovery,account,commit,current)=>{
       assert.ok(current());calls.push(record.operation.kind);
@@ -45,8 +45,11 @@ test('public LTO factory creates and claims by default; explicit rollback keeps 
     const gameWallet={getState:()=>({profileId:'game',status:'ready'}),refresh:async()=>{}};
     const request=sessionId=>({sessionId,hostReference:sessionId,purpose:'treasureLTO',exclusivityKey:'treasure',amountSats:1000,startedAt:Date.now(),expiresAt:Date.now()+90000});
     const service=createBisLto({context,gameWallet});await idle();
-    const funded=await service.start(request('claim'));
+    const unsupported=await service.start({...request('unsupported-mode'),validationSolution:'arkade-covenant-v2'});
+    assert.equal(unsupported.status,'unavailable');assert.deepEqual(calls,[]);assert.equal((await storage.load()).ledger.contracts.length,0);
+    const funded=await service.start({...request('claim'),validationSolution:'browser-policy-v1'});
     assert.equal(funded.status,'confirmed');
+    assert.equal(validationPreferences[0],'browser-policy-v1');
     await idle();
     assert.equal((await service.claim(funded.contract.id)).status,'pending');
     async function settled(id,state){for(let i=0;i<100;i++){if((await storage.load()).ledger.contracts.find(record=>record.id===id)?.financial===state)return;await new Promise(resolve=>setTimeout(resolve,5));}assert.fail(JSON.stringify({calls,storageErrors,records:(await storage.load()).ledger.contracts.map(({financial,ended,operation})=>({financial,ended,operation}))}));}

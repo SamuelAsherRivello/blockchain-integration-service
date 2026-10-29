@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
-import { createElement } from 'react';
+import { createElement, createRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
@@ -19,6 +19,20 @@ function storage(activeProfileId) {
     subscribe() { return () => {}; },
   };
 }
+
+test('Mutinynet Account explains hosted signing is unavailable while keeping local wallet options',async()=>{
+  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});
+  try{
+    const {AccountDialogShell}=await server.ssrLoadModule('/BIS/packages/integration/src/client/ui-layer-react/AccountCard.tsx');
+    const render=(network,unavailable)=>renderToStaticMarkup(createElement(AccountDialogShell,{title:'Account',description:'You are not logged in.',headingRef:createRef(),network,hostedSigningUnavailable:unavailable},
+      createElement('button',null,'Create Account'),createElement('button',null,'Restore Account')));
+    const mutinynet=render('Mutinynet',true);
+    assert.match(mutinynet,/BIS server signing is unavailable on Mutinynet/);
+    assert.match(mutinynet,/>Create Account</);assert.match(mutinynet,/>Restore Account</);
+    assert.match(mutinynet,/role="status"/);
+    assert.doesNotMatch(render('Signet',false),/BIS server signing is unavailable on Mutinynet/);
+  }finally{await server.close();}
+});
 
 test('first-use confirmation is outside the screen retained for outgoing animation',async()=>{
   const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,watch:{ignored:['**/output/**']}},appType:'custom'});

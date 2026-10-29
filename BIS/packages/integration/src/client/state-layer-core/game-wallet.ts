@@ -23,7 +23,7 @@ import { readWithRetry } from './pending-read.ts';
 import { clearBrowserGameWalletPreferences } from './logout-cleanup.ts';
 import { prepareSharedAssetInventory, invalidateSharedAssetInventory } from './shared-asset-inventory.ts';
 import { diagnoseAssetFailure } from './asset-operation-diagnostics.ts';
-import type { WalletAccount } from '../wallet-layer-arkade/wallet-identity.ts';
+import { walletSourceKey, type WalletAccount } from '../wallet-layer-arkade/wallet-identity.ts';
 import { createServerFirstStorage, createServerProfileMemory } from './server-first-game-wallet.ts';
 import { walletReservations } from './wallet-reservations.ts';
 import type { ServerWalletRequirement } from '../wallet-layer-arkade/server-wallet.ts';
@@ -47,7 +47,11 @@ export function createBisGameWallet(...args:Parameters<typeof createLocalGameWal
   if (args.length === 1) {
     const [options] = args;
     const shared=appWalletOwner(options.playerSubscribe),owner=shared??createAppWalletSession(),access=bindRoleWallet(owner,'game');
-    const backend=createServerFirstStorage(createNetworkScopedGameWalletStorage(options.playerNetwork ?? (() => undefined)),()=>options.playerNetwork?.()??'signet',undefined,createServerProfileMemory(globalThis.localStorage));
+    const backend=createServerFirstStorage(
+      createNetworkScopedGameWalletStorage(options.playerNetwork ?? (() => undefined)),
+      () => options.playerNetwork?.() ?? 'signet', undefined,
+      createServerProfileMemory(globalThis.localStorage), undefined, options.manualWalletOnly === true,
+    );
     const storage=backend.storage;
     const eligible=appPlayerEligible(options.playerSubscribe)??(()=>true);
     const effectiveOptions={...options,
@@ -145,7 +149,7 @@ type GameWalletDependencies = {
 type Two<F extends (...args:never[])=>unknown>=(a:Parameters<F>[0],b:Parameters<F>[1])=>ReturnType<F>;
 type Three<F extends (...args:never[])=>unknown>=(a:Parameters<F>[0],b:Parameters<F>[1],c:Parameters<F>[2])=>ReturnType<F>;
 type Four<F extends (...args:never[])=>unknown>=(a:Parameters<F>[0],b:Parameters<F>[1],c:Parameters<F>[2],d:Parameters<F>[3])=>ReturnType<F>;
-export type GameWalletPlayerOptions = { playerProfileId(): string | undefined; playerNetwork?(): TestNetwork | undefined; playerSubscribe?(listener:()=>void):()=>void; playerSessionKey?():string };
+export type GameWalletPlayerOptions = { playerProfileId(): string | undefined; playerNetwork?(): TestNetwork | undefined; playerSubscribe?(listener:()=>void):()=>void; playerSessionKey?():string; manualWalletOnly?: boolean };
 export function createLocalGameWallet(options: GameWalletPlayerOptions, dependencies: GameWalletDependencies = {
   storage: createGameWalletStorage(), restore: restoreAccount, create: createAccount, addresses: loadAddresses, balance: loadBalance, watch: watchGameWalletEvents,
 }, boarding: {quote:Three<typeof gameWalletBoarding.quote>;submit:(a:WalletAccount,q:BoardingQuote,c:()=>boolean)=>ReturnType<typeof gameWalletBoarding.submit>;check:Two<typeof gameWalletBoarding.check>} = gameWalletBoarding, payments = gamePlayerPayments, availability = assertPlayerPaymentAvailable, minting: {availability:Two<typeof loadMintAvailability>;mint:Four<typeof mintWalletAsset>;list?:Two<typeof listWalletAssets>;burn?:Four<typeof burnWalletAsset>} = {availability:loadMintAvailability,mint:mintWalletAsset,list:listWalletAssets,burn:burnWalletAsset}) {
@@ -159,6 +163,8 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
   // deliberately not published until the normal Player-scoped inspection below.
   const addressPrewarm = new AbortController();
   let prewarming: Promise<void> | undefined;
+  let prewarmingSource: string | undefined;
+  let prewarmedAddresses: { source: string; value: AccountAddresses } | undefined;
   const listeners = new Set<() => void>();
   const selectedNetwork = () => options.playerNetwork?.() ?? 'signet';
   const playerConnected = () => !!options.playerProfileId();
@@ -182,11 +188,15 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
       try {
         const account = await storage.load();
         if (!account || addressPrewarm.signal.aborted) return;
-        await dependencies.addresses({...account,network:account.network ?? selectedNetwork()},addressPrewarm.signal);
+        const scopedAccount = {...account,network:account.network ?? selectedNetwork()};
+        const source = walletSourceKey(scopedAccount);
+        prewarmingSource = source;
+        const value = await dependencies.addresses(scopedAccount,addressPrewarm.signal);
+        if (!addressPrewarm.signal.aborted && !disposed) prewarmedAddresses = {source,value};
       } catch {
         // The normal Player-scoped read owns visible unavailable/mismatch state.
       }
-    })().finally(() => { prewarming = undefined; });
+    })().finally(() => { prewarming = undefined; prewarmingSource = undefined; });
   }
   async function inspect(account: WalletAccount | null, signal: AbortSignal, selectFunded = true) {
     if (!currentRead(signal)) return;
@@ -198,7 +208,21 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
     // Address discovery is enough for read-only Marketplace inventory. Keep
     // the balance read concurrent, but publish the address as soon as it is
     // available instead of making inventory wait for the slower balance read.
-    const addressesTask=readWithRetry(attemptSignal => dependencies.addresses(account, attemptSignal), signal).then(value=>{
+    const addressesTask=(async()=>{
+      const source=walletSourceKey(account);
+      const takePrewarmed=()=>{
+        if(prewarmedAddresses?.source!==source)return undefined;
+        const value=prewarmedAddresses.value;
+        prewarmedAddresses=undefined;
+        return value;
+      };
+      let value=takePrewarmed();
+      if(!value&&prewarming&&prewarmingSource===source){
+        await prewarming;
+        value=takePrewarmed();
+      }
+      return value??readWithRetry(attemptSignal => dependencies.addresses(account, attemptSignal), signal);
+    })().then(value=>{
       if (!currentRead(signal)) return value;
       publish({status:'loading',profileId:account.profileId,addresses:value,...(previous?.balance ? {balance:previous.balance} : {})});
       return value;
@@ -461,7 +485,7 @@ export function createLocalGameWallet(options: GameWalletPlayerOptions, dependen
       catch { if (!signal.aborted) publish({...state, message:'Game Wallet reset failed. Please retry.',readStatus:'storage'}); return false; }
     },
     async importWallet(phrase: string) {
-      if(state.source==='server'||state.serverStatus==='error')return false;
+      if(state.source==='server'||(state.serverStatus==='error'&&!options.manualWalletOnly))return false;
       if (disposed || importing || !playerConnected()) { if (!disposed) publish({...state,message:'Connect a Player Wallet before using the Game Wallet.'}); return false; }
       importing = true; const previous = state, signal = begin(); publish({...previous, status:'loading', message:undefined});
       try {

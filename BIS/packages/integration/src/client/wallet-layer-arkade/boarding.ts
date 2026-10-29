@@ -6,13 +6,13 @@ import { readFreshBalance } from './balance.ts';
 import { sdkVersion, ReadonlyWallet, RestArkProvider, RestIndexerProvider, InMemoryWalletRepository, InMemoryContractRepository, CSVMultisigTapscript, hasBoardingTxExpired, Ramps, ArkAddress, Transaction, Extension, createAssetPacket, type IWallet, type SettleParams } from '@arkade-os/sdk';
 import { boardingAssets, type BoardingAssetChange } from '../state-layer-core/boarding-assets.ts';
 import type { ExtendedVirtualCoin } from '@arkade-os/sdk';
-import { operatorFor, requireNetwork, type WalletAccount } from './account.ts';
+import { arkadeReadOperatorFor, operatorFor, requireNetwork, type WalletAccount } from './account.ts';
 import { readWalletNetworkPolicy } from './wallet-network-policy.ts';
 import {useReadonlyWallet,useSigningWallet} from './adapter-wallet.ts';
 import type {RoleWalletAccess} from './adapter-session.ts';
 import type { TestNetwork } from '../state-layer-core/test-network.ts';
 import { requireZeroFeePolicy, walletPolicyAvailability } from '../state-layer-core/wallet-network-policy.ts';
-import { boardingAmounts, assertQuoteUnchanged, validateBitcoinFundingDestination, type BitcoinFundingDestination, type BoardingQuote } from '../state-layer-core/boarding-quote.ts';
+import { boardingAmounts, assertQuoteUnchanged, validateBitcoinFundingDestination, type BitcoinFundingDestination, type BoardingQuote, type BoardingQuoteInput } from '../state-layer-core/boarding-quote.ts';
 import { readBoardingRecord, readBoardingRecords, writeBoardingRecord, createBoardingAttempt, recoverPreparedBoarding, withWalletMutation, type BoardingRecord } from '../state-layer-core/boarding-record.ts';
 import { withBrowserMutation } from '../state-layer-core/logout-cleanup.ts';
 import { runBoardingWorker } from '../state-layer-core/boarding-execution.ts';
@@ -20,10 +20,10 @@ import { recordBoardingProgress, withBoardingRecordLock, type BoardingStage, typ
 const installedSdkVersion=/^ts-sdk\/(\d+\.\d+\.\d+)$/.exec(sdkVersion)?.[1];
 
 function config(network:TestNetwork='signet') {
-  const operator=operatorFor(network), arkProvider=new RestArkProvider(operator);
+  const operator=operatorFor(network), readOperator=arkadeReadOperatorFor(network), arkProvider=new RestArkProvider(readOperator);
   const getInfo=arkProvider.getInfo.bind(arkProvider);
   arkProvider.getInfo=async()=>{const info=await getInfo();requireNetwork(info.network,network);return info;};
-  const indexerProvider=new RestIndexerProvider(operator);
+  const indexerProvider=new RestIndexerProvider(readOperator);
   let failed=false;
   const getVtxos=indexerProvider.getVtxos.bind(indexerProvider);
   indexerProvider.getVtxos=async(...args)=>{try{return await getVtxos(...args);}catch(error){failed=true;throw error;}};
@@ -101,7 +101,8 @@ async function plan(wallet:ReadonlyWallet,profileId:string,requested?:number,dir
   if(direction==='to-arkade'&&info.utxoMaxAmount>0n&&BigInt(amounts.changeSats)>info.utxoMaxAmount)throw Error('Change exceeds the operator limit.');
   const raw=JSON.stringify({profileId,direction,...(destination?{destination}:{}),inputs:inputs.map(i=>({txid:i.txid,vout:i.vout,value:i.value,assets:boardingAssets([i])})),outputs:params.outputs.map(o=>({address:o.address,amount:o.amount.toString()})),assetChange,policy:policy.fingerprint});
   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
-  const quote:BoardingQuote=Object.freeze({profileId,direction,amountSats:amounts.amountSats,feeSats:0,netSats:amounts.amountSats,maxSats,inputSats:totalInput,bitcoinAfterSats:balance.boarding.total+(direction==='to-arkade'?-amounts.amountSats:amounts.amountSats),arkadeAfterSats:balance.total-balance.boarding.total+(direction==='to-arkade'?amounts.amountSats:-amounts.amountSats),totalAfterSats:balance.total,expiresAt:Date.now()+60000,fingerprint:Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('')});
+  const inputOutpoints:readonly BoardingQuoteInput[]=Object.freeze(inputs.map(input=>Object.freeze({txid:input.txid,vout:input.vout,valueSats:input.value,assets:Object.freeze(boardingAssets([input]).map(asset=>Object.freeze({...asset})))})));
+  const quote:BoardingQuote=Object.freeze({profileId,direction,amountSats:amounts.amountSats,feeSats:0,netSats:amounts.amountSats,maxSats,inputSats:totalInput,inputOutpoints,bitcoinAfterSats:balance.boarding.total+(direction==='to-arkade'?-amounts.amountSats:amounts.amountSats),arkadeAfterSats:balance.total-balance.boarding.total+(direction==='to-arkade'?amounts.amountSats:-amounts.amountSats),totalAfterSats:balance.total,expiresAt:Date.now()+60000,fingerprint:Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('')});
   const directedQuote:BoardingQuote=destination?Object.freeze({...quote,destination:Object.freeze({...destination}),bitcoinAfterSats:balance.boarding.total,totalAfterSats:balance.total-amounts.amountSats}):quote;
   return {quote:directedQuote,params,bitcoinAddress,assetChange};
 }
@@ -286,7 +287,7 @@ async function reconcileRecord(account:WalletAccount,signal:AbortSignal,record:B
     const vtxos=await wallet.getVtxos();
     const records=readBoardingRecords(account.profileId,account.network ?? 'signet');
     const outpoints=[...new Map(records.filter(r=>r.status!=='not-submitted'&&r.quote.direction==='to-bitcoin').flatMap(r=>r.inputs).map(i=>[`${i.txid}:${i.vout}`,i])).values()];
-    const consumed=outpoints.length ? (await new RestIndexerProvider(operatorFor(account.network ?? 'signet')).getVtxos({outpoints})).vtxos : [];
+    const consumed=outpoints.length ? (await new RestIndexerProvider(arkadeReadOperatorFor(account.network ?? 'signet')).getVtxos({outpoints})).vtxos : [];
     const commitmentTxid=verifiedBoardingCommitment(record,transactions,vtxos,consumed,records);
     if(commitmentTxid) {
       const current=readBoardingRecord(account.profileId,record.id,account.network ?? 'signet');

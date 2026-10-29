@@ -1,5 +1,6 @@
 import type { Identity, ReadonlyIdentity, SignerSession } from '@arkade-os/sdk';
 import type { TestNetwork } from '../state-layer-core/test-network.ts';
+import { Transaction } from '@arkade-os/sdk';
 import { SIGNER_PROTOCOL, fromHex, encodeSigningValue, decodeSigningValue } from './server-wallet-protocol.ts';
 import type { AppPlayerProof } from './app-player-proof.ts';
 import type { ServerSettlement } from './server-settlement.ts';
@@ -12,7 +13,17 @@ export type ServerContractIntent = Readonly<{playerPublicKey:string}&(
 type ServerPaymentOperation={outpoints:{txid:string;vout:number}[];marketplacePayment?:string;contract?:ServerContractIntent;
   plan?:string;ownerPlan?:string;treasureRootReceipt?:string;treasureRootId?:string;
   treasureRootRequest?:Readonly<{id:string;transactionId:string;argsJson:string;connectionToken:string;authority:'owner'|'player-proof'}>};
-export type ServerSigningOperation = Readonly<{ id: string; signal?: AbortSignal; playerProof?: AppPlayerProof; settlement?: { active?: ServerSettlement }; payment?: { active?: ServerPaymentOperation } }>;
+type ServerArkadeAuthorization=Readonly<{request:Readonly<Record<string,unknown>>;connectionToken:string}>;
+type ServerArkadeSubmission=Readonly<{signedArkTx:string;checkpointTxs:readonly string[];authorizations:readonly ServerArkadeAuthorization[];arkTxid:string}>;
+export type ServerSigningOperation = Readonly<{ id: string; signal?: AbortSignal; playerProof?: AppPlayerProof; settlement?: { active?: ServerSettlement }; payment?: { active?: ServerPaymentOperation };
+  submission?:{authorizations:ServerArkadeAuthorization[];active?:ServerArkadeSubmission} }>;
+const standaloneArkadeAuthorizations = new WeakMap<ServerSigningOperation,ServerArkadeAuthorization[]>();
+function arkadeAuthorizations(operation:ServerSigningOperation){
+  if(operation.submission)return operation.submission.authorizations;
+  let authorizations=standaloneArkadeAuthorizations.get(operation);
+  if(!authorizations){authorizations=[];standaloneArkadeAuthorizations.set(operation,authorizations);}
+  return authorizations;
+}
 
 /** Public contract terms only. The Player key is supplied separately to the
  * owner route or independently recovered from public Player proof. */
@@ -91,7 +102,7 @@ export function remoteSigningIdentity(account: ServerWalletReference, operation?
   if (!connection || connection.publicKey !== account.server.publicKey) throw Error('Original game signer connection is unavailable. Retry that server.');
   // Standalone temporary wallets have one operation. Retained application
   // wallets supply the current exclusive lease instead of a wallet-lifetime ID.
-  const standaloneOperation: ServerSigningOperation | undefined = operation ? undefined : Object.freeze({ id: crypto.randomUUID() });
+  const standaloneOperation: ServerSigningOperation | undefined = operation ? undefined : Object.freeze({ id: crypto.randomUUID(),submission:{authorizations:[]} });
   function currentOperation(): ServerSigningOperation {
     const selected = operation ? operation() : standaloneOperation;
     if (!selected) throw Error('Game signing requires an active operation lease.');
@@ -268,6 +279,12 @@ export function remoteSigningIdentity(account: ServerWalletReference, operation?
         payment.treasureRootReceipt!==undefined&&payment.treasureRootReceipt!==payload.treasureRootReceipt)throw Error('Original treasure signing receipt changed.');
       payment.treasureRootReceipt=payload.treasureRootReceipt;payment.treasureRootId=transactionId;
     }
+    if(connection!.runtime==='vercel'&&method==='sign'){
+      const authorizations=arkadeAuthorizations(selected);
+      const existing=authorizations.find(item=>item.request.id===body.id);
+      if(existing){if(JSON.stringify(existing.request)!==JSON.stringify(body)||existing.connectionToken!==token)throw Error('Original Signet submit authorization changed.');}
+      else authorizations.push(Object.freeze({request:Object.freeze({...body}),connectionToken:token}));
+    }
     assertOperation(selected);
     assertPlayerScope?.();
     return result;
@@ -306,6 +323,54 @@ export function remoteSigningIdentity(account: ServerWalletReference, operation?
       }, init: (tree, scriptRoot, amount) => call('init', [tree, scriptRoot, amount]), getNonces: () => call('getNonces', []), aggregatedNonces: (txid, nonces) => call('aggregatedNonces', [txid, nonces]), sign: () => call('sign', []) };
     },
   };
+}
+
+function transactionIdFromAuthorization(item:ServerArkadeAuthorization):string|undefined{
+  try{const args=decodeSigningValue(item.request.args);return Array.isArray(args)&&args[0]&&typeof args[0].id==='string'?args[0].id:undefined;}catch{return undefined;}
+}
+function fromBase64(value:string){const binary=atob(value);return Uint8Array.from(binary,char=>char.charCodeAt(0));}
+function submissionAuthorizations(operation:ServerSigningOperation,transactionIds:ReadonlySet<string>){
+  const selected=arkadeAuthorizations(operation).filter(item=>transactionIds.has(transactionIdFromAuthorization(item)??''));
+  if(!selected.length||selected.some(item=>!transactionIds.has(transactionIdFromAuthorization(item)??'')))throw Error('Completed Signet signing receipts are unavailable for this exact transaction.');
+  return selected;
+}
+function serverSubmissionEndpoint(connection:Connection){
+  if(connection.runtime!=='vercel'||connection.network!=='signet')throw Error('Hosted Arkade writes are available on Signet only.');
+  return `${connection.endpoint}arkade/signet/v1/tx/`;
+}
+async function serverSubmitRequest(connection:Connection,operation:ServerSigningOperation,path:'submit'|'finalize',body:unknown){
+  assertOperationForSubmission(operation);
+  const response=await connection.fetcher(serverSubmissionEndpoint(connection)+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),
+    signal:AbortSignal.any([operation.signal??new AbortController().signal,AbortSignal.timeout(30000)]),cache:'no-store',redirect:'error'});
+  if(!response.ok)throw Error('Original Signet submit outcome is unavailable. Reconcile before retrying.');
+  if(path==='finalize')return;
+  const result=await response.json();
+  if(!result||typeof result!=='object'||typeof result.arkTxid!=='string'||!/^[a-f0-9]{64}$/i.test(result.arkTxid)||typeof result.finalArkTx!=='string'||
+    !Array.isArray(result.signedCheckpointTxs)||!result.signedCheckpointTxs.every((value:unknown)=>typeof value==='string'))throw Error('Original Signet submit receipt is invalid.');
+  return result as {arkTxid:string;finalArkTx:string;signedCheckpointTxs:string[]};
+}
+function assertOperationForSubmission(operation:ServerSigningOperation){operation.signal?.throwIfAborted();}
+
+/** Server-wallet Ark transactions use the same-origin, journal-bound Signet route. */
+export async function submitServerArkadeTransaction(account:ServerWalletReference,operation:ServerSigningOperation,signedArkTx:string,checkpointTxs:string[]){
+  const connection=connections.get(connectionKey(account));if(!connection)throw Error('Original game signer connection is unavailable.');
+  const transactionIds=new Set([Transaction.fromPSBT(fromBase64(signedArkTx)).id,...checkpointTxs.map(value=>Transaction.fromPSBT(fromBase64(value)).id)]);
+  const authorizations=submissionAuthorizations(operation,transactionIds);
+  const result=await serverSubmitRequest(connection,operation,'submit',{operationId:operation.id,signedArkTx,checkpointTxs,authorizations});
+  if(!result)throw Error('Original Signet submit receipt is unavailable.');
+  operation.submission!.active=Object.freeze({signedArkTx,checkpointTxs:Object.freeze([...checkpointTxs]),authorizations:Object.freeze([...authorizations]),arkTxid:result.arkTxid});
+  return result;
+}
+
+/** Finalization is allowed only for the exact durable submit receipt in this lease. */
+export async function finalizeServerArkadeTransaction(account:ServerWalletReference,operation:ServerSigningOperation,arkTxid:string,finalCheckpointTxs:string[]){
+  const connection=connections.get(connectionKey(account)),prior=operation.submission?.active;
+  if(!connection||!prior||prior.arkTxid!==arkTxid||prior.checkpointTxs.length!==finalCheckpointTxs.length)throw Error('Original Signet submit receipt is unavailable. Reconcile before finalization.');
+  const originalIds=[Transaction.fromPSBT(fromBase64(prior.signedArkTx)).id,...prior.checkpointTxs.map(value=>Transaction.fromPSBT(fromBase64(value)).id)];
+  const finalIds=finalCheckpointTxs.map(value=>Transaction.fromPSBT(fromBase64(value)).id);
+  if(prior.arkTxid!==originalIds[0]||finalIds.length!==originalIds.length-1||finalIds.some((id,index)=>id!==originalIds[index+1]))throw Error('Signet finalization differs from its original submit receipt.');
+  const authorizations=submissionAuthorizations(operation,new Set(originalIds));
+  await serverSubmitRequest(connection,operation,'finalize',{operationId:operation.id,arkTxid,finalCheckpointTxs,authorizations,signedArkTx:prior.signedArkTx,checkpointTxs:prior.checkpointTxs});
 }
 
 export type TreasureServerPersistence=Readonly<{
