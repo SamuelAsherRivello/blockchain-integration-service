@@ -200,7 +200,7 @@ test('connection credentials survive instances but cannot change scope, become g
   time += 600000; assert.throws(() => cold.connection(token, scope), /authorization/);
 });
 const phrase = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-const values = { BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrase, BIS_GAME_WALLET_MUTINYNET_02_MNEMONIC: phrase };
+const values = { BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrase, BIS_GAME_WALLET_MUTINYNET_02_MNEMONIC: phrase, BIS_OWNER_SIGNING_NETWORKS: 'signet,mutinynet' };
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) => new Request('https://example.test/api/bis/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
 test('hosted identity/proof never return secrets or claim public signing readiness', async () => {
   const handler = createHostedHandler({ env: values, store: memoryStore() });
@@ -233,6 +233,58 @@ test('public signing is explicitly network-scoped and fails closed for an unlist
     const denied = createHostedHandler({ env: { ...env, BIS_PUBLIC_SIGNING_NETWORKS: configured }, store: memoryStore() });
     assert.equal((await denied(post('connect', { network: 'signet', gameId: 'stealth-and-steel' }))).status, 403);
   }
+});
+test('owner signing defaults to the deployment network allowlist and can be explicitly widened without widening public signing', async () => {
+  const owner = 'owner-network-policy-secret-'.repeat(3);
+  const { BIS_OWNER_SIGNING_NETWORKS: _testOverride, ...defaults } = values;
+  const env = { ...defaults, BIS_OWNER_TOKEN: owner, BIS_PUBLIC_PAYMENT_SIGNING: 'true', BIS_PUBLIC_SIGNING_NETWORKS: 'signet' };
+  const handler = createHostedHandler({ env, store: memoryStore() });
+  assert.equal((await handler(post('connect', { network: 'signet', gameId: 'stealth-and-steel' }, { Authorization: `Bearer ${owner}` }))).status, 200);
+  assert.equal((await handler(post('connect', { network: 'mutinynet', gameId: 'stealth-and-steel' }, { Authorization: `Bearer ${owner}` }))).status, 403);
+  assert.equal((await handler(post('authorize', { request: { network: 'mutinynet' } }, { Authorization: `Bearer ${owner}` }))).status, 403);
+  assert.equal((await handler(post('owner/plan', { request: { network: 'mutinynet' } }, { Authorization: `Bearer ${owner}` }))).status, 403);
+  assert.equal((await handler(post('owner/settlement/plan', { request: { network: 'mutinynet' } }, { Authorization: `Bearer ${owner}` }))).status, 403);
+  assert.equal((await handler(post('sign', { network: 'mutinynet', ownerPlan: 'not-a-grant' }, { Authorization: `Bearer ${owner}` }))).status, 403);
+  assert.equal((await handler(post('owner/treasure/actor/plan', {}, { Authorization: `Bearer ${owner}` }))).status, 403);
+  assert.equal((await handler(post('owner/treasure/checkpoint/complete', {}, { Authorization: `Bearer ${owner}` }))).status, 403);
+  assert.equal((await handler(post('connect', { network: 'mutinynet', gameId: 'stealth-and-steel' }))).status, 403);
+  const profileId = 'a'.repeat(64), connectionToken = createSigningAuthorization(owner).connect({ gameId: 'stealth-and-steel', network: 'mutinynet', profileId });
+  const ownerReplay = { id: 'mutinynet-owner-replay', operationId: 'mutinynet-owner-replay', network: 'mutinynet', profileId, method: 'sign', args: encodeSigningValue([new Uint8Array(32)]), connectionToken, ownerPlan: 'owner-plan' };
+  const replayDigest = signingDigest(ownerReplay);
+  assert.equal((await handler(post('treasure/recover', { version: 1, requestId: ownerReplay.id, requestDigest: replayDigest, requestJson: JSON.stringify(ownerReplay), connectionToken }, { Authorization: `Bearer ${owner}` }))).status, 403);
+  const { ownerPlan: _ownerPlan, ...publicReplayBase } = ownerReplay;
+  const publicReplay = { ...publicReplayBase, id: 'mutinynet-public-replay', operationId: 'mutinynet-public-replay', paymentPlan: 'public-plan' };
+  const publicDigest = signingDigest(publicReplay);
+  assert.equal((await handler(post('treasure/recover', { version: 1, requestId: publicReplay.id, requestDigest: publicDigest, requestJson: JSON.stringify(publicReplay), connectionToken, playerToken: 'player-token' }, { Authorization: `Bearer ${connectionToken}` }))).status, 403);
+
+  const optedIn = createHostedHandler({ env: { ...env, BIS_OWNER_SIGNING_NETWORKS: 'signet,mutinynet' }, store: memoryStore() });
+  assert.equal((await optedIn(post('connect', { network: 'mutinynet', gameId: 'stealth-and-steel' }, { Authorization: `Bearer ${owner}` }))).status, 200);
+  assert.equal((await optedIn(post('connect', { network: 'mutinynet', gameId: 'stealth-and-steel' }))).status, 403);
+  for (const configured of ['', 'signet,invalid', 'SIGNET']) {
+    const denied = createHostedHandler({ env: { ...env, BIS_OWNER_SIGNING_NETWORKS: configured }, store: memoryStore() });
+    assert.equal((await denied(post('connect', { network: 'signet', gameId: 'stealth-and-steel' }, { Authorization: `Bearer ${owner}` }))).status, 403);
+  }
+});
+test('Mutinynet identity and connect stay unavailable when no Mutinynet signer is configured', async () => {
+  const owner = 'missing-mutinynet-owner-secret-'.repeat(3);
+  const handler = createHostedHandler({ env: {
+    BIS_GAME_WALLET_SIGNET_01_MNEMONIC: phrase,
+    BIS_OWNER_TOKEN: owner,
+    BIS_OWNER_SIGNING_NETWORKS: 'signet,mutinynet',
+    BIS_PUBLIC_PAYMENT_SIGNING: 'true',
+    BIS_PUBLIC_SIGNING_NETWORKS: 'signet',
+  }, store: memoryStore() });
+  const signet = await handler(new Request('https://example.test/api/bis/identity?network=signet'));
+  const signetIdentity = await signet.json();
+  assert.equal(signet.status, 200);
+  assert.equal(signetIdentity.signingReady, true);
+  const mutinynet = await handler(new Request('https://example.test/api/bis/identity?network=mutinynet'));
+  assert.equal(mutinynet.status, 503);
+  const identityFailure = await mutinynet.json();
+  assert.equal('publicKey' in identityFailure, false);
+  const connect = await handler(post('connect', { network: 'mutinynet', gameId: 'stealth-and-steel' }, { Authorization: `Bearer ${owner}` }));
+  assert.equal(connect.status, 503);
+  assert.equal(JSON.stringify([identityFailure, await connect.json()]).includes(phrase), false);
 });
 test('owner signing and exact response replay work across cold instances with scoped connection tokens', async () => {
   const secret = 'test-owner-secret-'.repeat(3), env = { ...values, BIS_OWNER_TOKEN: secret }, store = memoryStore();

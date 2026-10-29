@@ -280,8 +280,16 @@ requests, another connection and expiry are refused before a signing claim.
 This ordinary-payment path is off unless the private server configuration sets
 `BIS_PUBLIC_PAYMENT_SIGNING=true` and explicitly lists allowed test networks in
 `BIS_PUBLIC_SIGNING_NETWORKS` (comma-separated `signet` and/or `mutinynet`).
-When `VERCEL_ENV=preview`, only the isolated `BIS_PREVIEW_PUBLIC_PAYMENT_SIGNING`
-and `BIS_PREVIEW_PUBLIC_SIGNING_NETWORKS` values are used. Proposal 1 must list
+Owner-authenticated connection, planning, authorization, signing, and completed-
+result recovery use `BIS_OWNER_SIGNING_NETWORKS` when it is set; otherwise they
+inherit `BIS_PUBLIC_SIGNING_NETWORKS` and fail closed if no valid network list
+exists. This keeps Production Mutinynet unavailable even with an owner token,
+while Preview may opt in by setting `BIS_PREVIEW_OWNER_SIGNING_NETWORKS` to its
+approved test-network list. The owner allowlist does not widen public signing.
+When `VERCEL_ENV=preview`, public signing reads only the isolated
+`BIS_PREVIEW_PUBLIC_PAYMENT_SIGNING` and `BIS_PREVIEW_PUBLIC_SIGNING_NETWORKS`
+values, while owner signing reads only `BIS_PREVIEW_OWNER_SIGNING_NETWORKS` when
+configured (or falls back to the Preview public allowlist). Proposal 1 must list
 `signet` only and keep public settlement, contract and asset policies disabled
 for the Signet-only rollout. The approved Production values are configured, but
 take effect only when the deployed bundle contains these allowlist-aware

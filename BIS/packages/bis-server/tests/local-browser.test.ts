@@ -99,7 +99,7 @@ test('private owner controls connect, forget and reload without persisting crede
   t.after(() => browser.close());
   const page = await browser.newPage();
   const token = randomUUID() + randomUUID();
-  const handler = createHostedHandler({ env: { BIS_OWNER_TOKEN: token, BIS_GAME_WALLET_SIGNET_01_MNEMONIC: mnemonic } });
+  const handler = createHostedHandler({ env: { BIS_OWNER_TOKEN: token, BIS_OWNER_SIGNING_NETWORKS: 'signet', BIS_GAME_WALLET_SIGNET_01_MNEMONIC: mnemonic } });
   await page.route('https://owner.fixture.test/api/bis/**', async route => {
     const request = route.request();
     const response = await handler(new Request(request.url(), { method: request.method(), headers: { ...request.headers(), origin: 'https://samuelasherrivello.github.io' }, body: request.postData() ?? undefined }));

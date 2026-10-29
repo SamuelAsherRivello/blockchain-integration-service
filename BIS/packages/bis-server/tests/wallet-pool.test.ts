@@ -12,13 +12,14 @@ const values = Object.fromEntries(['SIGNET', 'MUTINYNET'].flatMap(network => phr
 
 test('hosted Preview uses only Preview-prefixed signer and Redis secrets', () => {
   const production = {
-    VERCEL_ENV: 'preview', BIS_OWNER_TOKEN: 'production-owner', BIS_SIGNING_DAILY_CAP_SATS: '10000', BIS_PUBLIC_SIGNING_NETWORKS: 'mutinynet',
+    VERCEL_ENV: 'preview', BIS_OWNER_TOKEN: 'production-owner', BIS_SIGNING_DAILY_CAP_SATS: '10000', BIS_PUBLIC_SIGNING_NETWORKS: 'mutinynet', BIS_OWNER_SIGNING_NETWORKS: 'signet,mutinynet',
     UPSTASH_REDIS_REST_TOKEN: 'production-redis', ...values,
   };
   const preview = readPrivateEnvironment({ hosted: true, env: {
     ...production,
     BIS_PREVIEW_OWNER_TOKEN: 'preview-owner',
     BIS_PREVIEW_PUBLIC_SIGNING_NETWORKS: 'signet',
+    BIS_PREVIEW_OWNER_SIGNING_NETWORKS: 'mutinynet',
     BIS_PREVIEW_UPSTASH_REDIS_REST_TOKEN: 'preview-redis',
     BIS_PREVIEW_GAME_WALLET_SIGNET_01_MNEMONIC: phrases[0],
   } });
@@ -26,6 +27,7 @@ test('hosted Preview uses only Preview-prefixed signer and Redis secrets', () =>
   assert.equal(preview.UPSTASH_REDIS_REST_TOKEN, 'preview-redis');
   assert.equal(preview.BIS_SIGNING_DAILY_CAP_SATS, undefined);
   assert.equal(preview.BIS_PUBLIC_SIGNING_NETWORKS, 'signet');
+  assert.equal(preview.BIS_OWNER_SIGNING_NETWORKS, 'mutinynet');
   assert.equal(preview.BIS_GAME_WALLET_SIGNET_01_MNEMONIC, phrases[0]);
   assert.equal(preview.BIS_GAME_WALLET_SIGNET_02_MNEMONIC, undefined);
   assert.equal(walletCandidates('signet', preview).length, 1);
@@ -33,6 +35,7 @@ test('hosted Preview uses only Preview-prefixed signer and Redis secrets', () =>
   const isolated = readPrivateEnvironment({ hosted: true, env: production });
   assert.equal(isolated.BIS_OWNER_TOKEN, undefined);
   assert.equal(isolated.BIS_PUBLIC_SIGNING_NETWORKS, undefined);
+  assert.equal(isolated.BIS_OWNER_SIGNING_NETWORKS, undefined);
   assert.equal(isolated.UPSTASH_REDIS_REST_TOKEN, undefined);
   assert.deepEqual(walletCandidates('signet', isolated), []);
 });

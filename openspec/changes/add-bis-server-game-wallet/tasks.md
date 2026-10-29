@@ -97,3 +97,18 @@ The existing 5.2 check verified only the published BIS 0.0.27 release. It is reo
 This evidence supersedes the earlier 0.0.27-only and 0.0.28-pending notes above. Pages workflow run `40503586549` succeeded for BIS commit `bb3344856a487e9bd3771fce2bd728cd4390ef1b`; Admin and Marketplace both returned HTTP 200, and their served bundles identify 0.0.28 and the public BIS Vercel URL. README cache-busters are `?v=0.0.28`, and the game Pages workflow published its 0.0.28 environment. Vercel deployment `dpl_HVq2cQ1EpAsG5bv1zHnLdxcCsKiu` is READY and the stable `bis-server-rho.vercel.app` alias points to it. The file-based deployment was created from the isolated package artifact generated from the clean BIS release tree; Vercel does not attach Git commit metadata to this deployment, so source identity is evidenced by the local artifact build and clean tracked package paths rather than Vercel `gitSource`.
 
 Production health, Signet identity and anonymous Signet connect returned HTTP 200; Pages-origin CORS preflight returned 204; anonymous Mutinynet connect returned 403 and Mutinynet identity has no signing capabilities. Production environment metadata (decryption disabled) confirms the public network allowlist is exactly Signet, payment signing is enabled for that allowlist, operation cap is 5,000 sats and daily per-network cap is 10,000 sats. This completes 5.2. Tasks 5.1 and 5.5 remain open for funded Signet acceptance, safe journal reconciliation, and the complete published UI/manual-fallback flow. Proposal 2 remains untouched.
+
+### 2026-10-29 owner-network policy closure and existing 403 boundary
+
+A source audit mapped owner-authenticated connect, generic grant issuance, owner
+plan/authorize, settlement plan/authorization/signing, Treasure actor and
+checkpoint paths, owner signing, and completed-result recovery. Owner network
+access now uses `BIS_OWNER_SIGNING_NETWORKS` when configured, otherwise the
+same explicit network list as public Production signing; malformed or absent
+lists fail closed. Preview isolates `BIS_PREVIEW_OWNER_SIGNING_NETWORKS`, so an
+explicit Preview opt-in cannot be inherited by Production. Focused hosted and
+environment tests passed 41/41, including owner Mutinynet denial across route
+families, explicit owner-only opt-in, unchanged public Mutinynet denial, and
+Preview isolation. No Vercel configuration or deployment changed. This is local
+policy evidence; the production bundle must still be updated and checked before
+treating owner Mutinynet as unavailable in Production.

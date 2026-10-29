@@ -15,7 +15,7 @@ bis-server SHALL load its game mnemonic only on the server and expose public ide
 - **AND** invalid server configuration reports an error without generating or funding a replacement identity
 
 ### Requirement: Isolated Preview signer configuration
-On Vercel Preview deployments, bis-server SHALL resolve private signer, owner-token, signing-cap and Redis configuration only from their `BIS_PREVIEW_`-prefixed counterparts. Missing Preview values SHALL remain missing; Production values SHALL NOT be used as fallback. Production and local configuration SHALL ignore `BIS_PREVIEW_` values.
+On Vercel Preview deployments, bis-server SHALL resolve private signer, owner-token, owner-network allowlist, signing-cap and Redis configuration only from their `BIS_PREVIEW_`-prefixed counterparts. Missing Preview values SHALL remain missing; Production values SHALL NOT be used as fallback. Production and local configuration SHALL ignore `BIS_PREVIEW_` values.
 
 #### Scenario: Preview configuration cannot fall back to Production
 - **WHEN** a Preview deployment has Production variables but lacks one or more `BIS_PREVIEW_` counterparts
@@ -50,7 +50,7 @@ BIS SHALL probe the known local or configured hosted API on initialization, play
 - **AND** player logout does not delete or log out the server identity
 
 ### Requirement: Signet-only hosted wallet selection
-This release SHALL configure hosted Game Wallet signing for Signet only. Signet identity and signing use the selected private Signet test identity. Mutinynet hosted signing SHALL remain unavailable until the two-network qualification proposal is complete. Signing and recovery SHALL resolve the original selected profile without balance-driven replacement or cross-network fallback.
+This release SHALL configure hosted Game Wallet signing for Signet only. Signet identity and signing use the selected private Signet test identity. Mutinynet hosted signing SHALL remain unavailable until the two-network qualification proposal is complete, across both public and owner-authenticated routes. Owner signing SHALL default to the configured public signing network allowlist unless a separate owner allowlist is explicitly configured. Signing and recovery SHALL resolve the original selected profile without balance-driven replacement or cross-network fallback.
 
 #### Scenario: Signet signer is configured
 - **WHEN** a published consumer selects Signet and the private Signet identity is configured
@@ -61,6 +61,11 @@ This release SHALL configure hosted Game Wallet signing for Signet only. Signet 
 - **WHEN** a published consumer selects Mutinynet during proposal 1
 - **THEN** it reports hosted signing as unavailable and offers the explicit existing manual flow
 - **AND** it does not silently use the Signet identity or sign for Mutinynet
+
+#### Scenario: Owner credentials cannot bypass the Mutinynet release boundary
+- **WHEN** an owner-authenticated connect, planning, authorization, signing, or recovery request selects Mutinynet during proposal 1
+- **THEN** bis-server rejects the request under the same Signet-only Production boundary
+- **AND** Preview can use a separate `BIS_PREVIEW_OWNER_SIGNING_NETWORKS` allowlist without inheriting or widening Production access
 
 ### Requirement: Signing parity with client-owned operations
 Server mode SHALL replace only the Game Wallet signing identity. Existing preparation, submission, provider reads, journals and reconciliation SHALL remain client-owned. Required transaction, message and signer-session methods SHALL work remotely for existing enabled workflows. Signatures SHALL NOT establish financial confirmation or alter fee payer, trophy eligibility or reward policy.
