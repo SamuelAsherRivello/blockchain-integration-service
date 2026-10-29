@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {publicServerActors,actorSource,canonicalServerSource} from '../../../scripts/test-wallets/server-actors.ts';
 export type TestNetwork='signet'|'mutinynet';
 type Reservation={id:string;transactionId?:string;inputs?:readonly {txid:string;vout:number}[];independent?:readonly {txid:string;vout:number}[]};
 export type ClientWalletJournalSnapshot=Readonly<{revision:string;reservations:readonly Reservation[];rolling24hSpentSats:number;knownReservedSats:number;
@@ -127,17 +128,25 @@ export async function readBrowserJournalDocument(input:{profileId:string;network
   return {revision,rows,reservations};
 }
 
-export function createProtectedBrowserJournalReader(input:{page:{url():string;evaluate(fn:any,arg:any):Promise<any>};vault:{read(options:{initialize:false}):Promise<any>};runId:string;slot?:string;profileId:string;network:TestNetwork}):ClientWalletJournalReader{
+export function createProtectedBrowserJournalReader(input:{page:{url():string;evaluate(fn:any,arg:any):Promise<any>};vault:{read(options:{initialize:false}):Promise<any>};runId:string;slot?:string;profileId:string;network:TestNetwork;serverSource?:Readonly<{endpoint:string;publicKey:string}>}):ClientWalletJournalReader{
   return {async readNetworkSnapshot(profileId,network,nowMs,excludeOperationIds){
     assertJournalAccess({...input,profileId,network});
     if(profileId!==input.profileId||network!==input.network||input.page.url()!=='http://127.0.0.1:5174/admin/')throw Error('Owned browser scope mismatch.');
     const before=await input.vault.read({initialize:false});
-    const account=before.accounts.find((row:any)=>row.profileId===profileId);
+    const account=before.accounts.find((row:any)=>row.profileId===profileId)??publicServerActors(before).find(row=>row.profileId===profileId);
     if(!account?.grant?.active||!account.grant.networks.includes(network)||account.reportedPending?.[network])throw Error('Registered journal identity unavailable.');
+    const pinnedSource=actorSource(account);
+    if(account.server){
+      if(account.network!==network||!input.serverSource)throw Error('Registered journal source unavailable.');
+      const expected=canonicalServerSource(input.serverSource,network,profileId);
+      if(JSON.stringify(actorSource(account))!==JSON.stringify(expected))throw Error('Registered journal source changed.');
+    }else if(input.serverSource)throw Error('Registered journal source changed.');
     const evidence=publicVaultEvidence(before,network);
     const document=await input.page.evaluate(readBrowserJournalDocument,{profileId,network});
     const verified=await input.page.evaluate(readBrowserJournalDocument,{profileId,network});
     const after=await input.vault.read({initialize:false});
+    const current=after.accounts.find((row:any)=>row.profileId===profileId)??publicServerActors(after).find(row=>row.profileId===profileId);
+    if(!current?.grant?.active||!current.grant.networks.includes(network)||JSON.stringify(actorSource(current))!==JSON.stringify(pinnedSource)||current.server&&current.network!==network)throw Error('Registered journal source changed.');
     if(before.revision!==after.revision||document.revision!==verified.revision)throw Error('Protected source changed during browser inspection.');
     return aggregateBrowserJournal(document,evidence,profileId,network,nowMs,excludeOperationIds);
   }};

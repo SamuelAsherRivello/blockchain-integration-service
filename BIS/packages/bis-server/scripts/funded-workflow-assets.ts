@@ -7,12 +7,13 @@ import {decodeSigningValue,SIGNER_PROTOCOL} from '../../integration/src/client/w
 import {readPaymentContext} from '../src/server/payment-context.ts';
 import {assertCanonicalSigningTransaction} from '../src/server/offchain-policy.ts';
 import {createProtectedBrowserJournalReader} from './protected-browser-journal.ts';
-import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertAtomicPaymentBudget,remoteRequest,ServerPaymentBrowser,boundedPoll,boundedResult,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
+import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertAtomicPaymentBudget,remoteRequest,ServerPaymentBrowser,boundedPoll,boundedResult,acceptanceProxyHeaders,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
 import {assetHash,assetBudgetSats,assetRequest,prepareAssetSdkPlan,validateAssetPlan,decodeAssetTransaction,inspectAssetSubmission,inspectAssetFinalization,observeAssetReceipt,type AssetStep,type AssetPlan,type AssetAuthorization} from './funded-workflow-asset-plan.ts';
 const legacy=(path:string)=>import(new URL(path,import.meta.url).href);
 const {Vault,repositoryRoot}=await legacy('../../../scripts/test-wallets/vault.ts');
 const {Operations}=await legacy('../../../scripts/test-wallets/operations.ts');
 const {verifiedInventory}=await legacy('../../../scripts/test-wallets/inventory.ts');
+const {findTestActor,actorSource,assertAssignedServerActor}=await legacy('../../../scripts/test-wallets/server-actors.ts');
 export type AssetAssignment=PaymentAssignment&Readonly<{step:AssetStep;lineageId:string;authorizationMode:AssetAuthorization;predecessorRunId?:string;assetId?:string}>;
 const same=(a:readonly string[],b:readonly string[])=>JSON.stringify([...a].sort())===JSON.stringify([...b].sort());
 export function validateAssetAssignment(value:any):AssetAssignment{
@@ -160,8 +161,9 @@ export async function runAssetAcceptance(assignment:AssetAssignment,mode:Payment
   try{
     await vault.transaction(async(state:any)=>{
       await verifiedInventory(state);const pair=state.pairs.find((row:any)=>row.label===a.pair&&row.network===a.network);
-      const player=state.accounts.find((row:any)=>row.label===pair?.player),game=state.accounts.find((row:any)=>row.label===pair?.game);
+      const player=state.accounts.find((row:any)=>row.label===pair?.player),game=findTestActor(state,pair?.game);
       if(player?.profileId!==a.playerProfileId||game?.profileId!==a.gameProfileId||[player,game].some(row=>!row.grant?.active||!row.grant.networks.includes(a.network)||row.reportedPending?.[a.network]))throw Error('Registered granted owner pair unavailable.');
+      assertAssignedServerActor(game,a);
       const runs=state.serverAssetRuns??{};assertAssetPredecessor(a,runs);privatePrevious=runs[a.runId];
       if(privatePrevious&&privatePrevious.scope!==scope||mode==='prepare'&&privatePrevious||mode==='run'&&privatePrevious?.phase!=='prepared'||
         mode==='reconcile'&&(!privatePrevious?.originalSubmit||privatePrevious.originalReconciliations||!['unresolved','execution-started'].includes(privatePrevious.phase)))throw Error('Original asset case requires reconciliation.');
@@ -217,7 +219,7 @@ export async function runAssetAcceptance(assignment:AssetAssignment,mode:Payment
           }else throw Error('Unsupported owner-only asset route.');
           if(path!=='connect'&&!stillFinancial())throw Error('Owner signing deadline exhausted.');
           const cached=path==='connect'&&initialConnection&&body.requirement===undefined;
-          const headers={'Content-Type':'application/json',...(request.headers().origin?{Origin:request.headers().origin}:{}),...(request.headers().authorization?{Authorization:request.headers().authorization}:{}),...(request.headers()['x-bis-signing-grant']?{'X-BIS-Signing-Grant':request.headers()['x-bis-signing-grant']}:{})};
+          const headers=acceptanceProxyHeaders(request.headers());
           const response=cached?initialConnection:await remoteRequest(a.endpoint,path,body,headers,env);if(cached)initialConnection=undefined;else serverRequests++;
           if(path==='connect')checkConnect(response);if(path==='sign'&&response.status===200)signRequests++;
           return route.fulfill({status:response.status,contentType:'application/json',headers:cors,body:response.text});
@@ -245,7 +247,7 @@ export async function runAssetAcceptance(assignment:AssetAssignment,mode:Payment
     stage='original-owned-server-profile';
     owner=new ServerPaymentBrowser(vault,{pair:a.pair,origin:'http://127.0.0.1:5174',app:'admin',stableSource:true,recoveryProfile:(mode==='prepare'?'asset-prep-':'asset-')+a.runId});
     owner.acceptance={assignment:a,proxy,ownerToken:env.BIS_ACCEPTANCE_OWNER_TOKEN,...(browserEndpoint?{browserEndpoint}:{})};await owner.start();await owner.inspect();
-    const client=createProtectedBrowserJournalReader({page:owner.page,vault,runId:a.runId,slot:env.BIS_SERVER_ACCEPTANCE_SLOT,profileId:a.gameProfileId,network:a.network});
+    const client=createProtectedBrowserJournalReader({page:owner.page,vault,runId:a.runId,slot:env.BIS_SERVER_ACCEPTANCE_SLOT,profileId:a.gameProfileId,network:a.network,...(actorSource(owner.registration.game)?{serverSource:actorSource(owner.registration.game)}:{})});
     if(mode!=='reconcile'){
       const snapshot=await client.readNetworkSnapshot(a.gameProfileId,a.network,Date.now(),[]);
       if(snapshot.reservations.length||snapshot.unknownOperations.length)throw Error('Original browser asset source unresolved.');
@@ -257,6 +259,7 @@ export async function runAssetAcceptance(assignment:AssetAssignment,mode:Payment
         await assertReviewedSource(a);await vault.transaction((state:any)=>{const run=state.serverAssetRuns[a.runId];if(run.phase!=='prepared')throw Error('Original asset already attempted.');run.phase='execution-started';});
         const game=owner.registration.game,player=owner.registration.player;
         await ledger.prepare({id:sourceOperationId,account:game.label,profileId:a.gameProfileId,generation:game.generation,network:a.network,kind:a.step==='delivery'?'arkade-send':a.step,
+          ...(actorSource(game)?{serverSource:actorSource(game)}:{}),
           recipient:a.step==='delivery'?owner.expected.player.arkadeAddress:`asset:${plan!.assetId}`,amountSats:budgetSats,feeSats:0,sourceOrigin:'http://127.0.0.1:5174',
           ...(a.step==='delivery'?{target:{account:player.label,profileId:player.profileId,generation:player.generation}}:{})});
         financial=true;deadline=Date.now()+120000;

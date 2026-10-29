@@ -1,12 +1,13 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {createHash} from 'node:crypto';
-import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertAtomicPaymentBudget,ServerPaymentBrowser,remoteRequest,boundedResult,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
+import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertAtomicPaymentBudget,ServerPaymentBrowser,remoteRequest,boundedResult,acceptanceProxyHeaders,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
 import {createProtectedBrowserJournalReader} from './protected-browser-journal.ts';
 const legacy=(path:string)=>import(new URL(path,import.meta.url).href);
 const {Vault,repositoryRoot}=await legacy('../../../scripts/test-wallets/vault.ts');
 const {Operations}=await legacy('../../../scripts/test-wallets/operations.ts');
 const {verifiedInventory}=await legacy('../../../scripts/test-wallets/inventory.ts');
+const {findTestActor,actorSource,assertAssignedServerActor}=await legacy('../../../scripts/test-wallets/server-actors.ts');
 export type LifecycleAssignment=PaymentAssignment&Readonly<{workflow:'boarding'|'standard-lto';authorizationMode:'owner'|'player-proof';ltoAction?:'claim'|'reject-refund'}>;
 export type LifecyclePlan={fingerprint:string;outpoints:string[];amountSats:number;feeSats:number;[key:string]:any};
 export type LifecycleContext={a:LifecycleAssignment;mode:PaymentMode;owner:any;plan?:LifecyclePlan;saved:any;deadline:number;financial:boolean;serverOperationId?:string;sessionPublicKey?:string;planToken?:string;batchToken?:string;batchId?:string;
@@ -39,7 +40,11 @@ export function assertLifecyclePlan(plan:LifecyclePlan,a:LifecycleAssignment){
 export function assertLifecycleConnection(body:any,a:LifecycleAssignment){
  if(body?.network!==a.network||body.gameId!=='stealth-and-steel'||Object.keys(body).some(key=>!['gameId','network','profileId','requirement'].includes(key)))throw Error('Assigned server connection required.');
  if(body.profileId!==undefined){if(body.profileId!==a.gameProfileId||body.requirement!==undefined)throw Error('Original server identity required.');}
- else if(body.requirement!==undefined&&JSON.stringify(body.requirement)!==JSON.stringify(a.workflow==='boarding'?{purpose:'boarding'}:{arkadeSats:a.amountSats}))throw Error('Original lifecycle requirement changed.');
+ else if(body.requirement!==undefined){
+  const {excludedProfiles,...requirement}=body.requirement;
+  if(excludedProfiles!==undefined&&JSON.stringify(excludedProfiles)!==JSON.stringify([a.playerProfileId])||
+   JSON.stringify(requirement)!==JSON.stringify(a.workflow==='boarding'?{purpose:'boarding'}:{arkadeSats:a.amountSats}))throw Error('Original lifecycle requirement changed.');
+ }
 }
 export function assertLifecycleResponse(response:{status:number;text:string},a:LifecycleAssignment){
  const info=JSON.parse(response.text);
@@ -53,7 +58,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
   read:async()=> (await vault.read({initialize:false})).serverLifecycleRuns?.[a.runId],
   operation:async(kind,account,id,recipient,run,target)=>{
    if(!ctx.financial||Date.now()>=ctx.deadline)throw Error('Original lifecycle deadline exhausted.');
-   await ledger.prepare({id,account:account.label,profileId:account.profileId,generation:account.generation,network:a.network,kind,recipient,amountSats:a.amountSats,feeSats:a.feeSats,sourceOrigin:'http://127.0.0.1:5174',...(target?{target:{account:target.label,profileId:target.profileId,generation:target.generation}}:{})});
+   await ledger.prepare({id,account:account.label,profileId:account.profileId,generation:account.generation,network:a.network,kind,recipient,amountSats:a.amountSats,feeSats:a.feeSats,sourceOrigin:'http://127.0.0.1:5174',...(actorSource(account)?{serverSource:actorSource(account)}:{}),...(target?{target:{account:target.label,profileId:target.profileId,generation:target.generation,...(actorSource(target)?{serverSource:actorSource(target)}:{})}}:{})});
    return ledger.submit(id,async()=>({providerId:await boundedResult(run(),Math.max(1,ctx.deadline-Date.now()))}));
   }};
  const transaction=vault.transaction.bind(vault);
@@ -66,8 +71,9 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
  },options);
  try{
   await vault.transaction(async(state:any)=>{
-   await verifiedInventory(state);const pair=state.pairs.find((row:any)=>row.label===a.pair&&row.network===a.network),player=state.accounts.find((row:any)=>row.label===pair?.player),game=state.accounts.find((row:any)=>row.label===pair?.game);
+   await verifiedInventory(state);const pair=state.pairs.find((row:any)=>row.label===a.pair&&row.network===a.network),player=state.accounts.find((row:any)=>row.label===pair?.player),game=findTestActor(state,pair?.game);
    if(player?.profileId!==a.playerProfileId||game?.profileId!==a.gameProfileId||[player,game].some(row=>!row.grant?.active||!row.grant.networks.includes(a.network)||row.reportedPending?.[a.network]))throw Error('Registered lifecycle pair unavailable.');
+   assertAssignedServerActor(game,a);
    ctx.saved=state.serverLifecycleRuns?.[a.runId];const previous=ctx.saved;
    if(previous&&previous.scope!==scope||mode==='prepare'&&previous||mode==='run'&&previous?.phase!=='prepared'||mode==='reconcile'&&(!previous||previous.phase!=='unresolved'||previous.originalReconciliations))throw Error('Original lifecycle requires reconciliation.');
    if((state.operations??[]).some((row:any)=>row.intent.network===a.network&&[row.intent.profileId,row.intent.target?.profileId].some(id=>[a.playerProfileId,a.gameProfileId].includes(id))&&!['settled','failed','cancelled'].includes(row.state)&&!(mode==='reconcile'&&row.intent.id.startsWith(a.runId+'-'))))throw Error('Unresolved original wallet work.');
@@ -105,7 +111,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
       await ctx.save(run=>{run.serverRequests??=[];run.serverRequests.push({path,body,grant:request.headers()['x-bis-signing-grant']});});
      }
      const useCached=path==='connect'&&cached&&body.requirement===undefined;
-     const headers={'Content-Type':'application/json',...(request.headers().origin?{Origin:request.headers().origin}:{}),...(request.headers().authorization?{Authorization:request.headers().authorization}:{}),...(request.headers()['x-bis-signing-grant']?{'X-BIS-Signing-Grant':request.headers()['x-bis-signing-grant']}:{})};
+     const headers=acceptanceProxyHeaders(request.headers());
      const response=useCached?cached:await remoteRequest(a.endpoint,path,body,headers,env);if(useCached)cached=undefined as any;else ctx.counts.server++;
      if(path==='connect')assertLifecycleResponse(response,a);
      if(path.endsWith('settlement/plan')&&response.status===200){const info=JSON.parse(response.text),token=info[a.authorizationMode==='owner'?'ownerSettlementPlan':'settlementPlan'];if(!/^0[23][a-f0-9]{64}$/.test(info.sessionPublicKey??'')||typeof token!=='string'||!token)throw Error('Original session key unavailable.');ctx.sessionPublicKey=info.sessionPublicKey;ctx.planToken=token;await ctx.save(run=>{run.sessionPublicKey=info.sessionPublicKey;run.planToken=token;});}
@@ -124,7 +130,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
   stage='owned-player-only-browser';owner=new ServerPaymentBrowser(vault,{pair:a.pair,origin:'http://127.0.0.1:5174',app:'admin',stableSource:true,recoveryProfile:'life-'+a.runId});ctx.owner=owner;
   owner.acceptance={assignment:a,proxy,ownerToken:env.BIS_ACCEPTANCE_OWNER_TOKEN,...(browserEndpoint?{browserEndpoint}:{})};await owner.start();await owner.inspect();
   if(mode!=='reconcile'){
-   const journal=createProtectedBrowserJournalReader({page:owner.page,vault,runId:a.runId,slot:env.BIS_SERVER_ACCEPTANCE_SLOT,profileId:a.gameProfileId,network:a.network});const snapshot=await journal.readNetworkSnapshot(a.gameProfileId,a.network,Date.now(),[]);
+   const journal=createProtectedBrowserJournalReader({page:owner.page,vault,runId:a.runId,slot:env.BIS_SERVER_ACCEPTANCE_SLOT,profileId:a.gameProfileId,network:a.network,...(actorSource(owner.registration.game)?{serverSource:actorSource(owner.registration.game)}:{})});const snapshot=await journal.readNetworkSnapshot(a.gameProfileId,a.network,Date.now(),[]);
    if(snapshot.reservations.length||snapshot.unknownOperations.length)throw Error('Original source journal unresolved.');clientExposure=snapshot.rolling24hSpentSats+snapshot.knownReservedSats;
    stage='actual-unsigned-preparation';ctx.plan=await strategy.prepare(ctx);assertLifecyclePlan(ctx.plan,a);
    if(ctx.counts.sign||ctx.counts.provider)throw Error('Preparation attempted a financial action.');

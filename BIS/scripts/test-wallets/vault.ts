@@ -36,6 +36,7 @@ export function publicManifest(state) {
     accounts: state.accounts.map(({ label, profileId, generation, provenance, createdAt }) =>
       ({ label, profileId, generation, provenance, createdAt })),
     pairs: state.pairs,
+    ...(state.serverActors === undefined ? {} : {serverActors:state.serverActors}),
     ...(state.applications === undefined ? {} : { applications: state.applications }),
   };
 }

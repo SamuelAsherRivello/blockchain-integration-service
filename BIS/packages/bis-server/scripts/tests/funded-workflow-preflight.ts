@@ -1,5 +1,5 @@
 import { createWalletPool, readCandidateBalance, type WalletRequirement } from '../../src/server/wallet-pool.ts';
-import { InMemoryContractRepository, InMemoryWalletRepository, MnemonicIdentity, ReadonlyWallet, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk';
+import { InMemoryContractRepository, InMemoryWalletRepository, MnemonicIdentity, ReadonlySingleKey, ReadonlyWallet, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk';
 import { sendAmounts } from '../../../integration/src/client/state-layer-core/sending.ts';
 import { eligibleUnreservedCoins, type ReservedOperation } from '../../../integration/src/client/state-layer-core/wallet-reservations.ts';
 import { readWalletNetworkPolicy } from '../../../integration/src/client/wallet-layer-arkade/wallet-network-policy.ts';
@@ -8,6 +8,8 @@ import { assetTotals, selectExactSendInputs, sendRecipient } from '../../../inte
 import { identify, operatorFor } from '../../../integration/src/client/wallet-layer-arkade/account.ts';
 import { Vault } from '../../../../scripts/test-wallets/vault.ts';
 import { createHash } from 'node:crypto';
+import {findTestActor,canonicalServerSource} from '../../../../scripts/test-wallets/server-actors.ts';
+import type {ServerWalletReference} from '../../../integration/src/client/wallet-layer-arkade/server-wallet.ts';
 
 export type FundedWorkflowCase = 'payment' | 'mint' | 'delivery' | 'burn' | 'boarding' | 'standard-lto';
 export type TestNetwork = 'signet' | 'mutinynet';
@@ -53,9 +55,10 @@ export function createProtectedVaultCaseJournalReader(input: { vault?: Pick<Vaul
   const readVault = async (assignment: FundedCaseAssignment) => {
     assertNode24Runtime(input.runtimeVersion ?? process.versions.node);
     const before = await vault.read({ initialize: false });
-    const account = before.accounts?.find((row: any) => row.label === assignment.accountLabel && row.profileId === assignment.profileId &&
-      row.generation === assignment.generation);
+    const account = findTestActor(before,assignment.accountLabel);
     if (!account || account.grant?.active !== true || !account.grant.networks?.includes(assignment.network) || account.reportedPending?.[assignment.network])
+      throw Error('Assigned registered test identity or grant could not be verified.');
+    if(account.profileId!==assignment.profileId||account.generation!==assignment.generation||account.server&&account.network!==assignment.network)
       throw Error('Assigned registered test identity or grant could not be verified.');
     if (before.operations !== undefined && !Array.isArray(before.operations)) throw Error('Protected operation journal is unavailable.');
     const operations = Array.isArray(before.operations) ? before.operations : [];
@@ -284,8 +287,30 @@ export async function loadAssignedMnemonic(input: { assignedRunId: string; assig
 /** This read-only SDK path takes a secret only from a caller-supplied private vault loader. */
 export async function readOnlyWalletEligibility(input: {
   assignedRunId: string; assignedCandidateId: string; requestedRunId: string; requestedCandidateId: string;
-  expectedProfileId?: string; loadMnemonic: () => Promise<string>; requirement?: WalletRequirement; signal?: AbortSignal; now?: () => number;
+  expectedProfileId?: string; loadMnemonic?: () => Promise<string>; loadServerReference?:()=>Promise<ServerWalletReference>; requirement?: WalletRequirement; signal?: AbortSignal; now?: () => number;
 }) {
+  assertNode24Runtime(process.versions.node);assertAssignedCandidate(input);
+  if(input.loadServerReference){
+    if(input.loadMnemonic)throw Error('Ambiguous test signing source.');
+    const account=await input.loadServerReference();
+    assertPublicEligibilityReference(account,input.assignedCandidateId,input.expectedProfileId);
+    const network=account.network,slot=input.assignedCandidateId.split(':')[1] as '01'|'02'|'03';
+    const signal=input.signal??AbortSignal.timeout(15000),operator=operatorFor(network);
+    const provider=new RestArkProvider(operator),info=await provider.getInfo();signal.throwIfAborted();
+    if(info.network!==network||typeof info.fees?.txFeeRate!=='string'||!/^\d+(?:\.\d+)?$/.test(info.fees.txFeeRate)||!info.fees.intentFee)throw Error('Assigned test wallet eligibility could not be verified.');
+    const wallet=await ReadonlyWallet.create({identity:ReadonlySingleKey.fromPublicKey(Buffer.from(account.server.publicKey,'hex')),arkProvider:provider,indexerProvider:new RestIndexerProvider(operator),storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}});
+    try{
+      const balance=await wallet.getBalance(),connection=wallet.getProviderConnectionState();signal.throwIfAborted();
+      if(connection.mode!=='online'||connection.source!=='live')throw Error('Assigned test wallet eligibility could not be verified.');
+      const assets:Record<string,string>={};
+      if(input.requirement?.asset)for(const coin of await wallet.getSpendableVtxos({withRecoverable:false,withUnrolled:false}))for(const holding of coin.assets??[])
+        assets[holding.assetId.toLowerCase()]=(BigInt(assets[holding.assetId.toLowerCase()]??'0')+holding.amount).toString();
+      return {identity:{network,slot,publicKey:account.server.publicKey,profileId:account.profileId},
+        balance:{availableArkadeSats:balance.available,availableBitcoinSats:balance.boarding.confirmed,mintMinimumSats:Number(wallet.dustAmount),boardingMinimumSats:Math.max(Number(info.vtxoMinAmount),1),assets},
+        feeInfo:{txFeeRate:info.fees.txFeeRate,intentFee:Object.fromEntries(Object.entries(info.fees.intentFee).filter(([,value])=>typeof value==='string'))},checkedAtMs:input.now?.()??Date.now(),financialActions:0};
+    }finally{await wallet.dispose();}
+  }
+  if(!input.loadMnemonic)throw Error('Assigned test identity is unavailable.');
   const mnemonic = await loadAssignedMnemonic(input, process.versions.node, input.loadMnemonic);
   const [network, slot] = input.assignedCandidateId.split(':') as [TestNetwork, '01' | '02' | '03'];
   if (typeof mnemonic !== 'string' || !mnemonic.trim()) throw Error('Assigned test identity is unavailable.');
@@ -308,6 +333,11 @@ export async function readOnlyWalletEligibility(input: {
   } catch {
     throw Error('Assigned test wallet eligibility could not be verified.');
   }
+}
+
+export function assertPublicEligibilityReference(account:ServerWalletReference,candidateId:string,expectedProfileId?:string){
+  if(!account||Object.hasOwn(account,'phrase')||account.network!==candidateId.split(':')[0]||account.profileId!==expectedProfileId||account.server?.gameId!=='stealth-and-steel')throw Error('Assigned public server source is unavailable.');
+  canonicalServerSource({endpoint:account.server.endpoint,publicKey:account.server.publicKey},account.network,account.profileId);
 }
 
 /** Case-by-case prerequisites; eligibility is not a transaction quote or spend authorization. */
@@ -353,7 +383,8 @@ export async function prepareAssignedCase(input: {
   requestedRunId: string;
   requestedCandidateId: string;
   assignment: FundedCaseAssignment;
-  loadMnemonic: () => Promise<string>;
+  loadMnemonic?: () => Promise<string>;
+  loadServerReference?:()=>Promise<ServerWalletReference>;
   prepareQuote: CaseQuotePreparer;
   journal: ProtectedCaseJournalReader;
   signal?: AbortSignal;
@@ -375,9 +406,12 @@ export async function prepareAssignedCase(input: {
     assignment.workflow === 'boarding' ? { purpose: 'boarding' } : assetWorkflow ? { purpose: 'asset',
       asset: { assetId: assignment.assetId!, quantity: assignment.assetQuantity! } } : { arkadeSats: 1 };
   await input.journal.assertAssignedIdentity(assignment);
-  const mnemonic = await loadAssignedMnemonic(input, process.versions.node, input.loadMnemonic);
+  if(!!input.loadServerReference===!!input.loadMnemonic)throw Error('Ambiguous test signing source.');
+  const serverReference=input.loadServerReference?await input.loadServerReference():undefined;
+  if(serverReference)assertPublicEligibilityReference(serverReference,input.assignedCandidateId,assignment.profileId);
+  const mnemonic = serverReference?undefined:await loadAssignedMnemonic(input, process.versions.node, input.loadMnemonic!);
   const eligibility = await readOnlyWalletEligibility({ ...input, expectedProfileId: assignment.profileId,
-    loadMnemonic: async () => mnemonic, requirement, signal, now });
+    ...(serverReference?{loadServerReference:async()=>serverReference}:{loadMnemonic:async()=>mnemonic!}), requirement, signal, now });
   signal.throwIfAborted();
   const prerequisite = classifyReadOnlyPrerequisite(assignment.workflow, {
     availableArkadeSats: eligibility.balance.availableArkadeSats,
@@ -395,7 +429,7 @@ export async function prepareAssignedCase(input: {
   const preparedAtMs = now();
   const operator = operatorFor(assignment.network);
   const wallet = await ReadonlyWallet.create({
-    identity: await MnemonicIdentity.fromMnemonic(mnemonic, { isMainnet: false }).toReadonly(),
+    identity: serverReference?ReadonlySingleKey.fromPublicKey(Buffer.from(serverReference.server.publicKey,'hex')):await MnemonicIdentity.fromMnemonic(mnemonic!, { isMainnet: false }).toReadonly(),
     arkProvider: new RestArkProvider(operator), indexerProvider: new RestIndexerProvider(operator),
     storage: { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() },
   });

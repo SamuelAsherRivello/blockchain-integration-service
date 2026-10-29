@@ -17,6 +17,7 @@ const {OwnedBrowser,ownedProfileKey}=await legacy('../../../scripts/test-wallets
 const {browserEnvironment}=await legacy('../../../scripts/test-wallets/browser-public.ts');
 const {loadAddresses}=await legacy('../../integration/src/client/wallet-layer-arkade/addresses.ts');
 const {verifiedInventory}=await legacy('../../../scripts/test-wallets/inventory.ts');
+const {findTestActor,actorSource,assertAssignedServerActor}=await legacy('../../../scripts/test-wallets/server-actors.ts');
 const {createProtectedVaultCaseJournalReader,prepareAssignedCase,preparePaymentCaseQuote}=await legacy('./tests/funded-workflow-preflight.ts');
 
 export type PaymentAssignment=Readonly<{
@@ -171,6 +172,13 @@ export function acceptanceDocumentPolicy(policy:string,endpoint?:string){
   const origin=new URL(endpoint).origin;
   return directives.map(value=>value===connect[0]?[...new Set([...value.split(/\s+/),origin])].join(' '):value).join('; ');
 }
+/** This explicit Node transport exercises hosted authorization from an owned
+ * loopback document. It makes no claim about deployed browser CORS. Forward
+ * only the real authorization inputs; never spoof a permitted browser Origin. */
+export function acceptanceProxyHeaders(headers:Record<string,string>){
+  return {'Content-Type':'application/json',...(headers.authorization?{Authorization:headers.authorization}:{}),
+    ...(headers['x-bis-signing-grant']?{'X-BIS-Signing-Grant':headers['x-bis-signing-grant']}:{})};
+}
 export class ServerPaymentBrowser extends OwnedBrowser{
   [key:string]:any;
   acceptance:any;
@@ -185,8 +193,9 @@ export class ServerPaymentBrowser extends OwnedBrowser{
       await verifiedInventory(state);
       const application=state.applications?.find((row:any)=>row.app==='admin'&&row.origin==='http://127.0.0.1:5174'&&row.path==='/admin/');
       const pair=state.pairs.find((row:any)=>row.label===a.pair&&row.network===a.network);
-      const player=state.accounts.find((row:any)=>row.label===pair?.player),game=state.accounts.find((row:any)=>row.label===pair?.game);
+      const player=state.accounts.find((row:any)=>row.label===pair?.player),game=findTestActor(state,pair?.game);
       if(!application||player?.profileId!==a.playerProfileId||game?.profileId!==a.gameProfileId)throw Error('Owned server profile registration unavailable.');
+      assertAssignedServerActor(game,a);
       return {application,pair,player,game};
     });
     const key=ownedProfileKey(a.pair,a.network,'http://127.0.0.1:5174','admin',this.options.recoveryProfile),profile=join(this.vault.root,'profiles',key);
@@ -314,8 +323,9 @@ export async function runPaymentAcceptance(assignment:PaymentAssignment,mode:Pay
     await vault.transaction(async(state:any)=>{
       await verifiedInventory(state);
       const pair=state.pairs.find((row:any)=>row.label===assignment.pair&&row.network===assignment.network);
-      const player=state.accounts.find((row:any)=>row.label===pair?.player),game=state.accounts.find((row:any)=>row.label===pair?.game);
+      const player=state.accounts.find((row:any)=>row.label===pair?.player),game=findTestActor(state,pair?.game);
       if(player?.profileId!==assignment.playerProfileId||game?.profileId!==assignment.gameProfileId)throw Error('Registered pair does not match assignment.');
+      assertAssignedServerActor(game,assignment);
       for(const account of [player,game])if(!account.grant?.active||!account.grant.networks.includes(assignment.network)||account.reportedPending?.[assignment.network])throw Error('Registered test grant unavailable.');
       const previous=state.serverSdkRuns?.[assignment.runId];
       if(previous&&previous.scope!==scope||mode==='reconcile'&&!previous||mode!=='reconcile'&&previous&&previous.phase!=='prepared')throw Error('Original case requires reconciliation.');
@@ -368,7 +378,7 @@ export async function runPaymentAcceptance(assignment:PaymentAssignment,mode:Pay
               run.originalSigningRequests.push({path,body,grant:request.headers()['x-bis-signing-grant']});
             });
           }
-          const headers={'Content-Type':'application/json',...(request.headers().origin?{Origin:request.headers().origin}:{}),...(request.headers().authorization?{Authorization:request.headers().authorization}:{}),...(request.headers()['x-bis-signing-grant']?{'X-BIS-Signing-Grant':request.headers()['x-bis-signing-grant']}:{})};
+          const headers=acceptanceProxyHeaders(request.headers());
           const cached=path==='connect'&&initialConnection&&body.profileId===assignment.gameProfileId&&body.requirement===undefined;
           const response=cached?initialConnection:await remoteRequest(assignment.endpoint,path,body,headers,env);
           if(cached)initialConnection=undefined as any;else serverRequests++;
@@ -411,12 +421,12 @@ export async function runPaymentAcceptance(assignment:PaymentAssignment,mode:Pay
     if(recipient!==owner.expected.player.arkadeAddress)throw Error('Original payment recipient changed.');
     if(mode!=='reconcile'){
       stage='fresh-payment-preparation';
-      const client=createProtectedBrowserJournalReader({page:owner.page,vault,runId:assignment.runId,slot:env.BIS_SERVER_ACCEPTANCE_SLOT,profileId:assignment.gameProfileId,network:assignment.network});
+      const client=createProtectedBrowserJournalReader({page:owner.page,vault,runId:assignment.runId,slot:env.BIS_SERVER_ACCEPTANCE_SLOT,profileId:assignment.gameProfileId,network:assignment.network,...(actorSource(owner.registration.game)?{serverSource:actorSource(owner.registration.game)}:{})});
       const journal=createProtectedVaultCaseJournalReader({vault,client});
       const account=owner.registration.game;
       quote=await prepareAssignedCase({assignedRunId:assignment.runId,assignedCandidateId:assignment.candidateId,requestedRunId:assignment.runId,requestedCandidateId:assignment.candidateId,
         assignment:{workflow:'payment',network:assignment.network,candidateId:assignment.candidateId,accountLabel:account.label,generation:account.generation,profileId:assignment.gameProfileId,outpoints:[],allInSats:assignment.amountSats,amountSats:assignment.amountSats,recipient},
-        loadMnemonic:async()=>account.phrase,journal,prepareQuote:preparePaymentCaseQuote});
+        ...(account.server?{loadServerReference:async()=>account}:{loadMnemonic:async()=>account.phrase}),journal,prepareQuote:preparePaymentCaseQuote});
       const clientSnapshot=await client.readNetworkSnapshot(assignment.gameProfileId,assignment.network,Date.now(),[]);
       clientExposure=clientSnapshot.rolling24hSpentSats+clientSnapshot.knownReservedSats+clientSnapshot.unknownOperations.reduce((sum,row)=>sum+(row.exposureSats??5000),0);
       await vault.transaction((state:any)=>{state.serverSdkRuns??={};const previous=state.serverSdkRuns[assignment.runId];
@@ -429,6 +439,7 @@ export async function runPaymentAcceptance(assignment:PaymentAssignment,mode:Pay
       await vault.transaction((state:any)=>{const run=state.serverSdkRuns[assignment.runId];if(run.phase!=='prepared')throw Error('Original run already attempted.');run.phase='execution-started';});
       stage='original-payment';
       await ledger.prepare({id:operationId,account:account.label,profileId:account.profileId,generation:account.generation,network:assignment.network,kind:'arkade-send',recipient,
+        ...(actorSource(account)?{serverSource:actorSource(account)}:{}),
         amountSats:assignment.amountSats,feeSats:0,sourceOrigin:'http://127.0.0.1:5174',target:{account:owner.registration.player.label,profileId:assignment.playerProfileId,generation:owner.registration.player.generation}});
       financialEnabled=true;observationDeadline=Date.now()+120000;
       await ledger.submit(operationId,async()=>{

@@ -4,6 +4,7 @@ import { phraseWords, validRecovery } from '../../packages/integration/src/clien
 import { label, network } from './arguments.ts';
 import { publicManifest, validatePrivatePath } from './vault.ts';
 import { fail } from './errors.ts';
+import {publicServerActors,findTestActor} from './server-actors.ts';
 
 export async function verifiedInventory(state) {
   const labels = new Set(), identities = new Set();
@@ -23,10 +24,14 @@ export async function verifiedInventory(state) {
     }
     labels.add(account.label); identities.add(account.profileId);
   }
+  for(const actor of publicServerActors(state)){
+    if(labels.has(actor.label)||identities.has(actor.profileId))fail('duplicate-identity');
+    labels.add(actor.label);identities.add(actor.profileId);
+  }
   const pairs = new Set();
   for (const pair of state.pairs) {
     label(pair.label); network(pair.network);
-    if (pairs.has(pair.label) || !labels.has(pair.player) || !labels.has(pair.game) || pair.player === pair.game) fail('invalid-role-assignment');
+    if (pairs.has(pair.label) || !state.accounts.some(account=>account.label===pair.player) || !labels.has(pair.game) || pair.player === pair.game) fail('invalid-role-assignment');
     pairs.add(pair.label);
   }
   return state;
@@ -50,7 +55,7 @@ export async function register(vault, records, provenance) {
       if (existing.profileId !== record.profileId) fail('registered-identity-conflict');
       return;
     }
-    if (state.accounts.some(x => x.profileId === record.profileId)) fail('duplicate-identity');
+    if ([...state.accounts,...publicServerActors(state)].some(x => x.profileId === record.profileId||x.label===record.label)) fail('duplicate-identity');
     state.accounts.push({ ...record, generation: 1, provenance, createdAt: new Date().toISOString(),
       grant: { active: true, networks: ['signet', 'mutinynet'], source: 'user-standing-test-grant-2026-10-11' } });
   });
@@ -121,7 +126,9 @@ export async function assign(vault, { pair, player, game, network: selectedNetwo
   if (player === game) fail('role-conflict');
   return vault.transaction(async state => {
     await verifiedInventory(state);
-    if (![player, game].every(id => state.accounts.some(x => x.label === id))) fail('account-not-registered');
+    if (!state.accounts.some(x=>x.label===player)||!findTestActor(state,game)) fail('account-not-registered');
+    const selectedGame=findTestActor(state,game);
+    if(selectedGame.server&&selectedGame.network!==selectedNetwork)fail('server-actor-binding-invalid');
     const existing = state.pairs.find(x => x.label === pair);
     if (existing) {
       if (existing.player !== player || existing.game !== game || existing.network !== selectedNetwork) fail('role-reassignment-requires-reconciliation');

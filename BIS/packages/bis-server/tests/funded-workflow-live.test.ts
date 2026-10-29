@@ -5,10 +5,25 @@ import {createHash} from 'node:crypto';
 import {ArkAddress,SingleKey,Transaction} from '@arkade-os/sdk';
 import {base64,hex} from '@scure/base';
 import {encodeSigningValue} from '../../integration/src/client/wallet-layer-arkade/server-wallet-protocol.ts';
-import {validatePaymentAssignment,assertExecutionAuthority,assignmentScope,assertAtomicPaymentBudget,inspectPaymentPlan,inspectOriginalSubmission,verifyPaymentReceipt,acceptanceBrowserEndpoint,acceptanceDocumentPolicy,type PaymentAssignment} from '../scripts/funded-workflow-live.ts';
+import {validatePaymentAssignment,assertExecutionAuthority,assignmentScope,assertAtomicPaymentBudget,inspectPaymentPlan,inspectOriginalSubmission,verifyPaymentReceipt,acceptanceBrowserEndpoint,acceptanceDocumentPolicy,acceptanceProxyHeaders,type PaymentAssignment} from '../scripts/funded-workflow-live.ts';
+import {assertPublicEligibilityReference} from '../scripts/tests/funded-workflow-preflight.ts';
 
 const sourceHash='a'.repeat(64),fingerprint='b'.repeat(64);
 const paths=['BIS/packages/bis-server/scripts/funded-workflow-live.ts','BIS/packages/bis-server/scripts/protected-browser-journal.ts','BIS/packages/bis-server/scripts/tests/funded-workflow-preflight.ts'];
+
+test('controlled Node transport preserves real signing authority without spoofing browser origin or cookies',()=>{
+  assert.deepEqual(acceptanceProxyHeaders({origin:'http://127.0.0.1:5174',authorization:'Bearer fixture-token','x-bis-signing-grant':'fixture-grant',cookie:'unrelated-cookie'}),
+    {'Content-Type':'application/json',Authorization:'Bearer fixture-token','X-BIS-Signing-Grant':'fixture-grant'});
+});
+
+test('public eligibility binds the real readonly key without accepting a mnemonic or replacement source',async()=>{
+  const a=await assignment(),reference={profileId:a.gameProfileId,network:a.network,server:{endpoint:a.endpoint,publicKey:a.serverPublicKey,gameId:'stealth-and-steel'}};
+  assert.doesNotThrow(()=>assertPublicEligibilityReference(reference,a.candidateId,a.gameProfileId));
+  for(const patch of [{phrase:'must not be loaded'},{network:'mutinynet'},{profileId:'d'.repeat(64)},
+    {server:{...reference.server,gameId:'other'}},{server:{...reference.server,endpoint:a.endpoint+'?private=forbidden'}},
+    {server:{...reference.server,publicKey:'03'+'1'.repeat(64)}}])
+    assert.throws(()=>assertPublicEligibilityReference({...reference,...patch} as any,a.candidateId,a.gameProfileId));
+});
 test('public browser endpoint is exactly reviewed HTTPS and its CSP change is confined to that origin',()=>{
   const endpoint='https://reviewed-example.vercel.app/api/bis/',binding={endpoint};
   assert.equal(acceptanceBrowserEndpoint(binding),'/api/bis/');

@@ -10,6 +10,7 @@ import { RestArkProvider } from '@arkade-os/sdk';
 import { testNetwork } from '../../packages/integration/src/client/state-layer-core/test-network.ts';
 import { inspectTreasureDirectPolicy } from '../../packages/integration/src/client/wallet-layer-arkade/treasure-direct-policy.ts';
 import { assertAcceptanceBudget } from '../treasure-acceptance-policy.ts';
+import {findTestActor,actorSource} from './server-actors.ts';
 
 /** Narrow 1,000-sat offchain funding. This does not quote/onboard Bitcoin funds
  * or alter unknown-cost legacy intents. SDK Wallet.send conserves input value
@@ -60,7 +61,7 @@ export async function fund(vault, options, adapters = {}) {
   };
   const account = await vault.transaction(async state => {
     await verifiedInventory(state);
-    const row = state.accounts.find(x => x.label === options.account);
+    const row = findTestActor(state,options.account);
     if (!row) fail('account-not-registered');
     if (!row.grant?.active || !row.grant.networks?.includes(options.network)) fail('test-grant-unavailable');
     return { ...row, network: options.network };
@@ -71,6 +72,7 @@ export async function fund(vault, options, adapters = {}) {
   const intent = { id: options.operation, account: account.label, profileId: account.profileId,
     generation: account.generation, network: options.network, kind: 'faucet',
     recipient: addresses.arkadeAddress, amountSats: Number(options.amount), feeSats: bounded ? 0 : null, sourceOrigin: api };
+  if(actorSource(account))intent.serverSource=actorSource(account);
   if (bounded) await vault.transaction(state => {
     assertAcceptanceBudget(state.operations ?? [], intent, Date.now());
     state.boundedFaucetFunding ??= {};

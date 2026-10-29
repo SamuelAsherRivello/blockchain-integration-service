@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { label, network, origin } from './arguments.ts';
 import { verifiedInventory } from './inventory.ts';
 import { fail } from './errors.ts';
+import {findTestActor,actorSource,canonicalServerSource} from './server-actors.ts';
 
 const kinds = new Set(['faucet', 'btc-send', 'arkade-send', 'swap-to-bitcoin', 'arkade-to-bitcoin-funding', 'onboard', 'mint', 'burn', 'claim', 'refund']);
 const terminal = new Set(['settled', 'failed', 'cancelled']);
@@ -51,18 +52,20 @@ function canonicalIntent(input) {
   let target;
   if (input.target !== undefined) {
     const value = input.target;
-    if (!['arkade-send', 'mint','arkade-to-bitcoin-funding','claim','refund'].includes(input.kind) || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation'].includes(key)) ||
+    if (!['arkade-send', 'mint','arkade-to-bitcoin-funding','claim','refund'].includes(input.kind) || !value || Object.keys(value).some(key => !['account', 'profileId', 'generation','serverSource'].includes(key)) ||
         !/^[a-f0-9]{64}$/.test(value.profileId ?? '') || !Number.isSafeInteger(value.generation) || value.generation < 1)
       fail('invalid-operation-target');
     label(value.account);
-    target = { account: value.account, profileId: value.profileId, generation: value.generation };
+    target = { account: value.account, profileId: value.profileId, generation: value.generation,
+      ...(value.serverSource===undefined?{}:{serverSource:canonicalServerSource(value.serverSource,input.network,value.profileId)}) };
   }
   if(input.kind==='arkade-to-bitcoin-funding'&&(!target||target.profileId===input.profileId))fail('invalid-operation-target');
   return { id: input.id, account: input.account, profileId: input.profileId,
     generation: input.generation, network: input.network, kind: input.kind,
     recipient: input.recipient, amountSats: input.amountSats, feeSats: input.feeSats, sourceOrigin,
     ...(input.priorProviderIds === undefined ? {} : { priorProviderIds: [...input.priorProviderIds].sort() }),
-    ...onboarding, ...swap, ...(target ? { target } : {}) };
+    ...onboarding, ...swap, ...(target ? { target } : {}),
+    ...(input.serverSource===undefined?{}:{serverSource:canonicalServerSource(input.serverSource,input.network,input.profileId)}) };
 }
 function rows(state) {
   if (state.operations === undefined) state.operations = [];
@@ -83,15 +86,17 @@ function find(state, id) {
   return record;
 }
 function authorized(state, intent) {
-  const account = state.accounts.find(row => row.label === intent.account);
+  const account = findTestActor(state,intent.account);
   if (!account || account.profileId !== intent.profileId || account.generation !== intent.generation)
     fail('operation-identity-changed');
+  if(JSON.stringify(actorSource(account))!==JSON.stringify(intent.serverSource)||account.server&&account.network!==intent.network)fail('operation-source-changed');
   if (!account.grant?.active || !account.grant.networks?.includes(intent.network)) fail('test-grant-unavailable');
   if (account.reportedPending?.[intent.network]) fail('external-onboarding-unreconciled');
   if (intent.target) {
-    const target = state.accounts.find(row => row.label === intent.target.account);
+    const target = findTestActor(state,intent.target.account);
     if (!target || target.profileId !== intent.target.profileId || target.generation !== intent.target.generation)
       fail('operation-target-changed');
+    if(JSON.stringify(actorSource(target))!==JSON.stringify(intent.target.serverSource)||target.server&&target.network!==intent.network)fail('operation-target-changed');
     if (!target.grant?.active || !target.grant.networks?.includes(intent.network)) fail('test-target-grant-unavailable');
     if (target.reportedPending?.[intent.network]) fail('external-onboarding-unreconciled');
   }

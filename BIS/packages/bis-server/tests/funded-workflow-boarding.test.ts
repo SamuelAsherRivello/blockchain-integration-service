@@ -27,6 +27,21 @@ test('installed SDK Ramps builds the unsigned exact Bitcoin Max boarding plan',a
  const f=fixture(),plan=await planBoardingSdk(f.input);
  assert.equal(plan.amountSats,1000);assert.equal(plan.feeSats,0);assert.deepEqual(plan.outpoints,[`${'11'.repeat(32)}:0`]);assert.deepEqual(plan.outputs,[{amount:'1000',script:hex.encode(offchain.pkScript)}]);assert.equal(plan.sourceKind,'confirmed-bitcoin-only');
 });
+
+test('installed SDK partial boarding binds the whole original input and returns exact owned Bitcoin change',async()=>{
+ const f=fixture(10000);Object.assign(f.quote,{amountSats:1000,netSats:1000,bitcoinAfterSats:9000,arkadeAfterSats:1000,inputOutpoints:[{txid:'11'.repeat(32),vout:0,valueSats:10000,assets:[]}]});
+ const plan=await planBoardingSdk(f.input);
+ assert.equal(plan.amountSats,1000);assert.equal(plan.quote.inputSats,10000);assert.deepEqual(plan.outpoints,[`${'11'.repeat(32)}:0`]);
+ assert.deepEqual(plan.outputs,[{amount:'1000',script:hex.encode(offchain.pkScript)},{amount:'9000',script:hex.encode(boarding.pkScript)}]);
+ for(const patch of [{inputOutpoints:undefined},{inputOutpoints:[{txid:'11'.repeat(32),vout:0,valueSats:9999,assets:[]}]},{amountSats:5001,netSats:5001}])
+  await assert.rejects(planBoardingSdk({...f.input,quote:{...f.quote,...patch}}));
+});
+
+test('boarding selection permits only the production exclusion of its assigned Player',()=>{
+ const a=assignment();
+ assert.doesNotThrow(()=>assertLifecycleConnection({network:a.network,gameId:'stealth-and-steel',requirement:{purpose:'boarding',excludedProfiles:[a.playerProfileId]}},a));
+ assert.throws(()=>assertLifecycleConnection({network:a.network,gameId:'stealth-and-steel',requirement:{purpose:'boarding',excludedProfiles:['d'.repeat(64)]}},a));
+});
 test('unsupported live fees, stale quote, unconfirmed/expired coins and cap excess refuse unsigned preparation',async()=>{
  const f=fixture();await assert.rejects(planBoardingSdk({...f.input,info:{...info,fees:{...info.fees,intentFee:{onchainInput:'amount * 0.01'}}}}));
  await assert.rejects(planBoardingSdk({...f.input,quote:{...f.quote,expiresAt:Date.now()-1}}));

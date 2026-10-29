@@ -5,6 +5,7 @@ import {build} from 'esbuild';
 import {chromium} from 'playwright';
 import {SingleKey,DefaultVtxo} from '@arkade-os/sdk';
 import {hex} from '@scure/base';
+import {createHash} from 'node:crypto';
 import {aggregateBrowserJournal,assertJournalAccess,createProtectedBrowserJournalReader,publicVaultEvidence,readBrowserJournalDocument,type BrowserJournalDocument,type PublicJournalRow} from '../scripts/protected-browser-journal.ts';
 
 const profile='a'.repeat(64),target='b'.repeat(64),txid='c'.repeat(64),point={txid:'d'.repeat(64),vout:2};
@@ -88,6 +89,25 @@ test('the concrete page/Vault transport verifies stable revisions without mutati
   const browserChanged=createProtectedBrowserJournalReader({page:{url:()=> 'http://127.0.0.1:5174/admin/',evaluate:async()=>({...document([]),revision:String(++browserRevision).repeat(64)})},
     vault:{read:async()=>({...state})},runId:'server-case-1',slot:'server-case-1',profileId:profile,network:'signet'});
   await assert.rejects(browserChanged.readNetworkSnapshot(profile,'signet',1000,[]),/changed/);
+});
+
+test('public server journal resolves only the granted exact source and refuses revocation or source changes',async()=>{
+  const publicKey=hex.encode(await SingleKey.fromHex('1'.padStart(64,'0')).compressedPublicKey()),remoteProfile=createHash('sha256').update(Buffer.from(publicKey,'hex')).digest('hex');
+  const actor={endpoint:'https://reviewed-example.vercel.app/api/bis/',network:'signet',publicKey,profileId:remoteProfile,grant:{active:true,networks:['signet'],source:'user-approved-hosted-test-actor'}};
+  const state={revision:1,accounts:[],serverActors:{remote:actor},operations:[]};let evaluations=0;
+  const options={page:{url:()=> 'http://127.0.0.1:5174/admin/',evaluate:async()=>{evaluations++;return document([]);}},vault:{read:async()=>structuredClone(state)},
+    runId:'server-public-1',slot:'server-public-1',profileId:remoteProfile,network:'signet' as const,serverSource:{endpoint:actor.endpoint,publicKey}};
+  const reader=createProtectedBrowserJournalReader(options);
+  if(!process.versions.node.startsWith('24.')){await assert.rejects(reader.readNetworkSnapshot(remoteProfile,'signet',1000,[]),/Node 24/);assert.equal(evaluations,0);return;}
+  const snapshot=await reader.readNetworkSnapshot(remoteProfile,'signet',1000,[]);
+  assert.equal(snapshot.rolling24hSpentSats,0);assert.deepEqual(snapshot.reservations,[]);assert.equal(evaluations,2);
+  actor.grant.active=false;await assert.rejects(reader.readNetworkSnapshot(remoteProfile,'signet',1000,[]),/identity unavailable/);assert.equal(evaluations,2);
+  actor.grant.active=true;actor.endpoint='https://different-example.vercel.app/api/bis/';
+  await assert.rejects(reader.readNetworkSnapshot(remoteProfile,'signet',1000,[]),/source changed/);assert.equal(evaluations,2);
+  actor.endpoint=options.serverSource.endpoint;
+  await assert.rejects(createProtectedBrowserJournalReader({...options,serverSource:undefined}).readNetworkSnapshot(remoteProfile,'signet',1000,[]),/source unavailable/);
+  const changed=createProtectedBrowserJournalReader({...options,page:{...options.page,evaluate:async()=>{actor.endpoint='https://different-example.vercel.app/api/bis/';return document([]);}}});
+  await assert.rejects(changed.readNetworkSnapshot(remoteProfile,'signet',1000,[]),/source changed/);
 });
 
 test('real browser getters preserve network reservations and redact private journal fields',{timeout:60000},async()=>{

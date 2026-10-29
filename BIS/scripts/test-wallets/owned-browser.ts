@@ -13,6 +13,7 @@ import { runSwap, readSwapState } from './swap.ts';
 import { publicScreens, browserEnvironment, validatePayment, publicSends, matchingSend, readPaymentReview, assertPaymentReview,
   validateLifecycle, readLogoutCount } from './browser-public.ts';
 import { gameAdapter, gameUrl, reconcileGameRegistration } from './game-adapter.ts';
+import {findTestActor,actorSource} from './server-actors.ts';
 
 const paths = { admin: '/admin/', marketplace: '/integration-marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/', game: gameAdapter.path };
 export function ownedLaunchOptions(app, platform = process.platform) {
@@ -74,7 +75,7 @@ export class OwnedBrowser {
       if (!application) fail('origin-not-registered');
       const pair = state.pairs.find(x => x.label === pairLabel);
       if (!pair) fail('pair-not-registered');
-      const player = state.accounts.find(x => x.label === pair.player), game = state.accounts.find(x => x.label === pair.game);
+      const player = state.accounts.find(x => x.label === pair.player), game = findTestActor(state,pair.game);
       for (const account of [player, game]) if (!account.grant?.active || !account.grant.networks.includes(pair.network)) fail('test-permission-unavailable');
       return { application, pair, player, game };
     });
@@ -345,6 +346,7 @@ export class OwnedBrowser {
     };
   }
   async validateRegistration() {
+        if(game.server)fail('server-signer-unavailable');
     if (this.closed || !this.registration) fail('session-unavailable');
     await this.vault.transaction(async state => {
       await verifiedInventory(state);
@@ -354,9 +356,9 @@ export class OwnedBrowser {
       const previousPair = this.registration.pair, pair = state.pairs.find(row => row.label === previousPair.label);
       if (!pair || ['network', 'player', 'game'].some(key => pair[key] !== previousPair[key])) fail('session-identity-invalidated');
       for (const previous of [this.registration.player, this.registration.game]) {
-        const current = state.accounts.find(x => x.label === previous.label);
+        const current = findTestActor(state,previous.label);
         if (!current || current.profileId !== previous.profileId || current.generation !== previous.generation || !current.grant?.active ||
-            !current.grant.networks?.includes(this.registration.pair.network)) fail('session-identity-invalidated');
+            !current.grant.networks?.includes(this.registration.pair.network)||JSON.stringify(actorSource(current))!==JSON.stringify(actorSource(previous))) fail('session-identity-invalidated');
       }
     });
   }

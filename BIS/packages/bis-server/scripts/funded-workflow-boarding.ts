@@ -1,4 +1,4 @@
-import {ReadonlyWallet,ReadonlySingleKey,RestArkProvider,RestIndexerProvider,InMemoryWalletRepository,InMemoryContractRepository,CSVMultisigTapscript,hasBoardingTxExpired,Ramps,Intent,Transaction,ArkAddress,verifyTapscriptSignatures,type IWallet,type SettleParams} from '@arkade-os/sdk';
+import {ReadonlyWallet,ReadonlySingleKey,RestArkProvider,RestIndexerProvider,InMemoryWalletRepository,InMemoryContractRepository,CSVMultisigTapscript,hasBoardingTxExpired,Ramps,Intent,Transaction,ArkAddress,getNetwork,verifyTapscriptSignatures,type IWallet,type SettleParams} from '@arkade-os/sdk';
 import {Address,OutScript} from '@scure/btc-signer';
 import {RawPSBTV0} from '@scure/btc-signer/psbt.js';
 import {base64,hex} from '@scure/base';
@@ -16,16 +16,23 @@ export async function planBoardingSdk(input:{wallet:any;info:any;profileId:strin
  const {wallet,info,quote}=input,policy=inspectWalletNetworkPolicy(input.network,info);requireZeroFeePolicy(policy,'Account Transfer');
  const [coins,tip,bitcoinAddress,gameAddress]=await Promise.all([wallet.getBoardingUtxos(),wallet.onchainProvider.getChainTip(),wallet.getBoardingAddress(),wallet.getAddress()]);
  const exit=CSVMultisigTapscript.decode(hex.decode(wallet.boardingTapscript.exitScript));
- const inputs=coins.filter((coin:any)=>coin.status?.confirmed&&!hasBoardingTxExpired(coin,exit.params.timelock,tip.height)).sort((a:any,b:any)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
+ const eligible=coins.filter((coin:any)=>coin.status?.confirmed&&!hasBoardingTxExpired(coin,exit.params.timelock,tip.height)).sort((a:any,b:any)=>a.txid.localeCompare(b.txid)||a.vout-b.vout);
+ const inputs=quote.inputOutpoints?quote.inputOutpoints.map((point:any)=>{
+  const coin=eligible.find((coin:any)=>coin.txid===point.txid&&coin.vout===point.vout);
+  if(!coin||coin.value!==point.valueSats||point.assets?.length)throw Error('Original quoted boarding input changed.');return coin;
+ }):eligible;
  const total=inputs.reduce((sum:number,coin:any)=>sum+coin.value,0);
- if(!inputs.length||inputs.some((coin:any)=>!Number.isSafeInteger(coin.value)||coin.value<1||coin.assets?.length)||new Set(inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`)).size!==inputs.length||!Number.isSafeInteger(total)||total<1||total>5000||quote.profileId!==input.profileId||quote.direction!=='to-arkade'||quote.amountSats!==total||quote.inputSats!==total||quote.feeSats!==0||quote.netSats!==total||quote.maxSats!==total||quote.expiresAt<=Date.now())throw Error('Boarding requires exact eligible Bitcoin Max within the approved cap.');
+ if(!inputs.length||inputs.some((coin:any)=>!Number.isSafeInteger(coin.value)||coin.value<1||coin.assets?.length)||new Set(inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`)).size!==inputs.length||!Number.isSafeInteger(total)||total<1||!Number.isSafeInteger(quote.amountSats)||quote.amountSats<1||quote.amountSats>5000||quote.amountSats>total||quote.profileId!==input.profileId||quote.direction!=='to-arkade'||quote.inputSats!==total||quote.feeSats!==0||quote.netSats!==quote.amountSats||quote.maxSats!==total||quote.expiresAt<=Date.now())throw Error('Boarding requires exact eligible quoted inputs and an amount within the approved cap.');
+ const change=total-quote.amountSats;
+ if(change>0&&(!quote.inputOutpoints||change<Number(info.utxoMinAmount??wallet.dustAmount)))throw Error('Original Bitcoin change is unavailable or below its minimum.');
  let params:SettleParams|undefined;
  const facade={dustAmount:wallet.dustAmount,getAddress:async()=>gameAddress,getBoardingAddress:async()=>bitcoinAddress,settle:async(value:SettleParams)=>{params=value;return 'unsigned-plan-only';}} as unknown as IWallet;
- await new Ramps(facade).onboard(info.fees,inputs,BigInt(total));
- if(!params||params.inputs.length!==inputs.length||!sameOutpoints(params.inputs.map(coin=>`${coin.txid}:${coin.vout}`),inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`))||params.outputs.length!==1||params.outputs[0].address!==gameAddress||params.outputs[0].amount!==BigInt(total))throw Error('Actual SDK boarding plan changed.');
- const outputs=[{amount:String(total),script:hex.encode(ArkAddress.decode(gameAddress).pkScript)}],outpoints=inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`);
+ await new Ramps(facade).onboard(info.fees,inputs,BigInt(quote.amountSats));
+ if(!params||params.inputs.length!==inputs.length||!sameOutpoints(params.inputs.map(coin=>`${coin.txid}:${coin.vout}`),inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`))||params.outputs.length!==(change?2:1)||params.outputs[0].address!==gameAddress||params.outputs[0].amount!==BigInt(quote.amountSats)||change&&(params.outputs[1].address!==bitcoinAddress||params.outputs[1].amount!==BigInt(change)))throw Error('Actual SDK boarding plan changed.');
+ const bitcoinScript=OutScript.encode(Address(getNetwork(input.network)).decode(bitcoinAddress)!);
+ const outputs=[{amount:String(quote.amountSats),script:hex.encode(ArkAddress.decode(gameAddress).pkScript)},...(change?[{amount:String(change),script:hex.encode(bitcoinScript)}]:[])],outpoints=inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`);
  const binding={profileId:input.profileId,network:input.network,inputs:inputs.map((coin:any)=>({txid:coin.txid,vout:coin.vout,value:coin.value})),outputs,bitcoinAddress,policyFingerprint:policy.fingerprint};
- return {amountSats:total,feeSats:0,outpoints,fingerprint:lifecycleHash(binding),quote,outputs,bitcoinAddress,gameAddress,policyFingerprint:policy.fingerprint,sourceKind:'confirmed-bitcoin-only'};
+ return {amountSats:quote.amountSats,feeSats:0,outpoints,fingerprint:lifecycleHash(binding),quote,outputs,bitcoinAddress,gameAddress,policyFingerprint:policy.fingerprint,sourceKind:'confirmed-bitcoin-only'};
 }
 export function inspectBoardingIntent(tx:Transaction,context:TrustedSettlementContext,plan:BoardingPlan,message?:string,requireSignatures=false){
  const verified=validateSettlementIntent(tx,context);
@@ -64,6 +71,8 @@ export async function traceBoardingReceipt(input:{plan:BoardingPlan;record:any;t
  if(record.status!=='succeeded'||!/^[a-f0-9]{64}$/.test(record.commitmentTxid??'')||record.quote.fingerprint!==plan.quote.fingerprint||!sameOutpoints(record.inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`),plan.outpoints)||verifiedBoardingCommitment(record,input.transactions,input.receipts)!==record.commitmentTxid)throw Error('Original boarding receipt unverified.');
  const root=Transaction.fromRaw(input.rawCommitment);
  if(root.id!==record.commitmentTxid||!plan.outpoints.every(point=>Array.from({length:root.inputsLength},(_,i)=>root.getInput(i)).some(coin=>coin.txid&&`${hex.encode(coin.txid)}:${coin.index}`===point)))throw Error('Original Bitcoin inputs not in confirmed commitment.');
+ const change=Number(plan.quote.inputSats)-plan.amountSats;
+ if(change>0){const script=plan.outputs[1]?.script;let actual=0n;for(let index=0;index<root.outputsLength;index++){const output=root.getOutput(index);if(output.script&&hex.encode(output.script)===script)actual+=output.amount??0n;}if(actual!==BigInt(change))throw Error('Original Bitcoin change receipt unverified.');}
  const owned=input.receipts.filter(coin=>coin.commitmentTxIds?.includes(root.id));
  if(!owned.length||owned.some(coin=>coin.assets?.length||coin.script!==plan.outputs[0].script)||owned.reduce((sum,coin)=>sum+coin.value,0)!==plan.amountSats)throw Error('Original Game boarding value or assets changed.');
  for(const coin of owned){
@@ -81,7 +90,7 @@ export async function traceBoardingReceipt(input:{plan:BoardingPlan;record:any;t
 }
 export const boardingStrategy:LifecycleStrategy={workflow:'boarding',source:import.meta.url,operationKinds:['btc-send'],lifecycleCost:a=>a.amountSats+a.feeSats,
  async prepare(ctx){
-  const quote=await boundedResult(ctx.owner.page.evaluate(async()=>{const s=(globalThis as any).__serverAcceptance;return s.game.quoteBoarding();}),30000);
+  const quote=await boundedResult(ctx.owner.page.evaluate(async(amount:number)=>{const s=(globalThis as any).__serverAcceptance;return s.game.quoteBoarding(amount);},ctx.a.amountSats),30000);
   return readonly(ctx,(wallet,info)=>planBoardingSdk({wallet,info,profileId:ctx.a.gameProfileId,network:ctx.a.network,quote}));
  },
  async execute(ctx){
