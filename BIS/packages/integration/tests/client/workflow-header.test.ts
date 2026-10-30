@@ -17,7 +17,7 @@ test('shared header identifies selected Local/Server mode separately from health
    const markup=renderToStaticMarkup(createElement(AccountDialogShell,{title:'Account',description:null,headingRef:null,...fixture}));
    assert.match(markup,new RegExp('class="bis-workflow-label">'+fixture.label+'</span>'));
    assert.ok(markup.indexOf('bis-workflow-label')<markup.indexOf('bis-network-text'));
-   assert.ok(markup.includes('Network: '+fixture.network));assert.match(markup,/BIS: v\d+\.\d+\.\d+/);
+   assert.ok(markup.includes('Network: '+fixture.network));assert.match(markup,/class="bis-version-label">v\d+\.\d+\.\d+<\/span>/);
    if(fixture.health)assert.ok(markup.includes('Server connection: '+fixture.health));else assert.equal(markup.includes('Server connection:'),false);
    assert.equal(markup.includes('Direct'),false);assert.equal(markup.includes('Use Server'),false);assert.equal(markup.includes('Use Local'),false);
   }

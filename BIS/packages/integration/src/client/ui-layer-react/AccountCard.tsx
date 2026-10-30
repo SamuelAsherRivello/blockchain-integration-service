@@ -9,7 +9,8 @@ export function AccountDialogShell({ title, description, headingRef, headingActi
   return <section className={`bis-card${className}`} role="dialog" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined}>
     <div className="bis-network-label">
       {workflowMode&&<span className="bis-workflow-label">{workflowMode==='server'?'Server':'Local'}</span>}
-      <span className="bis-network-anchor"><span className="bis-network-text">Network: {network}</span><span className="bis-version-label">BIS: v{version}</span></span>
+      <span className="bis-network-text">Network: {network}</span>
+      <span className="bis-version-label">v{version}</span>
     </div>
     {workflowMode==='server'&&<p className="bis-server-health" role="status">Server connection: {serverHealth==='connected'||serverConnected?'Connected':serverHealth==='connecting'?'Connecting':serverHealth==='unavailable'?'Unavailable':'Not connected'}</p>}
     <header className="bis-dialog-heading">

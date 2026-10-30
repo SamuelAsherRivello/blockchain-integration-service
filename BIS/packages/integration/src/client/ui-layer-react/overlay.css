@@ -315,10 +315,11 @@
 .bis-card-activity .bis-activity > .bis-report { flex-shrink: 1; }
 
 
-.bis-network-label { display:flex;align-items:center;justify-content:space-between;gap:10px; }
-.bis-workflow-label { text-transform:none;white-space:nowrap; }
-.bis-network-anchor { display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap; }
-.bis-version-label { white-space: nowrap; opacity: .5; font-size: 7px; letter-spacing: 0; text-transform: none; font-weight: 500; }
+.bis-network-label { display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px; }
+.bis-workflow-label { grid-column:1;justify-self:start;text-transform:none;white-space:nowrap;opacity:.32;font-size:7px;letter-spacing:0;font-weight:500; }
+.bis-network-text { grid-column:2;justify-self:center;text-align:center; }
+.bis-version-label { white-space: nowrap; opacity: .32; font-size: 7px; letter-spacing: 0; text-transform: none; font-weight: 500; }
+.bis-network-label .bis-version-label { grid-column:3;justify-self:end; }
 .bis-server-health { margin:0 0 8px;font-size:11px;color:#674a0c; }
 .bis-hosted-signing-status { margin: 0 0 10px; padding: 8px 10px; border: 1px solid #d8bb67; border-radius: 8px; background: #fff3ce; color: #674a0c; font-size: 12px; line-height: 1.4; }
 
