@@ -3,13 +3,15 @@ export const NETWORKS = Object.freeze({
   mutinynet: Object.freeze({ id: 'mutinynet', label: 'Mutinynet', operator: 'https://mutinynet.arkade.sh' }),
 });
 
-export const NETWORK_IDS = Object.freeze(Object.keys(NETWORKS));
+export type NetworkId = keyof typeof NETWORKS;
 
-export function isNetwork(value) {
+export const NETWORK_IDS = Object.freeze(Object.keys(NETWORKS) as NetworkId[]);
+
+export function isNetwork(value: unknown): value is NetworkId {
   return typeof value === 'string' && Object.hasOwn(NETWORKS, value);
 }
 
-export function networkDefinition(value) {
+export function networkDefinition(value: unknown) {
   if (!isNetwork(value)) throw new Error('Choose Signet or Mutinynet.');
   return NETWORKS[value];
 }
