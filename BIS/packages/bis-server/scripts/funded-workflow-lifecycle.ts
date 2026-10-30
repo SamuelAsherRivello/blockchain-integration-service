@@ -254,7 +254,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
  }catch{
   ctx.financial=false;if(mode!=='prepare')await ctx.save(run=>{if(run?.phase==='execution-started')run.phase='unresolved';}).catch(()=>{});
   throw Error(`Lifecycle acceptance stopped at ${stage}; preserve original protected journals.`);
- }finally{ctx.financial=false;let journalUnavailable=false;try{await routes.drain();try{await requestJournal.flush();}catch{journalUnavailable=true;}await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});}finally{await protector.close();}if(journalUnavailable)throw Error('Original request journal unavailable; preserve protected recovery.');}
+ }finally{ctx.financial=false;let journalUnavailable=false;try{await routes.drain();try{await requestJournal.flush();}catch{journalUnavailable=true;}await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close();}finally{await protector.close();}if(journalUnavailable)throw Error('Original request journal unavailable; preserve protected recovery.');}
 }
 export async function lifecycleCli(strategy:LifecycleStrategy){
  for(const method of ['log','info','warn','error','debug','trace','dir'] as const)console[method]=()=>{};

@@ -1,4 +1,4 @@
-import {readFile,mkdir,writeFile,open} from 'node:fs/promises';
+import {readFile,mkdir,writeFile,open,unlink,readdir,lstat} from 'node:fs/promises';
 import {resolve,relative,isAbsolute,join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
@@ -191,10 +191,32 @@ export function acceptanceRuntimeSignerModule(source:string){
  if(matches.length!==1)throw Error('Owned runtime signer module binding unavailable.');
  return matches[0][1];
 }
+export async function launchAcceptanceContext(chromium:any,profile:string){
+ // Blocking registration does not disable workers already stored by Chromium.
+ // Refuse their profile before launching; never erase its recovery or storage.
+ const entries=await readdir(profile,{withFileTypes:true}).catch(error=>{if(error.code==='ENOENT')return [];throw error;});
+ for(const path of [join(profile,'Service Worker'),...entries.filter(entry=>entry.isDirectory()||entry.isSymbolicLink()).map(entry=>join(profile,entry.name,'Service Worker'))]){
+  const stored=await lstat(path).catch(error=>{if(error.code!=='ENOENT')throw error;});
+  if(stored)throw Error('Stored Service Worker state requires separate profile review before acceptance.');
+ }
+ return chromium.launchPersistentContext(profile,{headless:true,acceptDownloads:false,serviceWorkers:'block',viewport:{width:1280,height:900},timeout:20000,env:browserEnvironment()});
+}
 export class ServerPaymentBrowser extends OwnedBrowser{
   [key:string]:any;
   acceptance:any;
   constructor(vault:any,options:any){super(vault,options);}
+  async close(){
+    if(this.closed)return;
+    if(this.closeWork)return this.closeWork;
+    const work=(async()=>{
+      // A failed browser close must retain its ownership lock and recovery
+      // registration. Only confirmed closure can mark this owner closed.
+      await this.context?.close();
+      if(this.lock){await this.lock.close();await unlink(this.lockPath);this.lock=undefined;}
+      this.closed=true;this.context=undefined;this.registration=undefined;this.expected=undefined;
+    })();this.closeWork=work;
+    try{await work;}catch{throw Error('Owned remote browser closure unverified; preserve the profile lock.');}finally{this.closeWork=undefined;}
+  }
   async start():Promise<any>{
     // The base start() restores both manual roles. This variant retains its
     // registry, ACL and ownership checks, but installs the real server proxy and
@@ -217,7 +239,7 @@ export class ServerPaymentBrowser extends OwnedBrowser{
       await this.validateRegistration();await mkdir(profile,{recursive:true,mode:0o700});await this.vault.protector.check(profile);
       for(const name of ['DEBUG','PWDEBUG','DEBUG_FILE'])delete process.env[name];
       const {chromium}=await import('playwright');
-      this.context=await chromium.launchPersistentContext(profile,{headless:true,acceptDownloads:false,viewport:{width:1280,height:900},timeout:20000,env:browserEnvironment()});
+      this.context=await launchAcceptanceContext(chromium,profile);
       this.context.setDefaultTimeout(20000);this.page=this.context.pages()[0]??await this.context.newPage();
       this.context.on('page',(page:any)=>{if(page!==this.page)void page.close().catch(()=>{});});
       await this.context.route('**/*',async(route:any)=>{
@@ -493,7 +515,7 @@ export async function runPaymentAcceptance(assignment:PaymentAssignment,mode:Pay
     financialEnabled=false;
     try{
       await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});
-      await owner?.close().catch(()=>{});
+      await owner?.close();
     }finally{await protector.close();}
   }
 }
