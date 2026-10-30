@@ -164,7 +164,7 @@ React and TypeScript power the reusable integration, Admin, Marketplace, and onb
 #### Internal Packages
 
 - [Shared](BIS/packages/shared/shared-package-readme.md): Central `.env.local` setup for local faucet and test-account tooling; never a browser secret export.
-- [BIS server](BIS/packages/bis-server/bis-server-package-readme.md): Optional local Game Wallet signer on the shared Vite server, with manual login fallback.
+- [BIS server](BIS/packages/bis-server/bis-server-package-readme.md): Game Wallet signer for Signet Server; Mutinynet Local uses browser-held Game authority.
 - [Integration](BIS/packages/integration/integration-package-readme.md): Reusable BIS UI, state, and wallet integration library.
 - [Integration Admin (BIS Admin)](BIS/packages/integration-admin/integration-admin-package-readme.md): Admin controls and the runtime preview.
 - [Marketplace](BIS/packages/integration-marketplace/integration-marketplace-package-readme.md): Game equipment catalog and account UI.

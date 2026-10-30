@@ -5,6 +5,23 @@ import {chromium} from 'playwright';
 import {developmentConfig} from '../../../../scripts/dev-config.ts';
 import {observeTreasureClaimFeedback} from '../../../../scripts/treasure-feedback-observation.ts';
 
+test('Admin starts a new Browser validation offer on each selected network',async()=>{
+  const config=developmentConfig({port:0});config.cacheDir='output/vite-cache/treasure-new-offer';config.server.hmr=false;
+  const server=await createServer(config);let browser;
+  try{
+    await server.listen();browser=await chromium.launch({headless:true});
+    for(const network of ['signet','mutinynet']){
+      const page=await browser.newPage();
+      await page.goto(new URL('/BIS/packages/integration-admin/tests/fixtures/treasure-panel.html?network='+network,server.resolvedUrls!.local[0]).href);
+      assert.equal(await page.getByRole('combobox',{name:'Signing / validation solution'}).inputValue(),'browser-policy-v1');
+      await page.getByRole('button',{name:'Start LTO',exact:true}).click();
+      await page.waitForFunction(()=>window.__treasureUiFixture.requests.length===1);
+      assert.equal(await page.evaluate(()=>window.__treasureUiFixture.requests[0].validationSolution),'browser-policy-v1');
+      await page.close();
+    }
+  }finally{await browser?.close();await server.close();}
+});
+
 test('deterministic Admin feedback stays immediate and suppresses duplicate claims while inspection waits',async t=>{
   const config=developmentConfig({port:0});config.cacheDir='output/vite-cache/treasure-feedback';config.server.hmr=false;
   const server=await createServer(config);let browser;

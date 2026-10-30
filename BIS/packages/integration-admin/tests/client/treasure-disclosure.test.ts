@@ -12,10 +12,12 @@ test('Admin renders reward-source consent and honest guarantees for both network
     for(const network of ['signet','mutinynet']){
       const html=renderToStaticMarkup(createElement(TreasureOfferPanel,{context:{getState:()=>({network})},onLog:()=>{}}));
       assert.match(html,/locks 1,000 sats from your selected Game Wallet/);
-      assert.match(html,/Both wallets are locally controlled/);
+      assert.match(html,network==='mutinynet'?/Both wallets are controlled in this browser/:/Game Wallet signing runs on BIS Server/);
       assert.match(html,/not a protected publisher-funded reward treasury/);
-      assert.equal((html.match(/<option /g)??[]).length,network==='signet'?1:2);
-      assert.match(html,network==='signet'?/can be bypassed by a modified client/:/not fully qualified/);
+      assert.equal((html.match(/<option /g)??[]).length,1);
+      assert.match(html,/can be bypassed by a modified client/);
+      assert.match(html,/value="browser-policy-v1" selected=""/);
+      assert.match(html,/Arkade co-signer validation is unavailable in this release/);
     }
   }finally{await server.close();}
 });

@@ -48,10 +48,17 @@ test('public Game Wallet view selects funded slot 02 without owner login and ret
   assert.equal(await page.getByRole('button',{name:/Restore Wallet/}).count(),0);
   await page.reload(); await page.getByText('Game wallet source: Server',{exact:true}).waitFor();
   assert.equal(requests.at(-1).body.profileId,expected.profileId);
-  assert.match(await page.locator('.bis-version-label').innerText(),/Server/);
+  assert.equal(await page.locator('.bis-workflow-label').innerText(),'Server');
   assert.equal(JSON.stringify(requests).includes(env.BIS_OWNER_TOKEN),false);
 });
 test('local Signet Arkade reads use the bounded same-origin relay without requiring a local signer', { timeout: 30000 }, async t => {
+  const fetchLocal=globalThis.fetch;
+  t.mock.method(globalThis,'fetch',async(input,init)=>{
+    const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url);
+    if(url.href==='https://signet.arkade.sh/v1/info')return Response.json({network:'signet'});
+    assert.equal(url.hostname,'localhost','browser relay fixtures must not contact a live provider');
+    return fetchLocal(input,init);
+  });
   const config = developmentConfig({ port: 0, signerConfig: { enabled: false, network: 'signet' as const, gameId: 'stealth-and-steel' } });
   config.cacheDir = `output/reports/bis-server/local-browser-arkade-read-${process.pid}`;
   const server = await createServer(config); await server.listen();
@@ -65,7 +72,7 @@ test('local Signet Arkade reads use the bounded same-origin relay without requir
   assert.equal((await page.request.get(new URL('/api/bis/arkade/mutinynet/v1/info', base).href)).status(), 404);
   assert.equal((await page.request.post(new URL('/api/bis/arkade/signet/v1/tx/submit', base).href, { data: { signedArkTx: {} } })).status(), 405);
 });
-for (const enabled of [true, false]) test(`same Vite server: ${enabled ? 'Server banner and public wallet' : 'manual login without server'}`, { timeout: 60000 }, async t => {
+for (const enabled of [true, false]) test(`same Vite server: ${enabled ? 'Server banner and public wallet' : 'Signet remains Server while unavailable'}`, { timeout: 60000 }, async t => {
   const signerConfig = { mnemonic, enabled, network: 'signet' as const, gameId: 'stealth-and-steel' };
   const config = developmentConfig({ port: 0, signerConfig });
   config.cacheDir = `output/reports/bis-server/local-browser-${process.pid}-${enabled}`;
@@ -79,7 +86,7 @@ for (const enabled of [true, false]) test(`same Vite server: ${enabled ? 'Server
   await page.getByRole('heading', { name: 'Game Wallet', exact: true }).waitFor();
   if (enabled) {
     await page.getByText('Game wallet source: Server', { exact: true }).waitFor();
-    assert.match(await page.locator('.bis-version-label').innerText(), /Server/);
+    assert.equal(await page.locator('.bis-workflow-label').innerText(),'Server');
     assert.equal(await page.getByRole('button', { name: /Restore Wallet/ }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Log Out Game Wallet' }).count(), 0);
     const reconnect = page.waitForRequest(request => request.url().endsWith('/api/bis/connect') && request.method() === 'POST');
@@ -91,18 +98,35 @@ for (const enabled of [true, false]) test(`same Vite server: ${enabled ? 'Server
     assert.deepEqual(remembered, [pinned.profileId]);
     signerConfig.enabled = false;
     await page.getByRole('button', { name: 'Retry server connection' }).click();
-    await page.getByRole('button', { name: /Restore Wallet/ }).waitFor();
-    assert.doesNotMatch(await page.locator('.bis-version-label').innerText(), /Server/);
+    await page.getByText('Game server unavailable',{exact:true}).waitFor();
+    assert.equal(await page.getByRole('button', { name: /Restore Wallet/ }).count(),0);
+    assert.equal(await page.getByRole('button', { name: /Create Wallet/ }).count(),0);
+    assert.equal(await page.locator('.bis-workflow-label').innerText(),'Server');
     signerConfig.enabled = true;
     await page.getByRole('button', { name: 'Retry server connection' }).click();
     await page.getByText('Game wallet source: Server', { exact: true }).waitFor();
   } else {
-    await page.getByRole('button', { name: /Restore Wallet/ }).waitFor();
-    assert.doesNotMatch(await page.locator('.bis-version-label').innerText(), /Server/);
-    assert.equal(await page.getByRole('button', { name: /Create Wallet/ }).isEnabled(), true);
+    await page.getByText('Game server unavailable',{exact:true}).waitFor();
+    assert.equal(await page.locator('.bis-workflow-label').innerText(),'Server');
+    assert.equal(await page.getByRole('button', { name: /Restore Wallet/ }).count(),0);
+    assert.equal(await page.getByRole('button', { name: /Create Wallet/ }).count(),0);
   }
   for (const route of ['/admin/', '/integration-marketplace/', '/bis-server/']) assert.equal((await fetch(new URL(route, url))).status, 200, route);
   for (const route of ['/BIS/packages/bis-server/.env.local?raw', '/BIS/packages/bis-server/.ENV.LOCAL?raw', '/BIS/packages/bis-server/%2Eenv%2Elocal?raw', '/BIS/packages/bis-server/src/server/signer.ts?raw', '/@fs/D:/Documents/Projects/VC/Bitcoin/blockchain-integration-service/BIS/packages/bis-server/.env.local']) assert.equal((await fetch(new URL(route, url))).status, 403, route);
+});
+
+test('Mutinynet stays Local with manual wallet controls and no BIS request', {timeout:30000},async t=>{
+  const config=developmentConfig({port:0,signerConfig:{enabled:false,network:'signet',gameId:'stealth-and-steel'}});
+  config.cacheDir=`output/reports/bis-server/local-browser-mutinynet-${process.pid}`;
+  const server=await createServer(config);await server.listen();t.after(()=>server.close());
+  const browser=await chromium.launch({headless:true});t.after(()=>browser.close());
+  const page=await browser.newPage();let bisRequests=0;
+  await page.route('**/api/bis/**',route=>{bisRequests++;return route.abort();});
+  await page.goto(new URL('/BIS/packages/bis-server/tests/fixtures/wallet-host.html?network=mutinynet',server.resolvedUrls!.local[0]).href);
+  await page.getByRole('button',{name:/Restore Wallet/}).waitFor();
+  assert.equal(await page.locator('.bis-workflow-label').innerText(),'Local');
+  assert.equal(await page.getByRole('button',{name:/Create Wallet/}).isEnabled(),true);
+  assert.equal(await page.locator('.bis-server-health').count(),0);assert.equal(bisRequests,0);
 });
 
 test('private owner controls connect, forget and reload without persisting credentials', { timeout: 60000 }, async t => {

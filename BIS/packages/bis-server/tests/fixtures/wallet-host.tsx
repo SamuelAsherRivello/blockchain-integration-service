@@ -10,12 +10,13 @@ import { configureBisServer } from '../../../integration/src/client/wallet-layer
 // or endpoint is read from query parameters, local storage or fixture source.
 if (new URL(location.href).searchParams.has('owner-test')) configureBisServer({ url: 'https://owner.fixture.test/api/bis/' });
 const selectionTest = new URL(location.href).searchParams.has('selection-test');
+const network = new URL(location.href).searchParams.get('network')==='mutinynet'?'mutinynet':'signet';
 if (selectionTest) configureBisServer({ url: 'https://selection.fixture.test/api/bis/' });
 
 // Deterministic UI-only provider data. Signing requests use the real local API.
 let saved = null;
-const backend = createServerFirstStorage({ load: async () => saved, select: async account => { saved = account; }, logout: async () => { saved = null; }, reset: async () => { saved = null; }, subscribe: () => () => {}, dispose() {} }, () => 'signet', undefined, createServerProfileMemory(localStorage));
-const wallet = createLocalGameWallet({ playerProfileId: () => 'fixture-player', playerNetwork: () => 'signet' }, {
+const backend = createServerFirstStorage({ load: async () => saved, select: async account => { saved = account; }, logout: async () => { saved = null; }, reset: async () => { saved = null; }, subscribe: () => () => {}, dispose() {} }, () => network, undefined, createServerProfileMemory(localStorage));
+const wallet = createLocalGameWallet({ playerProfileId: () => 'fixture-player', playerNetwork: () => network }, {
   storage: backend.storage, source: backend.source, probe: backend.refresh,
   ...(selectionTest ? {selectForOperation:(account,requirement,signal,current)=>backend.selectForOperation(account,requirement,signal,current)} : {}),
   restore: async () => { throw Error('Fixture does not restore real wallets.'); },
@@ -27,6 +28,6 @@ const wallet = createLocalGameWallet({ playerProfileId: () => 'fixture-player', 
 });
 function Host() {
   const state = useSyncExternalStore(wallet.subscribe, wallet.getState, wallet.getState), heading = useRef(null);
-  return <AccountDialogShell title="Game Wallet" description="Deterministic UI verification" headingRef={heading} network="Signet" serverConnected={state.source === 'server' && state.serverStatus === 'connected'}><GameWalletLoginView wallet={wallet} onBack={() => {}} /></AccountDialogShell>;
+  return <AccountDialogShell title="Game Wallet" description="Deterministic UI verification" headingRef={heading} network={network==='mutinynet'?'Mutinynet':'Signet'} workflowMode={state.workflowMode} serverHealth={state.status==='loading'?'connecting':state.serverStatus==='connected'?'connected':state.serverStatus==='error'?'unavailable':'absent'} serverConnected={state.source === 'server' && state.serverStatus === 'connected'}><GameWalletLoginView wallet={wallet} onBack={() => {}} /></AccountDialogShell>;
 }
 createRoot(document.getElementById('root')!).render(<Host />);

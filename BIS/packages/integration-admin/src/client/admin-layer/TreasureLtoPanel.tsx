@@ -8,12 +8,14 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
   const controller=useMemo(()=>context&&offers&&gameWallet?createTreasureSession({context,offers,gameWallet}):undefined,[context,offers,gameWallet]);
   const [deadline,setDeadline]=useState<number>(),[remaining,setRemaining]=useState(0);
   const network=context?.getState().network??'signet';
-  const [solution,setSolution]=useState<ContractValidationMode>(network==='mutinynet'?'arkade-covenant-v2':'browser-policy-v1');
+  const [solution,setSolution]=useState<ContractValidationMode>('browser-policy-v1');
   const [inProgress,setInProgress]=useState(false);
   const [claimBusy,setClaimBusy]=useState(false);
   const claimFlight=useRef<object|undefined>(undefined);
-  const selectedSolution=network==='signet'?'browser-policy-v1':solution;
-  useEffect(()=>{setSolution(network==='mutinynet'?'arkade-covenant-v2':'browser-policy-v1');},[network]);
+  const selectedSolution=inProgress?solution:'browser-policy-v1';
+  const newOfferModes=contractValidationOptions(network);
+  const displayedModes=inProgress&&!newOfferModes.includes(selectedSolution)?[selectedSolution,...newOfferModes]:newOfferModes;
+  useEffect(()=>{setSolution('browser-policy-v1');},[network]);
   const latest=useRef(controller);latest.current=controller;
   const log=useRef(onLog);log.current=onLog;
   useEffect(()=>{
@@ -51,7 +53,7 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
   function start(){
     log.current({event:'Start LTO',message:'Starting a new 90-second session. Any prior offer must resolve before replacement.'});
     if(!controller){const message='The limited-time offer Treasure could not be created.';log.current({event:'Start LTO',status:'unavailable',message});context?.showToast(message,{messageType:'warning'});return;}
-    void controller.start(selectedSolution);
+    void controller.start('browser-policy-v1');
   }
   async function claim(){
     // Guard before even the shared inspection await. A second UI invocation
@@ -77,11 +79,11 @@ export function TreasureOfferPanel({context,offers,gameWallet,onLog}:{context?:B
     <label style={{display:'flex',flexDirection:'column',gap:'0.35rem',minWidth:0}}>Signing / validation solution
       <select aria-label="Signing / validation solution" aria-describedby="treasure-validation-description" value={selectedSolution}
         style={{width:'100%',minWidth:0}} disabled={inProgress} onChange={event=>setSolution(event.target.value as ContractValidationMode)}>
-        {contractValidationOptions(network).map(mode=><option key={mode} value={mode}>{mode==='arkade-covenant-v2'?'Arkade co-signer (preferred)':'Browser validation (less secure)'}</option>)}
+        {displayedModes.map(mode=><option key={mode} value={mode}>{mode==='arkade-covenant-v2'?'Arkade co-signer (existing offer)':'Browser validation (less secure)'}</option>)}
       </select>
     </label>
-    <p id="treasure-validation-description" style={{maxWidth:'60ch',margin:0,overflowWrap:'break-word'}}>{contractValidationDescription(selectedSolution)} {network==='signet'?'The co-signer solution is not configured for Signet yet.':'Explicit Admin choices do not silently fall back.'}</p>
-    <p style={{maxWidth:'60ch',margin:0}}>Start LTO locks 1,000 sats from your selected Game Wallet for this offer. Both wallets are locally controlled. This is not a protected publisher-funded reward treasury.</p>
+    <p id="treasure-validation-description" style={{maxWidth:'60ch',margin:0,overflowWrap:'break-word'}}>{contractValidationDescription(selectedSolution)} New offers use Browser validation. Arkade co-signer validation is unavailable in this release.</p>
+    <p style={{maxWidth:'60ch',margin:0}}>Start LTO locks 1,000 sats from your selected Game Wallet for this offer. {network==='mutinynet'?'Both wallets are controlled in this browser.':'The Player Wallet is controlled in this browser. Game Wallet signing runs on BIS Server.'} This is not a protected publisher-funded reward treasury.</p>
     <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem'}}>
     <button type="button" disabled={claimBusy} onClick={start}>Start LTO</button>
     <button type="button" disabled={claimBusy} aria-busy={claimBusy} onClick={()=>void claim()}>Claim LTO</button>
