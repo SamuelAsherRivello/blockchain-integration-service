@@ -58,6 +58,21 @@ async function browserRecord(ctx:LifecycleContext){
   return rows[0];
  },{profileId:ctx.a.gameProfileId,network:ctx.a.network,fingerprint:ctx.plan!.quote.fingerprint,amount:ctx.a.amountSats,outpoints:ctx.plan!.outpoints});
 }
+async function originalWorkerCommitment(ctx:LifecycleContext){
+ let commitment:string|undefined;
+ await boundedPoll(async()=>{
+  const snapshot=await ctx.owner.page.evaluate(async(input:any)=>{
+   const load=(path:string)=>import(/* @vite-ignore */path),records=await load('/BIS/packages/integration/src/client/state-layer-core/boarding-record.ts'),execution=await load('/BIS/packages/integration/src/client/state-layer-core/boarding-execution.ts');
+   const rows=records.readBoardingRecords(input.profileId,input.network).filter((row:any)=>row.quote.fingerprint===input.fingerprint);
+   if(rows.length!==1||rows[0].quote.amountSats!==input.amount||!Array.isArray(rows[0].inputs)||JSON.stringify(rows[0].inputs.map((coin:any)=>`${coin.txid}:${coin.vout}`).sort())!==JSON.stringify([...input.outpoints].sort()))throw Error('Original durable boarding journal unavailable.');
+   return {record:rows[0],workerActive:execution.boardingWorkerActive(input.profileId,rows[0].id)};
+  },{profileId:ctx.a.gameProfileId,network:ctx.a.network,fingerprint:ctx.plan!.quote.fingerprint,amount:ctx.a.amountSats,outpoints:ctx.plan!.outpoints});
+  if(/^[a-f0-9]{64}$/.test(snapshot.record.commitmentTxid??'')){commitment=snapshot.record.commitmentTxid;return true;}
+  if(snapshot.record.status==='not-submitted'||!snapshot.workerActive)throw Error('Original SDK boarding worker stopped without commitment.');
+  return false;
+ },Math.max(1,ctx.deadline-Date.now()));
+ if(!commitment)throw Error('Original commitment acknowledgement unavailable.');return commitment;
+}
 async function trusted(ctx:LifecycleContext){return readSettlementContext({network:ctx.a.network,gamePublicKey:ctx.a.serverPublicKey,outpoints:ctx.plan!.outpoints.map(point=>{const [txid,vout]=point.split(':');return {txid,vout:Number(vout)};}),maximumExposureSats:ctx.a.amountSats,signal:AbortSignal.timeout(12000)});}
 export function assertBoardingServerPath(ctx:Pick<LifecycleContext,'a'|'planToken'|'batchToken'>,path:string,raw:any){
  const prefix=ctx.a.authorizationMode==='owner'?'owner/settlement/':'settlement/',field=ctx.a.authorizationMode==='owner'?'ownerSettlementPlan':'settlementPlan';
@@ -95,10 +110,13 @@ export const boardingStrategy:LifecycleStrategy={workflow:'boarding',source:impo
   return readonly(ctx,(wallet,info)=>planBoardingSdk({wallet,info,profileId:ctx.a.gameProfileId,network:ctx.a.network,quote}));
  },
  async execute(ctx){
-  const id=ctx.a.runId+'-board';await ctx.operation('btc-send',ctx.owner.registration.game,id,'boarding:'+ctx.a.gameProfileId,async()=>{
+  const id=ctx.a.runId+'-board',operation=await ctx.operation('btc-send',ctx.owner.registration.game,id,'boarding:'+ctx.a.gameProfileId,async()=>{
    await ctx.owner.page.evaluate(async(input:any)=>{const s=(globalThis as any).__serverAcceptance;if(s.game.getState().source!=='server'||s.game.getState().profileId!==input.profileId)throw Error('Original server source changed.');return s.game.board(input.quote);},{profileId:ctx.a.gameProfileId,quote:ctx.plan!.quote});
-   const record=await browserRecord(ctx);if(!record.commitmentTxid)throw Error('No original commitment acknowledgement.');return record.commitmentTxid;
+   return originalWorkerCommitment(ctx);
   });
+  // Operations.submit preserves sender failures as unknown. Do not enter
+  // receipt polling or keep its financial window open after that disposition.
+  if(operation?.state!=='pending')throw Error('Original boarding submission unresolved; preserve original protected journals.');
  },
  async server(ctx,path,body){
   const raw=body.request??body;assertBoardingServerPath(ctx,path,raw);

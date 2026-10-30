@@ -185,6 +185,12 @@ export function acceptanceProxyHeaders(headers:Record<string,string>){
   return {'Content-Type':'application/json',...(headers.authorization?{Authorization:headers.authorization}:{}),
     ...(headers['x-bis-signing-grant']?{'X-BIS-Signing-Grant':headers['x-bis-signing-grant']}:{})};
 }
+/** Use the same Vite module instance as the runtime after a source edit. */
+export function acceptanceRuntimeSignerModule(source:string){
+ const matches=[...source.matchAll(/from\s+["'](\/BIS\/packages\/integration\/src\/client\/wallet-layer-arkade\/server-wallet\.ts(?:\?t=\d+)?)["']/g)];
+ if(matches.length!==1)throw Error('Owned runtime signer module binding unavailable.');
+ return matches[0][1];
+}
 export class ServerPaymentBrowser extends OwnedBrowser{
   [key:string]:any;
   acceptance:any;
@@ -234,10 +240,13 @@ export class ServerPaymentBrowser extends OwnedBrowser{
     const {assignment}=this.acceptance;
     const browserEndpoint=acceptanceBrowserEndpoint(assignment,this.acceptance.browserEndpoint);
     await enterServerDocument(this.page,this.acceptance.browserEndpoint);
+    const identitySource=await fetch('http://127.0.0.1:5174/BIS/packages/integration/src/client/wallet-layer-arkade/wallet-identity.ts',{signal:AbortSignal.timeout(10000),cache:'no-store'});
+    if(!identitySource.ok)throw Error('Owned runtime signer module unavailable.');
+    const serverModule=acceptanceRuntimeSignerModule(await identitySource.text());
     await this.page.evaluate(async (input:any)=>{
       const load=(path:string)=>import(/* @vite-ignore */path),api=await load('/BIS/packages/integration/src/index.ts');
       const {createTestNetworkSession}=await load('/BIS/packages/integration/src/client/state-layer-core/test-network.ts');
-      const {configureBisServer}=await load('/BIS/packages/integration/src/client/wallet-layer-arkade/server-wallet.ts');
+      const {configureBisServer}=await load(input.serverModule);
       const {createServerProfileMemory}=await load('/BIS/packages/integration/src/client/state-layer-core/server-first-game-wallet.ts');
       createTestNetworkSession().select(input.network);configureBisServer({url:input.browserEndpoint,...(input.ownerToken?{ownerToken:input.ownerToken}:{})});
       createServerProfileMemory(localStorage,()=>input.browserEndpoint).save({profileId:input.gameId,network:input.network,server:{endpoint:input.browserEndpoint,publicKey:input.serverPublicKey,gameId:'stealth-and-steel'}});
@@ -246,7 +255,7 @@ export class ServerPaymentBrowser extends OwnedBrowser{
       const host=document.createElement('div');document.body.append(host);const ui=api.createBisUi(context);ui.mount(host);
       (globalThis as any).__serverAcceptance={context,ui,host,api};
       if(state.phase==='idle')context.openRestoreAccount();
-    },{network:assignment.network,playerId:assignment.playerProfileId,gameId:assignment.gameProfileId,serverPublicKey:assignment.serverPublicKey,ownerToken:this.acceptance.ownerToken,browserEndpoint});
+    },{network:assignment.network,playerId:assignment.playerProfileId,gameId:assignment.gameProfileId,serverPublicKey:assignment.serverPublicKey,ownerToken:this.acceptance.ownerToken,browserEndpoint,serverModule});
     const active=()=>this.page.evaluate(()=>{const state=(globalThis as any).__serverAcceptance.context.getState();return {phase:state.phase,profileId:state.profileId};});
     if((await active()).phase!=='active'){
       await this.entry(this.registration.player.phrase,'⚡ Restore');

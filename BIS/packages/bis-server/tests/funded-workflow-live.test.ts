@@ -1,5 +1,12 @@
 import test from 'node:test';
+import {acceptanceRuntimeSignerModule} from '../scripts/funded-workflow-live.ts';
 import assert from 'node:assert/strict';
+
+test('controlled browser configures the exact runtime signer module after a Vite update',()=>{
+ const path='/BIS/packages/integration/src/client/wallet-layer-arkade/server-wallet.ts';
+ for(const suffix of ['', '?t=1793366132724'])assert.equal(acceptanceRuntimeSignerModule(`import {remoteSigningIdentity} from "${path+suffix}";`),path+suffix);
+ for(const source of ['',`import {} from "https://other.test${path}";`,`import {} from "${path}?token=private";`,`import {} from "${path}?t=1&extra=1";`,`import {} from "${path}"; import {} from "${path}?t=1";`])assert.throws(()=>acceptanceRuntimeSignerModule(source));
+});
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {ArkAddress,SingleKey,Transaction} from '@arkade-os/sdk';
