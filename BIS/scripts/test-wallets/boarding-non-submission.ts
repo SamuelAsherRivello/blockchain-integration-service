@@ -91,10 +91,4 @@ export function verifyBoardingNonSubmission(record:any,run:any,evidence:Boarding
 /** Only this verified zero-dispatch disposition has zero cost. Ordinary failed,
  * cancelled, abandoned and unresolved operations retain their full budget cost.
  */
-export function hasVerifiedBoardingNonSubmission(record:any):boolean{
-  const r=record?.resolution;if(!r)return false;
-  const {digest,...body}=r;
-  return record.state==='cancelled'&&record.providerId===undefined&&record.intent?.kind==='btc-send'&&record.fingerprint===hash(record.intent)&&!!record.intent.serverSource&&
-    r.kind==='verified-guarded-boarding-non-submission'&&r.previousState==='unknown'&&r.networkOutcome==='not-submitted'&&r.verified===true&&r.exposureSats===0&&
-    r.proof?.operationFingerprint===record.fingerprint&&r.proof?.runId+'-board'===record.intent.id&&r.proof?.financialDispatches===0&&r.proof?.successfulSignatures===0&&digest===hash(body);
-}
+export {hasVerifiedBoardingNonSubmission} from './boarding-non-submission-record.ts';

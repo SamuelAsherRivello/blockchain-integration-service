@@ -1,4 +1,4 @@
-import {hasVerifiedBoardingNonSubmission} from './test-wallets/boarding-non-submission.ts';
+import {hasVerifiedBoardingNonSubmission} from './test-wallets/boarding-non-submission-record.ts';
 
 export const acceptanceScenarios=['probe','readiness','claim','feedback-claim','identity-race','network-replacement','legacy-rollback','asset-claim','duplicate-claim','empty-duplicate-claim','lost-claim-ack','insufficient','session-rollback','reject','expiry','portable','recover','peer'] as const;
 export const needsAcceptanceReadDiagnostics=(scenario:string)=>['readiness','network-replacement'].includes(scenario);
