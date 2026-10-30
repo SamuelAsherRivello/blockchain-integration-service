@@ -52,7 +52,10 @@ export function createBisContext(options: BisContextOptions = {}): BisContext {
     create: signal => {
       const network = selected();
       if (!network) throw Error('Choose a test network first.');
-      return createAccount(signal, network,player);
+      // Check a candidate with its temporary read-only wallet. The shared
+      // player session requires a complete contract snapshot, which is not
+      // needed to create an account and can fail on unrelated Signet reads.
+      return createAccount(signal, network);
     },
     restore: (phrase, signal) => {
       const network = selected();
