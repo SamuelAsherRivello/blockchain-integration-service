@@ -1,5 +1,6 @@
 // One explicit entry per routed demo. Unknown IDs must never open App.tsx.
-export const DEMO_FILES = [
+export type DemoFile = { number: number; id: string; file: string; sourceFile?: string };
+export const DEMO_FILES: readonly DemoFile[] = [
   { number: 1, id: 'create-wallet-source', file: 'create-wallet.ts' },
   { number: 2, id: 'private-balance-source', file: 'get-balance-private.ts' },
   { number: 3, id: 'balance-source', file: 'get-balance-public.ts' },
@@ -14,7 +15,7 @@ export const DEMO_FILES = [
   { number: 10, id: 'asset-history-source', file: 'asset-history-private.ts' },
   { number: 11, id: 'public-asset-history-source', file: 'asset-history-public.ts' },
   { number: 20, id: 'asset-upgrade-source', file: 'upgrade-asset.ts' },
-  { number: 21, id: 'events-source', file: 'events.ts' },
+  { number: 21, id: 'events-source', file: 'events.ts', sourceFile: 'events-example.ts' },
   { number: 14, id: 'conditional-vault-create-source', file: 'conditional-vault-create.ts' },
   { number: 15, id: 'conditional-vault-increment-source', file: 'conditional-vault-increment.ts' },
   { number: 16, id: 'conditional-vault-claim-source', file: 'conditional-vault-claim.ts' },
@@ -25,4 +26,4 @@ export const DEMO_FILES = [
   { number: 25, id: 'treasure-hunt-reject-source', file: 'treasure-hunt.ts' },
   { number: 12, id: 'external-wallet-payment-source', file: 'external-wallet-payment.ts' },
   { number: 13, id: 'external-wallet-receive-source', file: 'external-wallet-receive.ts' },
-] as const;
+];

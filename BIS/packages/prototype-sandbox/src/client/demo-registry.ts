@@ -1,5 +1,5 @@
 import { DEMO_FILES } from './demo-files.ts';
-import { demoSourceFile } from './source-links.ts';
+import { demoRuntimeFile } from './source-links.ts';
 import type { DemoContext, DemoResult } from './demo-runtime.ts';
 
 type DemoModule = { runDemo: (context: DemoContext) => Promise<DemoResult> | DemoResult };
@@ -8,8 +8,9 @@ const sources = import.meta.glob<string>('./demos/*.ts', { eager: true, query: '
 
 export const DEMO_REGISTRY = Object.freeze(Object.fromEntries(DEMO_FILES.map(demo => {
   const path = './demos/' + demo.file;
-  if (typeof modules[path]?.runDemo !== 'function' || typeof sources[path] !== 'string') throw new Error('Incomplete demo: ' + demo.id);
-  return [demo.id, Object.freeze({ run: modules[path].runDemo, source: sources[path], file: demoSourceFile(demo.id) })];
+  const sourcePath = './demos/' + (demo.sourceFile ?? demo.file);
+  if (typeof modules[path]?.runDemo !== 'function' || typeof sources[sourcePath] !== 'string') throw new Error('Incomplete demo: ' + demo.id);
+  return [demo.id, Object.freeze({ run: modules[path].runDemo, source: sources[sourcePath], file: demoRuntimeFile(demo.id) })];
 })));
 
 export function demoDefinition(sourceId: string) {
