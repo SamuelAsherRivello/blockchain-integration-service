@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
+import {assertReviewedSource} from '../scripts/funded-workflow-live.ts';
 import {SingleKey,DefaultVtxo,ArkAddress,Intent,Transaction,getNetwork,type IntentCoin} from '@arkade-os/sdk';
 import {Address} from '@scure/btc-signer';
 import {base64,hex} from '@scure/base';
@@ -14,9 +16,16 @@ const offchain=await makeScript(2048n),boarding=await makeScript(4096n);
 const gameAddress=new ArkAddress(await operator.xOnlyPublicKey(),offchain.pkScript.slice(2),'tark').encode(),bitcoinAddress=Address(getNetwork('signet')).encode({type:'tr',pubkey:boarding.pkScript.slice(2)});
 const info={network:'signet',signerPubkey:operatorPublicKey,unilateralExitDelay:2048n,boardingExitDelay:4096n,dust:330n,vtxoMinAmount:1n,vtxoMaxAmount:-1n,fees:{txFeeRate:'0',intentFee:{onchainInput:'0.0',offchainOutput:'0.0',offchainInput:'0.0',onchainOutput:'0.0'}}};
 function assignment():LifecycleAssignment{
- const required=['funded-workflow-live','protected-browser-journal','tests/funded-workflow-preflight','funded-workflow-lifecycle','funded-workflow-boarding'];
+ const required=['funded-workflow-live','protected-browser-journal','tests/funded-workflow-preflight','funded-workflow-lifecycle','funded-workflow-boarding','protected-lifecycle-responses'];
  return {runId:'boarding-case-01',network:'signet',pair:'test-pair',candidateId:'signet:01',playerProfileId:createHash('sha256').update(Buffer.from(playerPublicKey,'hex')).digest('hex'),gameProfileId:createHash('sha256').update(Buffer.from(gamePublicKey,'hex')).digest('hex'),serverPublicKey:gamePublicKey,endpoint:'https://reviewed-example.vercel.app/api/bis/',amountSats:1000,feeSats:0,workflow:'boarding',authorizationMode:'owner',sourceHashes:Object.fromEntries(required.map(path=>['BIS/packages/bis-server/scripts/'+path+'.ts','a'.repeat(64)]))};
 }
+test('the revised executable lifecycle requires and verifies its protected response helper source',async()=>{
+ const a=assignment(),path='BIS/packages/bis-server/scripts/protected-lifecycle-responses.ts',missing={...a,sourceHashes:{...a.sourceHashes}};
+ delete missing.sourceHashes[path];assert.throws(()=>validateLifecycleAssignment(missing,'boarding'),/Reviewed lifecycle source required/);
+ const actual=createHash('sha256').update(await readFile(path)).digest('hex');
+ await assertReviewedSource({...a,sourceHashes:{[path]:actual}});
+ await assert.rejects(assertReviewedSource({...a,sourceHashes:{[path]:'0'.repeat(64)}}),/Reviewed source changed/);
+});
 const coin=(value=1000)=>({txid:'11'.repeat(32),vout:0,value,status:{confirmed:true,block_height:1,block_time:Math.floor(Date.now()/1000)-10},tapTree:boarding.encode(),intentTapLeafScript:boarding.forfeit(),forfeitTapLeafScript:boarding.forfeit()});
 test('boarding execution allowance is explicit, scope-bound and limited to five minutes',()=>{
  const a=assignment();

@@ -16,7 +16,7 @@ const defaults={serverPubKey:hex.decode(operatorKey),csvTimelock:{type:'seconds'
 const checkpoint=CSVMultisigTapscript.encode({pubkeys:[hex.decode(operatorKey)],timelock:{type:'seconds',value:2048n}});
 const info={network:'signet',signerPubkey:operatorPublicKey,unilateralExitDelay:2048n,vtxoMinAmount:1n,vtxoMaxAmount:-1n,checkpointTapscript:hex.encode(checkpoint.script),fees:{txFeeRate:'0',intentFee:{onchainInput:'0',offchainInput:'0',onchainOutput:'0',offchainOutput:'0'}}};
 function assignment():LifecycleAssignment{
- const required=['funded-workflow-live','protected-browser-journal','tests/funded-workflow-preflight','funded-workflow-lifecycle','funded-workflow-lto'];
+ const required=['funded-workflow-live','protected-browser-journal','tests/funded-workflow-preflight','funded-workflow-lifecycle','funded-workflow-lto','protected-lifecycle-responses'];
  return {runId:'standard-lto-001',network:'signet',pair:'test-pair',candidateId:'signet:01',playerProfileId:createHash('sha256').update(Buffer.from(playerPublicKey,'hex')).digest('hex'),gameProfileId:createHash('sha256').update(Buffer.from(gamePublicKey,'hex')).digest('hex'),serverPublicKey:gamePublicKey,endpoint:'https://reviewed-example.vercel.app/api/bis/',amountSats:1000,feeSats:0,workflow:'standard-lto',authorizationMode:'player-proof',sourceHashes:Object.fromEntries(required.map(path=>['BIS/packages/bis-server/scripts/'+path+'.ts','a'.repeat(64)]))};
 }
 function fixture(){

@@ -5,6 +5,7 @@ import { createHostedHandler } from '../src/server/hosted.ts';
 import type { SigningClaim, SigningStore } from '../src/server/signing-store.ts';
 import { authenticatePlayerProof } from '../../integration/src/client/wallet-layer-arkade/player-proof-client.ts';
 import { encodeSigningValue, decodeSigningValue, toHex } from '../../integration/src/client/wallet-layer-arkade/server-wallet-protocol.ts';
+import {checkpointLifecycleResponse} from '../scripts/funded-workflow-lifecycle.ts';
 
 // Real SDK cryptography with public fixtures. The injected store captures
 // claims only; Redis accounting and live operator settlement are separate tests.
@@ -76,6 +77,12 @@ for (const owner of [false, true]) test(`hosted ${owner ? 'owner' : 'public'} se
     assert.equal(claims.length, index);
     const signed = await send('sign', request, token, grant);
     assert.equal(signed.status, 200, await signed.clone().text());
+    // The actual hosted handler returns {result} without a response id. The
+    // protected checkpoint associates it with the original request metadata.
+    const text=await signed.clone().text(),envelope=JSON.parse(text),saved:any={},retained:any[]=[],counts={server:0,sign:0,provider:0,sessionSign:0};
+    assert.deepEqual(Object.keys(envelope),['result']);
+    await checkpointLifecycleResponse({a:{authorizationMode:owner?'owner':'player-proof'} as any,counts,retainResponse:async record=>{retained.push(record);return {file:'fixture.dpapi.json',sha256:'a'.repeat(64)};},save:async use=>use(saved,{})},'sign',request,{status:signed.status,text});
+    assert.equal(retained[0].text,text);assert.equal(saved.serverResponses[0].text,undefined);assert.equal(saved.serverResponses[0].requestId,request.id);assert.equal(counts.sign,1);
     const actual = decodeSigningValue((await signed.json()).result);
     for (const vin of [0, 1]) await verifyTapscriptSignatures(actual, vin, [toHex(gameKey)], [], [1]);
   }

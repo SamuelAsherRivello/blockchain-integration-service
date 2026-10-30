@@ -3,6 +3,7 @@ import {resolve} from 'node:path';
 import {createHash} from 'node:crypto';
 import {validatePaymentAssignment,assertExecutionAuthority,assertReviewedSource,assertProtectedSessionSources,assertAtomicPaymentBudget,ServerPaymentBrowser,remoteRequest,boundedResult,acceptanceProxyHeaders,type PaymentAssignment,type PaymentMode} from './funded-workflow-live.ts';
 import {createProtectedBrowserJournalReader} from './protected-browser-journal.ts';
+import {createProtectedLifecycleResponseStore,type ProtectedResponseReference} from './protected-lifecycle-responses.ts';
 const legacy=(path:string)=>import(new URL(path,import.meta.url).href);
 const {Vault,repositoryRoot}=await legacy('../../../scripts/test-wallets/vault.ts');
 const {Operations}=await legacy('../../../scripts/test-wallets/operations.ts');
@@ -12,6 +13,7 @@ const {windowsProtectorSession}=await legacy('../../../scripts/test-wallets/prot
 export type LifecycleAssignment=PaymentAssignment&Readonly<{workflow:'boarding'|'standard-lto';authorizationMode:'owner'|'player-proof';ltoAction?:'claim'|'reject-refund';boardingExecutionMs?:number}>;
 export type LifecyclePlan={fingerprint:string;outpoints:string[];amountSats:number;feeSats:number;[key:string]:any};
 export type LifecycleContext={a:LifecycleAssignment;mode:PaymentMode;owner:any;plan?:LifecyclePlan;saved:any;deadline:number;financial:boolean;serverOperationId?:string;sessionPublicKey?:string;planToken?:string;batchToken?:string;batchId?:string;
+ retainResponse:(record:unknown)=>Promise<ProtectedResponseReference>;
  save:(use:(run:any,state:any)=>any)=>Promise<any>;read:()=>Promise<any>;ledger:any;vault:any;counts:{server:number;sign:number;provider:number;sessionSign:number};
  operation:(kind:string,account:any,id:string,recipient:string,run:()=>Promise<string>,target?:any)=>Promise<any>};
 export type LifecycleStrategy={workflow:LifecycleAssignment['workflow'];source:string;operationKinds:readonly string[];lifecycleCost:(a:LifecycleAssignment)=>number;
@@ -50,7 +52,7 @@ export function validateLifecycleAssignment(value:any,workflow:LifecycleAssignme
  if(boardingExecutionMs!==undefined&&(workflow!=='boarding'||!Number.isSafeInteger(boardingExecutionMs)||boardingExecutionMs<120000||boardingExecutionMs>300000))throw Error('Bounded boarding execution allowance required.');
  if(workflow==='boarding'&&ltoAction!==undefined||workflow==='standard-lto'&&ltoAction!==undefined&&!['claim','reject-refund'].includes(ltoAction))throw Error('Exact LTO action required.');
  if(given!==workflow||!['owner','player-proof'].includes(authorizationMode)||workflow==='standard-lto'&&base.amountSats!==1000)throw Error('Exact lifecycle assignment required.');
- for(const path of ['BIS/packages/bis-server/scripts/funded-workflow-lifecycle.ts',`BIS/packages/bis-server/scripts/funded-workflow-${workflow==='standard-lto'?'lto':'boarding'}.ts`])
+ for(const path of ['BIS/packages/bis-server/scripts/funded-workflow-lifecycle.ts','BIS/packages/bis-server/scripts/protected-lifecycle-responses.ts',`BIS/packages/bis-server/scripts/funded-workflow-${workflow==='standard-lto'?'lto':'boarding'}.ts`])
   if(!/^[a-f0-9]{64}$/.test(base.sourceHashes[path]??''))throw Error('Reviewed lifecycle source required.');
  return Object.freeze({...base,workflow,authorizationMode,...(workflow==='standard-lto'?{ltoAction:ltoAction??'claim'}:{}),...(boardingExecutionMs===undefined?{}:{boardingExecutionMs})});
 }
@@ -80,11 +82,81 @@ export function assertLifecycleResponse(response:{status:number;text:string},a:L
  const info=JSON.parse(response.text);
  if(response.status!==200||info.runtime!=='vercel'||info.network!==a.network||info.gameId!=='stealth-and-steel'||info.profileId!==a.gameProfileId||info.publicKey!==a.serverPublicKey||info.slot!==a.candidateId.split(':')[1]||typeof info.token!=='string'||!info.token)throw Error('Reviewed hosted identity changed.');
 }
+export function createLifecycleTransactionGuard(transaction:(use:(state:any)=>Promise<any>,options?:any)=>Promise<any>,a:LifecycleAssignment,strategy:Pick<LifecycleStrategy,'operationKinds'>,clientExposure:()=>number){
+ // Concurrent SDK requests share this Vault instance. Serialize its writes,
+ // while the Vault's exclusive lock still protects against other processes.
+ let tail=Promise.resolve();
+ return (use:any,options?:any)=>{
+ const work=tail.then(()=>transaction(async(state:any)=>{
+  const ids=new Set((state.operations??[]).map((row:any)=>row.intent.id)),result=await use(state);
+  for(const row of state.operations??[])if(!ids.has(row.intent.id)){
+   if(!row.intent.id.startsWith(a.runId+'-')||!strategy.operationKinds.includes(row.intent.kind)||![a.gameProfileId,a.playerProfileId].includes(row.intent.profileId)||row.intent.network!==a.network||row.intent.amountSats!==a.amountSats||row.intent.feeSats!==a.feeSats)throw Error('Unassigned lifecycle operation.');
+   assertAtomicPaymentBudget(state.operations??[],row.intent,clientExposure());
+  }return result;
+ },options));
+ tail=work.then(()=>{},()=>{});return work;
+ };
+}
+/** Exact financial responses belong only in protected recovery. Persist before
+ * fulfillment, including malformed responses, without extending proof deadlines.
+ * A result envelope is not evidence of a valid signature or settlement.
+ */
+export async function checkpointLifecycleResponse(ctx:Pick<LifecycleContext,'a'|'save'|'retainResponse'|'counts'|'sessionPublicKey'|'planToken'|'batchToken'>,path:string,body:any,response:{status:number;text:string}){
+ const raw=body.request??body,record={path,requestId:raw.id,operationId:raw.operationId,method:raw.method,requestHash:lifecycleHash(body),status:response.status,text:response.text,sha256:createHash('sha256').update(response.text).digest('hex'),receivedAt:new Date().toISOString()};
+ // Retention is independent of the main Vault commit. A refused metadata write
+ // leaves the exact encrypted response available in this run's private folder.
+ const protectedResponse=await ctx.retainResponse(record);
+ let update:any={},invalid=false;
+ if(response.status===200)try{
+  if(path.endsWith('settlement/plan')){
+   const info=JSON.parse(response.text),token=info?.[ctx.a.authorizationMode==='owner'?'ownerSettlementPlan':'settlementPlan'];
+   if(!/^0[23][a-f0-9]{64}$/.test(info?.sessionPublicKey??'')||typeof token!=='string'||!token)throw Error();
+   update={sessionPublicKey:info.sessionPublicKey,planToken:token};
+  }else if(path.endsWith('settlement/batch')){
+   const info=JSON.parse(response.text);if(typeof info?.settlementBatchPlan!=='string'||!info.settlementBatchPlan)throw Error();update={batchToken:info.settlementBatchPlan};
+  }else if(path==='sign'){
+   const info=JSON.parse(response.text);if(!info||Array.isArray(info)||!Object.hasOwn(info,'result')||info.error!==undefined)throw Error();
+  }
+ }catch{invalid=true;}
+ await ctx.save(run=>{
+  if(!run)throw Error('Original lifecycle unavailable.');
+  const {text:_text,...metadata}=record;run.serverResponses??=[];run.serverResponses.push({...metadata,protectedResponse});
+  if(!invalid){Object.assign(run,update);if(path==='sign'&&response.status===200){run.successfulServerSigns??=[];run.successfulServerSigns.push({id:raw.id,operationId:raw.operationId,method:raw.method});}}
+ });
+ if(invalid)throw Error('Original financial response is invalid; exact protected response retained.');
+ Object.assign(ctx,update);
+ if(path==='sign'&&response.status===200){ctx.counts.sign++;if(raw.method==='session.sign')ctx.counts.sessionSign++;}
+}
+export function lifecycleGuardError(error:unknown){
+ try{
+  const value=error as {name?:unknown;code?:unknown;message?:unknown};
+  return {name:['Error','TypeError','RangeError','SyntaxError','AbortError','TimeoutError'].includes(String(value?.name))?String(value.name):'Error',
+   ...(typeof value?.code==='string'&&/^E[A-Z0-9_]{1,48}$/.test(value.code)?{code:value.code}:{}),
+   ...(typeof value?.message==='string'?{messageHash:createHash('sha256').update(value.message.slice(0,8192)).digest('hex')}:{} )};
+ }catch{return {name:'Error'};}
+}
+/** Finish already dispatched transports before closing private storage. New
+ * routes are blocked once cleanup starts; this never replays an HTTP request.
+ */
+export function createLifecycleRouteTracker(){
+ let closing=false;const pending=new Set<Promise<unknown>>();
+ return {
+  run(route:any,use:(route:any)=>Promise<unknown>){
+   if(closing)return route.abort('blockedbyclient').catch(()=>{});
+   const work=Promise.resolve().then(()=>use(route));pending.add(work);
+   return work.finally(()=>{pending.delete(work);});
+  },
+  async drain(){closing=true;await Promise.allSettled([...pending]);},
+ };
+}
 export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMode,strategy:LifecycleStrategy,env:NodeJS.ProcessEnv=process.env){
  const a=validateLifecycleAssignment(assignment,strategy.workflow);assertLifecycleAuthority(a,mode,a.runId,env);await assertReviewedSource(a);
  assertProtectedSessionSources(a);
  const protector=windowsProtectorSession(),vault=new Vault({protector}),ledger=new Operations(vault),scope=lifecycleScope(a);let owner:any,stage='protected-registration',clientExposure=0;
+ const responses=createProtectedLifecycleResponseStore({root:vault.root,protector,runId:a.runId});
+ const routes=createLifecycleRouteTracker();
  const ctx:LifecycleContext={a,mode,owner:undefined,saved:undefined,deadline:0,financial:false,vault,ledger,counts:{server:0,sign:0,provider:0,sessionSign:0},
+  retainResponse:record=>responses.retain(record),
   save:use=>vault.transaction((state:any)=>{state.serverLifecycleRuns??={};return use(state.serverLifecycleRuns[a.runId],state);}),
   read:async()=> (await vault.read({initialize:false})).serverLifecycleRuns?.[a.runId],
   operation:async(kind,account,id,recipient,run,target)=>{
@@ -94,13 +166,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
   }};
  const transaction=vault.transaction.bind(vault);
  const requestJournal=createDeferredProofJournal(async records=>{await ctx.save(run=>{if(!run)throw Error('Original lifecycle unavailable.');run.serverRequests??=[];run.serverRequests.push(...records);});});
- vault.transaction=async(use:any,options?:any)=>transaction(async(state:any)=>{
-  const ids=new Set((state.operations??[]).map((row:any)=>row.intent.id)),result=await use(state);
-  for(const row of state.operations??[])if(!ids.has(row.intent.id)){
-   if(!row.intent.id.startsWith(a.runId+'-')||!strategy.operationKinds.includes(row.intent.kind)||![a.gameProfileId,a.playerProfileId].includes(row.intent.profileId)||row.intent.network!==a.network||row.intent.amountSats!==a.amountSats||row.intent.feeSats!==a.feeSats)throw Error('Unassigned lifecycle operation.');
-   assertAtomicPaymentBudget(state.operations??[],row.intent,clientExposure);
-  }return result;
- },options);
+ vault.transaction=createLifecycleTransactionGuard(transaction,a,strategy,()=>clientExposure);
  try{
   await vault.transaction(async(state:any)=>{
    await verifiedInventory(state);const pair=state.pairs.find((row:any)=>row.label===a.pair&&row.network===a.network),player=state.accounts.find((row:any)=>row.label===pair?.player),game=findTestActor(state,pair?.game);
@@ -150,10 +216,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
      if(path!=='connect'&&!allowed())throw Error('Original observation expired.');
      const response=useCached?cached:await remoteRequest(a.endpoint,path,body,headers,env);if(useCached)cached=undefined as any;else ctx.counts.server++;
      if(path==='connect')assertLifecycleResponse(response,a);
-     if(path.endsWith('settlement/plan')&&response.status===200){const info=JSON.parse(response.text),token=info[a.authorizationMode==='owner'?'ownerSettlementPlan':'settlementPlan'];if(!/^0[23][a-f0-9]{64}$/.test(info.sessionPublicKey??'')||typeof token!=='string'||!token)throw Error('Original session key unavailable.');ctx.sessionPublicKey=info.sessionPublicKey;ctx.planToken=token;await ctx.save(run=>{run.sessionPublicKey=info.sessionPublicKey;run.planToken=token;});}
-     if(path.endsWith('settlement/batch')&&response.status===200){const info=JSON.parse(response.text);if(typeof info.settlementBatchPlan!=='string'||!info.settlementBatchPlan)throw Error('Original batch authority unavailable.');ctx.batchToken=info.settlementBatchPlan;await ctx.save(run=>{run.batchToken=info.settlementBatchPlan;});}
-     if(path==='sign'&&response.status===200&&(body.request??body).method==='session.sign')ctx.counts.sessionSign++;
-     if(path==='sign'&&response.status===200){ctx.counts.sign++;const raw=body.request??body;await ctx.save(run=>{run.successfulServerSigns??=[];run.successfulServerSigns.push({id:raw.id,operationId:raw.operationId,method:raw.method});});}
+     if(path!=='connect'&&!['player/challenge','player/authenticate'].includes(path)){guardStage='response-checkpoint';await checkpointLifecycleResponse(ctx,path,body,response);}
      return route.fulfill({status:response.status,contentType:'application/json',headers:cors,body:response.text});
     }
     if(['GET','HEAD','OPTIONS'].includes(request.method())||url.origin===`https://${a.network}.arkade.sh`&&url.pathname.startsWith('/v1/indexer/'))return route.continue();
@@ -161,14 +224,15 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
     const body=request.postDataJSON();guardedBody=body;guardPath=url.pathname;guardStage='provider-journal';await requestJournal.flush();guardStage='provider-intent';await strategy.provider(ctx,url.pathname,body);
     await ctx.save(run=>{run.providerRequests??=[];run.providerRequests.push({path:url.pathname,body});});
     if(!allowed())throw Error('Original observation expired.');ctx.counts.provider++;return route.continue();
-   }catch{
+   }catch(error){
+    ctx.financial=false;
     await requestJournal.flush().catch(()=>{});
-    await ctx.save(run=>{if(run){run.guardFailures??=[];run.guardFailures.push({path:guardPath,stage:guardStage,requestOrigin:boundary.origin,requestMethod:boundary.method,financialWindowOpenAtRequest,observedAt:new Date().toISOString(),...(guardedBody===undefined?{}:{request:guardedBody})});}}).catch(()=>{});
+    await ctx.save(run=>{if(run){run.guardFailures??=[];run.guardFailures.push({path:guardPath,stage:guardStage,error:lifecycleGuardError(error),requestOrigin:boundary.origin,requestMethod:boundary.method,financialWindowOpenAtRequest,observedAt:new Date().toISOString(),...(guardedBody===undefined?{}:{request:guardedBody})});}}).catch(()=>{});
     return route.abort('blockedbyclient').catch(()=>{});
    }
   };
   stage='owned-player-only-browser';owner=new ServerPaymentBrowser(vault,{pair:a.pair,origin:'http://127.0.0.1:5174',app:'admin',stableSource:true,recoveryProfile:'life-'+a.runId});ctx.owner=owner;
-  owner.acceptance={assignment:a,proxy,ownerToken:env.BIS_ACCEPTANCE_OWNER_TOKEN,...(browserEndpoint?{browserEndpoint}:{})};await owner.start();await owner.inspect();
+  owner.acceptance={assignment:a,proxy:(route:any)=>routes.run(route,proxy),ownerToken:env.BIS_ACCEPTANCE_OWNER_TOKEN,...(browserEndpoint?{browserEndpoint}:{})};await owner.start();await owner.inspect();
   if(mode!=='reconcile'){
    const journal=createProtectedBrowserJournalReader({page:owner.page,vault,runId:a.runId,slot:env.BIS_SERVER_ACCEPTANCE_SLOT,profileId:a.gameProfileId,network:a.network,...(actorSource(owner.registration.game)?{serverSource:actorSource(owner.registration.game)}:{})});const snapshot=await journal.readNetworkSnapshot(a.gameProfileId,a.network,Date.now(),[]);
    if(snapshot.reservations.length||snapshot.unknownOperations.length)throw Error('Original source journal unresolved.');clientExposure=snapshot.rolling24hSpentSats+snapshot.knownReservedSats;
@@ -190,7 +254,7 @@ export async function runLifecycle(assignment:LifecycleAssignment,mode:PaymentMo
  }catch{
   ctx.financial=false;if(mode!=='prepare')await ctx.save(run=>{if(run?.phase==='execution-started')run.phase='unresolved';}).catch(()=>{});
   throw Error(`Lifecycle acceptance stopped at ${stage}; preserve original protected journals.`);
- }finally{ctx.financial=false;let journalUnavailable=false;try{try{await requestJournal.flush();}catch{journalUnavailable=true;}await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});}finally{await protector.close();}if(journalUnavailable)throw Error('Original request journal unavailable; preserve protected recovery.');}
+ }finally{ctx.financial=false;let journalUnavailable=false;try{await routes.drain();try{await requestJournal.flush();}catch{journalUnavailable=true;}await strategy.cleanup?.(ctx).catch(()=>{});await owner?.page?.evaluate(()=>{const s=(globalThis as any).__serverAcceptance;s?.game?.dispose();s?.ui?.unmount();s?.context?.dispose();delete (globalThis as any).__serverAcceptance;}).catch(()=>{});await owner?.close().catch(()=>{});}finally{await protector.close();}if(journalUnavailable)throw Error('Original request journal unavailable; preserve protected recovery.');}
 }
 export async function lifecycleCli(strategy:LifecycleStrategy){
  for(const method of ['log','info','warn','error','debug','trace','dir'] as const)console[method]=()=>{};
