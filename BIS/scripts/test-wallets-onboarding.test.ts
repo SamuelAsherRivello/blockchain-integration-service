@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { ReadonlyWallet, RestArkProvider, CSVMultisigTapscript } from '@arkade-os/sdk';
@@ -70,6 +71,69 @@ test('onboard-half validates before private access and exact window identity can
     'http://127.0.0.1:5175/onboarding/?network=signet&window=half-one',
     'http://127.0.0.1:5174/onboarding/?network=signet&window=half-one&reset=true'])
     assert.throws(() => assertOnboardingWindow(value, operation), /window-mismatch/);
+});
+
+for (const network of ['signet', 'mutinynet']) test(`${network}: exact native full-input onboarding keeps its original amount and identity reservation`, async () => {
+  const f = await fixture(network), player = f.owner.registration.player;
+  const intent = { id: 'native-full-one', account: player.label, profileId: player.profileId, generation: 1,
+    network, kind: 'onboard', recipient, amountSats: 1000, feeSats: 0, sourceOrigin: 'http://127.0.0.1:5174',
+    percent: 100, capturedInputs: [{ txid: original, vout: 0, value: 1000 }] };
+  const first = await f.ledger.prepare(intent);
+  assert.equal(first.state, 'prepared');
+  assert.equal(first.intent.amountSats, 1000);
+  assert.equal(first.intent.percent, 100);
+  assert.deepEqual(first.intent.capturedInputs, intent.capturedInputs);
+  assert.equal((await f.ledger.prepare(intent)).fingerprint, first.fingerprint, 'reentry retains the original full-input operation');
+  const { percent: _percent, capturedInputs: _inputs, ...payment } = intent;
+  await assert.rejects(f.ledger.prepare({ ...payment, id: 'competing-payment', kind: 'btc-send' }), /operation-scope-pending/);
+  assert.equal((await f.ledger.list()).length, 1, 'full-input intent reserves the existing wallet/network scope');
+});
+
+test('full-input onboarding rejects changed principal, unknown fees and invalid original inputs before reserving anything', async () => {
+  const f = await fixture('mutinynet'), player = f.owner.registration.player;
+  const intent = { id: 'native-full-one', account: player.label, profileId: player.profileId, generation: 1,
+    network: 'mutinynet', kind: 'onboard', recipient, amountSats: 1000, feeSats: 0,
+    sourceOrigin: 'http://127.0.0.1:5174', percent: 100, capturedInputs: [{ txid: original, vout: 0, value: 1000 }] };
+  for (const changed of [{ amountSats: 999 }, { amountSats: 1001 }, { percent: 99 }, { percent: '100' },
+    { feeSats: 1 }, { feeSats: null }, { capturedInputs: [] },
+    { capturedInputs: [{ txid: original, vout: 0, value: 0 }] },
+    { capturedInputs: [{ txid: original, vout: 0, value: 500 }, { txid: original, vout: 0, value: 500 }] }]) {
+    await assert.rejects(f.ledger.prepare({ ...intent, ...changed }), /invalid-onboarding-intent/);
+  }
+  assert.deepEqual(await f.ledger.list(), []);
+});
+
+test('existing half-onboarding canonical records retain their stored fingerprint', async () => {
+  const f = await fixture(), player = f.owner.registration.player;
+  // This is the pre-extension persisted field order and shape. A changed
+  // canonical form would invalidate the existing encrypted operation ledger.
+  const priorIntent = { id: 'older-half-one', account: player.label, profileId: player.profileId, generation: 1,
+    network: 'signet', kind: 'onboard', recipient, amountSats: 500, feeSats: 0, sourceOrigin: 'http://127.0.0.1:5174',
+    percent: 50, capturedInputs: [{ txid: original, vout: 0, value: 1001 }] };
+  const fingerprint = createHash('sha256').update(JSON.stringify(priorIntent)).digest('hex');
+  await f.owner.vault.transaction(state => { state.operations = [{ intent: priorIntent, fingerprint, state: 'prepared',
+    createdAt: '2026-10-20T00:00:00.000Z', updatedAt: '2026-10-20T00:00:00.000Z' }]; });
+  const [record] = await f.ledger.list();
+  assert.equal(record.fingerprint, fingerprint);
+  assert.equal((await f.ledger.prepare(priorIntent)).fingerprint, fingerprint);
+});
+
+test('full-input onboarding preserves identity and grant checks before any dispatch', async () => {
+  const f = await fixture('mutinynet'), player = f.owner.registration.player;
+  const intent = { id: 'native-full-one', account: player.label, profileId: player.profileId, generation: 1,
+    network: 'mutinynet', kind: 'onboard', recipient, amountSats: 1000, feeSats: 0,
+    sourceOrigin: 'http://127.0.0.1:5174', percent: 100, capturedInputs: [{ txid: original, vout: 0, value: 1000 }] };
+  await assert.rejects(f.ledger.prepare({ ...intent, profileId: 'f'.repeat(64) }), /operation-identity-changed/);
+  await assert.rejects(f.ledger.prepare({ ...intent, generation: 2 }), /operation-identity-changed/);
+  const prepared = await f.ledger.prepare(intent);
+  await f.owner.vault.transaction(state => { state.accounts[0].grant.active = false; });
+  let submissions = 0;
+  await assert.rejects(f.ledger.submit(intent.id, async () => { submissions++; return { providerId: board }; }), /test-grant-unavailable/);
+  assert.equal(submissions, 0);
+  const [retained] = await f.ledger.list();
+  assert.equal(retained.state, 'prepared');
+  assert.equal(retained.fingerprint, prepared.fingerprint);
+  assert.deepEqual(retained.intent, prepared.intent);
 });
 
 for (const network of ['signet', 'mutinynet']) test(`${network}: capture before private restore and verify both legs plus independent BIS read`, async () => {

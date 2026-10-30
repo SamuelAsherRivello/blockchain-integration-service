@@ -35,9 +35,9 @@ function canonicalIntent(input) {
   let onboarding;
   if (input.kind === 'onboard') {
     // Capture the eligible original Bitcoin inputs before a funded identity is
-    // restored into a page that can submit automatically. Neither a balance nor
-    // an intermediate whole-input Arkade receipt describes the half-onboard intent.
-    if (input.percent !== 50 || !Array.isArray(input.capturedInputs) ||
+    // restored into a page that can submit automatically. Preserve the original
+    // half-onboard form; native full-input onboarding requires exact zero fees.
+    if (![50, 100].includes(input.percent) || (input.percent === 100 && input.feeSats !== 0) || !Array.isArray(input.capturedInputs) ||
         !input.capturedInputs.length || input.capturedInputs.length > 1000) fail('invalid-onboarding-intent');
     const inputs = input.capturedInputs.map(coin => {
       if (!/^[a-f0-9]{64}$/.test(coin?.txid ?? '') || !sats(coin.vout) || coin.vout > 0xffffffff ||
@@ -46,9 +46,9 @@ function canonicalIntent(input) {
     }).sort((a, b) => a.txid.localeCompare(b.txid) || a.vout - b.vout);
     const total = inputs.reduce((sum, coin) => sum + coin.value, 0);
     if (new Set(inputs.map(coin => `${coin.txid}:${coin.vout}`)).size !== inputs.length ||
-        !sats(total) || input.amountSats === 0 || Math.floor(total / 2) !== input.amountSats)
+        !sats(total) || input.amountSats === 0 || (input.percent === 100 ? total : Math.floor(total / 2)) !== input.amountSats)
       fail('invalid-onboarding-intent');
-    onboarding = { percent: 50, capturedInputs: inputs };
+    onboarding = { percent: input.percent, capturedInputs: inputs };
   } else if (input.percent !== undefined || input.capturedInputs !== undefined) fail('invalid-operation-intent');
   let target;
   if (input.target !== undefined) {
