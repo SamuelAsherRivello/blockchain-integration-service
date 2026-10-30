@@ -277,7 +277,7 @@ test('BisService owns private resources and routes game workflows through the tw
     const assets = bisMarketplaceItems.map((item, index) => ({ assetId: `unit-item-${index}`, quantity: '1', iconUrl: item.iconUrl,
       metadata: { bisSchemaVersion: '1', ...marketplaceItemMetadata(item) } }));
     f.context.listAssets = async () => ({ status: 'success', profileId: 'player', assets });
-    assert.equal(f.service.hasItemSupport(), true); assert.equal(f.service.hasContractSupport(), false);
+    assert.equal(f.service.hasItemSupport(), true); assert.equal(f.service.hasContractSupport(), true);
     assert.equal((await f.service.refreshEquipmentAsync()).ownedItems.length, 9);
     assert.equal((await f.service.selectEquipmentAsync('unit-item-0')).effective.Shoes.tier, 1);
     assert.equal((await f.service.selectEquipmentAsync('unit-item-1')).effective.Shoes.tier, 2);

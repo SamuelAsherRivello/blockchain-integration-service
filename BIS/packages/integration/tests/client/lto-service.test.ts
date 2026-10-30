@@ -276,3 +276,47 @@ test('Admin Reset cannot clear either participant while a contract is unresolved
   assert.deepEqual(s.calls,['fund']);
 });
 
+test('a deferred validation choice cannot allocate, prepare or submit a new offer on either network',async()=>{
+  for(const network of ['signet','mutinynet']){
+    let preparations=0,writes=0;
+    const s=setup({prepare:async()=>{preparations++;throw Error('must not prepare');}});
+    s.playerState.network=network;
+    const save=s.storage.save.bind(s.storage);
+    s.storage.save=async document=>{writes++;return save(document);};
+    try{
+      const result=await s.service.start({...s.request,validationSolution:'arkade-covenant-v2'});
+      assert.equal(result.status,'unavailable');
+      assert.equal(preparations,0);assert.equal(writes,0);assert.deepEqual(s.calls,[]);
+      assert.equal(localStorage.length,0);assert.equal((await s.storage.load()).ledger.contracts.length,0);
+    }finally{s.service.dispose();}
+  }
+});
+
+test('network support cannot bypass missing wallet readiness or fund the skipped session later',async()=>{
+  for(const changed of ['player','game']){
+    const s=setup();
+    if(changed==='player')s.playerState.phase='idle';else s.gameState.status='unavailable';
+    try{
+      assert.equal((await s.service.start(s.request)).status,'unavailable');
+      s.playerState.phase='active';s.gameState.status='ready';
+      assert.equal((await s.service.start(s.request)).status,'unavailable');
+      assert.deepEqual(s.calls,[]);assert.equal((await s.storage.load()).ledger.contracts.length,0);
+    }finally{s.service.dispose();}
+  }
+});
+
+test('an existing offer keeps its original validation and recovery when a new-offer choice is unavailable',async()=>{
+  const s=setup();
+  try{
+    const first=await s.service.start(s.request);await delay();
+    const before=await s.storage.load();
+    let preparations=0;
+    s.dependencies.prepare=async()=>{preparations++;throw Error('must not replace original');};
+    const restored=await s.service.start({...s.request,validationSolution:'arkade-covenant-v2'});
+    assert.equal(restored.status,'confirmed');assert.equal(restored.contract.id,first.contract.id);
+    assert.equal(restored.contract.validationMode,'browser-policy-v1');
+    assert.equal(preparations,0);assert.deepEqual(s.calls,['fund']);
+    assert.deepEqual(await s.storage.load(),before);
+  }finally{s.service.dispose();}
+});
+

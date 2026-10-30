@@ -32,11 +32,13 @@ test('asset minting support requires both wallets and the minimum Game Wallet ba
   assert.equal(assetMintingSupportAvailable(activeNetwork, { ...readyGameWallet(), status: 'empty' }), false);
 });
 
-test('contract support requires distinct ready wallets but does not require a balance', () => {
+test('contract network support is independent of login, wallet loading and balance readiness', () => {
   assert.equal(contractSupportAvailable(activeNetwork, readyGameWallet(0)), true);
-  assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), false);
-  assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), status: 'loading' }), false);
-  assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), network: 'mutinynet' }), false);
+  assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), true);
+  assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), status: 'loading' }), true);
+  assert.equal(contractSupportAvailable(activeNetwork, { ...readyGameWallet(), network: 'mutinynet' }), true);
+  assert.equal(contractSupportAvailable({ phase: 'idle', hasProfile: false, network: 'mutinynet' }, { status: 'empty' }), true);
+  assert.equal(contractSupportAvailable({ phase: 'idle', hasProfile: false }, { status: 'empty' }), false);
 });
 
 test('payment support requires both wallets but does not require a balance', () => {
@@ -49,8 +51,10 @@ test('payment support requires both wallets but does not require a balance', () 
 test('Developer capability feedback reports the exact missing prerequisite', () => {
   assert.equal(itemSupportFeedback(active, supportedEnvironment), 'Current status: available. The Player Wallet is active and this browser supports item operations.');
   assert.equal(itemSupportFeedback(active, { navigator: {} }), 'Items are unavailable: use a browser with Web Locks support.');
-  assert.equal(contractSupportFeedback(activeNetwork, readyGameWallet()), 'Current status: available. Distinct Player and Game Wallets are ready on the same network.');
-  assert.equal(contractSupportFeedback(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), 'Contracts are unavailable: select a Game Wallet different from the Player Wallet.');
+  assert.equal(contractSupportFeedback(activeNetwork, readyGameWallet()), 'Signet supports Browser validation. Expiry and payout rules are checked by the browser. Distinct Player and Game Wallets are ready on the same network.');
+  assert.equal(contractSupportFeedback(activeNetwork, { ...readyGameWallet(), profileId: 'player' }), 'Signet supports Browser validation. Expiry and payout rules are checked by the browser. Contract actions are not ready: select a Game Wallet different from the Player Wallet.');
+  assert.match(contractSupportFeedback({ phase: 'idle', hasProfile: false, network: 'mutinynet' }, { status: 'loading' }), /Mutinynet supports Browser validation.*sign in to an active Player Wallet; wait for the Game Wallet to finish loading/);
+  assert.equal(contractSupportFeedback({ phase: 'idle', hasProfile: false }, { status: 'empty' }), 'Choose a test network to check Treasure contract support.');
   assert.equal(assetMintingSupportFeedback(activeNetwork, readyGameWallet(), supportedEnvironment), 'Current status: available. The Game Wallet has at least 1,000 sats available for minting.');
   assert.equal(assetMintingSupportFeedback(activeNetwork, readyGameWallet(750), supportedEnvironment), 'Asset Minting is unavailable: fund the Game Wallet with 1,000 sats (currently 750 sats; 250 more needed).');
 });

@@ -12,7 +12,7 @@ import { prepareLtoRecovery, reconcileLtoSpend, resumeLtoFinalization, submitLto
 import { operatorFor } from '../wallet-layer-arkade/account.ts';
 import { isTestNetwork, type TestNetwork } from './test-network.ts';
 import { recordGamePlayerPayment } from './game-player-payment.ts';
-import {contractValidationDescription,contractValidationOptions,type ContractValidationPreference} from './contract-validation.ts';
+import {contractValidationDescription,contractValidationOptions,contractNetworkSupport,type ContractValidationPreference} from './contract-validation.ts';
 import { appWalletOwner } from '../wallet-layer-arkade/app-wallet-composition.ts';
 import {exportContractRecovery,decryptContractRecovery,mergeContractRecovery,type ContractRecoveryScope} from './contract-portable-recovery.ts';
 import {inspectLtoRecoveryDescriptor} from '../wallet-layer-arkade/lto-recovery-descriptor.ts';
@@ -389,8 +389,8 @@ export function createLtoService(options: {context:BisContext;gameWallet:ReturnT
         if(detached||options.creationEnabled===false||!playerId||!gameId||playerId===gameId)return {status:'unavailable'};
         const marker=`bis-lto-attempt-v1:${encodeURIComponent(key)}`;
         const network=context.getState().network ?? 'signet';
-        if(request.validationSolution && request.validationSolution!=='auto' && !contractValidationOptions(network).includes(request.validationSolution))return {status:'unavailable'};
         if(localStorage.getItem(marker)!==null)return await durableStartResult(request.sessionId,network,playerId,gameId,request.exclusivityKey) ?? {status:'unavailable'};
+        if(!contractNetworkSupport(network).supported||request.validationSolution && request.validationSolution!=='auto' && !contractValidationOptions(network).includes(request.validationSolution))return {status:'unavailable'};
         if(context.getState().phase!=='active'||gameWallet.getState().status!=='ready') {
           // Persist readiness skips so this session cannot late-start if the
           // same session's wallets become ready later.

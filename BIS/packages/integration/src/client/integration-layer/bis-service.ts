@@ -232,7 +232,7 @@ export class BisService implements IBis {
   hideLoadingUI() { if (!this.#disposed && this.isLoadingUIVisible()) this.#ui.hideLoadingUI(); }
   hasItemSupport() { return !this.#disposed && !this.#resetPromise && itemSupportAvailable(this.#context.getState()); }
   hasAssetMintingSupport() { return !this.#disposed && !this.#resetPromise && assetMintingSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
-  hasContractSupport() { return !this.#disposed && !this.#resetPromise && contractSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
+  hasContractSupport() { return !this.#disposed && contractSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
   hasPaymentSupport() { return !this.#disposed && !this.#resetPromise && paymentSupportAvailable(this.#context.getState(), this.#gameWallet.getState()); }
   getSnapshot(): BisSnapshot {
     const player = this.#context.getState(), game = this.#gameWallet.getState();

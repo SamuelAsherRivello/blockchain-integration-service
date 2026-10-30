@@ -1,5 +1,6 @@
 import type { BisState } from './context.ts';
 import type { BisGameWalletState } from './game-wallet.ts';
+import {contractNetworkSupport} from './contract-validation.ts';
 
 export const GAME_WALLET_MIN_ASSET_MINT_BALANCE_SATS = 1000;
 
@@ -19,9 +20,11 @@ function walletsReady(state: PlayerWalletCapabilityState, gameWallet: GameWallet
     gameWallet.network === state.network;
 }
 
-/** Contract support means both distinct wallets are selected and usable. Balance is checked by each contract operation. */
-export function contractSupportAvailable(state: Pick<BisState, 'phase' | 'hasProfile' | 'profileId' | 'network'>, gameWallet: Pick<BisGameWalletState, 'status' | 'profileId' | 'playerConnected' | 'network'>): boolean {
-  return walletsReady(state, gameWallet);
+/** The single Contracts indicator describes network support. Funding retains
+ * its separate wallet, source, balance and original-operation guards.
+ */
+export function contractSupportAvailable(state: Pick<BisState, 'phase' | 'hasProfile' | 'profileId' | 'network'>, _gameWallet: Pick<BisGameWalletState, 'status' | 'profileId' | 'playerConnected' | 'network'>): boolean {
+  return contractNetworkSupport(state.network).supported;
 }
 
 /** Payment support means both distinct wallets are available; balance is checked per payment. */
@@ -69,8 +72,10 @@ export function itemSupportFeedback(state: Pick<BisState, 'phase' | 'hasProfile'
 
 /** Gives the Developer panel an exact explanation for a currently unavailable capability. */
 export function contractSupportFeedback(state: PlayerWalletCapabilityState, gameWallet: GameWalletCapabilityState): string {
-  if (contractSupportAvailable(state, gameWallet)) return 'Current status: available. Distinct Player and Game Wallets are ready on the same network.';
-  return sentence('Contracts are unavailable', [...playerWalletReasons(state), ...gameWalletReasons(state, gameWallet)]);
+  const support=contractNetworkSupport(state.network);
+  if(!support.supported)return support.reason;
+  if(walletsReady(state,gameWallet))return `${support.reason} Distinct Player and Game Wallets are ready on the same network.`;
+  return `${support.reason} ${sentence('Contract actions are not ready',[...playerWalletReasons(state),...gameWalletReasons(state,gameWallet)])}`;
 }
 
 /** Gives the Developer panel an exact explanation for a currently unavailable capability. */

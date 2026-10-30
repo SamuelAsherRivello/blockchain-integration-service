@@ -15,7 +15,6 @@ import {TREASURE_EMULATOR,submitTreasureSpend,resumeTreasureSpend} from './treas
 import {inspectTreasureRecoveryPlan} from './treasure-recovery-plan.ts';
 import {inspectLtoRecoveryDescriptor} from './lto-recovery-descriptor.ts';
 import {observeOtherLtoSpend} from './lto-observed-spend.ts';
-import {treasureCoSignerAvailable} from './treasure-capability.ts';
 import {observeTreasureRequest} from './treasure-observation.ts';
 import {selectContractValidation,type ContractValidationPreference} from '../state-layer-core/contract-validation.ts';
 import {inspectTreasureDirectPolicy} from './treasure-direct-policy.ts';
@@ -65,11 +64,7 @@ export async function prepareLtoRecovery(game: WalletAccount, player: WalletAcco
   const defaults = { serverPubKey: operatorKey, csvTimelock: { type: 'seconds' as const, value: info.unilateralExitDelay } };
   const gameScript=new DefaultVtxo.Script({...defaults,pubKey:gameKey}),playerScript=new DefaultVtxo.Script({...defaults,pubKey:playerKey});
   if(treasureOffer){
-    let available=false;
-    if(network==='mutinynet'&&offer?.preference!=='browser-policy-v1'){
-      available=await treasureCoSignerAvailable();
-    }
-    const mode=selectContractValidation(network,offer?.preference??'auto',available);
+    const mode=selectContractValidation(network,offer?.preference??'auto',false);
     if(mode==='arkade-covenant-v2'){
       if(offer.record.amountSats!==1000)throw new ContractError('Treasure reward must be 1000 sats.');
       const treasure={network,offerSessionId:offer.record.sessionId,hostReference:offer.record.hostReference,startedAtMs:offer.record.startedAt,
