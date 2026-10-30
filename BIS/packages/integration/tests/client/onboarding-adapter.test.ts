@@ -38,6 +38,13 @@ test('decimal-zero operator fees remain eligible for the zero-fee onboarding rou
  const facts=await readOnboardingFacts(f.wallet,f.provider,scope,undefined,new AbortController().signal);
  assert.equal(facts.snapshot.policy.zeroFees,true);assert.equal(facts.snapshot.policy.reason,'supported');
 });
+test('cancellation observes reads that started before the onboarding deadline check',async t=>{
+ const f=fixture(t),stop=new AbortController();
+ f.wallet.getAddress=async()=>{stop.abort();throw stop.signal.reason;};
+ await assert.rejects(readOnboardingFacts(f.wallet,f.provider,scope,undefined,stop.signal),error=>error===stop.signal.reason);
+ // A rejected in-flight read must stay observed after the caller detaches.
+ await new Promise(resolve=>setImmediate(resolve));
+});
 test('first-leg receipt needs every frozen input, own script, exact amount and no assets',async t=>{
  const f=fixture(t),signal=new AbortController().signal;f.txs=[{txid:'e'.repeat(64),vin:[coin],vout:[],status:{confirmed:false}}];
  for(const wrong of [{...receipt,value:12000},{...receipt,script:'ffff'},{...receipt,assets:[{assetId:'asset',amount:1n}]}]){f.receipts=[{...receipt,script:f.script,commitmentTxIds:['e'.repeat(64)],...wrong}];assert.equal((await readOnboardingFacts(f.wallet,f.provider,scope,f.r,signal)).reconciled,undefined);}

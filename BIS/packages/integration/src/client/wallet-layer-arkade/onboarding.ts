@@ -19,6 +19,9 @@ const sum=(items:{value:number}[])=>items.reduce((s,c)=>s+c.value,0);
 export const onboardingScope=(profileId:string,network:TestNetwork='signet'):OnboardingScope=>({profileId,network,operator:operatorFor(network)});
 function options(provider:RestArkProvider,operator:string){return {arkProvider:provider,indexerProvider:new RestIndexerProvider(operator),settlementConfig:false as const,storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}};}
 async function bounded<T>(work:Promise<T>,signal:AbortSignal,ms=30000):Promise<T>{
+  // Calls may already have started before cancellation is checked. Observe
+  // their eventual rejection even when the caller has already detached.
+  void work.catch(()=>{});
   const stop=AbortSignal.any([signal,AbortSignal.timeout(ms)]);stop.throwIfAborted();let abort:()=>void=()=>{};
   try{return await Promise.race([work,new Promise<never>((_,reject)=>{abort=()=>reject(Error('Onboarding connection deadline exceeded.'));stop.addEventListener('abort',abort,{once:true});})]);}
   finally{stop.removeEventListener('abort',abort);}
