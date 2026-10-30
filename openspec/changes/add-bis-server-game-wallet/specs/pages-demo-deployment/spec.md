@@ -21,7 +21,7 @@ The release SHALL update Stealth & Steel with the exact verified BIS package and
 #### Scenario: Signet Server backend unreachable
 - **WHEN** a controlled local or published-client check makes the signer endpoint unreachable
 - **THEN** the client retains Server mode and reports the actual connection health
-- **AND** pending server operations are not reassigned to the manual wallet
+- **AND** pending server operations retain their original authority and are not reassigned to a Local wallet
 - **AND** no Local mode switch is offered on Signet
 
 #### Scenario: Mutinynet selected before qualification

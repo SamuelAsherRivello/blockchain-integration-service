@@ -30,7 +30,7 @@ The [hosted two-network follow-up](../qualify-bis-server-two-network-readiness/p
 
 ## Why
 
-Players currently configure a second browser wallet to exercise Game Wallet features. A server-held game signer removes that setup in local development and published demos while retaining the existing manual login whenever no running server can be found.
+Players currently configure a second browser wallet to exercise Game Wallet features. A server-held signer removes that setup for Signet Server in development and published demos. Mutinynet Local retains explicit browser Game Wallet create/restore/login without depending on a BIS server. A Signet outage keeps Server selected and reports connection health instead of offering a different signing source.
 
 ## What Changes
 

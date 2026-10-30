@@ -75,8 +75,8 @@ Server mode SHALL replace only the Game Wallet signing identity. Existing prepar
 - **THEN** they retain their established amounts, destinations, ownership, asset change, user feedback and recovery behavior
 - **AND** an enabled action is not removed or disabled merely to satisfy the release checklist
 
-#### Scenario: Existing game-wallet transaction
-- **WHEN** a current workflow prepares a transaction
+#### Scenario: Existing Signet Server game-wallet transaction
+- **WHEN** a current Signet Server workflow prepares a transaction
 - **THEN** the client obtains server signatures, submits through its existing network adapter and checks network evidence
 - **AND** its journal, confirmation and recovery rules remain effective
 

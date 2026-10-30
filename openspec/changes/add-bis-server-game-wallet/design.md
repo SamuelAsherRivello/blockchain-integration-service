@@ -50,11 +50,11 @@ Preflight the exact test command, browser cache and private temporary-path requi
 
 See proposal.md for motivation and scope. `createBisGameWallet` currently constructs a local controller and encrypted browser storage; `app-wallet-session.ts` and `adapter-wallet.ts` create SDK identities from account phrases. `AccountCard.tsx` owns the shared network/version banner, and `BIS/scripts/dev-config.ts` owns shared Vite middleware.
 
-Installed SDK 0.4.79 exposes public-key methods, transaction signing, message signing and stateful signer sessions. The Node faucet is evidence of server signing, not proof of remote-identity or Vercel compatibility. Stealth & Steel currently vendors BIS 0.0.23 and has its own Vite configuration and push-triggered Pages workflow; BIS is currently 0.0.24. Choose the actual release version from repository state when applying, not from these observations.
+Installed SDK 0.4.79 exposes public-key methods, transaction signing, message signing and stateful signer sessions. The Node faucet is evidence of server signing, not proof of remote-identity or Vercel compatibility. Historical initial-planning observations were a game vendor version of BIS 0.0.23 and BIS version 0.0.24. Choose the actual release version and consumer artifact from current repository provenance, not those historical observations. The game retains its own Vite configuration and Pages workflow.
 
 ## Goals / Non-Goals
 
-Goals: server-first Signet Game Wallet signing locally and on Vercel; existing manual login when no server is running/findable; all three published consumers working at this proposal's finish line. Mutinynet hosted signing remains unavailable until proposal 2. Player signatures and transaction preparation/submission/reconciliation stay client-owned.
+Goals: Signet Server Game Wallet signing locally and on Vercel; Mutinynet Local create/restore/login and every enabled applicable feature without BIS server access; all three published consumers working on both tuples. A Signet outage keeps Server selected and shows separate unavailable health and Retry. No mode toggle or Signet Local fallback is exposed. Hosted Mutinynet remains deferred. Player signatures and transaction preparation/submission/reconciliation stay client-owned.
 
 Non-goals: moving full mint/checkout/contract workflows into the server, a server operation journal, background completion while browsers are closed, game saves, anti-cheat, new rewards or fee-payer changes. These belong to the separate milestone 2 or later changes.
 
@@ -64,7 +64,7 @@ Non-goals: moving full mint/checkout/contract workflows into the server, a serve
 
 Use `BIS/packages/bis-server`, package `@bis/bis-server`, with a Node service layer, Vite middleware adapter and Vercel adapter. Load `BIS_GAME_WALLET_MNEMONIC` from server-only `.env.local` locally, with process environment precedence, and Vercel private environment configuration when hosted. Keep blank tracked templates and never use `VITE_` for signing secrets.
 
-Represent server wallets with public identity/source references, not dummy recovery phrases. Adapt only the game role/session identity boundary so games keep the public BIS contract and Player Wallet remains local. Preserve the browser's current operation preflight, reservations, preparation, submission, journal and reconciliation. Proposal 1 deploys and accepts Signet only; expose Mutinynet as unavailable to hosted signing.
+Represent server wallets with public identity/source references, not dummy recovery phrases. Adapt only the game role/session identity boundary so games keep the public BIS contract and Player Wallet remains local. Preserve browser operation preflight, reservations, preparation, submission, journal and reconciliation. Hosted deployment and signing acceptance are Signet-only; Local Mutinynet feature and real network acceptance remain required in this release.
 
 The versioned API exposes public identity/capabilities and authorized signing. Support public keys, transaction input indexes and foreign partial signatures, message signing, and the actual SDK signer-session interface exercised by existing workflows. Verify asynchronous HTTP compatibility with that interface before claiming parity. Session IDs, public nonces and partial signatures bind to one transcript; never expose secret nonce state or reuse it. Include HD/descriptor support if existing enabled workflows exercise it. An unsupported existing path is a milestone blocker, not permission to disable it silently.
 
@@ -74,11 +74,11 @@ Development uses a known same-origin `/api/bis/` path for Signet Server, optiona
 
 In Signet Server mode, probe on initialization, player login/logout, relevant configuration changes and Retry. Coalesce probes and ignore superseded replies. A compatible connection exposes the server Game Wallet without asking the player to log into a second game wallet. The upper-left mode label and separate health status follow the semantics above. Local Mutinynet never probes BIS.
 
-Absent route, stopped server, connection refusal, network failure or bounded reachability timeout means no findable server for new work. Offer the existing manual create/restore/login flow even if the attempted endpoint was configured. This applies to local and published clients. Tell the developer the reason and retain Retry; do not auto-select a saved browser identity.
+On Signet, an absent route, stopped server, connection refusal, network failure or bounded reachability timeout keeps Server selected and makes server-dependent new work unavailable. Report the actual connection reason and retain Retry in local and published clients. Do not offer Local create/restore/login or activate a saved browser Game identity. On Mutinynet, Local create/restore/login and ordinary local-wallet actions remain available without a BIS probe.
 
 A reachable server reporting wrong network/game/API version, invalid mnemonic setup or authorization rejection reports a configuration/access error with Retry. It is not classified as missing. A slow wallet/provider operation is not a failed connection probe.
 
-Manual login captures a source selection. A later successful background probe can advertise server availability but must not replace an active manually selected wallet under pending work; adopt the server at a clean explicit selection/lifecycle boundary. Similarly, losing a selected server offers manual login for independent new work, but never re-signs/replays or reconciles an existing server operation through a local wallet. Preserve source-specific records across reload, player changes and network switches. Player logout clears player-scoped requests/UI, not the server's identity.
+Local Mutinynet login captures its browser wallet selection and never runs a background BIS probe that could replace it. Losing a Signet connection never changes its Server mode or opens Local new work. Returning availability may restore the same scoped Server connection but cannot reassign original authority or replay an uncertain operation. Preserve source-specific records across reload, player changes and network switches, including historical Local Signet recovery without enabling new Local Signet offers. Player logout clears player-scoped requests/UI, not the server's identity.
 
 ### Local development and debugging
 
@@ -127,7 +127,7 @@ sequenceDiagram
         C->>S: Authorized request for game signatures
         Note over S: Sign with private server identity
         S-->>C: Signatures or signed payload
-    else Manual wallet explicitly logged in
+    else Mutinynet Local wallet explicitly logged in
         Note over C: Sign with existing local game wallet
     end
     C->>A: Submit signed transaction
@@ -145,7 +145,7 @@ Stateful SDK protocols can require more exchanges. Signature success is not mint
 - A hosted signer authorizes spending. Enforce bounded server policy and private owner authorization in this milestone; moving the seed alone does not enforce gameplay.
 - One game identity is shared by consumers. Atomic hosted coordination and preserved browser reservations must prevent conflicting signing across Admin, Marketplace and the game.
 - A Signet backend outage reports unavailable health and prevents server-dependent work; it never exposes a Local mode switch or changes the wallet owning an unresolved operation. Keep source-specific recovery visible and prevent duplicate retries.
-- Vercel availability and Arkade availability differ. `Server` indicates a compatible signer connection, not spendable funds or successful transactions.
+- Vercel availability and Arkade availability differ. `Server` indicates the selected workflow; separate health reports compatible connection status. Neither label proves spendable funds or successful transactions.
 - Public Pages apps use the same GitHub Pages origin across repository paths. Validate game/backend/network scope in addition to Origin.
 - Changes span two repositories. Preserve unrelated edits, use verified package transfer, and check both deployment workflows.
 
@@ -158,7 +158,7 @@ each of Signet and Mutinynet, named `BIS_GAME_WALLET_<NETWORK>_<SLOT>_MNEMONIC`.
 Select the first valid candidate meeting the operation's freshly checked
 requirements within its network. An identity-only probe can use an unfunded
 candidate. Confirmed Bitcoin is not Arkade-spendable balance. Pin the selected
-profile for signing and recovery; fallback never replaces the signer of pending
+profile for signing and recovery; selection never replaces the signer of pending
 work or crosses networks.
 
 Preview signing configuration is separate from Production. Preview uses
