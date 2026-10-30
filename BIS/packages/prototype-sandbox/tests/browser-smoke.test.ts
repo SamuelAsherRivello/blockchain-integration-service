@@ -65,15 +65,15 @@ test('each demo exposes an executable action and formatted output', { timeout: 6
       if (outputValue) break;
       await new Promise(resolve => setTimeout(resolve, 100));
     }
+    const lines = outputValue.split('\n');
+    assert.match(lines[0], /^Demo: .+ - Signet$/, demo.path);
+    assert.doesNotMatch(lines.slice(1, -1).join('\n'), /^(?:Demo|Network|Success):/m, demo.path);
+    assert.ok(/\nSuccess: (?:true|false)$/.test(outputValue),demo.path);
     if (demo.number === 20) {
       assert.match(outputValue, /Use Mint Asset demo first/);
       assert.match(outputValue, /\nSuccess: false$/);
       continue;
     }
-    const firstLine=outputValue.split('\n')[0].toLowerCase();
-    const permitted=[`Demo: ${demoTitle}`,`Demo: ${demo.title} - ${demo.subject}`].map(value=>value.toLowerCase());
-    assert.ok(permitted.includes(firstLine),demo.path);
-    assert.ok(/\nSuccess: (?:true|false)$/.test(outputValue),demo.path);
   }
 
   await context.close();

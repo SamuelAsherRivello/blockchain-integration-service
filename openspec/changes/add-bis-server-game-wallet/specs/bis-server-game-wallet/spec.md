@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provide private Game Wallet signing through bis-server locally and on Vercel while preserving browser workflow ownership and manual login when no running server is findable.
+Provide private Server-mode Signet Game Wallet signing through bis-server locally and on Vercel while preserving the Local Mutinynet browser Game Wallet and browser workflow ownership.
 
 ## ADDED Requirements
 
@@ -27,23 +27,18 @@ On Vercel Preview deployments, bis-server SHALL resolve private signer, owner-to
 - **THEN** Preview uses only its Preview-prefixed values and Production continues to use only ordinary values
 - **AND** Preview wallet secrets do not become accessible to Production
 
-### Requirement: Server-first resolution with manual fallback
-BIS SHALL select Direct on Mutinynet without probing a BIS server, and Server by default on Signet. Server mode SHALL use bounded lifecycle probes of the known API. Unreachable Server mode SHALL offer explicit Direct login for independent new work, while reporting the actual connection error and preserving pending authority.
+### Requirement: Network-specific Local and Server resolution
+BIS SHALL select Local on Mutinynet without probing a BIS server, and Server on Signet. Server mode SHALL use bounded lifecycle probes of the known API. An unreachable Signet server SHALL report its actual connection failure while keeping Server selected and preserving pending authority. This release SHALL NOT expose a Local/Server mode toggle or switch Signet work to a browser Game Wallet.
 
-#### Scenario: Direct Mutinynet with a configured server
+#### Scenario: Local Mutinynet with a configured server
 - **WHEN** the user selects Mutinynet while a BIS server endpoint is configured, stopped or unreachable
 - **THEN** existing local Game Wallet create/restore/login and all previously enabled actions remain available
-- **AND** the client sends no BIS server identity, connect, planning, grant or signing request for that Direct workflow
+- **AND** the client sends no BIS server identity, connect, planning, grant or signing request for that Local workflow
 
-#### Scenario: Server stopped or absent
-- **WHEN** the signer is stopped, the route is absent, or connection is refused
-- **THEN** the current manual create/restore/login flow remains usable
-- **AND** no cloud resource is required to use the manual flow
-
-#### Scenario: Unreachable configured backend
+#### Scenario: Signet Server stopped or absent
 - **WHEN** the configured local or Vercel endpoint fails to connect or reaches the bounded connection timeout
-- **THEN** BIS offers manual Game Wallet Login for new work and reports the connection failure with Retry
-- **AND** it does not silently activate a saved browser wallet
+- **THEN** BIS keeps Server selected, reports the connection failure and offers Retry
+- **AND** it does not offer a Local Game Wallet mode or silently activate a saved browser wallet
 
 #### Scenario: Reachable configuration error
 - **WHEN** the server responds with incompatible game/network/API, invalid signer configuration or rejected authorization
@@ -55,7 +50,7 @@ BIS SHALL select Direct on Mutinynet without probing a BIS server, and Server by
 - **AND** player logout does not delete or log out the server identity
 
 ### Requirement: Signet-only hosted wallet selection
-This release SHALL configure hosted Game Wallet signing for Signet only. Mutinynet SHALL use Direct and retain its existing feature set. Public and owner-authenticated Production routes SHALL reject hosted Mutinynet signing. Signing and recovery SHALL retain the original network/profile without balance-driven replacement. Any future hosted Mutinynet enablement requires separate qualification.
+This release SHALL configure hosted Game Wallet signing for Signet only. Mutinynet SHALL use Local and retain its existing feature set without requiring BIS server access. Public and owner-authenticated Production routes SHALL reject hosted Mutinynet signing. Signing and recovery SHALL retain the original network/profile without balance-driven replacement. Any future hosted Mutinynet enablement requires separate qualification.
 
 #### Scenario: Signet signer is configured
 - **WHEN** a published consumer selects Signet and the private Signet identity is configured
@@ -64,7 +59,7 @@ This release SHALL configure hosted Game Wallet signing for Signet only. Mutinyn
 
 #### Scenario: Mutinynet hosted signer is not released
 - **WHEN** a published consumer selects Mutinynet for this release
-- **THEN** it enters the existing Direct flow without first attempting hosted signing
+- **THEN** it enters the existing Local flow without first attempting hosted signing
 - **AND** it does not silently use the Signet identity or sign for Mutinynet
 
 #### Scenario: Owner credentials cannot bypass the Mutinynet release boundary
@@ -76,7 +71,7 @@ This release SHALL configure hosted Game Wallet signing for Signet only. Mutinyn
 Server mode SHALL replace only the Game Wallet signing identity. Existing preparation, submission, provider reads, journals and reconciliation SHALL remain client-owned. Required transaction, message and signer-session methods SHALL work remotely for existing enabled workflows. Signatures SHALL NOT establish financial confirmation or alter fee payer, trophy eligibility or reward policy.
 
 #### Scenario: All enabled features retain behavior
-- **WHEN** applicable wallet, payment, asset, Marketplace, continuation or Treasure actions run in Mutinynet Direct or Signet Server
+- **WHEN** applicable wallet, payment, asset, Marketplace, continuation or Treasure actions run in Mutinynet Local or Signet Server
 - **THEN** they retain their established amounts, destinations, ownership, asset change, user feedback and recovery behavior
 - **AND** an enabled action is not removed or disabled merely to satisfy the release checklist
 
@@ -90,17 +85,17 @@ Server mode SHALL replace only the Game Wallet signing identity. Existing prepar
 - **THEN** each signature is bound to the exact authorized transcript without nonce reuse
 - **AND** unsupported methods or lost sessions report explicit errors, not successful workflow completion
 
-### Requirement: Source-pinned recovery and explicit manual login
-Operations SHALL retain source, endpoint, game identity, network, player scope and operation ID. Manual fallback SHALL apply only to separately initiated new work. Pending or uncertain server operations SHALL remain bound to their original signer and recovery evidence. Returning server availability SHALL NOT silently replace a manually selected wallet during work.
+### Requirement: Source-pinned recovery across Local and Server modes
+Operations SHALL retain source, endpoint, game identity, network, player scope and operation ID. Pending or uncertain operations SHALL remain bound to their original signer and recovery evidence. Returning server availability SHALL NOT silently replace a wallet or operation source during work.
 
 #### Scenario: Server disappears mid-operation
 - **WHEN** a server signing response or connection is lost
-- **THEN** the original operation is not re-signed or replayed through a manual wallet
-- **AND** manual login can be offered for independent new work without changing the unresolved operation
+- **THEN** the original operation is not re-signed or replayed through a Local wallet
+- **AND** independent Signet work reports the unavailable Server rather than changing the unresolved operation's source
 
 #### Scenario: Server returns
-- **WHEN** a server becomes reachable while a manual wallet is logged in
-- **THEN** switching source requires a clean explicit selection or lifecycle boundary
+- **WHEN** the Signet server becomes reachable after an outage
+- **THEN** the selected mode remains Server and any retry is scoped to its original operation
 - **AND** old operation evidence is not reassigned
 
 ### Requirement: Hosted signing coordination and authorization

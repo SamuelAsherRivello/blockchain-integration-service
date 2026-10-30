@@ -2,17 +2,17 @@
 
 ## Current release decisions and finite order
 
-The user's 2026-10-29 decision supersedes older Signet-only consumer gates and export ordering in this document. Required source tuples are Mutinynet/Direct and Signet/Server. Hosted Mutinynet and stronger unqualified Treasure enforcement remain future work, not prerequisites for these tuples.
+The user's latest decision supersedes older mode labels, Signet-only consumer gates, fallback choices and export ordering in this document. Required source tuples are Mutinynet/Local and Signet/Server. Hosted Mutinynet and stronger unqualified Treasure enforcement remain future work, not prerequisites for these tuples.
 
 | Step | Owner | Work and verifiable exit |
 | --- | --- | --- |
 | 1 | BIS, with game inventory | Record the fixed feature matrix below, baseline evidence, exact candidate source and per-network live-test budget. Every row has one owner, expected result and evidence requirement. No funding until actual amounts/fees fit existing caps. |
-| 2 | BIS | Select Direct for Mutinynet before probing; select Server for Signet; preserve explicit safe Signet Direct fallback. Add the upper-left mode label, retain network/version and separate health. Pass focused routing, stale-reply, UI and no-server-request checks. |
-| 3 | BIS | Verify every applicable Direct Mutinynet matrix row with BIS server access blocked. Repair regressions and retain real network receipts for financial behavior. No hosted Mutinynet opt-in is needed. |
+| 2 | BIS | Select Local for Mutinynet before any BIS server probe; select Server for Signet. Add the upper-left mode label, retain network/version and separate health. Signet outages retain Server mode and report health; no mode toggle is offered. Pass focused routing, stale-reply, UI and no-server-request checks. |
+| 3 | BIS | Verify every applicable Local Mutinynet matrix row with BIS server access blocked. Repair regressions and retain real network receipts for financial behavior. No hosted Mutinynet opt-in is needed. |
 | 4 | BIS | First prove one actual Server Signet boarding/signing path, then cover every applicable server workflow and authorization role. Require exact transaction/asset/fee receipts, not generic message proof. |
 | 5 | BIS then game | Freeze source, pass required BIS tests/types/build/release checks, pack only integration and verify inventory/hash/provenance. Authorize local import of this candidate before publication. Game installs exactly that hash and verifies public API compatibility. |
 | 6 | Game, financial slot serialized | Verify both network/mode tuples on the imported candidate: ordinary gameplay, account, continuation, inventory/rewards, and real Treasure funding/Claim/Reject/expiry/recovery. Exercise actual slow/offline/hidden-tab behavior and network/source changes. |
-| 7 | Coordinator, then owners | Finish Sandbox Treasure Hunt pages 22–25 as one direct-SDK real lifecycle on both networks; vet source/controls/reload/unknowns, exact receipts and Conditional Vault, then pass combined final-candidate checks. |
+| 7 | Coordinator, then owners | Finish Sandbox Treasure Hunt pages 22–25 as one standalone Arkade-SDK real lifecycle on both networks; vet source/controls/reload/unknowns, exact receipts and Conditional Vault, then pass combined final-candidate checks. |
 | 8 | BIS then game | Publish the exact accepted BIS/Admin/Marketplace/Sandbox and matching game through existing workflows after both tuples and Sandbox pass locally. Verify exact deployment commits and complete versions. |
 | 9 | Coordinator and owners | Finalize all four public Sandbox pages, public app mode/version/feature checks, README links/cache-busters and immutable assets. Review evidence, strict-validate and close only completed required release tasks. Keep future hosted Mutinynet and stronger unqualified modes deferred. |
 
@@ -20,15 +20,15 @@ Steps 3 and 4 can proceed independently after step 2, but one owner controls BIS
 
 ### Fixed feature matrix
 
-For each applicable consumer, require both Mutinynet/Direct and Signet/Server coverage of: Player account create/restore/logout and network-scoped saved profiles; Game Wallet identity/login or server resolution; addresses, copy, balances and history; receive/send and existing Bitcoin/Arkade transfer/boarding/offboarding paths; Admin mint/burn and asset delivery; Marketplace mint/checkout, ownership and asset change; game inventory/equipment/trophy rewards; paid continuation at its unchanged actual price; Treasure consent, real 1,000-sat funding, empty-Player Claim, Reject, original 90-second expiry/refund, new-Start/session-end cancellation, recovery import/export and uncertain/lost-ack preservation. Include the new header, guest gameplay, server absence and network changes. A prior unfinished unrelated feature is not silently added, but an enabled baseline action cannot be disabled to pass.
+For each applicable BIS/game consumer, require both Mutinynet/Local and Signet/Server coverage of: Player account create/restore/logout and network-scoped saved profiles; Game Wallet identity/login or server resolution; addresses, copy, balances and history; receive/send and existing Bitcoin/Arkade transfer/boarding/offboarding paths; Admin mint/burn and asset delivery; Marketplace mint/checkout, ownership and asset change; game inventory/equipment/trophy rewards; paid continuation at its unchanged actual price; Treasure consent, real 1,000-sat funding, empty-Player Claim, Reject, original 90-second expiry/refund, new-Start/session-end cancellation, recovery import/export and uncertain/lost-ack preservation. The Sandbox remains separate from these BIS modes and must use no BIS Account/login/service. Include the new header, guest gameplay, server absence and network changes. A prior unfinished unrelated feature is not silently added, but an enabled baseline action cannot be disabled to pass.
 
 Financial evidence records actual network, signer source, immutable artifact/hash, original inputs, outputs, amount, fee and terminal receipt. Admin-only actions use private owner authentication where required; this does not turn them into public permissions. A generic low-value payment does not prove paid continuation at the real game price. Reuse evidence only when its affected source/behavior still matches; required current-artifact funded game cases remain mandatory.
 
 ### Source and header semantics
 
-Network routing is part of the shared public BIS composition, not a global force-manual flag. Mutinynet Direct must make zero BIS signer probes, plans, grants or signing requests, even when a hosted endpoint is configured. It continues to use Arkade and Bitcoin providers. Signet Server keeps Player signing local and server keys private. Reachable authorization/configuration errors remain explicit. Manual fallback requires a clean, explicit new-work boundary.
+Network routing is part of the shared public BIS composition, not a global force-manual flag. Mutinynet Local must make zero BIS signer probes, plans, grants or signing requests, even when a hosted endpoint is configured. It continues to use Arkade and Bitcoin providers. Signet Server keeps Player signing local and game keys private on the signer. Reachable authorization/configuration errors remain explicit. A Signet server outage never changes the mode or assigns a pending operation to a local wallet.
 
-The top header places the exact text `Server` or `Direct` at the upper-left, with current network and BIS version retained. Once a network is selected, the label identifies the selected workflow, including while a server connection is pending or failed. Connection health is shown separately and cannot fabricate readiness. Before network selection, no source is asserted. Changes invalidate stale replies and preserve the original source of all pending operations. The source label is independent of Treasure's Browser validation/co-signer guarantee labels.
+The top header places the exact text `Local` or `Server` at the upper-left, with current network and BIS version retained. Once a network is selected, the label identifies the selected workflow, including while a server connection is pending or failed. Connection health is shown separately and cannot fabricate readiness. Before network selection, no source is asserted. Changes invalidate stale replies and preserve the original source of all pending operations. The source label is independent of Treasure's Browser validation/co-signer guarantee labels.
 
 ### Bounded execution
 
@@ -68,11 +68,11 @@ Represent server wallets with public identity/source references, not dummy recov
 
 The versioned API exposes public identity/capabilities and authorized signing. Support public keys, transaction input indexes and foreign partial signatures, message signing, and the actual SDK signer-session interface exercised by existing workflows. Verify asynchronous HTTP compatibility with that interface before claiming parity. Session IDs, public nonces and partial signatures bind to one transcript; never expose secret nonce state or reuse it. Include HD/descriptor support if existing enabled workflows exercise it. An unsupported existing path is a milestone blocker, not permission to disable it silently.
 
-### Resolution and manual fallback
+### Network-specific resolution
 
-Development uses a known same-origin `/api/bis/` path for Signet Server, optionally forwarded to an explicitly configured local BIS server. Pages Server builds use the explicit Vercel URL. Do not scan hosts or treat arbitrary HTML as a server. Mutinynet selects Direct immediately and skips BIS server resolution entirely.
+Development uses a known same-origin `/api/bis/` path for Signet Server, optionally forwarded to an explicitly configured local BIS server. Pages Server builds use the explicit Vercel URL. Do not scan hosts or treat arbitrary HTML as a server. Mutinynet selects Local immediately and skips BIS server resolution entirely.
 
-In Signet Server mode, probe on initialization, player login/logout, relevant configuration changes and Retry. Coalesce probes and ignore superseded replies. Compatible connection removes the need for Game Wallet Login. The upper-left mode label and separate health status follow the semantics above. Direct never probes.
+In Signet Server mode, probe on initialization, player login/logout, relevant configuration changes and Retry. Coalesce probes and ignore superseded replies. A compatible connection exposes the server Game Wallet without asking the player to log into a second game wallet. The upper-left mode label and separate health status follow the semantics above. Local Mutinynet never probes BIS.
 
 Absent route, stopped server, connection refusal, network failure or bounded reachability timeout means no findable server for new work. Offer the existing manual create/restore/login flow even if the attempted endpoint was configured. This applies to local and published clients. Tell the developer the reason and retain Retry; do not auto-select a saved browser identity.
 
@@ -109,12 +109,16 @@ sequenceDiagram
     participant C as BIS client
     participant S as bis-server
     participant A as Arkade operator and indexer
-    C->>S: Bounded probe of known local or Vercel endpoint
-    alt Compatible server found
+    alt Mutinynet Local selected
+        Note over C: Use the browser-held Game Wallet; make no BIS request
+    else Signet Server selected
+        C->>S: Bounded probe of known local or Vercel endpoint
+    end
+    alt Compatible Signet server found
         S-->>C: Public identity and signing capabilities
         Note over C: Use server game wallet and show Server
-    else Server not running or unreachable
-        Note over C: Offer existing manual Game Wallet Login
+    else Signet server not running or unreachable
+        Note over C: Keep Server selected and report unavailable health
     end
     C->>A: Read funds and required protocol data
     A-->>C: Current network data
@@ -140,7 +144,7 @@ Stateful SDK protocols can require more exchanges. Signature success is not mint
 - Remote identity may need multiple protocol methods and state. Verify the actual installed SDK and supported network end to end before promising existing-workflow parity.
 - A hosted signer authorizes spending. Enforce bounded server policy and private owner authorization in this milestone; moving the seed alone does not enforce gameplay.
 - One game identity is shared by consumers. Atomic hosted coordination and preserved browser reservations must prevent conflicting signing across Admin, Marketplace and the game.
-- A backend outage makes manual login available but cannot change the wallet owning an unresolved operation. Keep source-specific recovery visible and prevent duplicate retries.
+- A Signet backend outage reports unavailable health and prevents server-dependent work; it never exposes a Local mode switch or changes the wallet owning an unresolved operation. Keep source-specific recovery visible and prevent duplicate retries.
 - Vercel availability and Arkade availability differ. `Server` indicates a compatible signer connection, not spendable funds or successful transactions.
 - Public Pages apps use the same GitHub Pages origin across repository paths. Validate game/backend/network scope in addition to Origin.
 - Changes span two repositories. Preserve unrelated edits, use verified package transfer, and check both deployment workflows.
@@ -178,10 +182,10 @@ reports public signing disabled. Owner-only grants and conservative input-value
 limits are scaffolding, not the required public workflow policy or current-action
 parity. Do not treat that deployment as completion of tasks 4.2-4.4 or 5.1-5.5.
 
-Implement only this milestone first. Test the signer locally, then through Vercel cold starts and concurrent requests. Add local-vs-Pages backend configuration and document manual fallback. Keep source records recoverable if backend URLs change.
+Implement the Local Mutinynet and Server Signet routes. Test the signer locally, then through Vercel cold starts and concurrent requests. Add local-vs-Pages backend configuration and document the network-to-mode mapping and outage behavior. Keep source records recoverable if backend URLs change.
 
 Deploy bis-server with private test credentials and bounded public policy. Export the frozen, package-verified immutable local candidate plus SHA-256 manifest before publication, integrate and accept both consumer workflows and Sandbox, then publish through the existing versioning and Pages contract. Import that exact package into Stealth & Steel, update dependency/lockfile and matching release identities, add only required backend configuration/proxy changes, run the real contract checker and game publishing tests/build, and push the matching game release through its existing Pages workflow.
 
-Complete the release only after published Admin, Marketplace and Stealth & Steel demonstrate all applicable Signet Server and Mutinynet Direct workflows, the upper-left mode header, and controlled safe Signet fallback. Hosted Mutinynet remains unavailable. Keep deterministic UI checks separate from approved live network evidence.
+Complete the release only after published Admin, Marketplace and Stealth & Steel demonstrate all applicable Signet Server and Mutinynet Local workflows, the upper-left mode header, and separate truthful Signet health. Hosted Mutinynet remains unavailable. Keep deterministic UI checks separate from approved live network evidence.
 
-Rollback disables new server requests while preserving signing/operation recovery records; manual login is available for separate new work. Never export the server mnemonic to a browser as rollback. Proposal 2 qualifies Signet and Mutinynet together and hardens remaining multi-network behavior. Full-operation server execution remains separately deferred in host-bis-server-game-wallet.
+Rollback disables new server requests while preserving signing/operation recovery records; Signet remains Server and reports the outage. Never export the server mnemonic to a browser as rollback. The deferred hosted-network proposal qualifies Mutinynet signing and hardens remaining multi-network behavior. Full-operation server execution remains separately deferred in host-bis-server-game-wallet.

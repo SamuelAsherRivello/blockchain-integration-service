@@ -76,6 +76,10 @@ test('protected acceptance counts reservations and fees against rolling network 
   for(const createdAt of ['invalid',new Date(now+1).toISOString()])assert.throws(()=>assertAcceptanceBudget([record('bad',1000,createdAt)],intent,now),/budget-unverified/);
   assert.throws(()=>assertAcceptanceBudget([],{...intent,feeSats:null},now),/budget-unverified/);
   assert.doesNotThrow(()=>assertAcceptanceBudget([record('new',1000)],intent,now));
+  const observed={...record('observed',1),intent:{...intent,id:'observed',amountSats:1,feeSats:null},observedFeeSats:0,feeEvidence:{kind:'verified-transaction-fee',feeSats:0}};
+  assert.doesNotThrow(()=>assertAcceptanceBudget([observed],intent,now));
+  assert.throws(()=>assertAcceptanceBudget([{...observed,feeEvidence:{kind:'unverified',feeSats:0}}],intent,now),/budget-unverified/);
+  assert.throws(()=>assertAcceptanceBudget([{...observed,feeEvidence:{kind:'verified-transaction-fee',feeSats:1}}],intent,now),/budget-unverified/);
 });
 
 test('identity race requires a distinct registered saved profile before funding',()=>{

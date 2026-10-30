@@ -6,8 +6,8 @@ export const gameAdapter = Object.freeze({
   search: '?muteMusic=true&muteSFX=true',
   provenance: Object.freeze({
     packageName: '@bis/integration',
-    version: '0.0.29',
-    artifactSha256: '3617a257a9d1e48084d9e845d9d911747735d3dff9dcd6f4bb9fb0d51d89aff6',
+    version: '0.0.30',
+    artifactSha256: '5f031b0915fb7b865679fdd080c74b3e906a58c0a0f6f1c8a0373a2165da6ede',
     evidencePath: 'stealth-steel/vendor/BIS_PROVENANCE.md',
   }),
 });
@@ -23,10 +23,15 @@ const trustedPredecessors = Object.freeze([
     artifactSha256:'6b318fb45a778ac8e136716e30ef63f89e036d65d8abb3ef2ab87f7352f23a46',
     evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md',
   }),
+  Object.freeze({
+    packageName:'@bis/integration', version:'0.0.29',
+    artifactSha256:'3617a257a9d1e48084d9e845d9d911747735d3dff9dcd6f4bb9fb0d51d89aff6',
+    evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md',
+  }),
 ]);
 const trustedCandidate = Object.freeze({
-  packageName:'@bis/integration', version:'0.0.29',
-  artifactSha256:'3617a257a9d1e48084d9e845d9d911747735d3dff9dcd6f4bb9fb0d51d89aff6',
+  packageName:'@bis/integration', version:'0.0.30',
+  artifactSha256:'5f031b0915fb7b865679fdd080c74b3e906a58c0a0f6f1c8a0373a2165da6ede',
   evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md',
 });
 const sameProvenance = (value, expected) => value && typeof value === 'object' && !Array.isArray(value) &&

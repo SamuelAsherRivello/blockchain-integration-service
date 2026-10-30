@@ -17,7 +17,7 @@ function windowName() {
   sessionStorage.setItem(popupNameKey, name);
   return name;
 }
-export function openEventsMonitor(network: string, address: string) {
+export function demoOpenEventsMonitor(network: string, address: string) {
   const url = monitorUrl(network, address);
   if (monitor && !monitor.closed && capturedUrl === url) { monitor.focus(); return monitor; }
   monitor = window.open(url, windowName(), 'popup,width=500,height=400,resizable=yes');

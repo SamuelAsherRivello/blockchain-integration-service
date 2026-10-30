@@ -2,7 +2,15 @@
 
 ## Deferred hosted-network scope, 2026-10-29
 
-The user now requires Direct Mutinynet and Server Signet for the current release. This proposal remains future **hosted Mutinynet** qualification and is not required to ship or restore Direct Mutinynet. Its existing unfinished tasks and guarantees remain incomplete. Do not enable hosted Mutinynet, wait for it during the current release, or mark this proposal complete by replacing hosted acceptance with manual-wallet results. Current Direct regression and release work belong to `add-bis-server-game-wallet` and the linked Treasure/Sandbox changes.
+The current release requires Local Mutinynet and Server Signet. This proposal remains future **hosted Mutinynet** qualification and is not required to ship or restore the Local Mutinynet flow. Its existing unfinished tasks and guarantees remain incomplete. Do not enable hosted Mutinynet, wait for it during the current release, or mark this proposal complete by replacing hosted acceptance with Local-wallet results. Current Local regression and release work belong to `add-bis-server-game-wallet` and the linked Treasure/Sandbox changes.
+
+## Execution takeover, 2026-10-29
+
+The user requested replacement ownership, minimum calendar time and a two-hour completion target. Reuse this change and its acceptance criteria; do not restart its implementation or migrate unfinished requirements into a nominally completed replacement. The server/BIS execution chat owns this change under the current takeover section of the BIS program ledger.
+
+Retain the Signet release prerequisite. Prepare independent deterministic and configuration work concurrently; enable Mutinynet only after its existing per-network acceptance passes. The original Treasure B2 output does not by itself block unrelated server verification.
+
+The execution target ends at 15:28 UTC on 2026-10-29. This target does not waive live evidence, spending limits or uncertain-operation preservation. Report an exact external blocker once, continue independent authorized work, and reopen the blocked action only when its recorded prerequisite changes.
 
 ## Why
 

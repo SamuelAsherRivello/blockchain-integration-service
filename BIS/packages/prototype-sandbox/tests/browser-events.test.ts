@@ -46,6 +46,7 @@ test('Events popup stays independent, pulses, resets, reconnects, reuses and cle
   assert.match(await popup.getByRole('status').textContent() ?? '', /I'm listening/);
   await popup.bringToFront();
   await popup.clock.install();
+  await popup.clock.pauseAt(Date.now() + 1000);
   await popup.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   const dots = popup.locator('.wallet-events-dots');
   const initialDots = await dots.textContent();

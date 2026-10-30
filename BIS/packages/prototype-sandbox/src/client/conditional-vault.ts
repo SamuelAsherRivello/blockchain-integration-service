@@ -1,4 +1,7 @@
-import type { Wallet } from "@arkade-os/sdk";
+import type { VaultDemoExecution } from '../../../integration/src/client/wallet-layer-arkade/conditional-vault-api.ts';
+import { RestArkProvider, RestIndexerProvider, type Wallet } from "@arkade-os/sdk";
+import { inspectConditionalVault } from "./demos/conditional-vault-check.ts";
+import { testNetwork } from "../../../integration/src/client/state-layer-core/test-network.ts";
 import { createArkadeConditionalVaultApi } from "../../../integration/src/client/wallet-layer-arkade/conditional-vault-api.ts";
 import {
   compileVaultDescriptor,
@@ -37,7 +40,7 @@ export async function rememberVaultDescriptor(input: unknown) {
   });
   return descriptor;
 }
-export async function readStoredConditionalVault(
+export async function demoReadConditionalVaultDescriptor(
   network: TestNetwork,
   id: string,
   creator?: string,
@@ -62,14 +65,16 @@ export async function readStoredConditionalVault(
     );
   return null;
 }
-function api(network: TestNetwork, wallet?: Wallet) {
+export function demoVaultClient(network: TestNetwork, wallet?: Wallet, indexer?: RestIndexerProvider, execution?: VaultDemoExecution) {
   return createArkadeConditionalVaultApi(network, async (reference) => {
     if (reference !== "wallet-2" || !wallet)
       throw Error("vault-creator-wallet-required");
     return { wallet, release: async () => {} };
-  });
+  }, { execution, inspect: descriptor => inspectConditionalVault(descriptor, {
+    ark: new RestArkProvider(testNetwork(network).operator), indexer: indexer ?? new RestIndexerProvider(testNetwork(network).operator), now: Date.now,
+  }) });
 }
-function operationId(network: TestNetwork, action: string, binding: string) {
+export function demoVaultOperationId(network: TestNetwork, action: string, binding: string) {
   const key = `bis-vault-original-operation:${network}:${action}:${binding}`;
   let value = localStorage.getItem(key);
   if (!value) {
@@ -78,14 +83,18 @@ function operationId(network: TestNetwork, action: string, binding: string) {
   }
   return value;
 }
-async function remember(result: VaultMutationResult) {
+export function demoForgetVaultOperationId(network: TestNetwork, action: string, binding: string, operationId: string) {
+  const key = `bis-vault-original-operation:${network}:${action}:${binding}`;
+  if (localStorage.getItem(key) === operationId) localStorage.removeItem(key);
+}
+export async function demoRememberVaultResult(result: VaultMutationResult) {
   if (result.inspection) {
     await rememberVaultDescriptor(result.inspection.descriptor);
-    rememberObservedOutput(result.inspection);
+    demoRememberObservedOutput(result.inspection);
   }
   return result;
 }
-function rememberObservedOutput(
+export function demoRememberObservedOutput(
   inspection: import("../../../integration/src/client/state-layer-core/conditional-vault.ts").VaultInspection,
 ) {
   const key = `bis-vault-output-hint:${inspection.descriptor.network}:${inspection.descriptor.hash}`;
@@ -93,7 +102,7 @@ function rememberObservedOutput(
     localStorage.setItem(key, JSON.stringify(inspection.activeOutput));
   else localStorage.removeItem(key);
 }
-function observedOutputHint(descriptor: VaultPublicDescriptor) {
+export function demoObservedOutputHint(descriptor: VaultPublicDescriptor) {
   // This is only the expected-input intent, never financial evidence or state.
   // The API re-reads the real graph and rejects a stale/altered outpoint before
   // signing. Avoid a second identical network read within each two-minute step.
@@ -113,111 +122,10 @@ function observedOutputHint(descriptor: VaultPublicDescriptor) {
     return null;
   }
 }
-export async function createConditionalVault(
-  network: TestNetwork,
-  wallet: Wallet,
-  id: string,
-) {
-  const displayId = suffix(id);
-  const creator = Array.from(await wallet.identity.xOnlyPublicKey(), (b) =>
-    b.toString(16).padStart(2, "0"),
-  ).join("");
-  if (await readStoredConditionalVault(network, id, creator))
-    throw Error(`VaultID ${displayId} is already taken.`);
-  const client = api(network, wallet);
-  const binding = `${creator}:${displayId}`;
-  const key = `bis-vault-original-operation:${network}:create:${binding}`;
-  const attempt = async () => {
-    const id = operationId(network, "create", binding);
-    const result = await client.create({ network, id: displayId, walletReference: "wallet-2", operationId: id, durationSeconds: 120 });
-    if (result.outcome === "rejected" && localStorage.getItem(key) === id) localStorage.removeItem(key);
-    return result;
-  };
-  let result = await attempt();
-  // A previously interrupted preparation with no submitted request can be replaced.
-  if (result.outcome === "rejected" && result.reason === "vault-original-request-not-submitted") result = await attempt();
-  return remember(result);
-}
-export async function checkConditionalVault(
-  network: TestNetwork,
-  descriptor: VaultPublicDescriptor,
-) {
-  const checked = await api(network).check(descriptor);
-  rememberObservedOutput(checked);
-  return checked;
-}
-export async function incrementConditionalVault(
-  network: TestNetwork,
-  descriptor: VaultPublicDescriptor,
-) {
-  const client = api(network),
-    pendingKey = `bis-vault-ui-pending:${network}:${descriptor.hash}:increment`;
-  const pending = localStorage.getItem(pendingKey);
-  if (pending) {
-    const original = JSON.parse(pending);
-    const result = await client.increment({ ...original, descriptor });
-    if (["verified", "rejected", "already-resolved"].includes(result.outcome))
-      localStorage.removeItem(pendingKey);
-    return remember(result);
-  }
-  const expectedOutput =
-    observedOutputHint(descriptor) ??
-    (await checkConditionalVault(network, descriptor)).activeOutput;
-  if (!expectedOutput)
-    throw Error(
-      `VaultID ${descriptor.id} has no verified active output. Check its network status.`,
-    );
-  const request = {
-    expectedOutput,
-    operationId: operationId(
-      network,
-      "increment",
-      `${descriptor.hash}:${expectedOutput.transactionId}:${expectedOutput.outputIndex}`,
-    ),
-  };
-  localStorage.setItem(pendingKey, JSON.stringify(request));
-  const result = await client.increment({ ...request, descriptor });
-  if (["verified", "rejected", "already-resolved"].includes(result.outcome))
-    localStorage.removeItem(pendingKey);
-  return remember(result);
-}
-export async function claimConditionalVault(
-  network: TestNetwork,
-  wallet: Wallet,
-  descriptor: VaultPublicDescriptor,
-  recover = false,
-) {
-  const client = api(network, wallet),
-    operation = recover ? "recover" : "claim";
-  let expectedOutput = observedOutputHint(descriptor);
-  if (!expectedOutput) {
-    const checked = await checkConditionalVault(network, descriptor);
-    if (["claimed", "recovered"].includes(checked.status))
-      return {
-        operationId: "resolved",
-        operation,
-        outcome: "already-resolved",
-        inspection: checked,
-      } as VaultMutationResult;
-    expectedOutput = checked.activeOutput;
-  }
-  if (!expectedOutput)
-    throw Error(
-      `VaultID ${descriptor.id} has no verified active output. Check its network status.`,
-    );
-  return remember(
-    await client[operation]({
-      descriptor,
-      expectedOutput,
-      walletReference: "wallet-2",
-      operationId: operationId(
-        network,
-        operation,
-        `${descriptor.hash}:${expectedOutput.transactionId}:${expectedOutput.outputIndex}`,
-      ),
-    }),
-  );
-}
+
+
+
+
 export async function importConditionalVault(
   text: string,
   network: TestNetwork,
@@ -246,3 +154,9 @@ export function conditionalVaultArtifact(descriptor: VaultPublicDescriptor) {
     2,
   );
 }
+
+// Compatibility entry points delegate to the executable teaching modules.
+export { demoCreateConditionalVault } from './demos/conditional-vault-create.ts';
+export { demoCheckConditionalVault } from './demos/conditional-vault-check.ts';
+export { demoIncrementConditionalVault } from './demos/conditional-vault-increment.ts';
+export { demoClaimConditionalVault } from './demos/conditional-vault-claim.ts';

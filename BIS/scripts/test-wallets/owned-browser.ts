@@ -16,6 +16,17 @@ import { gameAdapter, gameUrl, reconcileGameRegistration } from './game-adapter.
 import {findTestActor,actorSource} from './server-actors.ts';
 
 const paths = { admin: '/admin/', marketplace: '/integration-marketplace/', onboarding: '/onboarding/', faucet: '/prototype-faucet/', game: gameAdapter.path };
+const treasureStatuses = new Set(['no-offer','awaiting-consent','preparing','active','claimed','rejected','expired','pending','unavailable','unverified','missing-player','network-unavailable']);
+export function safeTreasureUiSummary(value) {
+  const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return { status: treasureStatuses.has(row.status) ? row.status : 'unknown',
+    hasContract: typeof row.contractId === 'string' && row.contractId.length > 0,
+    fundingConsentOpen: row.fundingConsentOpen === true, chestOpen: row.chestOpen === true };
+}
+export function visibleOwnedScreen(app, hasVisibleAccountCard, heading) {
+  if (hasVisibleAccountCard && typeof heading === 'string' && publicScreens.includes(heading)) return heading;
+  return app === 'game' && !hasVisibleAccountCard ? 'Game' : undefined;
+}
 export function ownedLaunchOptions(app, platform = process.platform) {
   // Verified Windows game smoke configuration. Keep ordinary BIS Chromium
   // defaults and never inherit arbitrary executable overrides or GPU flags.
@@ -167,6 +178,17 @@ export class OwnedBrowser {
     }
   }
   async accountDialog() {
+    if (this.registration.application.app === 'game' && !await this.page.locator('.bis-card').last().isVisible()) {
+      const welcome = this.page.getByRole('dialog', { name: 'Welcome', exact: true });
+      if (await welcome.count() && await welcome.isVisible()) {
+        const start = welcome.getByRole('button', { name: 'Start Game', exact: true });
+        this.restoreStage = 'game-welcome-click';
+        await start.waitFor({ state: 'visible' });
+        await start.click();
+        this.restoreStage = 'game-welcome-dismiss';
+        await welcome.waitFor({ state: 'hidden' });
+      }
+    }
     if (!await this.page.locator('.bis-card').last().isVisible()) {
       if (this.registration.application.app === 'admin')
         await this.page.getByRole('button', { name: 'A.P.4. Account Dialog', exact: true }).click();
@@ -174,8 +196,11 @@ export class OwnedBrowser {
         const account = this.page.getByRole('button', { name: '⚡ Account', exact: true });
         if (await account.count() && await account.isVisible()) await account.click();
         else {
+          this.restoreStage = 'game-settings';
           await this.page.getByRole('button', { name: 'Open settings', exact: true }).click();
-          await this.page.getByRole('button', { name: '⚡ Account', exact: true }).click();
+          this.restoreStage = 'game-account';
+          await account.waitFor({ state: 'visible' });
+          await account.click();
         }
       }
       else await this.page.getByRole('button', { name: 'Account', exact: true }).click();
@@ -195,6 +220,41 @@ export class OwnedBrowser {
       await this.page.waitForFunction(previous => [...document.querySelectorAll('.bis-card h2')].at(-1)?.textContent !== previous, current);
     }
     fail('account-menu-unavailable');
+  }
+  async startGameForAcceptance() {
+    if (this.registration.application.app !== 'game' || this.loggedOut || this.closed) fail('game-start-context-unavailable');
+    let before;
+    try { before = await this.inspect(); } catch (error) {
+      const safeReasons = new Set(['vault-locked','session-unavailable','browser-origin-mismatch','browser-application-mismatch',
+        'private-surface-not-inspectable','screen-not-yet-inspectable','session-identity-invalidated','session-application-invalidated']);
+      if (safeReasons.has(error?.code)) fail(error.code);
+      fail('game-start-inspect-unavailable');
+    }
+    if (before.network !== 'signet' || before.game?.source !== 'server') fail('game-start-identity-unavailable');
+    if (before.treasure?.hasContract) fail('game-existing-treasure-unresolved');
+    if (before.treasure?.status === 'awaiting-consent' && before.treasure.fundingConsentOpen) return before;
+    const card = this.page.locator('.bis-card').last();
+    for (let attempt = 0; attempt < 8 && await card.isVisible(); attempt++) {
+      const back = card.getByRole('button', { name: 'Back', exact: true }).last();
+      if (!await back.count() || !await back.isVisible()) fail('game-start-close-account-unavailable');
+      try { await back.click(); } catch { fail('game-start-account-back-unavailable'); }
+      await this.page.waitForTimeout(150);
+    }
+    if (await card.isVisible()) fail('game-start-close-account-unavailable');
+    const close = this.page.getByRole('button', { name: 'Close settings', exact: true }).first();
+    if (await close.count() && await close.isVisible()) {
+      try { await close.click(); } catch { fail('game-start-settings-close-unavailable'); }
+    }
+    const start = this.page.getByRole('button', { name: 'Start Game', exact: true });
+    if (!await start.count() || !await start.isVisible()) fail('game-start-control-unavailable');
+    try { await start.click(); await start.waitFor({ state: 'hidden' }); }
+    catch { fail('game-start-button-unavailable'); }
+    await this.page.waitForFunction(() => {
+      const allowed = new Set(['awaiting-consent','preparing','active','no-offer','unavailable','missing-player']);
+      try { return allowed.has(JSON.parse(sessionStorage.getItem('stealth-steel-treasure-session-v1') ?? 'null')?.status); }
+      catch { return false; }
+    }, undefined, { timeout: 20000 }).catch(() => {});
+    try { return await this.inspect(); } catch { fail('game-start-final-inspect-unavailable'); }
   }
   async navigate(screen) {
     if (!['Account', 'Accounts Details', 'Developer', 'Game Wallet', 'Send', 'Swap', 'Receive', 'Assets', 'Transactions', 'Contracts'].includes(screen)) fail('unsupported-navigation');
@@ -286,6 +346,7 @@ export class OwnedBrowser {
       await this.page.getByRole('button', { name: /^(?:⚡ Restore Wallet|Log Out Game Wallet)$/ }).first().waitFor();
       const restoreGame = this.page.getByRole('button', { name: '⚡ Restore Wallet', exact: true });
       if (await restoreGame.isVisible()) {
+        if(game.server)fail('server-signer-unavailable');
         if (!restoreMissing) fail('game-not-connected');
         this.restoreStage = 'game-restore'; await restoreGame.click(); await this.entry(game.phrase, '⚡ Restore Wallet');
       }
@@ -317,36 +378,76 @@ export class OwnedBrowser {
   async inspect() {
     if (this.loggedOut) return this.inspectLoggedOut();
     if (!this.restored || this.closed) fail('session-unavailable');
+    const { player, game, pair, application } = this.registration;
+    const card = this.page.locator('.bis-card').last();
+    const cardVisible = await card.isVisible();
+    if (application.app === 'game' && !cardVisible) {
+      await this.validateRegistration();
+      const url = new URL(this.page.url());
+      if (url.origin !== application.origin || url.pathname !== application.path || url.search !== application.search || url.hash)
+        fail('browser-application-mismatch');
+      if (await this.page.getByRole('group', { name: 'Private recovery phrase', exact: true }).count() ||
+          await this.page.getByRole('heading', { name: /Recovery Phrase/ }).count()) fail('private-surface-not-inspectable');
+      const gameAddress = this.gameWalletSource === 'server' ? this.expected.serverGameAddress : this.expected.game.arkadeAddress;
+      const treasure = safeTreasureUiSummary(await this.page.evaluate(() => {
+        let saved;
+        try { saved = JSON.parse(sessionStorage.getItem('stealth-steel-treasure-session-v1') ?? 'null'); } catch {}
+        const visible = selector => [...document.querySelectorAll(selector)].some(element => {
+          const style = getComputedStyle(element);
+          return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+        });
+        return { status: saved?.status, contractId: saved?.contractId,
+          fundingConsentOpen: visible('.treasure-content') && [...document.querySelectorAll('button')].some(button =>
+            button.textContent?.trim() === 'Fund 1,000 sats' && button.getClientRects().length > 0),
+          chestOpen: visible('.treasure-message') };
+      }));
+      return { sessionId: this.sessionId, mode: 'owned', app: application.app, origin: application.origin, network: pair.network,
+        player: { label: player.label, profileId: player.profileId, arkadeAddress: this.expected.player.arkadeAddress },
+        game: { label: this.gameWalletSource === 'server' ? 'server-signer' : game.label,
+          profileId: this.gameWalletSource === 'server' ? 'server-signer' : game.profileId, arkadeAddress: gameAddress, source: this.gameWalletSource },
+        screen: 'Game', treasure };
+    }
     await this.verifyNetwork();
     await this.validateRegistration();
     if (await this.page.getByRole('group', { name: 'Private recovery phrase', exact: true }).count() ||
         await this.page.getByRole('heading', { name: /Recovery Phrase/ }).count()) fail('private-surface-not-inspectable');
-    const { player, game, pair, application } = this.registration;
-    const screen = await this.page.locator('.bis-card h2').last().textContent();
-    if (!publicScreens.includes(screen)) fail('screen-not-yet-inspectable');
+    const heading = cardVisible ? await card.locator('h2').textContent() : undefined;
+    const screen = visibleOwnedScreen(application.app, cardVisible, heading);
+    if (!screen) fail('screen-not-yet-inspectable');
     const marker = this.page.locator('.bis-layer[data-bis-player-id]').last();
     const playerId = await marker.getAttribute('data-bis-player-id');
     if (playerId !== player.profileId) fail('session-identity-invalidated');
     const gameAddress = await marker.getAttribute('data-bis-game-address');
     const expectedGameAddress = this.gameWalletSource === 'server' ? this.expected.serverGameAddress : this.expected.game.arkadeAddress;
     if (gameAddress !== expectedGameAddress) fail('session-identity-invalidated');
-    if (screen === 'Game Wallet' && await this.page.locator('.bis-card').last().getByLabel('Arkade address', { exact: true }).inputValue() !== expectedGameAddress) fail('session-identity-invalidated');
-    const contracts = screen === 'Contracts' ? await this.page.locator('.bis-card').last().evaluate(card => {
+    if (screen === 'Game Wallet' && await card.getByLabel('Arkade address', { exact: true }).inputValue() !== expectedGameAddress) fail('session-identity-invalidated');
+    const contracts = screen === 'Contracts' ? await card.evaluate(card => {
       const collection = card.querySelector('.bis-collection');
       const text = [...card.querySelectorAll('.bis-item-list-notice p')].map(node => node.textContent?.trim());
       return { loading: collection?.getAttribute('aria-busy') === 'true',
         visibleRows: card.querySelectorAll('.bis-collection-list > li > button.bis-collection-item').length,
         empty: text.includes('No contracts.'), unavailable: text.includes('Contracts are unavailable. Recovery records have been retained.') };
     }) : undefined;
+    const treasure = application.app === 'game' ? safeTreasureUiSummary(await this.page.evaluate(() => {
+      let saved;
+      try { saved = JSON.parse(sessionStorage.getItem('stealth-steel-treasure-session-v1') ?? 'null'); } catch {}
+      const visible = selector => [...document.querySelectorAll(selector)].some(element => {
+        const style = getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+      });
+      return { status: saved?.status, contractId: saved?.contractId,
+        fundingConsentOpen: visible('.treasure-content') && [...document.querySelectorAll('button')].some(button =>
+          button.textContent?.trim() === 'Fund 1,000 sats' && button.getClientRects().length > 0),
+        chestOpen: visible('.treasure-message') };
+    })) : undefined;
     return { sessionId: this.sessionId, mode: 'owned', app: application.app, origin: application.origin, network: pair.network,
       player: { label: player.label, profileId: player.profileId, arkadeAddress: this.expected.player.arkadeAddress },
       game: { label: this.gameWalletSource === 'server' ? 'server-signer' : game.label,
         profileId: this.gameWalletSource === 'server' ? 'server-signer' : game.profileId, arkadeAddress: expectedGameAddress, source: this.gameWalletSource },
-      screen, ...(contracts ? { contracts } : {}), ...(screen === 'Swap' ? {swap:await readSwapState(this.page)} : {}),
+      screen, ...(contracts ? { contracts } : {}), ...(treasure ? { treasure } : {}), ...(screen === 'Swap' ? {swap:await readSwapState(this.page)} : {}),
     };
   }
   async validateRegistration() {
-        if(game.server)fail('server-signer-unavailable');
     if (this.closed || !this.registration) fail('session-unavailable');
     await this.vault.transaction(async state => {
       await verifiedInventory(state);

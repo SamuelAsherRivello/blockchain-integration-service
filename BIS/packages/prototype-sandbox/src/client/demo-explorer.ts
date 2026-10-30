@@ -1,4 +1,4 @@
-import { testNetwork, type TestNetwork } from '../../../integration/src/client/state-layer-core/test-network.ts';
+import { testNetwork as demoGetNetwork, type TestNetwork } from '../../../integration/src/client/state-layer-core/test-network.ts';
 
 export type DemoExplorerTarget = Readonly<{
   network: TestNetwork;
@@ -12,7 +12,7 @@ export function demoSupportsExplorer(scope: string) {
 }
 export function demoExplorerUrl(scope: string, target?: DemoExplorerTarget | null): string | undefined {
   if (!demoSupportsExplorer(scope) || !target || target.network !== scope.split(':')[0]) return;
-  const config = testNetwork(target.network), id = target.identifier;
+  const config = demoGetNetwork(target.network), id = target.identifier;
   if (typeof id !== 'string') return;
   if (target.kind === 'asset' && /^[a-f0-9]{68}$/i.test(id)) return config.arkExplorerAssetUrl?.(id);
   if (target.kind === 'bitcoin-address' && /^tb1[ac-hj-np-z02-9]{20,90}$/.test(id)) return config.bitcoinExplorerAddressUrl(id);

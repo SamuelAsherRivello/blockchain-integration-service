@@ -27,7 +27,7 @@ test('first Claim output survives a real Vite hot update, remount and blank comp
   await page.getByRole('button', { name: 'Execute', exact: true }).click();
   await page.waitForFunction(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Demo output"]')?.value.endsWith('Success: false'));
   const first = await output.inputValue();
-  assert.match(first, /^Demo: Claim Conditional Vault\nError:/);
+  assert.match(first, /^Demo: Claim Conditional Vault - Signet\nError:/);
   await page.evaluate(() => { document.querySelector('.sandbox-main-content')!.setAttribute('data-hmr-probe', 'before'); });
   let navigations = 0;
   page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations++; });

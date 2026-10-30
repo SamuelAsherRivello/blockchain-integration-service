@@ -1,16 +1,15 @@
-export const OPTIONAL_ASSET_PAYMENTS = Object.freeze([0, 100, 1000]);
+export const ASSET_PAYMENT_SATS = Object.freeze([330, 1000]);
 
-export function optionalAssetPayment(value: unknown) {
-  const amount = value === null || value === '' ? 0 : Number(value);
-  if (!OPTIONAL_ASSET_PAYMENTS.includes(amount)) throw new Error('Choose an optional payment of 0, 100, or 1000 sats.');
+export function assetPaymentSats(value: unknown) {
+  // Preserve valid choices and migrate the former subdust selections.
+  const amount = value == null || value === '' || [0, 1, 100].includes(Number(value)) ? 330 : Number(value);
+  if (!ASSET_PAYMENT_SATS.includes(amount)) throw new Error('Choose a payment of 330 or 1000 sats.');
   return amount;
 }
 
-export function assetTransferSats(carrier: bigint | number, optional: unknown) {
-  const required = Number(carrier);
-  const total = required + optionalAssetPayment(optional);
-  if (!Number.isSafeInteger(required) || required < 1 || !Number.isSafeInteger(total)) throw new Error('Invalid SDK carrier amount.');
-  return total;
+export function demoValidateAssetTransferSats(value: unknown) {
+  if (value != null && value !== '' && Number(value) < 330) throw new Error('The minimum asset payment is 330 sats. Nothing was sent.');
+  return assetPaymentSats(value);
 }
 
 /** Explain the SDK's wrapped fetch error without exposing request URLs or scripts. */

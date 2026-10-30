@@ -2,20 +2,20 @@
 
 ## Finite completion and release order
 
-This change is a required part of the user's nine-step release. The coordinator owns Sandbox-only files; shared integration changes belong to the BIS owner. Preserve the existing direct SDK requirement, Setup Wallet 2 and all unrelated work.
+This change is a required part of the user's nine-step release. The coordinator owns Sandbox-only files; shared integration changes belong to the BIS owner. Preserve the standalone SDK requirement, Setup Wallet 2 and all unrelated work.
 
-1. Freeze the actual supported contract mode, compiled script, wallet binding, exact Create/Check/Claim/Reject expectations, recovery format and feasible test budget. Reuse reviewed contract construction/validation only after confirming it works with a direct SDK wallet; do not instantiate a BIS Account/service or clone game UI.
+1. Freeze the actual supported contract behavior, canonical compiled script, wallet binding, exact Create/Check/Claim/Reject expectations, recovery format and feasible test budget. Reuse the one canonical contract compiler/artifact with the standalone Arkade SDK wallet; do not instantiate a BIS Account/login/service or clone game UI.
 2. Implement explicit Create of one real 1,000-sat offer with the original 90-second deadline and durable protected recovery. Query the original contract before writes and prevent duplicate creation after unknown results.
 3. Implement Check from current operator/transaction evidence, then Claim and Reject against the same original contract. Verify exact source/output/amount/asset/fee evidence before a terminal result. Exercise expiry/refund and reload/lost-ack preservation.
 4. Vet all four routes and visible executable source together. Each shared Execute/network control stays clickable and returns an accurate result. Keep source in Arrange/Act/Assert order, mask wallet inputs and preserve Conditional Vault navigation.
-5. Run meaningful focused tests/types/build, real funded Signet/Mutinynet lifecycle cases only with an assigned admissible slot, and Edge/managed-browser page verification. Deterministic fixtures are not live receipts.
+5. Run meaningful focused tests/types/build, real funded Signet/Mutinynet lifecycle cases only with an assigned admissible slot, and Edge/managed-browser page verification. Deterministic fixtures are not live receipts. Any unsupported network must be reported accurately, not routed through BIS.
 6. Ship with the same final BIS candidate, verify all four public pages and exact release identity, and close step 9 only when the complete lifecycle passes. An unsupported or unimplemented contract action remains a blocker, not completion.
 
 The historical supplied Setup wallet has unresolved operations on both networks. Preserve those records and their exact affected scope. Do not use the same reserved inputs for a new offer or erase recovery. An unrelated eligible registered test identity can be used in an isolated protected acceptance profile without overwriting the user's stored wallet data; its exact source and receipts must be recorded privately/safely.
 
 ## Context
 
-See proposal.md for motivation and `specs/prototype-treasure-contract-demo/spec.md` for behavior. The sandbox routes demos through `navigation.ts`, `demo-files.ts`, `demo-registry.ts`, and `App.tsx`; Conditional Vault supplies the nearest smart-contract presentation pattern. The game-side treasure runtime provides contract and recovery behavior to adapt for direct SDK use in the sandbox.
+See proposal.md for motivation and `specs/prototype-treasure-contract-demo/spec.md` for behavior. The sandbox routes demos through `navigation.ts`, `demo-files.ts`, `demo-registry.ts`, and `App.tsx`; Conditional Vault supplies the nearest smart-contract presentation pattern. The shared pure contract implementation provides the script, while this demo owns its separate SDK wallet and recovery workflow.
 
 ## Goals / Non-Goals
 
@@ -35,7 +35,7 @@ See proposal.md for motivation and `specs/prototype-treasure-contract-demo/spec.
 
 ## Decisions
 
-1. **Use the Arkade SDK directly.** Adapt the production treasure contract and recovery rules to the prototype's SDK wallet workflow. Do not create a BIS Account or use the BIS service.
+1. **Use the standalone Arkade SDK wallet flow.** Reuse the canonical production Treasure contract and compatible recovery rules with the prototype's SDK wallet workflow. Do not create a BIS Account or use BIS service APIs.
 
 2. **Use Setup Wallet 2.** Each action opens the selected network's wallet with the same SDK helper as the other demos. A separate Player profile or Account login is not required. Preserve pending-operation journals and use network evidence for contract outcomes.
 
@@ -56,4 +56,4 @@ See proposal.md for motivation and `specs/prototype-treasure-contract-demo/spec.
 
 ## Resolved setup
 
-Use Setup Wallet 2 through the standard direct SDK helper, without a separate BIS Player Account prompt or a validation-mode input. Disclose the actual network-default contract guarantees outside Input. Same-wallet sandbox roles are allowed; this does not change the main game’s distinct-role contract.
+Use Setup Wallet 2 through the standard standalone SDK helper, without a BIS Player Account prompt or a validation-mode input. Disclose the actual network contract guarantees outside Input. Same-wallet Sandbox roles are allowed; this does not change the main game's distinct-role contract.

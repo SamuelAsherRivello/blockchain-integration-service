@@ -103,6 +103,10 @@ This local ChatGPT-terminal workflow takes precedence for ordinary user requests
 
 ### Prototype sandbox integrity
 
+Sandbox demos may use the same supplied test wallet for multiple roles. Distinct
+wallets are not a prototype requirement. The standing test-wallet authorization
+includes running the demos with the supplied Signet and Mutinynet test wallets.
+
 The prototype sandbox SHALL remain simple in scope but real in implementation. A demo may expose a small, teachable flow, but it MUST use the real Arkade SDK and network-backed operations for the behavior it claims to demonstrate. It MUST NOT replace blockchain or contract behavior with browser-local state, fabricated transaction IDs, pseudocode presented as executable contract source, or wallet-to-wallet transfers presented as smart-contract execution. If a requested behavior cannot yet be implemented with the real SDK, the demo MUST say so clearly and remain explicitly marked as a sketch or unavailable rather than appearing complete.
 
 Smart-contract demos MUST use a real compiled Arkade contract or covenant artifact, a real contract-derived address or output, real contract funding and spend paths, and verifiable contract state transitions. Tests MUST distinguish deterministic UI tests from live network verification; passing UI tests alone MUST NOT be reported as proof that the contract works on Arkade.

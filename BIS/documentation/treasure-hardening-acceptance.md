@@ -1212,3 +1212,484 @@ full and focused failures. The build emitted a large-chunk warning, retained
 in its log. This single diagnostic supports development startup cost as a
 contributor; it does not establish a full root cause, waive the dev performance
 target, replace the failed integrated run or prove funded responsiveness.
+
+## Current BIS verification, 2026-10-28
+
+On the current working tree, the focused Signet/Mutinynet hosted signer,
+Game Wallet, funding-consent, acceptance-policy and operation-reconciliation
+suite passed 77/77 tests. Root `npm run typecheck` passed, and
+`npm run build:all` completed the Integration, Admin, Marketplace, faucet and
+onboarding production builds. Existing large-chunk and ineffective dynamic
+import advisories remain in the build output.
+
+Fresh read-only Production requests returned HTTP 200 for health and Signet
+identity. Health reported Vercel runtime, ready storage and public signing
+enabled. Signet reported `signingReady: true` with `sign`, `signMessage` and
+`signerSession` capabilities. Mutinynet identity returned HTTP 200 but remains
+`signingReady: false` with no capabilities. No signature request, wallet
+operation or network transaction was performed in this verification.
+
+In the restricted sandbox context, the BIS test-wallet command returned
+`vault-protection-unavailable`; a safe dummy DPAPI round trip confirmed the
+vault protection API itself works, and a read-only inventory succeeded from
+the normal Windows user context. Live read-only observation showed the
+registered Signet Player targeted by the acceptance still has an unresolved
+operation, and several other Signet test profiles likewise have unresolved
+or submitting operations. Other registered targets are Bitcoin-only, with no
+spendable Arkade balance and onboarding reported unresolved. The protected
+acceptance budget preflight refused a new 1,000-sat intent because fee
+evidence and rolling exposure could not be verified within policy. A
+read-only journal summary counted 22 Signet records in the current 24-hour
+window with 67,391 sats of intent amount, 13 missing verified fee entries and
+3 unresolved/submitting records. The budget conservatively includes cancelled
+intent exposure. With no new operations, the journal's earliest possible
+minimum-intent eligibility is after 2026-10-29 04:36:17.687 UTC; run the live
+preflight again then, since that time alone does not guarantee acceptance.
+No wallet state was changed and no signature or transaction was attempted.
+
+The full root suite completed with 1,746 passing tests and one failure: the
+private owner-controls browser test timed out waiting for the server-source
+label. That exact test passed on an isolated rerun, and all four tests in
+`BIS/packages/bis-server/tests/local-browser.test.ts` then passed. Vite logged
+a page reload during the full run; classify the lone failure as a transient
+development-browser run failure, not a confirmed product regression. The
+focused Signet/Mutinynet hosted signer, Game Wallet, funding-consent,
+acceptance-policy and operation-reconciliation suite also passed 77/77 tests.
+Root typecheck passed, and `npm run build:all` completed the Integration,
+Admin, Marketplace, faucet and onboarding builds. Existing large-chunk and
+ineffective dynamic-import advisories remain.
+
+Consequently the real funded Signet contract lifecycle and managed consumer
+flow remain unverified. The protected budget gate and unresolved wallet
+reservations are the current blockers; no retry or alternate spend was made.
+Local tests and endpoint readiness do not close the live acceptance gates in
+the BIS or game task ledgers. Keep the game import/release and separate
+onboarding work outside this verification pass.
+
+## Final bounded closeout update — 2026-10-28
+
+This section supersedes the prior full-suite and fee-summary statements above. The single host-context root suite completed with **1,756 passed, 0 failed, 0 skipped**. Root typecheck, all five production builds, and the 0.0.30 release-manifest check against 0.0.29 passed. Existing large-chunk and ineffective dynamic-import advisories remain. The focused Game Wallet suite passed 67/67, including the regression that prevents Player refresh from waiting on an address prewarm whose wallet identity is not yet known.
+
+Fee reconciliation verified exact network transactions and parent outputs for 17 settled Signet and 6 settled Mutinynet operations in the protected rolling window. This wrote observed fee evidence only. No unresolved row changed and no signature or transaction was submitted.
+
+The subsequent read-only acceptance budget check still rejects a new 1,000-sat intent on both networks with `acceptance-budget-unverified`: 4 Signet and 2 Mutinynet rows remain without fee evidence, and current intent exposure is 67,390 Signet sats and 302,968 Mutinynet sats, above the 10,000-sat/day cap. The guard refuses before wallet connection or signing. The funded contract lifecycle and managed consumer flow therefore remain unverified. Continue only after natural window expiry and verified evidence permit a fresh exact-slot preflight. Do not route around the cap, alter unresolved reservations, or mix the separate game import/release or onboarding work into BIS acceptance.
+
+Journal-only expiry estimate after fee reconciliation: earliest possible 1,000-sat eligibility is 2026-10-29 04:36:17.687 UTC on Signet and 2026-10-29 04:11:38.997 UTC on Mutinynet, assuming no new operations and no journal changes. These are forecast checkpoints, not acceptance; a fresh protected preflight must explicitly admit the exact intent before proceeding.
+
+## Current protected-journal audit — 2026-10-28 08:23 UTC
+
+The operation ledger changed after the earlier fee reconciliation, so prior rolling-window totals and expiry estimates are superseded. The production guard currently sees 25 Signet entries / 68,706 intent sats and 5 Mutinynet entries / 152,306 intent sats; a read-only 1,000-sat probe refuses both with `acceptance-budget-unverified`. Journal-only earliest pass estimates are 2026-10-29 08:15:12.941 UTC for Signet and 2026-10-29 04:11:38.997 UTC for Mutinynet. Rerun protected preflight at those checkpoints; they are not guarantees.
+
+Four unresolved Signet refunds have no provider transaction ID (three unknown, one submitting) and no linked Admin, proof or V4 qualification run. Three have no registered Admin game pair. For the one mapped operation, the existing owned-browser reconciliation path failed while restoring Player Account Details before it could read the contract journal. No `Operations.reconcile` update, refund signature or refund submission occurred. The journal has no initiating-agent identity. Leave these operations unresolved until the exact original evidence and correct registered wallet context exist.
+
+Later at 2026-10-28 08:29 UTC, exact fee evidence was added for three newly settled Signet and two newly settled Mutinynet operations. The fresh production guard still rejects both networks with `acceptance-budget-unverified`. Four Signet refund records remain non-settled: two unknown and one submitting without provider IDs, plus one failed row with an opaque non-txid provider reference. The failed record has no linked qualification run, so it is not chain evidence. A separate Mutinynet failed transfer also lacks fee evidence. The budget estimate moved to Signet 2026-10-29 08:15:12.941 UTC and Mutinynet 2026-10-29 04:11:38.997 UTC; re-evaluate the live guard then.
+
+## Published consumer artifact preparation, 2026-10-28
+
+No-wallet public checks extended Proposal 1 task 5.5. BIS Admin and Marketplace both returned HTTP 200 with titles `BIS - Admin` and `BIS - Marketplace`. All referenced route-entry JavaScript assets returned HTTP 200; each application bundle identifies BIS `0.0.30` and includes the production endpoint `https://bis-server-rho.vercel.app/api/bis/`. Bundle text contains the disclosed Signet `Browser validation` choice and Mutinynet Arkade co-signer/browser-validation/unavailable-state labels. These are static published-artifact checks only; they do not prove the browser rendered those states, connected a Player Wallet, or made a hosted signing request.
+
+The published Stealth & Steel `environment.json` reports `v0.0.30`. Its main lazy-loaded game bundle and integration bundle return HTTP 200. The main bundle contains the same production BIS endpoint and the `network-unavailable` treasure state; the integration bundle contains `Game wallet source: Server`. Independent Production identity reads return Signet `signingReady: true` with `sign`, `signMessage`, and `signerSession`, and Mutinynet `signingReady: false` with no capabilities. This confirms the released asset configuration targets the live Signet service and the service reports Mutinynet unavailable. It does not confirm a game connect/session, user-visible runtime state, signature, or contract receipt.
+
+BIS Proposal 1 remains 17/19 tasks: 5.1 and 5.5 stay open. The game managed-guest procedure and required receipt fields are documented in the adjacent repository's `openspec/changes/productionize-treasure-chest-contract/acceptance-handoff-2026-10-26.md`. Continue only when the protected journal is available and a fresh exact-slot budget preflight accepts; do not infer success from static assets or identity endpoints.
+
+## Wallet-free Proposal 1 readiness check, 2026-10-28
+
+Ran the focused BIS hosted-server, Admin disclosure and signing-policy suites:
+`node --test --test-force-exit BIS/packages/integration-admin/tests/client/treasure-disclosure.test.ts BIS/packages/integration/tests/client/contract-validation.test.ts BIS/packages/bis-server/tests/hosted.test.ts` — **31/31 passed**. This includes deterministic checks that an unconfigured Mutinynet signer reports identity/connect unavailable, Signet exposes one browser-validation mode in Admin, Mutinynet exposes the preferred Arkade co-signer plus explicit browser-validation fallback, automatic clients choose the best preflight mode, and explicit Admin selections remain explicit. The suites ran locally against test fixtures and made no wallet connection, signature, funding request or network transaction. This closes no OpenSpec task by itself; it adds current-tree evidence for the deterministic policy/UI portion of Proposal 1 tasks 5.1 and 5.5. Live Signet acceptance and the full published connected/manual-fallback experience remain open.
+
+## Wallet-free open-task audit — 2026-10-28 09:33 UTC
+
+Reviewed the unchecked work in Proposal 1 (`add-bis-server-game-wallet`) and Proposal 2 (`qualify-bis-server-two-network-readiness`) against their stated acceptance criteria. No remaining task can be fully closed from local source/tests or public static/identity checks: Proposal 1 tasks 5.1 and 5.5 still require approved live Signet acceptance and the complete connected/manual-fallback consumer flow; Proposal 2 tasks 2.2–2.4 require deployed valid-grant testing and/or real network signing, while 3.1, 3.3, and 3.4 depend on those gates plus release/rollback evidence. Existing protected budget and unresolved-operation blockers remain in force; this audit performed no wallet or provider reads, signatures, broadcasts, deployment, or publication.
+
+The fresh wallet-free validation run from `BIS/packages/bis-server` passed **7/7**: `node --test --test-force-exit tests/arkade-write-proxy.test.ts tests/arkade-write-hosted.test.ts tests/native/arkade-submission-store-redis.test.ts`. It covers the current Signet submit/finalize source path with fake upstreams and a local Redis fixture, including exact completed-signature/request binding, one attempt, exact replay, and unknown-outcome quarantine. This is deterministic implementation evidence only, not deployed policy acceptance or a live contract receipt. Task records for Proposal 1 5.1 and Proposal 2 2.2 now cite the result; no task checkbox was changed.
+
+## Remaining live acceptance preflight — 2026-10-28
+
+This checklist bounds the next live Signet acceptance and the separate C096 B2
+recovery investigation. It records prerequisites; it does not authorize
+signing, funding, recovery, or other wallet/provider actions during this
+wallet-free phase.
+
+### First admitted Signet acceptance
+
+1. Confirm the exact BIS candidate and its source/package hashes, deployed
+   identity, and Signet-only production policy/caps. Confirm the selected
+   registered Player/Game pair and that the intended scenario is the funded
+   treasure flow under the current OpenSpec acceptance criteria.
+2. Through the supported protected read-only path, inspect the exact current
+   Signet journal, fee evidence, reservations, and unresolved/submitting
+   operations. Do not infer failure from absent cache/receipt data. Reconcile
+   only an operation with its exact original transaction evidence; leave
+   ambiguous, opaque, or no-txid rows unresolved.
+3. Run a fresh protected budget preflight for the exact named acceptance slot,
+   network, operation ID, amount, and fee ceiling. It must explicitly admit
+   the complete exposure, including unresolved/reserved attempts and verified
+   fees. A forecast expiry time, public endpoint readiness, or an older
+   preflight is not admission. If the journal cannot be read or the guard
+   refuses, stop before connecting a wallet or requesting a signature.
+4. After admission only, verify ordinary readiness and the exact contract
+   terms, recipient pair, deadline, fee quote, and wallet identities. Execute
+   one stable operation ID. Require the original funding operation to settle
+   with its exact transaction ID and the expected funded contract output. Any
+   timeout or unknown result is a stop condition: preserve it and reconcile
+   the same operation; never create a competing intent.
+5. Complete the user-facing Claim/Reject path and verify the real contract
+   transition, transaction ancestry, exact destination/value, and observed
+   fees against chain evidence and the operation journal. Capture the exact
+   run/receipt IDs and artifact hashes. Only then close the corresponding
+   live acceptance tasks. A UI test, bundle inspection, endpoint identity, or
+   transaction submission alone is insufficient.
+
+### Separate C096-T003 B2 recovery gate
+
+The game-side record is
+`blockchain-stealth-and-steel-game/openspec/changes/qualify-treasure-chest-both-networks/tasks.md`,
+with the detailed handoff in that change's `acceptance-handoff-2026-10-26.md`.
+The exact target is run `treasure-b2-261026-1125`, network Mutinynet,
+scenario B2, wallet pair `treasure-empty-game-mutinynet`; the original source
+SHA-256 is
+`f702ab5e51b7e2836d95dbb9f01a0d402ec087974a707ad77d34d6c72f813bae`.
+
+Before proposing any recovery spend, a separately authorized protected
+read-only audit must establish all of the following from the original run and
+journal: artifact v4, phase `stopped-fund`, outcome `original-unresolved`,
+elapsed offer deadline, reconciliation timestamp, exact original funding
+transaction ID, and no claim binding/stage/spend/receipt or conflicting run.
+The `<runId>-fund` operation must be settled, kind `arkade-send`, amount 1,000
+sats, fee 0, and its provider ID must equal that exact funding transaction.
+Wallet profiles/grants must be the matching active pair. Any refund reservation
+must be in the exact permitted prepared-unsent or staged-pending state.
+
+Then a fresh indexer read must prove the exact original funding outpoint is
+unspent, unswept, unrolled, non-preconfirmed, asset-free, unexpired, and
+`canSpendOffchain`, with exact script and value. Offer deadline and Ark VTXO
+expiry are separate. Generic SDK VTXO recovery does not prove the custom
+treasure covenant refund. If any state is swept, expired, conflicting,
+ambiguous, or lacks the original txid, stop: do not use generic recovery,
+resubmit, or replace the funding. If every gate passes, the recovery design
+still needs exact protocol-owned checkpoint/spend ancestry and a terminal
+receipt binding the original outpoint to the exact Game destination/value;
+the current receipt verifier does not independently compute observed fees.
+
+No wallet vault, provider signing endpoint, signature, submission, broadcast,
+deployment, or release was accessed in preparing this checklist. The existing
+protected journal/budget blocker and the B2 original-state gates remain open.
+
+## Full-suite environment failure and isolated fixture rerun — 2026-10-28
+
+The root `npm test` run with the repository-local Playwright cache completed
+with **1,748 passed, 22 failed** (1,770 total). The corrected browser-cache
+path eliminated the prior missing-browser launch failures. Twenty-one failures
+were isolated to the packaged-app sandbox denying atomic rename of temporary
+encrypted-vault fixtures under its `AppData\\Local\\Packages\\sandbox...\\Temp`
+path (`EPERM`); the fixture tests themselves pass when run outside that
+restricted temp root. Rerunning
+`node --test BIS/scripts/test-wallets-rotation.test.ts BIS/scripts/test-wallets-scenarios.test.ts`
+with `TEMP`, `TMP` and `TMPDIR` set to an external permitted test-temp directory
+passed **30/30**. No wallet data was opened; these are synthetic tests using
+in-memory protection fixtures.
+
+The remaining failure was the installed shared-server launcher test: its
+PowerShell helper could not inspect process ownership in this sandbox and
+returned `Process ownership inspection unavailable. Existing servers were
+preserved.` No server was stopped or replaced. This single test remains
+unverified pending a host-context run. Full output is retained at
+`output/reports/treasure/2026-10-28/bis-root-test-playwright-cache-path.log`;
+the 30/30 isolated rerun is at
+`output/reports/treasure/2026-10-28/bis-vault-tests-output-temp.log`.
+
+This run does not close live Signet acceptance, the B2 original-state recovery
+gate, or the remaining OpenSpec live/published acceptance tasks. Do not treat
+the isolated pass as a full root-suite pass.
+
+Independent cached-browser full-suite reproduction — 2026-10-28: the
+separate run recorded at
+`output/reports/diagnostics/root-suite-repro-2026-10-28/npm-test-with-browser.log`
+also passed the browser tests and reproduced the same packaged-app temp-path
+`EPERM` failures in the encrypted-vault fixture cases plus the PowerShell
+process-ownership limitation in the installed-helper test. This independently
+confirms the sandbox diagnosis. The redirected-temp 30/30 result remains the
+successful validation for the vault fixture group; the shared-helper test
+still requires host-context verification.
+
+## Fresh public B2 outpoint stop — 2026-10-28 10:57 UTC
+
+The adjacent game's sanitized read-only `RestIndexerProvider.getVtxos`
+observation found the exact original outpoint
+`6810a50d5b77d707dcea6b2469243dfceedbedfade0175bb0119bbf7d4afcec7:0` with
+1,000 sats and a script hash matching the original protected handoff. The
+indexer reports `isSwept:true`, `isPreconfirmed:true`, `isUnrolled:false`,
+virtual state `swept`, expiry `2026-10-26T14:52:19.000Z`, and no spend or
+settlement transaction ID. The evidence artifact is in the adjacent game
+repository at
+`output/reports/treasure-b2-readonly-2026-10-28/public-outpoint-observation.json`.
+
+This conclusively fails the dedicated pinned refund path's fresh-output
+admission (which requires unspent, unswept, unrolled, non-preconfirmed,
+unexpired and offchain-spendable state). Do not try that refund, generic SDK
+VTXO recovery, or replacement funding for this original contract. The public
+indexer result still does not reveal the protected run/operation journal,
+operator acceptance, destination or fee proof, and is not a terminal receipt.
+C096-T003 remains explicitly blocked/open; no recovery or network acceptance
+is claimed. No wallet, signer, reconciliation, signature, broadcast or spend
+was used for this observation.
+
+## Fresh host-context Signet preflight — 2026-10-28 11:32 UTC
+
+The authorized protected read-only check succeeded. The registered Signet pair
+has active grants, but its journal contains one nonterminal **unknown refund**
+for 2,000 sats with no provider ID/txid, no verified fee, and no linked Admin
+run or receipt. Across the Signet journal there are 58 rows (138 total across
+both networks), five nonterminal rows, and 18 rows in the rolling 24-hour
+window totaling 61,364 intent sats. Six window rows lack fee evidence: one
+cancelled, two failed, one submitting, and two unknown. There are **zero**
+settled missing-fee rows with a transaction ID suitable for the exact fee
+verifier, so safe fee reconciliation cannot clear this gate.
+
+The production policy refused both a single 1,000-sat intent and a conservative
+2,000-sat lifecycle projection with `acceptance-budget-unverified`, even under
+a zero-fee lower-bound assumption. This is a fresh current refusal, not a
+forecast. No wallet was attached; no provider was called; no signature or
+submission occurred. Do not retire the unknown refund, infer failure, or use a
+replacement wallet/spend to bypass the reservation. Sanitized evidence:
+`output/reports/treasure/2026-10-28/protected-signet-gate-host-20261028.json`.
+
+## Published game logged-out Account UI — 2026-10-28
+
+The managed Playwright browser opened the published game at
+`https://samuelasherrivello.github.io/blockchain-stealth-and-steel-game/?muteMusic=true&muteSFX=true`.
+The game rendered as BIS v0.0.30; Start Game opened gameplay, Settings opened,
+and Account displayed the logged-out Account dialog with Signet selected,
+`BIS: v0.0.30 Server`, and Create Account/Restore Account controls. Browser
+console evidence showed zero errors and one Windows WebGPU
+`powerPreference` warning. The Account dialog screenshot is
+`output/reports/bis-server/milestone-1/game-account-guest-dialog-2026-10-28.png`.
+
+This is only a public logged-out UI check. No account was created or restored,
+no wallet connector was invoked, and no signing, funding, or contract action
+occurred. It does not establish a managed guest session, wallet connection,
+or funded Claim/Reject receipt. BIS task 5.5 and game C094-T038 therefore
+remain open.
+
+## Published Admin and Marketplace runtime UI — 2026-10-28
+
+Managed Playwright inspected the deployed `/admin/` and `/marketplace/` pages;
+both rendered v0.0.30. Admin showed its Server label, the Player-payment
+action disabled until Player login, idle Smart Escrow, and a Treasure panel
+explicitly set to “Browser validation (less secure).” Its copy says the
+Signet co-signer is not configured, both wallets are locally controlled, and
+this is not a protected publisher-funded reward treasury. Page initialization
+made exactly one observed BIS API call, `POST /api/bis/connect`, which returned
+HTTP 200. No `/sign` or other financial/contract request appeared in the
+network request list. The response body was not inspected because it contains
+a live session token. This establishes the server-wallet connection without
+Player login only. Marketplace page initialization likewise made one
+`POST /api/bis/connect` returning HTTP 200, but its rendered state still
+showed both Player and Game wallets as Not connected, item listing/sales as
+Disabled, and copy requiring both Player login and Game Wallet login.
+Marketplace console showed zero errors and zero warnings. Screenshots:
+`output/reports/bis-server/milestone-1/published-admin-treasure-browser-validation-2026-10-28.png`
+and `output/reports/bis-server/milestone-1/published-marketplace-wallet-prerequisite-2026-10-28.png`.
+
+No Account/login/session/wallet/contract control was activated; both server
+connection requests were automatic on page initialization. No signing,
+funding, or contract request was intentionally initiated. The acceptance spec
+requires applicable game-wallet behavior without Game Wallet Login; it does
+not forbid Player login. The published Marketplace still asks users to log in
+the Game Wallet, despite the successful connect response, so it does not
+demonstrate that requirement. The Admin Server label is connection evidence,
+not live signing acceptance. The published pages remain v0.0.30 and openly
+describe the unconfigured browser-validation Treasure path; this report does
+not treat them as acceptance of the proposed Signet release. The accepted BIS
+candidate must be imported and then verified end to end before a coordinated
+game release. BIS task 5.5 remains open.
+
+## Marketplace hosted-wallet login guidance — 2026-10-28
+
+The current Marketplace source previously retained prototype copy telling
+production users to log in to the Game Wallet. It now chooses the guidance
+from the selected wallet source: connected server mode says the server
+controls the Game Wallet and no separate Game Wallet Login is needed; manual
+mode continues to describe the separate-login fallback. Listing and sales
+prerequisites and the disabled-trade explanation also name the selected
+server/manual source. The three focused
+copy tests, root TypeScript check, and Marketplace production build passed.
+The focused server-first/Game Wallet/app-session/session-notification suites
+also passed 51/51, covering server precedence, no-secret selection, server
+loss/manual fallback, and lifecycle notifications.
+Inspection of the built Marketplace bundle confirmed both conditional copy
+branches and absence of the former prototype “simple POC” login instruction.
+This does not establish browser rendering, live connection, funded signing, or
+the complete fallback flow; task 5.5 remains open.
+
+The local production preview was also attempted on loopback port 4181 using
+both managed Playwright and the Codex in-app browser; each timed out before
+loading a page. The preview process was stopped, and no page/API request was
+made. This is a local browser-network boundary, not an application failure;
+rendered and live Marketplace evidence remains outstanding.
+
+## Cross-network current readiness snapshot — 2026-10-28 11:39 UTC
+
+This supersedes the older expiry forecasts and records the completed C096-T001
+fail-closed preflight. C096-T002 and T003 are also closed at their explicit
+blocked/stopped disposition branches only; no co-signer acceptance or B2
+recovery succeeded. Local BIS integration and published game are both 0.0.30
+with SDK 0.4.79. Production BIS Signet identity is ready with the documented
+signing capabilities; Mutinynet identity is HTTP 200 but unavailable with no
+capabilities. Both Arkade `/v1/info` endpoints return HTTP 200 without a
+reported operator version. Signet offers Browser validation. Mutinynet Admin
+offers its preferred co-signer and Browser validation fallback; the deployed
+co-signer is unavailable, so automatic game selection remains Browser
+validation before funding.
+
+Read-only wallet observations: Signet Player is pending due the runner's
+unknown operation, and Signet Game application journals are unverified; both
+have zero available BTC/Arkade and no assets. Mutinynet Player and Game also
+have zero available BTC/Arkade and no assets, with application journals
+unavailable. Mutinynet's named pair has active distinct grants, ten pair rows,
+and no pair-scoped nonterminal runner operation. Its network has four
+nonterminal rows and two missing-fee entries in the current window. The
+Signet and Mutinynet 1,000-sat and conservative 2,000-sat budget projections
+all fail with `acceptance-budget-unverified`; no mode is admitted for a funded
+lifecycle. No browser wallet was attached and no signature, funding,
+reconciliation, or transaction occurred. Sanitized snapshots are in
+`output/reports/treasure/2026-10-28/`.
+
+### Signet unknown refund reference investigation
+
+The registered Signet pair's unknown refund record has a deterministic local
+operation ID but no input outpoints, provider ID/txid, linked Admin run, or
+receipt. A bounded local search of existing `output/` reports/logs and BIS
+documentation by that exact operation ID returned no match. The protected
+record contains only the normalized intent fields, fingerprint and state; it
+does not retain a source transaction/outpoint. No inference of failure was
+made and the reservation was not changed.
+
+Follow-up local-only reconciliation found the ignored
+`output/reports/prototype-wallet-cleanup/signet-v2.json` acceptance report,
+which names this exact recovery operation. It records a 2,000-sat wallet
+snapshot before the attempt (1,342 available and 658 recoverable) and a later
+2,000-sat snapshot (2,000 available, zero recoverable); both snapshots have
+`pending: false` and no receipt records. The report stopped at
+`recover-owned-assets-through-setup`, has `verified: false`, and its failure
+message reports cleanup could not finish. It contains no refund txid,
+commitment, input outpoint, provider acknowledgement, or evidence correlating
+the later balance to this operation. These snapshots therefore do not prove
+either settlement or terminal failure, and they cannot release the protected
+reservation. The operation remains `unknown`; no journal mutation, provider
+query, signing, or submission occurred. The normal user-vault DPAPI read
+succeeded (revision 1669); an initial sandbox-default path yielded
+`vault-not-initialized` because that context's LocalAppData was sandbox-scoped.
+No registered Admin run or application receipt links this runner operation to
+a browser database/profile, so no unrelated browser profile was opened.
+
+An initial proposed read-only indexer lookup by recipient script/time was
+rejected by automatic approval review because it would transmit data derived
+from the protected wallet to an external Signet indexer without sufficiently
+specific trusted authorization. No alternate or indirect query was attempted.
+The user later authorized one bounded request; its limited result is recorded
+below. The result is not sufficient to release the unknown reservation or
+admit the refused budget; T038 remains open.
+
+### Approved single-request Signet lookup result — 2026-10-28 12:15 UTC
+
+The user authorized one bounded read-only request, which returned HTTP 200
+with zero VTXOs on the returned page for the protected operation's query
+window. Pagination metadata was present, but its current/next/total values
+were not captured; whether another page contains matches is unknown. No second
+request was made because approval covered one request. This is a limited
+observation, not authoritative historical failure evidence: it does not
+establish that the refund was never submitted or settled and cannot release
+the reservation.
+Sanitized response metadata is in
+`output/reports/treasure/2026-10-28/approved-signet-indexer-lookup.json`;
+no recipient address or script is recorded there. The protected operation
+remains `unknown`, the reservation remains active, and budget admission remains
+refused. No additional query, wallet mutation, signing, or transaction was
+performed.
+
+The current BIS server candidate also passed a focused deterministic check:
+`node --test tests/arkade-read-proxy.test.ts tests/arkade-write-proxy.test.ts
+tests/arkade-write-hosted.test.ts
+tests/native/arkade-submission-store-redis.test.ts` from
+`BIS/packages/bis-server` passed 11/11. This covers fixed-host read routing,
+bounded write schemas, exact-signature gating, replay behavior, and unknown
+submission quarantine. OpenSpec validation passed for
+`add-bis-server-game-wallet` and
+`qualify-bis-server-two-network-readiness`. These checks establish deterministic
+candidate behavior only; they do not establish deployed runtime, live wallet
+signing, or Treasure contract acceptance.
+
+### 2026-10-29 exact Signet refund follow-up — unresolved
+
+The latest approved exact-window Signet lookup at 11:14 UTC matched the saved
+query and returned one page with HTTP 200, zero VTXOs, current=1, next=0,
+total=0, and no page-cap hit. At 11:15 UTC a local-only protected-journal
+recheck at vault revision 1669 found three sibling operations settled with
+verified fees, while the 2,000-sat refund remains `unknown`, with no provider
+ID or verified fee and no matching Admin run. That recheck made zero external
+calls and no wallet mutation. Neither result proves refund settlement or
+failure. The earlier Vercel runtime-log lookup for the Oct 28 window remains
+unavailable because this BIS project's Hobby retention is one hour (HTTP 400
+`bad_request`; no logs returned). Preserve the reservation and budget gate; do
+not make further queries, onboard, sign, fund, or submit a contract action.
+Sanitized evidence:
+`../../output/reports/treasure/2026-10-29/approved-signet-indexer-lookup-repeat-2026-10-29.json`,
+`../../output/reports/treasure/2026-10-29/protected-refund-journal-follow-up.json`,
+and `../../output/reports/treasure/2026-10-28/vercel-runtime-log-retention-check.json`.
+
+Read-only production runtime refresh at 2026-10-28 12:20 UTC returned HTTP
+200 from `/api/bis/health` with storage ready and public/owner signing enabled.
+Signet identity returned HTTP 200 with `sign`, `signMessage`, and
+`signerSession`, `signingReady: true`; Mutinynet returned HTTP 200 with no
+capabilities and `signingReady: false`. These were GET requests only; no
+connect, signer, wallet, or financial request was made. This confirms current
+service reachability and advertised policy only, not signing acceptance or
+that the deployed revision matches the dirty local candidate.
+
+### C094-T038 protected Signet fail-closed preflight — 2026-10-28 12:39 UTC
+
+A fresh protected vault read (revision 1669, no transaction/write) found the
+original operation `clean-signet-mvrlrrg6-recover` still `unknown`: 2,000-sat
+refund, null fee, no provider ID/txid, no recorded input outpoint, and no linked
+acceptance run. The current 24-hour Signet window contains 18 rows / 61,364
+intent sats with six rows missing verified fees. Applying the pure acceptance
+budget guard to 1,000- and 2,000-sat intents with a zero-fee lower bound still
+returns `acceptance-budget-unverified`. Therefore no wallet attach, signature,
+funding, Claim/Reject, or recovery is admissible for this acceptance slot.
+
+The initial approved indexer request returned zero VTXOs on its returned page;
+pagination was unknown at that checkpoint and no second request had yet been
+made. A later exact-window repeat completed pagination metadata; see the
+2026-10-29 follow-up above. Reconciliation still requires the exact original
+refund transaction/terminal receipt or an authoritative terminal failure,
+enough original input/operation correlation,
+and verified fee evidence to pass a fresh guard. Sanitized snapshot:
+`output/reports/treasure/2026-10-28/c094-t038-fail-closed-preflight.json`.
+Still admissible: local package/hash verification and deterministic source,
+test, and documentation work. This does not close BIS 5.1/5.5 or game
+C094-T038.
+
+The Vercel runtime-log API was also queried once for the operation's 04:00–06:00
+UTC window. It returned HTTP 400 because the Hobby plan retains only one hour
+of runtime logs. No logs were returned; this is not evidence of absence,
+failure, or settlement. No alternate window was queried. Sanitized result:
+`output/reports/treasure/2026-10-28/vercel-runtime-log-retention-check.json`.
+
+## Exact-input SDK settlement review — 2026-10-28
+
+The pinned Arkade SDK 0.4.79 does expose `Wallet.settle({ inputs })`, but its
+explicit inputs only bypass generic input selection. Settlement still performs
+expired-output refresh (fail-closed when that refresh is needed), requires the
+input script to be annotatable by a registered SDK contract row/handler, and
+invokes the selected handler's `assertSpendableNow` hook before intent
+registration. The B2 V4 flow compiles its custom Treasure script and stages
+branch-bound actor/emulator/operator/checkpoint signatures without registering
+that artifact in the SDK wallet contract repository. A direct exact-input
+settlement therefore has no current SDK annotation record for B2. Manually
+registering it as generic `arkade` would still bypass generic spendability
+selection and would not validate Treasure-specific refund terms, destination,
+or receipt; operator/emulator acceptance is unknown. The observed B2 output is
+already marked swept, preconfirmed, and expired. This is not a safe or proven
+recovery workaround. No wallet or network action was made. Source details and
+hashes: `output/reports/treasure-sdk-recovery-review-2026-10-28/source-review.md`.

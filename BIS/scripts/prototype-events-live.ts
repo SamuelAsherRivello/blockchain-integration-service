@@ -28,6 +28,8 @@ try {
   const address = DEFAULT_WALLET_1_ADDRESSES[network];
   await page.evaluate(({ network, address }) => {
     localStorage.setItem('network', network); localStorage.setItem(`${network}-wallet-1-address`, address);
+    // Exact positive amount. The pinned SDK cannot honor a zero-sat recipient.
+    localStorage.setItem(`${network}-asset-payment-sats`, '100');
   }, { network, address });
   await page.reload();
   const opened = page.waitForEvent('popup');
@@ -76,6 +78,7 @@ try {
     const animation = await popup.evaluate(() => document.querySelector('.wallet-events-card')!.getAnimations().map(a => a.effect?.getTiming()));
     report.checks.push({ label: `${label}-notification`, message, animation });
     if (label === 'asset' && !message?.includes('asset')) throw new Error('Asset event was not displayed.');
+    if (label === 'asset' && (!text.includes('Total sent: 100 sats and 1 asset unit') || !message?.includes('Received 100 sats'))) throw new Error('Asset event did not match the selected 100 sats.');
     await popup.screenshot({ path: new URL(`${network}-${label}.png`, directory).pathname.replace(/^\/(\w:)/, '$1') });
     await popup.getByRole('status').filter({ hasText: "I'm listening" }).waitFor({ timeout: 15000 });
     report.checks.push(`${label}-reset`);
@@ -84,7 +87,7 @@ try {
   }
   report.stage = 'disconnect';
   await context.setOffline(true);
-  await popup.waitForFunction(() => document.querySelector('.wallet-events-card')?.getAttribute('data-status') !== "I'm listening . . .", undefined, { timeout: 90000 });
+  await popup.waitForFunction(() => document.querySelector('.wallet-events-card')?.getAttribute('data-status') !== "I'm listening ...", undefined, { timeout: 90000 });
   report.stage = 'reconnect';
   await context.setOffline(false);
   await popup.getByRole('status').filter({ hasText: "I'm listening" }).waitFor({ timeout: 95000 });

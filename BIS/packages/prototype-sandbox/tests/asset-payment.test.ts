@@ -1,21 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { OPTIONAL_ASSET_PAYMENTS, optionalAssetPayment, assetTransferSats, assetSendIndexerError } from '../src/client/asset-payment.ts';
+import { ASSET_PAYMENT_SATS, assetPaymentSats, demoValidateAssetTransferSats, assetSendIndexerError } from '../src/client/asset-payment.ts';
 
-test('optional asset payment defaults to zero and adds to the SDK carrier', () => {
-  assert.deepEqual(OPTIONAL_ASSET_PAYMENTS, [0, 100, 1000]);
-  assert.equal(optionalAssetPayment(null), 0);
-  assert.equal(optionalAssetPayment(''), 0);
-  for (const [extra, total] of [[0, 330], [100, 430], [1000, 1330]]) {
-    assert.equal(optionalAssetPayment(String(extra)), extra);
-    assert.equal(assetTransferSats(330n, extra), total);
+test('asset payment defaults and former subdust selections use the 330-sat minimum', () => {
+  assert.deepEqual(ASSET_PAYMENT_SATS, [330, 1000]);
+  for (const value of [null, undefined, '', 0, '0', 1, '1', 100, '100']) assert.equal(assetPaymentSats(value), 330);
+  for (const value of [null, undefined, '']) assert.equal(demoValidateAssetTransferSats(value), 330);
+  for (const amount of [330, 1000]) {
+    assert.equal(assetPaymentSats(String(amount)), amount);
+    assert.equal(demoValidateAssetTransferSats(String(amount)), amount);
+    assert.equal(demoValidateAssetTransferSats(amount), amount);
   }
-  assert.equal(assetTransferSats(546n, 100), 646);
-});
-
-test('unsupported payments and invalid carriers cannot reach send', () => {
-  for (const value of [-1, 1, 100.5, 330, 1001, 'invalid', NaN, Infinity]) assert.throws(() => optionalAssetPayment(value));
-  for (const carrier of [0, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER]) assert.throws(() => assetTransferSats(carrier, 100));
 });
 
 test('indexer errors distinguish wallet preparation from an unresolved send without exposing request data', () => {
@@ -27,4 +22,14 @@ test('indexer errors distinguish wallet preparation from an unresolved send with
   assert.match(unresolved, /outcome is unknown.*transaction history/);
   assert.doesNotMatch(unresolved, /private URL|scripts/);
   assert.equal(assetSendIndexerError(new Error('other failure'), true), undefined);
+});
+
+test('zero cannot silently become SDK dust and unsupported payments cannot reach send', () => {
+  for (const value of [0, '0', 1, '1', 100, '100', 329]) {
+    assert.throws(() => demoValidateAssetTransferSats(value), /minimum asset payment is 330 sats.*Nothing was sent/);
+  }
+  for (const value of [-1, 0.5, 100.5, 329, 331, 1001, 'invalid', NaN, Infinity]) {
+    assert.throws(() => assetPaymentSats(value));
+    assert.throws(() => demoValidateAssetTransferSats(value));
+  }
 });

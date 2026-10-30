@@ -2,13 +2,13 @@
 
 ## Approved finite execution sequence, 2026-10-29
 
-The user now requires Mutinynet/Direct and Signet/Server with every previously enabled feature, plus the upper-left mode label. This supersedes older statements that Mutinynet consumer behavior can remain unavailable or that public BIS publication must precede local game import. Historical checkmarks and evidence do not prove the revised candidate. Hosted Mutinynet remains deferred in its existing follow-up.
+The user's current mode mapping is Mutinynet/Local and Signet/Server, with every previously enabled feature and the upper-left mode label. There is no user-facing mode toggle. This supersedes older Signet-only gates, alternate-mode fallback, and publication-before-import requirements below. Historical checkmarks and evidence do not prove the revised candidate. Hosted Mutinynet remains deferred in its existing follow-up.
 
 Execute these numbered steps once, completing each exit criterion before dependent work:
 
 1. Complete 6.1, the fixed feature/evidence matrix and feasible unchanged-cap budget.
 2. Complete 6.2 and 6.3, network-specific source routing and upper-left header.
-3. Complete 6.4, all Direct Mutinynet BIS behavior with BIS server requests blocked.
+3. Complete 6.4, all Local Mutinynet BIS behavior with BIS server requests blocked.
 4. Complete 5.1, all Server Signet BIS behavior, beginning with actual boarding/signing and continuing through role-appropriate payments/assets/contracts.
 5. Complete the local-candidate part of 5.3 after package checks and immutable provenance, then let the game import and verify that exact hash. Publication is not a local-import dependency.
 6. Complete game C094-T038/T045/T046 and C096-T005/T008/T010 acceptance for both tuples, including actual paid continuation and real Treasure receipts.
@@ -21,21 +21,25 @@ This order finishes Sandbox implementation before publication and uses step 9 fo
 ## 6. Current network modes and regression closure
 
 - [ ] 6.1 Freeze one feature/evidence matrix covering applicable account/wallet, transfer/boarding, Admin assets, Marketplace, game continuation/inventory/rewards, Treasure and Sandbox actions for both required tuples; record source baseline, each owner/expected result, actual prices/fees and a feasible per-network test budget under existing caps. Verify no enabled feature is omitted and no old unknown operation is relabeled.
-- [ ] 6.2 Implement Mutinynet Direct before any BIS signer probe and Signet Server by default through the shared public composition; verify zero BIS server calls in Direct, actual manual create/restore/login, safe explicit Signet fallback, network isolation and stale-reply/pending-source preservation with focused tests and browser checks.
-- [ ] 6.3 Put exactly `Server` or `Direct` in the upper-left of the shared top header after network selection, retaining network and BIS version with separate connection health; verify both modes, connecting/error states, network changes and all consuming apps.
-- [ ] 6.4 Prove all applicable existing BIS features on Mutinynet Direct with the BIS server stopped/unreachable or explicitly blocked, including real required financial/asset evidence and recovery; verify every matrix row or retain a concrete blocking defect. Do not substitute hosted Mutinynet activation.
+- [ ] 6.2 Implement Mutinynet Local before any BIS signer probe and Signet Server by default through the shared public composition; verify zero BIS server calls in Local, actual local create/restore/login, no Signet mode switch during outage, network isolation and stale-reply/pending-source preservation with focused tests and browser checks.
+- [ ] 6.3 Put exactly `Local` or `Server` in the upper-left of the shared top header after network selection, retaining network and BIS version with separate connection health; verify both modes, connecting/error states, network changes and all consuming apps.
+- [ ] 6.4 Prove all applicable existing BIS features on Mutinynet Local with BIS server access stopped/unreachable or explicitly blocked, including real required financial/asset evidence and recovery; verify every matrix row or retain a concrete blocking defect. Do not substitute hosted Mutinynet activation.
 
 Task 5.2 is reopened for the new final candidate. Its retained v0.0.30 evidence remains historical. Tasks 5.3/5.4/5.5 now use the candidate and final acceptance ordering above; no new task is completed by this planning update.
 
-## Current execution order, 2026-10-29
+## Current execution order, 2026-10-30
 
 - Owner: server/BIS execution chat; see the current takeover section in the BIS program ledger for its exact chat ID and file boundary.
 - Preserve existing task IDs, checkboxes and historical evidence. This ownership update completes no acceptance task.
-- Finish current Signet signing, manual fallback, Admin/Marketplace release and the verified integration archive. The Treasure/game owner performs the adjacent-game import and release portions of 5.3–5.5 after the BIS acceptance gate is satisfied.
+- Finish Local Mutinynet behavior, Signet Server signing, Admin/Marketplace release and the verified integration archive. The Treasure/game owner performs the adjacent-game import and release portions after the BIS acceptance gate is satisfied.
 - Reconcile actual commits and unrelated dirty work before scoped commits on main. Do not create a branch/worktree or include unrelated changes.
 - Stop unchanged status polling and repeated blocked probes. Record only a result, changed prerequisite, concrete defect, accepted artifact or required decision. Financial actions require the coordinator's sole slot and all existing journal/budget gates.
 
-Current takeover evidence, 2026-10-29: the prior rolling-budget refusal has expired; the original refund still reserves its own Signet identity. Public-only hosted actor registration and exact guarded partial-boarding preparation now pass. The human explicitly approved all three Production public settlement/contract/asset opt-ins for Signet in Grill Question 1 and then requested execution through deployment. Verify actual configuration and live acceptance under the unchanged caps before closing tasks. Current source/provenance, tests, limits and exact evidence are recorded once in `output/reports/bis-server/takeover-2026-10-29/current-disposition.md`. Tasks 5.1 and 5.3–5.5 remain open.
+Current takeover evidence, 2026-10-29: the prior rolling-budget refusal has expired; the original refund still reserves its own Signet identity. Public-only hosted actor registration and exact guarded partial-boarding preparation now pass. The human explicitly approved all three Production public settlement/contract/asset opt-ins for Signet in Grill Question 1 and then requested execution through deployment. Verify actual configuration and live acceptance under the unchanged caps before closing tasks. Current source/provenance, tests, limits and exact evidence are recorded once in `output/reports/bis-server/takeover-2026-10-29/current-disposition.md`. Tasks 5.1 and 5.3–5.5 remain open. The current Local/Server interpretation above supersedes historical alternate-mode wording in that record.
+
+## Historical Signet-only release milestone (superseded)
+
+The following record preserves the earlier Signet-only milestone and its test evidence. It is not the current release scope; follow the Local/Server contract at the top of this file and the authoritative BIS program plan.
 
 **Release proposal 1 of 2: Signet.** Checkboxes preserve the existing verified implementation progress. This release deploys and accepts hosted signing on Signet only; the client must clearly report Mutinynet hosted signing as unavailable and retain manual fallback. Two-network qualification, Mutinynet deployment/acceptance, and remaining multi-network hardening are moved to [proposal 2](../qualify-bis-server-two-network-readiness/proposal.md). Local tasks 1.1-3.3 and hosted adapter/coordination/policy tasks 4.1-4.4 are complete; current free-plan confirmation is recorded below. Separate protected Vercel deployments pass real concurrent/replay/conflicting-input checks and alternate encrypted MuSig signing exchanges. Public signing policy and deterministic local workflow checks pass. A shared-adapter edit slot closed the implicit SDK `settle()` selection gap; the focused regression now verifies omitted params select and pass the expected fee-adjusted VTXOs/output into the original SDK method. This is local fixture evidence, not deployed or funded acceptance. On 2026-10-22, current-tree verification passed the focused `@bis/bis-server` suite (183/183), root typecheck/build, isolated deployment bundle build, release-manifest check (0.0.26), and local staged-Pages browser verification. The 1,324/1,324 root-suite pass is recorded in the separate Treasure acceptance report. The Signet-only server has since been deployed to a protected Vercel Preview with identity separation, verified remote message proof, and free-tier configuration. Task 5.1's funded Signet acceptance and matching consumer releases remain pending.
 

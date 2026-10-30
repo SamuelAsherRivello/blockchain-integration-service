@@ -23,3 +23,8 @@ bis-server SHALL support three private mnemonic slots for each of Signet and Mut
 - **WHEN** Signet and Mutinynet hosted identities are configured
 - **THEN** each network selects only from its own ordered private pool and state namespace
 - **AND** a missing or invalid pool for one network does not select an identity from the other
+
+#### Scenario: The same signer identity is configured on both networks
+- **WHEN** a mnemonic slot on each network resolves to the same public signer identity
+- **THEN** that duplicate identity is ineligible in both network pools
+- **AND** neither network may silently reuse the other network's signer

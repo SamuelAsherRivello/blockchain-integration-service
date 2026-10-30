@@ -26,7 +26,7 @@ ${StepUI({step:5,owner:'CPU',title:'Track Bitcoin → Arkade',estimate:'~10–60
  input:'<span class="muted">The transfer authorized in Step 4.</span>',
  actions:'<span class="muted">Automatic · tracks settlement and verifies the receipt.</span><button id="diagnostic-retry" disabled>Retry preparation · no new transfer</button><button id="retry-existing" disabled>Run to completion · including recovery</button>',
  status:'<div id="status" role="status" aria-live="polite">No onboarding transfer submitted.</div><p id="error" role="alert"></p>',
- output:'<dl><dt>Target in Arkade</dt><dd id="target">—</dd><dt>Verified fee</dt><dd id="fee">—</dd><dt>Bitcoin change</dt><dd id="change">—</dd><dt>Intent ID</dt><dd id="intent">—</dd><dt>Commitment</dt><dd id="commitment">—</dd></dl>'})}
+ output:'<dl><dt>Boarding from address</dt><dd id="boarding-from-address">—</dd><dt>Boarding to address</dt><dd id="boarding-to-address">—</dd><dt>Target in Arkade</dt><dd id="target">—</dd><dt>Verified fee</dt><dd id="fee">—</dd><dt>Bitcoin change</dt><dd id="change">—</dd><dt>Intent ID</dt><dd id="intent">—</dd><dt>Commitment</dt><dd id="commitment">—</dd></dl>'})}
 ${StepUI({step:6,owner:'CPU',title:'Confirm usable Arkade funds are ready',estimate:'~5–15 seconds after settlement',id:'ready-panel',
  input:'<span class="muted">Confirmed settlement and the matching Arkade receipt.</span>',
  actions:'<span class="muted">Automatic · verifies spendable funds.</span>',

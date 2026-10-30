@@ -11,7 +11,7 @@ body { color: #111; font-family: system-ui, sans-serif; }
 .wallet-events-log { flex: 1; min-height: 0; margin: 0; padding: 0; list-style: none; overflow-y: auto; text-align: left; scrollbar-color: #718096 #edf0f2; }
 .wallet-events-log li { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid #dce2e8; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
 .wallet-events-log time { color: #536170; font-size: 11px; font-variant-numeric: tabular-nums; }
-.wallet-events-dots { display: inline-block; width: 2.2em; text-align: left; }
+.wallet-events-dots { display: inline-block; width: 2.2em; text-align: left; white-space: pre; }
 .wallet-events-card h1 { margin: 0 0 6px; font-size: 28px; font-weight: 650; }
 .wallet-events-card p { margin: 0; font-size: 18px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
 .wallet-events-card .wallet-events-network { margin-bottom: 16px; font-size: 14px; font-weight: 400; }

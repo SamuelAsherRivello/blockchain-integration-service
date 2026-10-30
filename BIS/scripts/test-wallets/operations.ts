@@ -192,6 +192,32 @@ export class Operations {
       return snapshot(record);
     });
   }
+  /** Add independently observed wire-fee evidence to a settled operation without changing its intent or outcome. */
+  async reconcileObservedFee(id, observe) {
+    label(id);
+    if (typeof observe !== 'function') fail('operation-adapter-required');
+    const before = await this.vault.transaction(state => snapshot(find(state, id)));
+    if (before.state !== 'settled' || !before.providerId) fail('fee-reconciliation-unavailable');
+    if (before.observedFeeSats !== undefined) return before;
+    let evidence;
+    try { evidence = await observe(snapshot(before)); }
+    catch { return before; }
+    const safe = value => Number.isSafeInteger(value) && value >= 0;
+    if (evidence?.id !== id || evidence.fingerprint !== before.fingerprint || evidence.providerId !== before.providerId ||
+        evidence.outcome !== 'settled' || evidence.verified !== true || !safe(evidence.inputSats) ||
+        !safe(evidence.outputSats) || !safe(evidence.feeSats) || evidence.inputSats - evidence.outputSats !== evidence.feeSats)
+      fail('operation-evidence-mismatch');
+    return this.vault.transaction(state => {
+      const record = find(state, id);
+      if (record.fingerprint !== before.fingerprint || record.state !== 'settled' || record.providerId !== before.providerId ||
+          record.observedFeeSats !== undefined) fail('operation-state-changed');
+      record.observedFeeSats = evidence.feeSats;
+      record.feeEvidence = { kind: 'verified-transaction-fee', transactionId: before.providerId,
+        inputSats: evidence.inputSats, outputSats: evidence.outputSats, feeSats: evidence.feeSats,
+        verifiedAt: new Date().toISOString() };
+      return snapshot(record);
+    });
+  }
   async cancelPrepared(id) {
     label(id);
     return this.vault.transaction(state => {

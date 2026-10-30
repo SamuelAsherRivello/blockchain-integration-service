@@ -2,26 +2,26 @@
 
 ## Authoritative nine-step release plan, 2026-10-29
 
-The user's latest instructions supersede older Signet-only consumer gates, publication-before-local-import rules and owner assignments below. Finish and deploy all applicable existing features with **Mutinynet Direct** and **Signet Server**. Put `Direct` or `Server` in the upper-left shared header, retaining network and BIS version. Health is separate from selected mode. Sandbox Treasure Hunt is also required and its four pages must work as one real lifecycle. No routine confirmation stop is pending.
+The user's latest instructions supersede older Signet-only consumer gates, publication-before-local-import rules, mode terminology and owner assignments below. Finish and deploy all applicable existing features with **Mutinynet Local** and **Signet Server**. There is no user-selectable mode toggle in this version. The upper-left shared header shows `Local` or `Server`, the selected network, and BIS version; server health is separate from selected mode. Sandbox Treasure Hunt is also required and its four pages must work as one real lifecycle. The target is Treasure support on both networks. If a genuine network limitation prevents that, fully qualify the easiest network and report the unsupported network through the existing Contracts “has support” indicator and a clear reason. No separate Treasure checkbox or new capability field is required. No routine confirmation stop is pending.
 
 ### Required changes and ownership
 
 | Change | Current role | Owner |
 | --- | --- | --- |
-| BIS `add-bis-server-game-wallet` | Required: shared mode routing/header, all Direct/Server BIS features, candidate and releases | `01a187dc-f0ad-7141-acb3-c9992a5e4fb6` |
+| BIS `add-bis-server-game-wallet` | Required: shared mode routing/header, all Local/Server BIS features, candidate and releases | `01a187dc-f0ad-7141-acb3-c9992a5e4fb6` |
 | Game C094 `productionize-treasure-chest-contract` | Required: both game workflows and matching release | `01a187dd-0008-7961-997a-7744bf4ebc43` |
 | Game C096 `qualify-treasure-chest-both-networks` | Required: actual Browser validation lifecycle/performance on both source tuples | Same game owner |
-| BIS `add-prototype-treasure-contract-demo` | Required: complete four-page direct-SDK Sandbox lifecycle and acceptance | Coordinator `01a187b2-7cad-7e12-81ab-d6b4efd1803d` |
+| BIS `add-prototype-treasure-contract-demo` | Required: complete four-page standalone Arkade SDK Sandbox lifecycle and acceptance | Sandbox owner: Second Opinion; program coordination: current coordinator |
 | BIS `qualify-bis-server-two-network-readiness` | Deferred future hosted Mutinynet; preserve incomplete tasks, do not claim passed | No active execution slot |
 
-The existing `Treasure - sandbox` chat was inspected as idle with a direct-SDK stub, not a complete contract implementation. The coordinator takes the user's newly requested step 9 in the existing Sandbox change. Preserve all unrelated dirty work and original recovery. BIS owner alone changes shared integration/server code; coordinator owns Sandbox-only implementation and this ledger. Game owner alone changes game code. No extra chat, branch or worktree is required.
+The existing `Treasure - sandbox` chat was previously idle with a stub, then reactivated and began a competing compiler change. It has been asked to stop without reverting or committing and to report its files and tests for review. Second Opinion remains the assigned Sandbox source owner; the current coordinator owns program-level planning and this ledger. Preserve all unrelated dirty work and original recovery. BIS owner alone changes shared integration/server code. Game owner alone changes game code. No extra chat, branch or worktree is required.
 
 ### Mode and feature contract
 
-- Mutinynet selects Direct before any BIS server probe. Browser-held Game Wallet create/restore/login and every existing applicable action work with the BIS service absent. Real Arkade/Bitcoin provider access remains necessary.
-- Signet selects Server by default. Player signing remains local, Game authority stays on the BIS signer, and role-appropriate owner controls remain private. Explicit Direct fallback is allowed for independent new work without reassignment of pending Server operations.
-- Both game tuples use the previously approved real Browser validation Treasure path with disclosed limitations. Stronger unqualified modes and hosted Mutinynet remain unavailable and are not release requirements.
-- The Sandbox remains its existing direct SDK teaching flow on both networks, using Setup Wallet 2 without a BIS Account/service. Its wallet source is distinct from the main applications' network-routing contract. Same-wallet test roles are allowed there. No simulated contract, fabricated receipt or ordinary transfer presented as a contract qualifies.
+- Mutinynet selects Local before any BIS server probe. Browser-held Game Wallet create/restore/login and every existing applicable action work with the BIS service absent. Real Arkade/Bitcoin provider access remains necessary.
+- Signet selects Server by default. Player signing remains local, Game authority stays on the BIS signer, and role-appropriate owner controls remain private. This version exposes no user-selectable alternate mode; pending operations retain their original source.
+- Both game tuples target the previously approved real Browser validation Treasure path with disclosed limitations. If a genuine network limitation prevents both from qualifying, complete the easiest network and set the existing Contracts support indicator false for the unsupported selected network with a clear reason. Do not treat a temporary missing wallet or login as a network limitation. Do not start or fund a new offer when the selected network is unsupported; preserve inspection and recovery for existing contracts. Stronger unqualified modes and hosted Mutinynet remain unavailable and are not release requirements.
+- The Sandbox remains its separate standalone Arkade SDK teaching flow on both networks, using Setup Wallet 2 without a BIS Account or signing-service dependency. It uses the same canonical compiled Treasure contract implementation as the BIS game flow. Same-wallet test roles are allowed there. No simulated contract, fabricated receipt or ordinary transfer presented as a contract qualifies.
 - The fixed coverage includes account/network/profile behavior, balances/addresses/history, receive/send and enabled Bitcoin/Arkade transfers, Admin mint/burn/delivery, Marketplace checkout/ownership/asset change, game continuation at its actual price, inventory/equipment/trophies, Treasure consent/funding/Claim/Reject/expiry/session-end/recovery, header, guest play and failure preservation. No enabled feature may be disabled merely to pass.
 
 ### Finite execution and exit criteria
@@ -29,11 +29,11 @@ The existing `Treasure - sandbox` chat was inspected as idle with a direct-SDK s
 | Step | Work | Exit evidence |
 | --- | --- | --- |
 | 1 | Freeze the feature checklist, source baseline, owners and actual per-network budget | Every applicable row has an expected result and evidence requirement; all planned amounts, carriers and fees fit unchanged caps or have an exact eligible window |
-| 2 | Implement network routing and upper-left mode header | Focused tests and browser evidence prove Direct bypasses the BIS signer, Server Signet is selected, health is truthful, and stale replies/pending authority cannot switch sources |
-| 3 | Complete Direct Mutinynet BIS workflows | All applicable checklist rows pass with BIS server access blocked, including required actual transaction/asset receipts |
+| 2 | Implement network routing and upper-left mode header | Focused tests and browser evidence prove Local bypasses the BIS signer, Server Signet is selected, health is truthful, and stale replies/pending authority cannot switch sources |
+| 3 | Complete Local Mutinynet BIS workflows | All applicable checklist rows pass with BIS server access blocked, including required actual transaction/asset receipts |
 | 4 | Complete Server Signet BIS workflows | First actual boarding/signing succeeds, followed by required payments/assets/contracts and scoped authorization; exact receipts and fees support every claim |
 | 5 | Freeze and locally integrate one immutable BIS candidate | Required package tests/types/build/release checks pass; exact source/inventory/SHA-256 is exported and imported in the game without waiting for public publication |
-| 6 | Complete both game workflows | Current imported artifact passes guest/account/continuation/inventory/reward checks and actual funded Treasure Claim/Reject/expiry/recovery on both tuples; required hidden-tab/funded responsiveness is observed |
+| 6 | Complete both game workflows | Current imported artifact passes guest/account/continuation/inventory/reward checks and actual funded Treasure Claim/Reject/expiry/recovery on both tuples where supported; if one network has a genuine limitation, the easiest tuple is fully qualified, the existing Contracts support indicator is false with a clear network reason for the other, and no unsupported new offer can be created or funded; required hidden-tab/funded responsiveness is observed |
 | 7 | Finish and vet Sandbox pages 22–25 locally, then run combined candidate checks | Create, Check, Claim and Reject share the original real contract, preserve unknown outcomes, reload safely and pass deterministic/source-format plus separately recorded live network cases; Conditional Vault still works |
 | 8 | Publish matching final candidates | Existing Vercel/BIS Pages/game Release workflows succeed for exact commits and full versions; README links/cache-busters and immutable assets remain correct |
 | 9 | Finalize Sandbox Treasure Hunt and the release on public routes | All four deployed Sandbox pages load/execute the supported real lifecycle, and public Admin/Marketplace/game show correct modes and versions. Review exact evidence and close only completed required changes; leave deferred hosted Mutinynet incomplete |
@@ -41,6 +41,8 @@ The existing `Treasure - sandbox` chat was inspected as idle with a direct-SDK s
 The user's added step 9 is final Sandbox acceptance and closure. Its implementation/local vetting is step 7 before publication, so the ordering needs no second release or circular dependency. All nine steps are ordered by dependency. Steps 3/4 can be prepared independently after step 2, and game-only/Sandbox-only source work can proceed concurrently. Package-dependent game work waits for step 5. Shared files, final candidate writes/builds and every financial action remain serialized.
 
 ### Execution constraints and current starting point
+
+Historical checkpoints below preserve the terminology and status recorded at the time. The active mode labels and release criteria are defined in the authoritative section above.
 
 The user has authorized implementation, scoped commits/pushes, existing workflows and final deployment. Use the existing connected services and prior native game push exception; preserve Samuel identity and unrelated changes. The owner credential is deployed and verified. No new credential setup is needed. BIS Production remains Signet-only with the original recovery secret and all protection/Preview isolation unchanged.
 

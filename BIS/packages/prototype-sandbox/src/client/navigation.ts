@@ -107,7 +107,7 @@ export function walletProfileStorageKey(network: TestNetwork, field: string) {
   return `${network}-${field}`;
 }
 
-export function setupWalletProfileValues(network: TestNetwork, storage = globalThis.localStorage) {
+export function demoGetWalletProfile(network: TestNetwork, storage = globalThis.localStorage) {
   const addressKey = walletProfileStorageKey(network, 'wallet-1-address');
   const mnemonicKey = walletProfileStorageKey(network, 'wallet-2-mnemonic');
   const values = {
@@ -126,12 +126,26 @@ export function setupNetworkValue(storage = globalThis.localStorage) {
   return value;
 }
 
-export function localStorageGetItem(field: string, storage = globalThis.localStorage) {
-  const network = setupNetworkValue(storage);
-  if (field === 'network') return network;
-  if (field === 'wallet-1-address') return setupWalletProfileValues(network, storage).address1;
-  if (field === 'wallet-2-mnemonic') return setupWalletProfileValues(network, storage).mnemonic2;
-  return storage.getItem(`${network}-${field}`) ?? '';
+/** Network-scoped demo fields retain their established localStorage keys. */
+function demoInputKey(network: TestNetwork, field: string) {
+  if (!['signet', 'mutinynet'].includes(network)) throw new Error('Choose Signet or Mutinynet.');
+  if (typeof field !== 'string' || !field || field === NETWORK_STORAGE_KEY) throw new Error('Choose a network-specific demo input.');
+  return `${network}-${field}`;
+}
+
+export function demoGetInput(network: TestNetwork, field: string, storage = globalThis.localStorage) {
+  const key = demoInputKey(network, field);
+  if (field === 'wallet-1-address') return demoGetWalletProfile(network, storage).address1;
+  if (field === 'wallet-2-mnemonic') return demoGetWalletProfile(network, storage).mnemonic2;
+  return storage.getItem(key) ?? '';
+}
+
+export function demoSetInput(network: TestNetwork, field: string, value: string | number | bigint | boolean, storage = globalThis.localStorage) {
+  storage.setItem(demoInputKey(network, field), String(value));
+}
+
+export function demoRemoveInput(network: TestNetwork, field: string, storage = globalThis.localStorage) {
+  storage.removeItem(demoInputKey(network, field));
 }
 
 export function getActiveDemo(pathname = '') {
@@ -146,22 +160,4 @@ export function isSetupPath(pathname = '') {
 
 export function isHomePath(pathname = '') {
   return `${String(pathname).replace(/\/+$/, '')}/` === HOME_PATH;
-}
-
-/** Network-scoped demo fields retain their established localStorage keys. */
-function demoInputKey(network: TestNetwork, field: string) {
-  if (!['signet', 'mutinynet'].includes(network)) throw new Error('Choose Signet or Mutinynet.');
-  if (typeof field !== 'string' || !field || field === NETWORK_STORAGE_KEY) throw new Error('Choose a network-specific demo input.');
-  return `${network}-${field}`;
-}
-
-export function demoGetInput(network: TestNetwork, field: string, storage = globalThis.localStorage) {
-  const key = demoInputKey(network, field);
-  if (field === 'wallet-1-address') return setupWalletProfileValues(network, storage).address1;
-  if (field === 'wallet-2-mnemonic') return setupWalletProfileValues(network, storage).mnemonic2;
-  return storage.getItem(key) ?? '';
-}
-
-export function demoSetInput(network: TestNetwork, field: string, value: string | number | bigint | boolean, storage = globalThis.localStorage) {
-  storage.setItem(demoInputKey(network, field), String(value));
 }

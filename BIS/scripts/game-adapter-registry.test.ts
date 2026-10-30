@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { configureApplications, ownedProfileKey, ownedLaunchOptions, OwnedBrowser, playerRestoreEvidenceReady } from './test-wallets/owned-browser.ts';
+import { configureApplications, ownedProfileKey, ownedLaunchOptions, OwnedBrowser, playerRestoreEvidenceReady, safeTreasureUiSummary, visibleOwnedScreen } from './test-wallets/owned-browser.ts';
 
 test('recovery acceptance uses separate protected profiles without changing established wallet paths',()=>{
   const original=ownedProfileKey('pair','signet','http://127.0.0.1:5174','admin');
@@ -86,48 +86,116 @@ test('game URL validation rejects changed path or query', () => {
   assert.throws(() => gameUrl({ ...gameAdapter, origin: 'http://127.0.0.1:5173', search: '?muteMusic=false' }), /game-adapter-invalid/);
 });
 
-test('game owned sessions enter Account through the game Settings gear', async () => {
+test('game treasure status projection exposes only safe fixed state', () => {
+  assert.deepEqual(safeTreasureUiSummary({ status: 'awaiting-consent', contractId: 'public-contract-id', fundingConsentOpen: true }),
+    { status: 'awaiting-consent', hasContract: true, fundingConsentOpen: true, chestOpen: false });
+  assert.deepEqual(safeTreasureUiSummary({ status: 'secret', contractId: 'private', fundingConsentOpen: 1 }),
+    { status: 'unknown', hasContract: true, fundingConsentOpen: false, chestOpen: false });
+});
+
+test('owned-browser permits the authenticated game screen after its account card closes', () => {
+  assert.equal(visibleOwnedScreen('game', false), 'Game');
+  assert.equal(visibleOwnedScreen('marketplace', false), undefined);
+  assert.equal(visibleOwnedScreen('game', true, 'Game Wallet'), 'Game Wallet');
+  assert.equal(visibleOwnedScreen('game', true, 'unexpected'), undefined);
+});
+
+test('game owned sessions dismiss Welcome before entering Account through Settings', async () => {
   const clicked = [];
+  let welcomeOpen = true, accountVisible = false, cardVisible = false;
+  const welcome = {
+    count: async () => 1,
+    isVisible: async () => welcomeOpen,
+    getByRole: (_role, { name }) => ({
+      waitFor: async ({ state }) => { assert.equal(name, 'Start Game'); assert.equal(state, 'visible'); clicked.push('wait-start'); },
+      evaluate: async () => 'start-button',
+      click: async () => { welcomeOpen = false; clicked.push('start'); },
+    }),
+    waitFor: async ({ state }) => { assert.equal(state, 'hidden'); assert.equal(welcomeOpen, false); },
+  };
   const controls = new Map([
-    ['⚡ Account', { count: async () => 1, isVisible: async () => false, click: async () => clicked.push('account') }],
-    ['Open settings', { click: async () => clicked.push('settings') }],
+    ['⚡ Account', {
+      count: async () => 1, isVisible: async () => accountVisible,
+      waitFor: async ({ state }) => { assert.equal(state, 'visible'); clicked.push('wait-account'); },
+      click: async () => { cardVisible = true; clicked.push('account'); },
+    }],
+    ['Open settings', { click: async () => { assert.equal(welcomeOpen, false); accountVisible = true; clicked.push('settings'); } }],
   ]);
   const owner = Object.create(OwnedBrowser.prototype);
   owner.registration = { application: { app: 'game' } };
   owner.page = {
-    locator: () => ({ last: () => ({ isVisible: async () => false, waitFor: async () => {} }) }),
-    getByRole: (_role, { name }) => controls.get(name),
+    locator: () => ({ last: () => ({ isVisible: async () => cardVisible, waitFor: async ({ state }) => { assert.equal(state, 'visible'); assert.equal(cardVisible, true); } }) }),
+    getByRole: (role, { name }) => role === 'dialog' && name === 'Welcome' ? welcome : controls.get(name),
   };
   await owner.accountDialog();
-  assert.deepEqual(clicked, ['settings', 'account']);
+  assert.deepEqual(clicked, ['wait-start', 'start', 'settings', 'wait-account', 'account']);
+});
+
+test('game owned sessions keep an existing BIS dialog ahead of the covered Welcome screen', async () => {
+  const owner = Object.create(OwnedBrowser.prototype);
+  owner.registration = { application: { app: 'game' } };
+  owner.page = {
+    locator: () => ({ last: () => ({ isVisible: async () => true, waitFor: async ({ state }) => assert.equal(state, 'visible') }) }),
+    getByRole: () => { throw new Error('covered Welcome controls must not be activated'); },
+  };
+  await owner.accountDialog();
+});
+
+test('game acceptance starts only one new session and refuses a second funded offer', async () => {
+  let started = false, clicks = 0;
+  const owner = Object.create(OwnedBrowser.prototype);
+  owner.registration = { application: { app: 'game' } };
+  owner.closed = false; owner.loggedOut = false;
+  owner.inspect = async () => ({ network: 'signet', game: { source: 'server' }, treasure: { status: started ? 'awaiting-consent' : 'unknown', hasContract: false,
+    fundingConsentOpen: started, chestOpen: false } });
+  owner.page = {
+    locator: () => ({ last: () => ({ isVisible: async () => false }) }),
+    waitForTimeout: async () => {},
+    getByRole: (_role, { name }) => name === 'Close settings'
+      ? { first: () => ({ count: async () => 1, isVisible: async () => true, click: async () => {} }) }
+      : { count: async () => 1, isVisible: async () => !started, click: async () => { started = true; clicks++; },
+        waitFor: async ({ state }) => { assert.equal(state, 'hidden'); assert.equal(started, true); } },
+    waitForFunction: async () => {},
+  };
+  const result = await owner.startGameForAcceptance();
+  assert.equal(result.treasure.status, 'awaiting-consent');
+  assert.equal(clicks, 1);
+  await owner.startGameForAcceptance();
+  assert.equal(clicks, 1, 'existing consent is returned without restarting');
+  owner.inspect = async () => ({ network: 'signet', game: { source: 'server' },
+    treasure: { status: 'active', hasContract: true, fundingConsentOpen: false, chestOpen: false } });
+  await assert.rejects(owner.startGameForAcceptance(), /game-existing-treasure-unresolved/);
 });
 
 const predecessor = {packageName:'@bis/integration',version:'0.0.21',artifactSha256:'7418bdb7f0c6b51774d950a08c3613df296217957347829426e361f1c18e90b6',evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md'};
 const previousRelease = {packageName:'@bis/integration',version:'0.0.28',artifactSha256:'6b318fb45a778ac8e136716e30ef63f89e036d65d8abb3ef2ab87f7352f23a46',evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md'};
-const pinned029 = {...gameAdapter,provenance:{packageName:'@bis/integration',version:'0.0.29',artifactSha256:'3617a257a9d1e48084d9e845d9d911747735d3dff9dcd6f4bb9fb0d51d89aff6',evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md'}};
+const previousRelease29 = {packageName:'@bis/integration',version:'0.0.29',artifactSha256:'3617a257a9d1e48084d9e845d9d911747735d3dff9dcd6f4bb9fb0d51d89aff6',evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md'};
+const pinned030 = {...gameAdapter,provenance:{packageName:'@bis/integration',version:'0.0.30',artifactSha256:'5f031b0915fb7b865679fdd080c74b3e906a58c0a0f6f1c8a0373a2165da6ede',evidencePath:'stealth-steel/vendor/BIS_PROVENANCE.md'}};
 const registeredGame = provenance => ({app:'game',origin:'http://127.0.0.1:5175',path:gameAdapter.path,search:gameAdapter.search,provenance:{...provenance}});
 
-test('exact trusted21 upgrades to current pinned29 only, preserving origin/path/query/profile key and original input',()=>{
+test('exact trusted predecessor upgrades to current pinned30 only, preserving registration scope and original input',()=>{
  const original=registeredGame(predecessor),before=structuredClone(original);
- const updated=reconcileGameRegistration(original,original.origin,pinned029);
- assert.deepEqual(updated,{...original,provenance:pinned029.provenance});assert.deepEqual(original,before);
+ const updated=reconcileGameRegistration(original,original.origin,pinned030);
+ assert.deepEqual(updated,{...original,provenance:pinned030.provenance});assert.deepEqual(original,before);
  assert.equal(ownedProfileKey('pair','mutinynet',updated.origin,updated.app),ownedProfileKey('pair','mutinynet',original.origin,original.app));
- assert.equal(reconcileGameRegistration(updated,updated.origin,pinned029),updated,'current descriptor is a no-op');
+ assert.equal(reconcileGameRegistration(updated,updated.origin,pinned030),updated,'current descriptor is a no-op');
  assert.equal(reconcileGameRegistration(original,original.origin,{...gameAdapter,provenance:predecessor}),original,'current source is a no-op');
  const registered028=registeredGame(previousRelease);
- assert.deepEqual(reconcileGameRegistration(registered028,registered028.origin,pinned029),{...registered028,provenance:pinned029.provenance});
+ assert.deepEqual(reconcileGameRegistration(registered028,registered028.origin,pinned030),{...registered028,provenance:pinned030.provenance});
+ const registered029=registeredGame(previousRelease29);
+ assert.deepEqual(reconcileGameRegistration(registered029,registered029.origin,pinned030),{...registered029,provenance:pinned030.provenance});
 });
 
 test('registration upgrade rejects unknown predecessors, changed hashes/routes/query, duplicates and rollback',async()=>{
  const original=registeredGame(predecessor);
  for(const change of [{provenance:{...predecessor,version:'0.0.20'}},{provenance:{...predecessor,artifactSha256:'b'.repeat(64)}},
    {provenance:{...predecessor,extra:'unrecognized'}},{path:'/other/'},{search:'?muteMusic=false'},{origin:'http://127.0.0.1:5176'},{app:'marketplace'}]) {
-  assert.throws(()=>reconcileGameRegistration({...original,...change},original.origin,pinned029),/game-registration-upgrade-refused/);
+  assert.throws(()=>reconcileGameRegistration({...original,...change},original.origin,pinned030),/game-registration-upgrade-refused/);
  }
- const newer=registeredGame(pinned029.provenance);
+ const newer=registeredGame(pinned030.provenance);
  assert.throws(()=>reconcileGameRegistration(newer,newer.origin,{...gameAdapter,provenance:predecessor}),/game-registration-upgrade-refused/);
- assert.throws(()=>reconcileGameRegistration(original,original.origin,{...pinned029,provenance:{...pinned029.provenance,version:'0.0.30'}}),/game-registration-upgrade-refused/);
- assert.throws(()=>reconcileGameRegistration(original,original.origin,{...pinned029,provenance:{...pinned029.provenance,artifactSha256:'a'.repeat(64)}}),/game-registration-upgrade-refused/);
+ assert.throws(()=>reconcileGameRegistration(original,original.origin,{...pinned030,provenance:{...pinned030.provenance,version:'0.0.31'}}),/game-registration-upgrade-refused/);
+ assert.throws(()=>reconcileGameRegistration(original,original.origin,{...pinned030,provenance:{...pinned030.provenance,artifactSha256:'a'.repeat(64)}}),/game-registration-upgrade-refused/);
  const vault=vaultState();vault.state.applications=[original,structuredClone(original)];const before=structuredClone(vault.state);
  await assert.rejects(configureApplications(vault,original.origin),/application-registry-invalid/);assert.deepEqual(vault.state,before);
 });

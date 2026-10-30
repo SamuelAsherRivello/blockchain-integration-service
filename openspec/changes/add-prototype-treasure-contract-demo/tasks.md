@@ -2,9 +2,9 @@
 
 ## Current finite release acceptance
 
-The user added final step 9 to finish and vet all four Treasure Hunt pages. The current direct SDK implementation is a stub; historical BIS-based/UI-only passes below do not complete it. Follow the six-step local implementation/acceptance order in design.md. Sandbox implementation and local vetting precede coordinated publication; final public checks close step 9. Preserve all existing task IDs and recovery.
+The user added final step 9 to finish and vet all four Treasure Hunt pages. The standalone SDK lifecycle is implemented but has not passed funded live acceptance; historical BIS-based/UI-only passes below do not complete it. Follow the six-step local implementation/acceptance order in design.md. Sandbox implementation and local vetting precede coordinated publication; final public checks close step 9. Preserve all existing task IDs and recovery.
 
-Task 1.1 verifies direct Setup Wallet 2 with no BIS Account/service. Task 1.2 must replace all four operation placeholders with the real compiled contract lifecycle. Task 1.3 proves explicit fresh evidence, same-session identity and duplicate/unknown behavior. Tasks 3.1–3.3 require current direct-source checks and separate real Signet/Mutinynet receipts, including Create→Check→Claim, a separate Create→Check→Reject/refund, expiry and reload/recovery. Buttons/source/navigation alone cannot pass them.
+Task 1.1 verifies Setup Wallet 2 through the standalone Arkade SDK with no BIS Account/login/service. Task 1.2 must replace all four operation placeholders with the real canonical compiled contract lifecycle. Task 1.3 proves explicit fresh evidence, same-session identity and duplicate/unknown behavior. Tasks 3.1–3.3 require standalone SDK source checks and separate real Signet/Mutinynet receipts, including Create→Check→Claim, a separate Create→Check→Reject/refund, expiry and reload/recovery. Buttons/source/navigation alone cannot pass them.
 
 ## 4. Final Sandbox release closure
 
@@ -13,21 +13,21 @@ Task 1.1 verifies direct Setup Wallet 2 with no BIS Account/service. Task 1.2 mu
 
 ## 1. BIS profile and contract API integration
 
-- [ ] 1.1 Use the existing Setup Wallet 2 and direct Arkade SDK wallet workflow, without a BIS Account or service.
+- [ ] 1.1 Use the existing Setup Wallet 2 and standalone Arkade SDK wallet workflow, without a BIS Account, login or service.
 - [ ] 1.2 Implement the real Treasure Hunt contract Create, Check, Claim and Reject operations directly through the SDK, with durable recovery and no fabricated outcomes.
 - [ ] 1.3 Query network evidence on each explicit action and test duplicate starts, uncertain outcomes, and ineligible Claim/Reject operations.
 
 ## 2. Sandbox demo presentation
 
 - [x] 2.1 Add Treasure Hunt Create, Check, Claim, and Reject routes under the Smart Contracts navigation group beside Conditional Vault; selecting the group opens Create, and all existing Conditional Vault routes remain available.
-- [x] 2.2 Add step-specific actions with the shared Execute/network button, no client-side action gating, a mode disclosed outside Input, and BIS-returned pending, terminal, and unavailable states; align Input rows and Docs content with established sandbox demo patterns.
+- [x] 2.2 Add step-specific actions with the shared Execute/network button, no client-side action gating, network contract guarantees disclosed outside Input, and evidence-derived pending, terminal, and unavailable states; align Input rows and Docs content with established sandbox demo patterns.
 - [x] 2.3 Register source, overview, sequence diagram, explorer references, and package README documentation; verify the rendered executable source has exactly the Arrange, Act, Assert sections in order and that documentation matches the implemented controls and capability limits.
 
 ## 3. Contract acceptance and evidence
 
-- [ ] 3.1 Run the focused Prototype Sandbox deterministic suite and package typecheck/build against the direct SDK implementation; record deterministic results separately from any live transaction result.
-- [ ] 3.2 Perform funded Signet and Mutinynet lifecycle checks only where current BIS capability exposes a supported network-default treasure mode; record exact network, mode, operation references, and receipts, and verify unsupported modes fail closed without claiming live acceptance.
-- [ ] 3.3 Verify the finished direct SDK demo in Edge, including that every step remains clickable and uses shared Execute/network controls, plus continued availability of Conditional Vault.
+- [ ] 3.1 Run the focused Prototype Sandbox deterministic suite and package typecheck/build against the standalone SDK implementation; record deterministic results separately from any live transaction result.
+- [ ] 3.2 Perform funded Signet and Mutinynet lifecycle checks only where the standalone SDK/contract capability check exposes support; record exact network, contract profile, operation references and receipts, and verify unsupported networks fail closed without claiming live acceptance.
+- [ ] 3.3 Verify the finished standalone SDK demo in Edge, including that every step remains clickable and uses shared Execute/network controls, plus continued availability of Conditional Vault.
 
 ## Verification note (2026-10-29)
 
@@ -77,8 +77,10 @@ The Treasure facade explicitly enables same-wallet test roles, keeps its Game Wa
 
 In Edge on Signet, Check, Claim and Reject restored the supplied wallet and returned no matching offer. A protected ledger comparison identified the same wallet in Signet refund `clean-signet-mvrks476-initial` (2,074 sats, unknown, no provider ID) and Mutinynet operation `vault-mutiny-proof-d-increment-1` (unknown). The saved Signet cleanup report contains no terminal receipt. Both reservations remain intact. No new offer or competing spend was submitted, and task 3.2 remains open until the original operations are reconciled and a funded lifecycle is verified.
 
-## Direct SDK correction (2026-10-29)
+## Standalone SDK correction (2026-10-29)
 
-The user clarified that Treasure Hunt must use the same direct SDK workflow as other prototype demos, without BIS. The former BIS-based implementation and its same-wallet integration changes have been removed from the active page. The page now uses `demoCreateWallet` with Setup Wallet 2 and explicitly reports contract operations unavailable until the direct lifecycle is implemented. The earlier BIS verification notes above are historical and do not establish completion of the replacement.
+The user clarified that Treasure Hunt must use the same standalone SDK workflow as other prototype demos, without BIS Account/login/service dependencies. The former BIS-based implementation and its same-wallet integration changes have been removed from the active page. The page now uses `demoCreateWallet` with Setup Wallet 2 and explicitly reports contract operations unavailable until the standalone lifecycle is implemented. The earlier BIS verification notes above are historical and do not establish completion of the replacement.
+
+The sandbox then contained a standalone SDK lifecycle and encrypted recovery journal using Setup Wallet 2 for both roles. Fourteen focused offline tests passed, including SDK signing against a synthetic operator on both network configurations; typecheck and the sandbox build also passed. These do not establish live contract execution. In Edge on Signet, Check, Claim and Reject restored the provided wallet and returned without a BIS account prompt, but no Treasure recovery record was present and no contract spend was made. The original Signet cleanup and Mutinynet vault operations remain unknown. A fresh exact Mutinynet lookup found no archived candidate and the original input was swept without a recorded spender; this is not terminal evidence. Preserve both reservations and complete funded Edge acceptance only after they are reconciled. The 90-second eligibility rule is browser-enforced and can be bypassed by a modified client.
 
 The saved Mutinynet increment request compiles to transaction `3c420a877880e371fa3a1597eb287d3ac6c705e1d0bac071c0bde4ca62256c15` and its checkpoint references the original funded output. The operator returned no transaction for that ID; the original output was reported unspent and swept. Neither observation proves a terminal outcome, so the reservation remains unknown. The Signet cleanup report has no attributable receipt or original inputs, and no matching protected browser journal was found. No reservation was cleared and no new transaction was submitted.

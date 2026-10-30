@@ -38,6 +38,7 @@ All four pages retain Execute with the selected network below it. Actions check 
 
 Each file in `src/client/demos/` supplies Execute, the code panel, and Open source. Treasure Hunt uses the Arkade SDK directly and checks the operator's evidence at execution time. Viewing source never executes it; pending is not success.
 
+Setup's **Clean Wallet 2** uses the submitted mnemonic to reconcile supported pending sends and recover eligible outputs to the same wallet. Assets, history, and credentials remain; recovery can deduct verified fees. Unknown outcomes stay recorded. Send Asset offers 330 or 1,000 sats.
 
 ## Verification and boundaries
 

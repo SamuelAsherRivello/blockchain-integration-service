@@ -6,7 +6,9 @@ The indexer supplies new, spent, and swept VTXOs. Asset amounts remain bigint va
 
 The first complete snapshot establishes history. The stream starts buffering before the follow-up snapshot, which reconciles changes without erasing buffered arrivals. Transition keys distinguish receipt, spend, and sweep of the same outpoint. They remain in memory across connection retries. Reopening creates a new baseline. Transitions completed entirely during an unobserved gap cannot be guaranteed.
 
-SDK EventSource open/error events drive connection state. Setup has a 75-second deadline to allow the operator's initial heartbeat; failed attempts release the stream and retry with delays capped at five seconds. Closure aborts the iterator, clears timers, and requests server unsubscribe. Abrupt browser termination may prevent that asynchronous request from completing.
+After subscription registration and the follow-up snapshot succeed, the monitor reports listening and checks the real indexer every two seconds until the SDK EventSource opens. The operator can delay stream response headers until its first heartbeat or payment event, so waiting for `open` alone adds an idle startup delay. A final snapshot closes the handover to streaming; shared transition keys suppress duplicates between snapshots and stream frames. These checks can miss transitions completed entirely between snapshots.
+
+Setup has a 75-second deadline. Snapshot failures, EventSource errors, and browser offline events release the attempt and retry with delays capped at five seconds. Closure aborts the iterator, clears setup and polling timers, and requests server unsubscribe. Abrupt browser termination may prevent that asynchronous request from completing.
 
 Tests inject providers only through the module API. The production popup has no test-event endpoint. Funded browser acceptance must use independent live indexer responses and public transaction references; deterministic tests alone do not establish delivery on either network.
 

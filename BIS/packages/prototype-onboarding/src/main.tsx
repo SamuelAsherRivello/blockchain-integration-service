@@ -237,7 +237,7 @@ function scheduleRecovery(error){
  nextRecoveryAt=policy.nextAt;
  if(!retryAllowed)runRequested=false;
 }
-let wallet, bitcoinAddress='', state={phase:'idle'}, busy=false, signing=false, accountId, timer, confirmedFunding=false, accountBusy=false;
+let wallet, bitcoinAddress='', arkadeAddress='', state={phase:'idle'}, busy=false, signing=false, accountId, timer, confirmedFunding=false, accountBusy=false;
 let startupBusy=false,startupTimer,stopIncoming,connectionGeneration=0,refreshQueued=false,criticalFailure=false;
 const work=new WorkCoordinator({storage:stateStorage,clock:{setTimeout:(...args)=>setTimeout(...args),clearTimeout:id=>clearTimeout(id)},now:()=>Date.now(),random:()=>Math.random()});
 const workKey=name=>`${accountId??windowState.id}:${name}`;
@@ -319,6 +319,7 @@ function render(){
 
  for(const key of ['target','fee','change'])$(key).textContent=Number.isSafeInteger(state[key])?`${state[key].toLocaleString()} sats`:'—';
 
+ $('boarding-from-address').textContent=bitcoinAddress||'—';$('boarding-to-address').textContent=arkadeAddress||'—';
  $('intent').textContent=state.intent??'—';$('commitment').textContent=state.commitment??state.boardingCommitment??'—';
 
  if(state.mode==='board-then-return')$('status').textContent+=` Phase ${state.leg==='return'?'2/2: return Bitcoin remainder':'1/2: board original inputs'}.`;
@@ -724,10 +725,13 @@ async function start(providedSigner){
 
   connectingWallet=await work.read(workKey('wallet-connect'),()=>Wallet.create({identity:signer,arkProvider:provider,settlementConfig:false,storage:{walletRepository:new InMemoryWalletRepository(),contractRepository:new InMemoryContractRepository()}}),{onLate:value=>value.dispose?.()});
 
-  const connectedAddress=await work.read(workKey('boarding-address'),()=>connectingWallet.getBoardingAddress());
+  const [connectedAddress,connectedArkadeAddress]=await Promise.all([
+   work.read(workKey('boarding-address'),()=>connectingWallet.getBoardingAddress()),
+   work.read(workKey('arkade-address'),()=>connectingWallet.getAddress()),
+  ]);
   if(generation!==connectionGeneration||accountBusy)throw staleError();
   if(wallet&&wallet!==connectingWallet)await wallet.dispose?.();
-  wallet=connectingWallet;bitcoinAddress=connectedAddress;
+  wallet=connectingWallet;bitcoinAddress=connectedAddress;arkadeAddress=connectedArkadeAddress;
 
   if(!bitcoinAddress.startsWith('tb1'))throw Error('Unexpected address network.');
   updateWindowUrl(bitcoinAddress);

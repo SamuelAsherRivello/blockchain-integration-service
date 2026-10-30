@@ -9,8 +9,10 @@
     "test": "node --test tests/*.test.ts"
   },
   "dependencies": {
+    "@bis/integration": "0.0.31",
     "@arkade-os/sdk": "0.4.79",
     "@scure/base": "2.4.0",
+    "@scure/btc-signer": "2.4.1",
     "mermaid": "^12.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -19,4 +21,3 @@
     "vite": "8.3.4"
   }
 }
-

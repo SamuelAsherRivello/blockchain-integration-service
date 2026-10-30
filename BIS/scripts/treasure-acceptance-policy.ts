@@ -38,11 +38,12 @@ export function validateOtherNetworkFixture(input:{originalNetwork:string;otherN
 /** Conservative rolling-day test grant. Count reserved and unknown operations
  * as well as completed ones, and never free this budget on a failed result.
  */
-export function assertAcceptanceBudget(records:readonly {createdAt:string;state?:string;resolution?:unknown;intent:{id:string;network:string;amountSats:number;feeSats:number|null}}[],
+export function assertAcceptanceBudget(records:readonly {createdAt:string;observedFeeSats?:number;feeEvidence?:{kind?:string;feeSats?:number};state?:string;resolution?:unknown;intent:{id:string;network:string;amountSats:number;feeSats:number|null}}[],
   intent:{id:string;network:string;amountSats:number;feeSats:number|null},now=Date.now()){
-  const cost=(row:typeof intent)=>{
-    if(!Number.isSafeInteger(row.amountSats)||row.amountSats<0||!Number.isSafeInteger(row.feeSats)||row.feeSats!<0)throw Error('acceptance-budget-unverified');
-    const value=row.amountSats+row.feeSats!;
+  const cost=(row:{amountSats:number;feeSats:number|null;observedFeeSats?:number;feeEvidence?:{kind?:string;feeSats?:number}})=>{
+    const fee=row.feeSats??(row.feeEvidence?.kind==='verified-transaction-fee'&&row.feeEvidence.feeSats===row.observedFeeSats?row.observedFeeSats:undefined);
+    if(!Number.isSafeInteger(row.amountSats)||row.amountSats<0||!Number.isSafeInteger(fee)||fee!<0)throw Error('acceptance-budget-unverified');
+    const value=row.amountSats+fee!;
     if(!Number.isSafeInteger(value))throw Error('acceptance-budget-unverified');return value;
   };
   if(!Number.isSafeInteger(now)||cost(intent)>5000)throw Error('acceptance-operation-limit');
@@ -52,7 +53,7 @@ export function assertAcceptanceBudget(records:readonly {createdAt:string;state?
     if(hasVerifiedBoardingNonSubmission(row))continue;
     const created=Date.parse(row.createdAt);
     if(!Number.isFinite(created)||created>now)throw Error('acceptance-budget-unverified');
-    if(created>=now-86400000)spent+=cost(row.intent);
+    if(created>=now-86400000)spent+=cost({ ...row.intent, observedFeeSats: row.observedFeeSats, feeEvidence: row.feeEvidence });
   }
   if(spent+cost(intent)>10000)throw Error('acceptance-network-day-limit');
 }

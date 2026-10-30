@@ -1,23 +1,29 @@
+
+//////////////////////////////////////////
 // Arrange
-import { RestArkProvider } from '@arkade-os/sdk';
-import { validateArkadeAddress } from '../../../../prototype-faucet/src/shared/faucet-core.ts';
-import { demoGetInput, walletPaymentUrl, walletCallbackUrl } from '../navigation.ts';
-import { demoGetNetwork } from '../demo-utils.ts';
-import type { DemoContext, DemoResult } from '../demo-runtime.ts';
+//////////////////////////////////////////
+import {
+  demoGetInput,
+  demoExternalWalletPayment,
+  demoResult,
+  type DemoContext,
+  type DemoResult,
+} from '../sandbox-shared.ts';
 
-export async function runDemo({ network, amount = '100' }: DemoContext): Promise<DemoResult> {
-  const address = demoGetInput(network, 'wallet-1-address');
+export async function runDemo({ network, amount = '100', externalWalletWindow }: DemoContext): Promise<DemoResult> {
+  const recipientAddress = demoGetInput(network, 'wallet-1-address');
 
+  //////////////////////////////////////////
   // Act
-  const provider = new RestArkProvider(demoGetNetwork(network).operator);
-  const info = await provider.getInfo();
-  validateArkadeAddress(address, info, network);
-  const link = walletPaymentUrl({ network, address, amountSats: amount, callback: walletCallbackUrl(window.location.href) });
-  const popup = window.open(link, '_blank', 'popup,width=480,height=840,resizable=yes,scrollbars=yes');
-  if (!popup)
-    window.location.assign(link);
+  //////////////////////////////////////////
 
+  // This opens a real approval request for Wallet 1 with the entered amount.
+  const txid = await demoExternalWalletPayment({ network, recipientAddress, amountSats: amount, walletWindow: externalWalletWindow });
+
+  //////////////////////////////////////////
   // Assert
-  // Opening a wallet is not a completed payment. Its callback supplies the result.
-  return { output: '', pending: true };
+  //////////////////////////////////////////
+
+  // Show the wallet's actual callback transaction ID; a handoff alone is not success.
+  return demoResult([`Requested amount: ${amount} sats`, `Transaction ID: ${txid}`, `Success: ${Boolean(txid)}`].join('\n'), { explorer: { network, kind: 'ark-transaction', identifier: txid } });
 }

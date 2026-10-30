@@ -33,7 +33,7 @@ test('all demo pages use the shared Overview diagram catalog', () => {
     'createWallet', 'privateBalance', 'publicBalance', 'onboard', 'offboard',
     'sendPayment', 'receivePayment', 'paymentHistory', 'mintAsset', 'sendAsset',
     'receiveAsset', 'privateAssetHistory', 'publicAssetHistory', 'assetUpgrade', 'vaultCreate',
-    'vaultIncrement', 'vaultCheck', 'vaultClaim', 'externalSend', 'externalReceive',
+    'vaultIncrement', 'vaultCheck', 'vaultClaim', 'treasureHunt', 'externalSend', 'externalReceive',
   ];
   for (const key of diagramKeys) assert.match(appSource, new RegExp(`${key}: sequenceDiagram`), key);
   assert.match(appSource, /Bitcoin<br\/>\(On-Chain L1\)/);
@@ -53,14 +53,15 @@ test('all demo source panels resolve from the executable registry', () => {
 });
 
 test('external wallet demos request popup handoff and start with empty output', async () => {
-  for (const file of ['external-wallet-payment.ts', 'external-wallet-receive.ts']) {
-    const source = await readFile(new URL('src/client/demos/' + file, packageRoot), 'utf8');
-    assert.match(source, /window\.open\(link, '_blank', 'popup/);
-  }
+  const paymentSource = await readFile(new URL('src/client/demos/external-wallet-payment.ts', packageRoot), 'utf8');
+  const receiveSource = await readFile(new URL('src/client/demos/external-wallet-receive.ts', packageRoot), 'utf8');
+  const runtimeSource = await readFile(new URL('src/client/external-wallet-payment-runtime.ts', packageRoot), 'utf8');
+  assert.match(paymentSource, /demoExternalWalletPayment\(/);
+  assert.match(receiveSource, /window\.open\(link, '_blank', 'popup/);
+  assert.match(runtimeSource, /externalWalletPaymentResult\(search: string\)[\s\S]*?return '';/);
   assert.match(appSource, /output=\{output \|\| callbackResult\}/);
   assert.equal((appSource.match(/docsDescription="External Wallet\?"/g) || []).length, 2);
   assert.equal((appSource.match(/Everything shown in this prototype sandbox can be done with either an external wallet or an internal wallet\./g) || []).length, 2);
-  assert.match(appSource, /externalWalletPaymentResult\(search\)[\s\S]*?return '';/);
   assert.match(appSource, /sourceId="external-wallet-receive-source"[\s\S]*?output=\{output\}/);
   assert.match(appSource, /function LoadingPrompt\(\{ open, bodyText \}\)/);
 });

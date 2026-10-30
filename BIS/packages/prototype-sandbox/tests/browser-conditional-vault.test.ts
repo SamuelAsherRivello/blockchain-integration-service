@@ -37,7 +37,7 @@ test('each demo retains its own output through scrolling and navigation without 
   await page.getByRole('button', { name: 'Execute', exact: true }).click();
   await page.waitForFunction(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Demo output"]')?.value.endsWith('Success: false'));
   const incrementError = await output.inputValue();
-  assert.match(incrementError, /^Demo: Increment Conditional Vault\nError: VaultID 0001 does not exist\./);
+  assert.match(incrementError, /^Demo: Increment Conditional Vault - Mutinynet\nError: VaultID 0001 does not exist\./);
   await page.locator('#mutinynet-vault-id').selectOption('0002');
   assert.equal(await output.inputValue(), incrementError);
   await page.getByRole('button', { name: 'Execute', exact: true }).click();
@@ -200,7 +200,7 @@ for (const network of ["signet", "mutinynet"] as const)
       const output = await page
         .locator('textarea[aria-label="Demo output"]')
         .inputValue();
-      assert.match(output, /^Demo: Check Conditional Vault\n/);
+      assert.match(output, /^Demo: Check Conditional Vault - Mutinynet\n/);
       assert.doesNotMatch(output, /Status: claimed|Success: true/);
       await storePublicFixture(page, { ...descriptor, deadline: descriptor.deadline + 1 });
       await page

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
-import {CONDITIONAL_VAULT_AMOUNT,CONDITIONAL_VAULT_TARGET,conditionalVaultArtifact,rememberVaultDescriptor,readStoredConditionalVault as demoReadConditionalVaultDescriptor,importConditionalVault} from '../src/client/conditional-vault.ts';
+import {CONDITIONAL_VAULT_AMOUNT,CONDITIONAL_VAULT_TARGET,conditionalVaultArtifact,rememberVaultDescriptor,demoReadConditionalVaultDescriptor,importConditionalVault} from '../src/client/conditional-vault.ts';
 import {descriptorFixture} from '../../integration/tests/client/conditional-vault-descriptor.test.ts';
 import {compileVaultDescriptor} from '../../integration/src/client/wallet-layer-arkade/conditional-vault-descriptor.ts';
 import {demoVaultResult} from '../src/client/vault-demo-runtime.ts';

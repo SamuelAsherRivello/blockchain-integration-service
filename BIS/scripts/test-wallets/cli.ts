@@ -15,7 +15,7 @@ const help = {
     'reconcile --operation <original-faucet-operation-label>',
     'prepare --account <label> --network signet|mutinynet --expect empty|funded [--bitcoin <sats>] [--arkade <sats>] [--source faucet --amount 1000|50000|100000|200000 --operation <unique-label> [--api <loopback-origin>]]',
     'rotate --account <label> --network signet|mutinynet',
-    'owned session run: payment | funding | funding-bitcoin | swap-to-bitcoin | onboard-half | mint-delivery | burn | contract-claim | contract-refund',
+    'owned session run: payment | funding | funding-bitcoin | swap-to-bitcoin | onboard-half | mint-delivery | burn | contract-claim | contract-refund | treasure-fund-signet | inspect-treasure-signet',
     'funding-bitcoin: source Arkade funds to a distinct registered recipient Bitcoin address; not a direct Bitcoin UTXO send'],
   pending: ['standalone inspect/action/run', 'standalone wallet funding', 'direct test-wallet BTC sends'],
   note: 'Recovery input is private local input only. Creation does not establish funding or readiness.',
@@ -91,6 +91,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
             let result;
             if (request.command === 'inspect') result = await owner.inspect();
             else if (request.command === 'status') result = await (await import('./owned-readiness.ts')).ownedReadiness(owner, request);
+            else if (request.command === 'run' && request.scenario === 'start-game' && Object.keys(request).every(key => ['command','scenario'].includes(key))) result = await owner.startGameForAcceptance();
+            else if (request.command === 'run' && request.scenario === 'treasure-fund-signet' && Object.keys(request).every(key => ['command','scenario'].includes(key))) result = await (await import('./treasure-funding-acceptance.ts')).acceptSignetTreasureConsent(owner);
+            else if (request.command === 'run' && request.scenario === 'inspect-treasure-signet' && Object.keys(request).every(key => ['command','scenario'].includes(key))) result = await (await import('./treasure-funding-acceptance.ts')).inspectSignetTreasureContracts(owner);
             else if (request.command === 'run' && request.scenario === 'reload') result = await owner.reload(request);
             else if (request.command === 'run' && request.scenario === 'logout') result = await owner.logout(request);
             else if (request.command === 'run' && request.scenario === 'restore') result = await owner.restore(request);

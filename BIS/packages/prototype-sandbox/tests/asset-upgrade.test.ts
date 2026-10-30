@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LEVEL_ONE_TITLE, assertAssetUpgradeRequestMatches, createAssetUpgradeRequest, executeAssetUpgrade, readAssetUpgradeRecord } from '../src/client/asset-upgrade.ts';
+import { LEVEL_ONE_TITLE, assertAssetUpgradeRequestMatches, demoCreateAssetUpgradeRequest, demoExecuteAssetUpgrade, readAssetUpgradeRecord } from '../src/client/asset-upgrade.ts';
 
 function storage() {
   const values = new Map<string, string>();
@@ -29,7 +29,7 @@ function walletFixture() {
 }
 
 test('upgrade requests are source-bound and public-only', () => {
-  const request = createAssetUpgradeRequest('signet', '0000', 'a'.repeat(64));
+  const request = demoCreateAssetUpgradeRequest('signet', '0000', 'a'.repeat(64));
   assert.equal(request.targetMetadata.level, '2');
   assert.equal(request.targetMetadata.title, 'Sword Level 2');
   assert.equal(request.targetMetadata.upgradeable, 'true');
@@ -40,7 +40,7 @@ test('upgrade requests are source-bound and public-only', () => {
 });
 
 test('level-two requests issue a terminal level-three replacement', () => {
-  const request = createAssetUpgradeRequest('signet', '0000', 'a'.repeat(64), '2');
+  const request = demoCreateAssetUpgradeRequest('signet', '0000', 'a'.repeat(64), '2');
   assert.equal(request.targetMetadata.title, 'Sword Level 3');
   assert.equal(request.targetMetadata.level, '3');
   assert.equal(request.targetMetadata.icon.endsWith('/sword-3.png'), true);
@@ -50,10 +50,10 @@ test('level-two requests issue a terminal level-three replacement', () => {
 
 test('upgrade issues the replacement before burning the exact source and replays safely', async () => {
   const fixture = walletFixture();
-  const request = createAssetUpgradeRequest('signet', '0000', fixture.source);
+  const request = demoCreateAssetUpgradeRequest('signet', '0000', fixture.source);
   fixture.setRequest(request);
   const store = storage();
-  const first = await executeAssetUpgrade({ wallet: fixture.wallet, request, storage: store });
+  const first = await demoExecuteAssetUpgrade({ wallet: fixture.wallet, request, storage: store });
   assert.equal(first.status, 'complete');
   assert.equal(first.record.phase, 'complete');
   assert.equal(first.record.replacementAssetId, fixture.replacement);
@@ -61,7 +61,7 @@ test('upgrade issues the replacement before burning the exact source and replays
   assert.equal(first.record.burnTransactionId, fixture.burnTx);
   assert.equal(fixture.issueCalls, 1);
   assert.equal(fixture.burnCalls, 1);
-  const replay = await executeAssetUpgrade({ wallet: fixture.wallet, request, storage: store });
+  const replay = await demoExecuteAssetUpgrade({ wallet: fixture.wallet, request, storage: store });
   assert.equal(replay.status, 'complete');
   assert.equal(fixture.issueCalls, 1);
   assert.equal(fixture.burnCalls, 1);
@@ -70,12 +70,28 @@ test('upgrade issues the replacement before burning the exact source and replays
 
 test('an unresolved burn is recoverable and never resubmitted', async () => {
   const fixture = walletFixture();
-  const request = createAssetUpgradeRequest('signet', '0000', fixture.source);
+  const request = demoCreateAssetUpgradeRequest('signet', '0000', fixture.source);
   const store = storage();
   const pending = { ...request, version: 1 as const, phase: 'burning' as const, replacementAssetId: fixture.replacement };
   store.setItem('prototype-sandbox:asset-upgrade:v1:signet:' + fixture.source, JSON.stringify(pending));
-  const result = await executeAssetUpgrade({ wallet: fixture.wallet, request, storage: store });
+  const result = await demoExecuteAssetUpgrade({ wallet: fixture.wallet, request, storage: store });
   assert.equal(result.status, 'recoverable');
   assert.equal(fixture.issueCalls, 0);
   assert.equal(fixture.burnCalls, 0);
+});
+
+test('an incomplete issuance acknowledgement is reconciled from owned metadata without issuing again', async t => {
+  const fixture = walletFixture();
+  const request = demoCreateAssetUpgradeRequest('signet', '0000', fixture.source);
+  fixture.setRequest(request);
+  const store = storage();
+  const issue = fixture.wallet.assetManager.issue;
+  t.mock.method(fixture.wallet.assetManager, 'issue', async (...args) => ({ ...await issue(...args), assetId: undefined }) as never);
+  await assert.rejects(demoExecuteAssetUpgrade({ wallet: fixture.wallet, request, storage: store }), /outcome is unresolved/);
+  assert.equal(fixture.burnCalls, 0);
+  assert.equal(readAssetUpgradeRecord('signet', fixture.source, store)?.phase, 'issuing');
+  const recovered = await demoExecuteAssetUpgrade({ wallet: fixture.wallet, request, storage: store });
+  assert.equal(recovered.status, 'complete');
+  assert.equal(fixture.issueCalls, 1);
+  assert.equal(fixture.burnCalls, 1);
 });

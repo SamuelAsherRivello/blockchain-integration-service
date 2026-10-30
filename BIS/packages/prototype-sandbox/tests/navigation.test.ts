@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_NETWORK, DEFAULT_WALLET_1_ADDRESSES, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, formatSatsAsBitcoin, getActiveDemo, isHomePath, isSetupPath, localStorageGetItem, setupNetworkValue, setupWalletProfileValues, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from '../src/client/navigation.ts';
+import { DEFAULT_NETWORK, DEFAULT_WALLET_1_ADDRESSES, DEMOS, HOME_PATH, NETWORK_STORAGE_KEY, SETUP_PATH, formatSatsAsBitcoin, getActiveDemo, isHomePath, isSetupPath, demoGetInput, demoSetInput, demoRemoveInput, setupNetworkValue, demoGetWalletProfile, walletCallbackUrl, walletConnectUrl, walletPaymentUrl, walletProfileStorageKey, walletUrl } from '../src/client/navigation.ts';
 
 test('defines twenty-five labeled demo routes', () => {
   assert.equal(DEMOS.length, 25);
@@ -38,9 +38,13 @@ test('defines twenty-five labeled demo routes', () => {
   assert.equal(DEMOS[14].subject, 'Events');
   assert.equal(DEMOS[15].subject, 'Conditional Vault');
   assert.equal(DEMOS[15].title, 'Create');
+  assert.equal(DEMOS.find(demo => demo.number === 22)?.subject, 'Treasure Hunt');
+  assert.deepEqual(DEMOS.filter(demo => demo.subject === 'Treasure Hunt').map(demo => demo.title), ['Create', 'Check', 'Claim', 'Reject']);
   assert.equal(DEMOS[23].subject, 'External Wallet');
   assert.equal(DEMOS[23].title, 'Send Payment');
   assert.equal(DEMOS[24].title, 'Receive Payment');
+  const smartContracts = DEMOS.filter(demo => ['Conditional Vault', 'Treasure Hunt'].includes(demo.subject));
+  assert.deepEqual([...new Set(smartContracts.map(demo => demo.subject))], ['Conditional Vault', 'Treasure Hunt']);
 });
 
 test('derives active demo from direct paths and defaults safely', () => {
@@ -50,6 +54,10 @@ test('derives active demo from direct paths and defaults safely', () => {
   assert.equal(getActiveDemo('/prototype-sandbox/'), 1);
   assert.equal(getActiveDemo('/prototype-sandbox/demo-11/'), 11);
   assert.equal(getActiveDemo('/prototype-sandbox/demo-12/'), 12);
+  assert.equal(getActiveDemo('/prototype-sandbox/demo-22/'), 22);
+  assert.equal(getActiveDemo('/prototype-sandbox/demo-23/'), 23);
+  assert.equal(getActiveDemo('/prototype-sandbox/demo-24/'), 24);
+  assert.equal(getActiveDemo('/prototype-sandbox/demo-25/'), 25);
 });
 
 test('recognizes the home route separately from setup', () => {
@@ -71,8 +79,8 @@ test('setup keeps independent Wallet 1 and Wallet 2 values for each network', ()
   values.set('signet-wallet-2-mnemonic', 'signet-mnemonic');
   values.set('mutinynet-wallet-1-address', 'mutinynet-address');
   values.set('mutinynet-wallet-2-mnemonic', 'mutinynet-mnemonic');
-  assert.deepEqual(setupWalletProfileValues('signet', storage), { address1: 'signet-address', mnemonic2: 'signet-mnemonic' });
-  assert.deepEqual(setupWalletProfileValues('mutinynet', storage), { address1: 'mutinynet-address', mnemonic2: 'mutinynet-mnemonic' });
+  assert.deepEqual(demoGetWalletProfile('signet', storage), { address1: 'signet-address', mnemonic2: 'signet-mnemonic' });
+  assert.deepEqual(demoGetWalletProfile('mutinynet', storage), { address1: 'mutinynet-address', mnemonic2: 'mutinynet-mnemonic' });
   assert.equal(walletProfileStorageKey('signet', 'wallet-1-address'), 'signet-wallet-1-address');
   assert.equal(walletProfileStorageKey('mutinynet', 'wallet-2-mnemonic'), 'mutinynet-wallet-2-mnemonic');
   assert.equal(SETUP_PATH, '/prototype-sandbox/setup/');
@@ -96,8 +104,8 @@ test('setup refuses an unknown stored network without replacing its data', () =>
 test('setup initializes each new network profile with its Wallet 1 default without using legacy storage keys', () => {
   const values = new Map();
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
-  assert.deepEqual(setupWalletProfileValues('signet', storage), { address1: DEFAULT_WALLET_1_ADDRESSES.signet, mnemonic2: '' });
-  assert.deepEqual(setupWalletProfileValues('mutinynet', storage), { address1: DEFAULT_WALLET_1_ADDRESSES.mutinynet, mnemonic2: '' });
+  assert.deepEqual(demoGetWalletProfile('signet', storage), { address1: DEFAULT_WALLET_1_ADDRESSES.signet, mnemonic2: '' });
+  assert.deepEqual(demoGetWalletProfile('mutinynet', storage), { address1: DEFAULT_WALLET_1_ADDRESSES.mutinynet, mnemonic2: '' });
   assert.equal(values.get('signet-wallet-1-address'), DEFAULT_WALLET_1_ADDRESSES.signet);
   assert.equal(values.get('mutinynet-wallet-1-address'), DEFAULT_WALLET_1_ADDRESSES.mutinynet);
   assert.equal(values.get('signet-wallet-2-mnemonic'), '');
@@ -108,15 +116,17 @@ test('setup initializes each new network profile with its Wallet 1 default witho
 test('setup preserves a user-cleared Wallet 1 value', () => {
   const values = new Map([['signet-wallet-1-address', '']]);
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
-  assert.deepEqual(setupWalletProfileValues('signet', storage), { address1: '', mnemonic2: '' });
+  assert.deepEqual(demoGetWalletProfile('signet', storage), { address1: '', mnemonic2: '' });
 });
 
-test('localStorageGetItem resolves selected-network setup values', () => {
+test('demoGetInput reads the explicit network even when another network is selected', () => {
   const values = new Map([[NETWORK_STORAGE_KEY, 'mutinynet'], ['mutinynet-wallet-2-mnemonic', 'words']]);
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
-  assert.equal(localStorageGetItem('network', storage), 'mutinynet');
-  assert.equal(localStorageGetItem('wallet-1-address', storage), DEFAULT_WALLET_1_ADDRESSES.mutinynet);
-  assert.equal(localStorageGetItem('wallet-2-mnemonic', storage), 'words');
+  assert.equal(setupNetworkValue(storage), 'mutinynet');
+  assert.equal(demoGetInput('mutinynet', 'wallet-1-address', storage), DEFAULT_WALLET_1_ADDRESSES.mutinynet);
+  assert.equal(demoGetInput('mutinynet', 'wallet-2-mnemonic', storage), 'words');
+  assert.equal(demoGetInput('signet', 'wallet-2-mnemonic', storage), '');
+  assert.equal(values.get(NETWORK_STORAGE_KEY), 'mutinynet');
 });
 
 test('builds a network-specific Arkade Wallet payment link with an Arkade BIP21 recipient', () => {
@@ -137,3 +147,25 @@ test('builds a network-specific Arkade Wallet payment link with an Arkade BIP21 
   assert.throws(() => walletCallbackUrl('http://example.test/demo-12/'), /HTTPS or localhost/);
 });
 
+
+test('demo input writes and removals preserve other networks, wallet data, and global preferences', () => {
+  const values = new Map([[NETWORK_STORAGE_KEY, 'mutinynet'], ['signet-wallet-2-mnemonic', 'existing test value'], ['bis-conditional-vault-public-v5:signet', 'retained']]);
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+  demoSetInput('signet', 'asset-payment-sats', 100, storage);
+  demoSetInput('mutinynet', 'asset-payment-sats', 1000, storage);
+  assert.equal(values.get('signet-asset-payment-sats'), '100');
+  assert.equal(demoGetInput('signet', 'asset-payment-sats', storage), '100');
+  demoRemoveInput('signet', 'asset-payment-sats', storage);
+  assert.equal(demoGetInput('signet', 'asset-payment-sats', storage), '');
+  assert.equal(demoGetInput('mutinynet', 'asset-payment-sats', storage), '1000');
+  assert.equal(values.get('signet-wallet-2-mnemonic'), 'existing test value');
+  assert.equal(values.get('bis-conditional-vault-public-v5:signet'), 'retained');
+  assert.equal(values.get(NETWORK_STORAGE_KEY), 'mutinynet');
+  for (const network of ['mainnet', '']) {
+    assert.throws(() => demoGetInput(network, 'asset-id', storage));
+    assert.throws(() => demoSetInput(network, 'asset-id', 'value', storage));
+    assert.throws(() => demoRemoveInput(network, 'asset-id', storage));
+  }
+  assert.throws(() => demoSetInput('signet', 'network', 'mutinynet', storage));
+  assert.throws(() => demoRemoveInput('signet', '', storage));
+});

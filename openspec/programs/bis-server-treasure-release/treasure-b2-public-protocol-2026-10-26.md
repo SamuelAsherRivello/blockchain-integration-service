@@ -1,0 +1,57 @@
+# Original B2 public protocol investigation
+
+Production qualification remains incomplete. The original actor-key binding is now confirmed by a coordinator-provided protected host-context read-only check. The deployed Mutinynet operator still exposes no authoritative build or acceptance evidence for this specific recovery route. No key or phrase was printed; no wallet mutation, signing, funding, financial API call, journal change, reservation release or publication occurred. C094 remains 29/36.
+
+## Exact original state
+
+Original run `treasure-b2-261026-1125` funded `6810a50d5b77d707dcea6b2469243dfceedbedfade0175bb0119bbf7d4afcec7:0` with 1,000 sats and no assets. Existing sanitized reconciliation verifies its compiled original contract output and funding chain. Fresh public GET evidence still reports the output unspent, swept, preconfirmed, expired, not spendable, and included by `recoverableOnly`. It has no `spentBy` or `settledBy` receipt.
+
+The independently parsed Bitcoin sweep `1eff5b382d793fab940cb3b46c6e1317f62bbd0779a3fe178b47eb91826e0e91` spends batch root `34fe1fe6ca6415a5be86c5a9dd319fa5d9c58dbc578ab2826402fbbce9e7b2d1:0` and is confirmed at height 3536981. Its raw SHA-256 is `29bc6fa6ede5a3a01a361c4b3656bf6970b6f0ce10a5ad49a5dadc8d92fef8e9`. This verifies the batch sweep, not return of the original 1,000 sats. Funds remain unresolved; reservations stay intact.
+
+## Findings from official pinned source
+
+The source manifest pins emulator `7b830f6d7bd3998e1790f3d3e7737f34f40588f1`, arkd `f863e484719344edbe4a8d10cf5fe994b123f2c0` and SDK `b427020080fc38643e340a1ce93864fe3b6032de`. All 24 saved source files were checked against their Git blob IDs and SHA-256 hashes. These repository revisions are evidence about source, not attestation of the running operator binary.
+
+The four covenant branches retain their immutable one-input predicate. Emulator [intent validation](https://github.com/arkade-os/emulator/blob/7b830f6d7bd3998e1790f3d3e7737f34f40588f1/pkg/emulator/intent.go) requires at least two inputs: a synthetic message input and an ownership input. It executes the actual intent transaction. Its [input-count opcode](https://github.com/arkade-os/emulator/blob/7b830f6d7bd3998e1790f3d3e7737f34f40588f1/pkg/arkade/opcode.go) reads that transaction's literal input count. Consequently, passing an unchanged V4 covenant refund through this intent route cannot satisfy its one-input predicate. This source finding does not close an authoritative live qualification task.
+
+The existing `exit` leaf is different. Local `treasure-script.ts` defines a CSV tapscript signed by `$game`; the V4 compiler inherits it without replacing it. Official [arkd intent registration](https://github.com/arkade-os/arkd/blob/f863e484719344edbe4a8d10cf5fe994b123f2c0/internal/core/application/service.go) verifies BIP-322 ownership before checking stored output state. Its [signature verifier](https://github.com/arkade-os/arkd/blob/f863e484719344edbe4a8d10cf5fe994b123f2c0/pkg/ark-lib/script/verify.go) recognizes a CSV multisig closure, verifies its signatures and binds its control block to the original taproot output. Separate full tree/timing validation during registration is conditional on `RequiresForfeit()`. The [domain predicate](https://github.com/arkade-os/arkd/blob/f863e484719344edbe4a8d10cf5fe994b123f2c0/internal/core/domain/vtxo.go) is false for a swept output.
+
+This supports a candidate direct batch ownership proof using the existing game-owned CSV leaf. It does not execute the incompatible covenant refund, establish a currently available unilateral Bitcoin exit, or prove acceptance of this original output. The stock [SDK contract handler](https://github.com/arkade-os/ts-sdk/blob/b427020080fc38643e340a1ce93864fe3b6032de/packages/sdk/src/contracts/handlers/arkade.ts) selects no collaborative V4 path: it excludes covenant functions and CSV leaves. A generic-spend metadata flag does not supply that missing selected path.
+
+The official [service API](https://github.com/arkade-os/arkd/blob/f863e484719344edbe4a8d10cf5fe994b123f2c0/api-spec/protobuf/ark/v1/service.proto) exposes `POST /v1/batch/registerIntent` and `POST /v1/batch/estimateFee`, each with an `intent` containing proof and message. Registration returns an intent ID; batch acknowledgement, tree signing and finalization follow. No POST was attempted here. A registration ID alone would not prove recovered funds.
+
+The [fee manager](https://github.com/arkade-os/arkd/blob/f863e484719344edbe4a8d10cf5fe994b123f2c0/internal/infrastructure/feemanager/arkfee.go) derives `recoverable` input type from the stored swept state. The public fee snapshot at `2026-10-26T18:46:43.731Z` charges 0.2% only for fresh ordinary `vtxo` inputs, with other input/output branches zero. The candidate recoverable input therefore evaluates to zero under that snapshot. This is neither a signed fee quote nor proof of accepted output minimums or successful batch finalization.
+
+## Exact closeout questions
+
+**Does the original public game key match the CSV actor key? Confirmed by the coordinator's protected host-context check.** It reports that saved terms are present, the saved game actor matches the protected game identity, and the compiled original script SHA-256 is `0ee48440ac8c72203b4fce00a36aca48684351731f755e4be80f803a9625050f`. The check printed no phrase or key and performed no wallet mutation, signature or transaction. The game-owned `exit` leaf in the compiler binds its signer to `$game`. The offline specimen still uses synthetic keys/outpoint and is not proof of recovery acceptance; it is no longer the source of the original key-equality conclusion.
+
+**Does deployed Mutinynet explicitly support this path and its accepted output/fee rules? Still unproven.** A fresh unauthenticated GET to `https://mutinynet.arkade.sh/v1/info` returns Mutinynet network, an empty `version`, minimum VTXO amount 1 sat, fee expressions charging 0.2% only to fresh ordinary `vtxo` inputs, and zero for the other displayed input/output branches. The endpoint exposes no recovery capability, contract policy, build identity, or acceptance receipt. The public `recoverableOnly` classification likewise indicates eligibility, not acceptance. The official [Arkade lifecycle guide](https://docs.arkadeos.com/learn/pillars/batch-expiry) describes generic expired VTXO recovery through a new batch and warns that unilateral onchain enforcement is lost; it does not qualify complex custom contracts. The upstream [recovery-chain proposal](https://github.com/arkade-os/arkd/issues/842) itself notes that complex contracts may need additional validation. No financial endpoint was called. The minimum missing proof is an authoritative operator build/config attestation or operator confirmation binding the exact swept B2 CSV-leaf intent, allowed destination/output and fee rules to the currently running Mutinynet service.
+
+These are the stopping conditions for this source investigation. It does not continue into generic recovery exploration or infer success from a different wallet's settlement.
+
+## Required evidence before recovery or production closure
+
+Once the operator-specific proof exists, an original-only batch adapter and receipt verifier can be reviewed offline. They must bind the immutable original outpoint, original authorized leaf and control block, original game destination, exactly 1,000 returned sats, no assets and the allowed fee. The old offchain checkpoint-spend receipt verifier cannot by itself establish batch recovery. Evidence must connect the original ownership input and accepted intent to the finalized new batch/tree, its exact returned output, and fresh verified spendability. Only a separately assigned guarded financial operation could establish that final result. No replacement funding or unrelated wallet payment qualifies as recovery.
+
+T006/T007 authoritative enforcement, T018/T019/T035 live lifecycle/recovery, T020 remaining acceptance and T026 real hidden-tab/funded timing remain open as recorded in C094. No task is checked off by this report. The frontend remains a released prototype; production treasure qualification is not complete. The separate hosted-signer configuration work is outside this investigation.
+
+## Open task disposition
+
+| C094 task | Existing evidence | Why it remains open |
+| --- | --- | --- |
+| T006 | Local signed VM vectors and historical funded cases exist; the current original B2 is publicly observed swept and unresolved. | No exact original CSV recovery or supported live mode has passed the required acceptance, delayed finalization and rejection cases. Do not retry the unchanged upstream failure. |
+| T007 | The evidence review covers both delta specs and narrows qualification to the local-wallet model. | Independent review cannot validate operator admission, authoritative enforcement or returned funds while T006/B2 evidence is missing. |
+| T018 | Deployed guest Start/Settings/Account on v0.0.27 passed with no CSP violations. | The task also requires funded Claim/Reject UI under explicit grants; that was not performed for the exact deployed package. |
+| T019 | One bounded funded Signet Claim case has a verified 1,000-sat receipt; selected deterministic safeguards and offline checks pass. | The per-network matrix still lacks funded Reject/session-end/expiry/recovery/rollback and other listed cases with exact receipts, assets and acknowledgement handling. B2 remains unresolved. |
+| T020 | Deterministic rollback and protected recovery fixtures pass. | Live rollback with both legacy and new unresolved contracts, while preserving original inspection/recovery, has not been exercised. |
+| T026 | Cold/warm and offline cohorts pass p95 at desktop and mobile widths; no startup barrier was found. | The managed headless browser never entered actual hidden state, and funded acknowledgement latency remains unmeasured. |
+| T035 | Protected fixtures and some live Signet/browser cases pass; upstream stale/negative admission probes are deliberately stopped absent new evidence. | Missing per-network/mode cases, exact receipts/assets, Mutinynet B2 recovery and authoritative deployed operator rules. |
+
+The CLI confirms 29/36 complete, seven remaining. Those seven tasks are indivisible acceptance statements in the tracked task file; partial results above do not satisfy them. T010/T011 and the hardening tasks are complete per the existing task ledger, subject to the separately owned hosted-signer configuration follow-up.
+
+## Reproducible evidence
+
+Ignored sanitized evidence is under `output/reports/treasure-contract/b2-public-protocol-2026-10-26/`: `public-status.json`, `unsigned-shape.json`, `source-manifest.json` and `verification.json`. The unsigned specimen contains two inputs, one 1,000-sat fixture output, zero signatures and zero network calls. It is not the original contract's recovery transaction. `verification.json` hashes these artifacts, existing original reconciliation, independent sweep/fee observations and the local compilers. The manifest records official URLs, repository revisions, Git blob identities and SHA-256 hashes.
+
+Automatic approval review rejected saving the full upstream e2e source because it contains signer keys and credentials. Its public URL and Git blob ID are retained as a reference only; its contents were not persisted. The other source evidence and this report do not depend on copying that file.

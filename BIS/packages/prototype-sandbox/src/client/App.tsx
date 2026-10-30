@@ -1,22 +1,30 @@
+import { externalWalletPaymentResult, notifyExternalWalletOpener } from './sandbox-shared.ts';
+import { externalWalletAddressResult } from './demos/external-wallet-receive.ts';
 import { demoVaultErrorMessage as vaultErrorMessage } from './vault-demo-runtime.ts';
 import { demoDefinition } from './demo-registry.ts';
 import { useExecutableDemo } from './use-executable-demo.ts';
-import { OPTIONAL_ASSET_PAYMENTS, optionalAssetPayment } from './asset-payment.ts';
-import { getWallet2BitcoinAddress } from './demo-bitcoin-address.ts';
+import { ASSET_PAYMENT_SATS, assetPaymentSats } from './asset-payment.ts';
 import { CleanWalletControl } from './clean-wallet-control.tsx';
+import { getWallet2BitcoinAddress } from './demo-bitcoin-address.ts';
 import { Children, Fragment, createContext, isValidElement, useContext, useEffect, useId, useRef, useState } from 'react';
 import { MnemonicIdentity } from '@arkade-os/sdk';
 // The self-contained ESM distribution also bundles Mermaid's CommonJS helpers.
 import mermaid from 'mermaid/dist/mermaid.esm.min.mjs';
 import { NETWORKS, NETWORK_IDS } from '../../../prototype-faucet/src/shared/network-config.ts';
-import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, faucetUrl, getActiveDemo, isHomePath, isSetupPath, demoGetInput, demoSetInput, setupNetworkValue, setupWalletProfileValues as demoGetWalletProfile, walletUrl } from './navigation.ts';
-import { conditionalVaultArtifact, readStoredConditionalVault as demoReadConditionalVaultDescriptor } from './conditional-vault.ts';
-import { demoSourceUrl } from './source-links.ts';
+import { DEMOS, HOME_PATH, LANDING_VISITED_STORAGE_KEY, NETWORK_STORAGE_KEY, SETUP_PATH, faucetUrl, formatSatsAsBitcoin, getActiveDemo, isHomePath, isSetupPath, demoGetInput, demoSetInput, setupNetworkValue, demoGetWalletProfile, walletUrl } from './navigation.ts';
+import { conditionalVaultArtifact, demoReadConditionalVaultDescriptor } from './conditional-vault.ts';
+import { demoSourceUrl, sandboxSharedSourceUrl } from './source-links.ts';
 import CONDITIONAL_VAULT_LANGUAGE_SOURCE from '../../../integration/src/client/wallet-layer-arkade/conditional-vault-program.ts?raw';
 import { DemoOutputScope, useDemoOutput } from './demo-output.ts';
 import { demoExplorerUrl, demoSupportsExplorer } from './demo-explorer.ts';
 import './style.css';
+import '@bis/integration/style.css';
 import '../../../prototype-onboarding/src/client/ui-layer-react/prototype-styles.css';
+
+const EXTERNAL_WALLET_MESSAGE_SOURCE = 'bis-external-wallet';
+function isExternalWalletMessage(event) {
+  return event.origin === window.location.origin && event.data?.source === EXTERNAL_WALLET_MESSAGE_SOURCE;
+}
 
 const DemoNetworkContext = createContext('signet');
 
@@ -339,7 +347,11 @@ export function Navigation({ activeDemo, homeActive = false, setupActive = false
 
 function SetupSection() {
   return <div className="sandbox-setup">
-    <DocsSection href={DOCS_URLS.wallet} linkLabel="Create or restore an Arkade wallet" />
+    <DocsSection
+      href={DOCS_URLS.wallet}
+      linkLabel="Create or restore an Arkade wallet"
+      details={<p>Each demo imports supporting helpers from <a href={sandboxSharedSourceUrl(import.meta.env.DEV)} target="_blank" rel="noreferrer">sandbox-shared.ts</a> and uses <code>@arkade-os/sdk</code> directly. The operation being taught stays visible in that demo's executable source. Create Wallet shows wallet setup; other demos reuse it.</p>}
+    />
     <section className="prototype-section" aria-label="Setup">
       <div className="prototype-title-bar"><h2>Setup</h2></div>
       <div className="sandbox-setup-fields">
@@ -366,17 +378,22 @@ function SetupSection() {
         <section className="sandbox-setup-group" aria-labelledby="sandbox-setup-storing-wallet">
           <h3 id="sandbox-setup-storing-wallet">Storing wallet</h3>
           <p className="sandbox-setup-note">Populate all fields for the demos to work.</p>
-          <div className="sandbox-setup-profiles">{NETWORK_IDS.map(profileNetwork => <SetupNetworkProfile key={profileNetwork} network={profileNetwork} />)}</div>
+          <div className="sandbox-setup-profiles">
+            {NETWORK_IDS.map(profileNetwork => <SetupNetworkProfile key={profileNetwork} network={profileNetwork} />)}
+          </div>
         </section>
         <section className="sandbox-setup-group" aria-labelledby="sandbox-setup-maintenance">
           <h3 id="sandbox-setup-maintenance">Maintenance</h3>
           <p className="sandbox-setup-note">Running this is optional, but if any demos have issues, try it; it may fix them.</p>
-          <div className="sandbox-setup-profiles">{NETWORK_IDS.map(profileNetwork => <SetupNetworkMaintenance key={profileNetwork} network={profileNetwork} />)}</div>
+          <div className="sandbox-setup-profiles">
+            {NETWORK_IDS.map(profileNetwork => <SetupNetworkMaintenance key={profileNetwork} network={profileNetwork} />)}
+          </div>
         </section>
       </div>
     </section>
   </div>;
 }
+
 function SetupNetworkProfile({ network }) {
   const [values, setValues] = useState(() => demoGetWalletProfile(network));
   const [focusedField, setFocusedField] = useState(null);
@@ -408,13 +425,18 @@ function SetupNetworkProfile({ network }) {
 }
 
 function SetupNetworkMaintenance({ network }) {
-  return <section className="sandbox-setup-profile" aria-label={`${NETWORKS[network].label} wallet maintenance`}><h3>{NETWORKS[network].label}</h3><CleanWalletControl network={network} /></section>;
+  return <section className="sandbox-setup-profile" aria-label={`${NETWORKS[network].label} wallet maintenance`}>
+    <h3>{NETWORKS[network].label}</h3>
+    <CleanWalletControl network={network} />
+  </section>;
 }
+
 function OutputSection({ title, output, elapsedMs, onRecover = undefined, recoverDisabled = true }) {
   const { scope, details } = useDemoOutput();
+  const network = useContext(DemoNetworkContext);
   const explorerUrl = demoExplorerUrl(scope, details.explorer);
   const explorerLinks = (details.explorers ?? []).map(({ label, target }) => ({ label, url: demoExplorerUrl(scope, target) }));
-  const outputText = output ? [`Demo: ${title}`, output].join('\n') : '';
+  const outputText = output ? formatDemoOutput(title, NETWORKS[network].label, output) : '';
   return <section className="sandbox-output prototype-section" aria-label="Output">
     <div className="prototype-title-bar"><h2>Output</h2></div>
     <div className="sandbox-output-body">
@@ -430,6 +452,18 @@ function OutputSection({ title, output, elapsedMs, onRecover = undefined, recove
       </div>}
     </div>
   </section>;
+}
+
+function formatDemoOutput(title, networkLabel, output) {
+  const lines = output.split(/\r?\n/);
+  let successLine = '';
+  for (const line of lines) {
+    if (/^\s*Success\s*:/i.test(line)) successLine = line;
+  }
+  const successValue = successLine.match(/^\s*Success\s*:\s*(true|false)\s*$/i)?.[1];
+  const isSuccess = successValue?.toLowerCase() === 'true';
+  const body = lines.filter(line => !/^\s*(?:Demo|Network|Success)\s*:/i.test(line));
+  return [`Demo: ${title} - ${networkLabel}`, ...body, `Success: ${isSuccess}`].join('\n');
 }
 
 function CopyButton({ value, label }) {
@@ -559,7 +593,7 @@ function SortedDemoInputs({ children }) {
   return <>{fields.map((field, index) => <Fragment key={index}>{field}</Fragment>)}</>;
 }
 
-function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDescription, docsSubheading, docsDetails, input, sourceId, contractSource, compiledSource, output, elapsedMs, running, onExecute, onRecover = undefined, recoverDisabled = true, actionLabel = 'Execute', loadingText = demoTitle, loadingBody = loadingText }) {
+function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDescription, docsSubheading, docsDetails, input, actionTools, sourceId, contractSource, compiledSource, output, elapsedMs, running, onExecute, onRecover = undefined, recoverDisabled = true, actionLabel = 'Execute', actionDisabled = false, loadingText = demoTitle, loadingBody = loadingText }) {
   const [sourceTab, setSourceTab] = useState('demo');
   const showingContract = Boolean(contractSource) && sourceTab === 'contract';
   const showingCompiled = Boolean(compiledSource) && sourceTab === 'compiled';
@@ -577,10 +611,10 @@ function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDes
   return <>
     <LoadingPrompt open={running} bodyText={loadingBody} />
     <OverviewSection intro={intro} diagram={diagram} docs={<DocsContent href={docsHref} topic={docsTopic} description={docsDescription} subheading={docsSubheading} details={docsDetails} />} />
-    <section className="sandbox-demo-input prototype-section" aria-label="Input">
+    {input != null && <section className="sandbox-demo-input prototype-section" aria-label="Input">
       <div className="prototype-title-bar"><h2>Input</h2></div>
       <div className="sandbox-demo-input-body sandbox-operation-input"><SortedDemoInputs>{input}</SortedDemoInputs></div>
-    </section>
+    </section>}
     <section className="sandbox-demo prototype-section" aria-label="Demo">
       <div className="prototype-title-bar"><h2>Demo</h2><SourceFileButton sourceId={sourceId} /></div>
       <div className="sandbox-demo-body">
@@ -595,7 +629,8 @@ function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDes
           <label className="sandbox-code-label" htmlFor={visibleSourceId}>{showingCompiled ? 'Smart contract compiled' : showingContract ? 'Smart contract source' : 'Demo source'}</label>
           <SourceCodeField id={visibleSourceId} source={visibleSource} />
         </div>
-        <DemoActionButton label={actionLabel} onClick={onExecute} disabled={running} />
+        {actionTools}
+        <DemoActionButton label={actionLabel} onClick={onExecute} disabled={running || actionDisabled} />
       </div>
     </section>
     <OutputSection title={demoTitle} output={output} elapsedMs={elapsedMs} onRecover={onRecover} recoverDisabled={recoverDisabled} />
@@ -832,7 +867,10 @@ function DemoConditionalVault({ network, action }) {
       const result = await demoDefinition(`conditional-vault-${action}-source`).run({ network, recover });
       if (action === 'create' && result.compiledSource) setCompiledSource(result.compiledSource);
       setOutput(result.output, result.details);
-    } catch (error) { setOutput([`Error: ${vaultErrorMessage(error)}`, 'Success: false'].join('\n')); }
+    } catch (error) {
+      console.error(`[Conditional Vault: ${action}]`, error);
+      setOutput([`Error: ${vaultErrorMessage(error)}`, 'Success: false'].join('\n'));
+    }
     finally { setElapsedMs(Math.round(performance.now() - startedAt)); setRunning(false); }
   }
   const values = demoGetWalletProfile(network);
@@ -865,75 +903,41 @@ function DemoConditionalVault({ network, action }) {
     </>;
 }
 
-function externalWalletPaymentResult(search) {
-  const result = new URLSearchParams(search);
-  if (result.get('status') === 'sent') {
-    const txid = result.get('txid');
-    return [`Wallet result: sent`, ...(txid ? [`Transaction ID: ${txid}`] : []), 'Success: true'].join('\n');
-  }
-  if (result.has('error')) return [`Wallet result: ${result.get('error')}`, 'Success: false'].join('\n');
-  return '';
-}
 
-const EXTERNAL_WALLET_MESSAGE_SOURCE = 'bis-external-wallet';
-
-function notifyExternalWalletOpener() {
-  if (!window.opener || window.opener === window) return false;
-  window.opener.postMessage({ source: EXTERNAL_WALLET_MESSAGE_SOURCE, search: window.location.search }, window.location.origin);
-  window.close();
-  return true;
-}
-
-function isExternalWalletMessage(event) {
-  return event.origin === window.location.origin && event.data?.source === EXTERNAL_WALLET_MESSAGE_SOURCE;
-}
 
 function DemoExternalWalletPayment({ network }) {
   const [amount, setAmount] = useState('100');
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
   const [running, setRunning] = useState(false);
-  const startedAtRef = useRef(null);
-  const [callbackResult, setCallbackResult] = useState(() => externalWalletPaymentResult(window.location.search));
+  const callbackResult = externalWalletPaymentResult(window.location.search);
 
-  function completeExternalPayment(search) {
-    const result = externalWalletPaymentResult(search);
-    if (!result) return;
-    const params = new URLSearchParams(search);
-    setCallbackResult(result);
-    setOutput(result, { explorer: params.get('status') === 'sent' ? { network, kind: 'ark-transaction', identifier: params.get('txid') } : undefined });
-    if (startedAtRef.current !== null) {
-      finish(startedAtRef.current);
-      startedAtRef.current = null;
-      setRunning(false);
-    }
-  }
-
-  useEffect(() => {
-    const updateResult = () => completeExternalPayment(window.location.search);
-    const receiveResult = event => {
-      if (isExternalWalletMessage(event)) completeExternalPayment(event.data.search || '');
-    };
-    window.addEventListener('popstate', updateResult);
-    window.addEventListener('message', receiveResult);
-    if (callbackResult) completeExternalPayment(window.location.search);
-    if (notifyExternalWalletOpener()) return () => {};
-    return () => {
-      window.removeEventListener('popstate', updateResult);
-      window.removeEventListener('message', receiveResult);
-    };
-  }, []);
+  useEffect(() => { notifyExternalWalletOpener(); }, []);
 
   async function openWallet() {
     const startedAt = begin();
-    startedAtRef.current = startedAt;
     setRunning(true);
     setOutput('');
-    try {
-      await demoDefinition('external-wallet-payment-source').run({ network, amount });
-  } catch (error) {
+    try { formatSatsAsBitcoin(amount); }
+    catch (error) {
       setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
       finish(startedAt);
-      startedAtRef.current = null;
+      setRunning(false);
+      return;
+    }
+    const walletWindow = window.open('about:blank', '_blank', 'popup,width=480,height=840,resizable=yes,scrollbars=yes');
+    if (!walletWindow) {
+      setOutput(['Error: The external wallet window was blocked. Allow popups for this page and try again.', 'Success: false'].join('\n'));
+      finish(startedAt);
+      setRunning(false);
+      return;
+    }
+    try {
+      const result = await demoDefinition('external-wallet-payment-source').run({ network, amount, externalWalletWindow: walletWindow });
+      setOutput(result.output, result.details);
+    } catch (error) {
+      setOutput([`Error: ${error.message}`, 'Success: false'].join('\n'));
+    } finally {
+      finish(startedAt);
       setRunning(false);
     }
   }
@@ -946,11 +950,6 @@ function DemoExternalWalletPayment({ network }) {
   </>} />;
 }
 
-function externalWalletAddressResult(search) {
-  const result = new URLSearchParams(search);
-  if (result.has('error')) return { error: result.get('error') || 'denied' };
-  return { address: result.get('address') || '' };
-}
 
 function DemoExternalWalletReceivePayment({ network }) {
   const { output, setOutput, elapsedMs, begin, finish } = useTimedOutput();
@@ -1050,7 +1049,7 @@ function DemoPaymentHistory({ network }) {
 function DemoMintAsset({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network);
   const { output, elapsedMs, running, execute } = useExecutableDemo('mint-asset-source', network);
-  return <OperationDemo demoTitle="Mint Asset" intro="Demonstrates creating a new Arkade asset." diagram={DIAGRAMS.mintAsset} loadingText="Mint asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>Arkade supports issuing assets with or without a control asset. This demo showcases issuing without a control asset, so the asset has a fixed supply and cannot be reissued later.</p></div>} sourceId="mint-asset-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
+  return <OperationDemo demoTitle="Mint Asset" intro="Demonstrates creating a new Arkade asset." diagram={DIAGRAMS.mintAsset} loadingText="Check AssetID and mint asset" docsHref={DOCS_URLS.mintAsset} docsTopic="Issue assets" docsDetails={<div className="sandbox-docs-details"><p>AssetID is unique per issuing wallet and network. Before minting, the demo discovers wallet addresses and checks their network history, including spent outputs. Existing AssetIDs and failed or incomplete checks block minting. Discovery uses the SDK's 20-address gap limit. Concurrent devices can still race.</p><p>This demo issues without a control asset, so each asset has a fixed supply and cannot be reissued later.</p></div>} sourceId="mint-asset-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
     <label htmlFor="mint-asset-mnemonic">Wallet 2 Mnemonic</label>
     <input id="mint-asset-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
     <AssetSelector network={network} value={assetId} onChange={setAssetId} />
@@ -1059,17 +1058,16 @@ function DemoMintAsset({ network }) {
 
 function DemoSendAsset({ network }) {
   const [assetId, setAssetId] = useAssetSelection(network);
-  const [paymentSats, setPaymentSats] = useState(() => optionalAssetPayment(demoGetInput(network, 'asset-payment-sats')));
-  useEffect(() => { setPaymentSats(optionalAssetPayment(demoGetInput(network, 'asset-payment-sats'))); }, [network]);
+  const [paymentSats, setPaymentSats] = useState(() => assetPaymentSats(demoGetInput(network, 'asset-payment-sats')));
+  useEffect(() => { setPaymentSats(assetPaymentSats(demoGetInput(network, 'asset-payment-sats'))); }, [network]);
   const { output, elapsedMs, running, execute } = useExecutableDemo('send-asset-source', network);
-  return <OperationDemo demoTitle="Send Asset" intro="Demonstrates sending an Arkade asset to an address." diagram={DIAGRAMS.sendAsset} loadingText="Send asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
-    <label className="sandbox-inline-input" htmlFor="send-asset-payment"><span>Optional Payment Sats:</span>
-      <select id="send-asset-payment" aria-describedby="send-asset-payment-help" value={paymentSats} onChange={event => {
-        const value = optionalAssetPayment(event.target.value);
+  return <OperationDemo demoTitle="Send Asset" intro="Demonstrates sending one unit of the selected AssetID and the selected sats from Wallet 2 to Wallet 1. The minimum payment is 330 sats." diagram={DIAGRAMS.sendAsset} loadingText="Send asset" docsHref={DOCS_URLS.sendAsset} docsTopic="Send assets" sourceId="send-asset-source" output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute()} input={<>
+    <label className="sandbox-inline-input" htmlFor="send-asset-payment"><span title="Sats sent with the asset. Minimum 330.">Payment Sats:</span>
+      <select id="send-asset-payment" value={paymentSats} onChange={event => {
+        const value = assetPaymentSats(event.target.value);
         demoSetInput(network, 'asset-payment-sats', value);
         setPaymentSats(value);
-      }}>{OPTIONAL_ASSET_PAYMENTS.map(value => <option key={value} value={value}>{value}</option>)}</select>
-      <small id="send-asset-payment-help" className="sandbox-asset-payment-help">Extra payment only. The asset also carries the SDK minimum, currently 330 sats. These sats go to Wallet 1, not to fees.</small>
+      }}>{ASSET_PAYMENT_SATS.map(value => <option key={value} value={value}>{value}</option>)}</select>
     </label>
     <label htmlFor="send-asset-mnemonic">Wallet 2 Mnemonic</label>
     <input id="send-asset-mnemonic" value={maskMnemonic(demoGetWalletProfile(network).mnemonic2)} readOnly />
@@ -1124,7 +1122,7 @@ function DemoEvents({ network }) {
   const address = demoGetWalletProfile(network).address1;
   return <OperationDemo demoTitle="Events" intro="Demonstrates listening for Wallet 1 activity in a separate window while using other demos." diagram={DIAGRAMS.events}
     docsHref={DOCS_URLS.receivePayment} docsTopic="Receiving payments and listening for activity"
-    docsDetails={<div className="sandbox-docs-details"><p>Keep the popup open and wait for "I'm listening . . ." before trying these demos:</p><ul>
+    docsDetails={<div className="sandbox-docs-details"><p>Keep the popup open and wait for "I'm listening ..." before trying these demos:</p><ul>
       <li><a href="../demo-4/">Send Payment</a>: Wallet 2 sends 100 sats to Wallet 1.</li>
       <li><a href="../demo-8/">Send Asset</a>: sends an asset to Wallet 1. First use Mint Asset to create it in Wallet 2.</li>
       <li><a href="../demo-12/">Send Payment from External Wallet</a>: approves a payment to Wallet 1 in an external wallet.</li>

@@ -26,6 +26,27 @@ test('faucet reconciliation accepts only the original operation, with no alterna
   assert.throws(() => argumentsFor(['reconcile', '--operation', 'original-request', '--api', 'http://127.0.0.1:5191']), /invalid-arguments/);
 });
 
+test('settled operations gain exact read-only fee evidence without changing intent or outcome', async () => {
+  const f = await fixture();
+  const unknown = await f.ledger.list().then(rows => rows[0]);
+  const settled = await f.ledger.reconcile(f.intent.id, async record => ({ id: f.intent.id, fingerprint: record.fingerprint,
+    providerId: 'a'.repeat(64), outcome: 'settled', verified: true }));
+  assert.equal(settled.state, 'settled');
+  const intent = structuredClone(settled.intent);
+  const evidence = { id: f.intent.id, fingerprint: unknown.fingerprint, providerId: 'a'.repeat(64),
+    outcome: 'settled', verified: true, inputSats: 470, outputSats: 470, feeSats: 0 };
+  for (const change of [{ providerId: 'b'.repeat(64) }, { fingerprint: 'other' }, { verified: false }, { feeSats: 1 }, { outputSats: 471 }])
+    await assert.rejects(f.ledger.reconcileObservedFee(f.intent.id, async () => ({ ...evidence, ...change })), /evidence-mismatch/);
+  const enriched = await f.ledger.reconcileObservedFee(f.intent.id, async record => {
+    assert.equal(record.state, 'settled'); return evidence;
+  });
+  assert.equal(enriched.observedFeeSats, 0);
+  assert.equal(enriched.feeEvidence.kind, 'verified-transaction-fee');
+  assert.equal(enriched.feeEvidence.transactionId, 'a'.repeat(64));
+  assert.deepEqual(enriched.intent, intent);
+  assert.equal(enriched.state, 'settled');
+});
+
 test('explicit prototype funding loss disposition retains unknown network outcome and original identity',async()=>{
   const f=await fixture();
   await assert.rejects(f.ledger.abandonLostPrototypeFunding(f.intent.id,'implicit'),/authorization-required/);

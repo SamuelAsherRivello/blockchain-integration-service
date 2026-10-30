@@ -3,18 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 import { chromium } from 'playwright';
-import { createServer } from 'vite';
-import { developmentConfig } from '../../../scripts/dev-config.ts';
 import { DEMO_FILES } from '../src/client/demo-files.ts';
-import { demoSourceFile } from '../src/client/source-links.ts';
+import { demoSourceFile, SANDBOX_SHARED_FILE } from '../src/client/source-links.ts';
 
-test('all 21 panels, source viewers and Execute buttons use their registered file', { timeout: 120000 }, async t => {
-  const server = await createServer({ ...developmentConfig({ port: 0 }), cacheDir: resolve('output/cache/executable-demos'), logLevel: 'error' });
-  t.after(() => server.close());
-  await server.listen();
-  const address = server.httpServer!.address();
-  if (!address || typeof address === 'string') throw new Error('isolated-preview-address-missing');
-  const origin = `http://127.0.0.1:${address.port}`;
+test('all 22 panels, source viewers and Execute buttons use their registered file', { timeout: 120000 }, async t => {
+  const origin = process.env.PROTOTYPE_SANDBOX_URL ?? 'http://127.0.0.1:5174';
   const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL ?? 'chrome' });
   t.after(() => browser.close());
   const context = await browser.newContext();
@@ -31,9 +24,15 @@ test('all 21 panels, source viewers and Execute buttons use their registered fil
     await panel.waitFor();
     assert.deepEqual(await panel.locator('.sandbox-code-line').allTextContents(), expected.replace(/\r\n?/g, '\n').split('\n'), demo.id);
     const definition = await page.evaluate(async id => {
-      const { demoDefinition } = await import('/BIS/packages/prototype-sandbox/src/client/demo-registry.ts');
+      const { demoDefinition } = await import('/prototype-sandbox/src/client/demo-registry.ts');
       const entry = demoDefinition(id);
-      const module = await import('/' + entry.file);
+      // Import the same URL, including Vite's current HMR timestamp.
+      const registry = await (await fetch('/prototype-sandbox/src/client/demo-registry.ts')).text();
+      const filename = entry.file.split('/').at(-1);
+      const target = [...registry.matchAll(/from "([^"]+\/demos\/[^"?]+\.ts(?:\?[^"]*)?)"/g)]
+        .map(match => match[1]).find(url => url.split('?')[0].endsWith('/' + filename) && !new URL(url, location.origin).searchParams.has('raw'));
+      if (!target) throw new Error('Executable module URL missing');
+      const module = await import(target);
       return { source: entry.source, sameRunner: entry.run === module.runDemo };
     }, demo.id);
     assert.equal(definition.source, expected, demo.id);
@@ -50,6 +49,16 @@ test('all 21 panels, source viewers and Execute buttons use their registered fil
     await viewer.close();
     assert.equal(await page.locator('textarea[aria-label="Demo output"]').inputValue(), '', 'opening source cannot execute ' + demo.id);
   }
+  await page.goto(`${origin}/prototype-sandbox/setup/`);
+  const sharedLink = page.getByRole('link', { name: 'sandbox-shared.ts', exact: true });
+  assert.equal(await sharedLink.getAttribute('target'), '_blank');
+  const sharedPopup = page.waitForEvent('popup');
+  await sharedLink.click();
+  const sharedViewer = await sharedPopup;
+  await sharedViewer.locator('#source-title').filter({ hasText: SANDBOX_SHARED_FILE }).waitFor();
+  await sharedViewer.waitForFunction(() => !document.getElementById('source-content')!.textContent!.startsWith('Loading'));
+  assert.equal(await sharedViewer.locator('#source-content').textContent(), await readFile(resolve(SANDBOX_SHARED_FILE), 'utf8'));
+  await sharedViewer.close();
   await page.goto(`${origin}/prototype-sandbox/source-view/?file=.env`);
   await page.getByText('Source unavailable. Open a source link from a sandbox demo.').waitFor();
   assert.deepEqual(errors, []);
@@ -64,10 +73,11 @@ test('all 21 panels, source viewers and Execute buttons use their registered fil
   await dispatch.route(/arkade\.sh|127\.0\.0\.1:707[45]/, route => route.abort());
   await dispatch.route('**/demos/*.ts*', route => {
     const url = new URL(route.request().url());
-    if (url.searchParams.has('raw')) return route.continue();
+    if (url.searchParams.has('raw') || url.searchParams.has('original-demo')) return route.continue();
     const file = url.pathname.split('/').at(-1);
     const result = { output: 'Dispatch fixture. No network operation.\nSuccess: true' };
-    return route.fulfill({ contentType: 'application/javascript', body: `export async function runDemo(context) { window.__demoCalls.push({ file: ${JSON.stringify(file)}, network: context.network, ...(context.amount !== undefined ? { amount: context.amount } : {}) }); return ${JSON.stringify(result)}; }` });
+    url.searchParams.set('original-demo', '1');
+    return route.fulfill({ contentType: 'application/javascript', body: `export * from ${JSON.stringify(url.pathname + url.search)}; export async function runDemo(context) { window.__demoCalls.push({ file: ${JSON.stringify(file)}, network: context.network, ...(context.amount !== undefined ? { amount: context.amount } : {}) }); return ${JSON.stringify(result)}; }` });
   });
   const testPage = await dispatch.newPage();
   for (const demo of DEMO_FILES) {

@@ -9,7 +9,7 @@ export function sandboxWalletDatabase(network: string, descriptor: string) {
   return `bis-prototype-sandbox-wallet-v1:${network}:${fingerprint}`;
 }
 
-export function sandboxWalletStorage(network: string, identity: { descriptor: string }, freshContracts = false) {
+export function demoCreateWalletStorage(network: string, identity: { descriptor: string }, freshContracts = false) {
   const database = sandboxWalletDatabase(network, identity.descriptor);
   return {
     walletRepository: new IndexedDBWalletRepository(database),
