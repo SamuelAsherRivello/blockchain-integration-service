@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SingleKey, DefaultVtxo, CSVMultisigTapscript, Transaction, Extension, signAndSubmitOffchainTx } from '@arkade-os/sdk';
+import { SingleKey, DefaultVtxo, CSVMultisigTapscript, Transaction, Extension, Wallet, signAndSubmitOffchainTx } from '@arkade-os/sdk';
 import { base64, hex } from '@scure/base';
-import { executeTreasureSdk, compileTreasureSdk, validateTreasureSdkRecord, treasureSdkReservation, type TreasureSdkRecord } from '../src/client/treasure-sdk.ts';
+import { executeTreasureSdk, demoTreasureSdkAction, compileTreasureSdk, validateTreasureSdkRecord, treasureSdkReservation, type TreasureSdkRecord } from '../src/client/treasure-sdk.ts';
 import { maintenanceJournal } from '../src/client/wallet-maintenance-state.ts';
+import { installWalletMaintenance, managedWalletScope, walletMaintenanceScope } from '../src/client/wallet-maintenance.ts';
+import { demoCreateWallet } from '../src/client/demo-wallet.ts';
 
 // Real SDK signing against an in-process synthetic operator. These are NOT live
 // network receipts and never use a saved wallet, faucet or external connection.
@@ -68,8 +70,56 @@ async function fixture(t: any, network: 'signet' | 'mutinynet' = 'signet', asset
   const run = (action: 'start' | 'check' | 'claim' | 'reject') => executeTreasureSdk(wallet, network, action, storage, (record, spend) => {
     const reservation = treasureSdkReservation(record, spend); if (reservation) reservations.save(reservation);
   });
-  return { run, state, info, coins, records: () => records, storage, ownerKey: hex.encode(ownerKey), sourceScript, assets, reservations };
+  return { run, state, info, coins, records: () => records, storage, ownerKey: hex.encode(ownerKey), sourceScript, assets, reservations, wallet };
 }
+
+function memoryEnvironment(t: any) {
+  const oldStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const values = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) } });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { locks: { request: async (_key, _options, callback) => callback({}) } } });
+  t.after(() => {
+    if (oldStorage) Object.defineProperty(globalThis, 'localStorage', oldStorage); else Reflect.deleteProperty(globalThis, 'localStorage');
+    if (oldNavigator) Object.defineProperty(globalThis, 'navigator', oldNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
+  });
+}
+
+test('Treasure reuses the factory-bound scope and refuses competing operations before provider access', async t => {
+  const f = await fixture(t);
+  memoryEnvironment(t);
+  assert.equal('descriptor' in f.wallet.identity, false, 'SDK Identity does not require a descriptor');
+  await assert.rejects(demoTreasureSdkAction(f.wallet, 'signet', 'start'), /identity has not been verified/);
+  const descriptor = 'stable-public-test-wallet-descriptor';
+  f.wallet.send = async () => assert.fail('A pending operation must prevent a new send');
+  await installWalletMaintenance(f.wallet, 'signet', descriptor);
+  const scope = managedWalletScope(f.wallet);
+  assert.equal(scope, await walletMaintenanceScope('signet', descriptor));
+  assert.notEqual(scope, await walletMaintenanceScope('mutinynet', descriptor));
+  maintenanceJournal(scope).save({ id: 'existing-unknown-operation', createdAt: 1, state: 'pending', attempted: true,
+    inputs: [{ txid: 'b'.repeat(64), vout: 0, value: 5000, virtual: true, assets: [] }],
+    outputs: [{ script: f.sourceScript, amount: '5000', offchain: true }] });
+  t.mock.method(f.wallet.arkProvider, 'getInfo', async () => assert.fail('A competing operation must stop before provider access'));
+  await assert.rejects(demoTreasureSdkAction(f.wallet, 'signet', 'start'), /previous wallet transaction needs reconciliation/);
+  await assert.rejects(f.wallet.send(), /pending transaction is not resolved/);
+  assert.equal(maintenanceJournal(scope).pending().length, 1);
+  assert.equal(f.state.submits, 0);
+});
+
+test('the standard demo factory installs the pending-operation guard before returning an unrefreshed wallet', async t => {
+  const f = await fixture(t);
+  memoryEnvironment(t);
+  f.wallet.send = async () => assert.fail('A pending operation must prevent a new send');
+  t.mock.method(Wallet, 'create', async config => { f.wallet.identity = config.identity; return f.wallet; });
+  const wallet = await demoCreateWallet('signet', { mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about', refresh: false });
+  const scope = managedWalletScope(wallet);
+  maintenanceJournal(scope).save({ id: 'treasure-original-pending', createdAt: 1, state: 'pending', attempted: true,
+    inputs: [{ txid: 'b'.repeat(64), vout: 0, value: 5000, virtual: true, assets: [] }],
+    outputs: [{ script: f.sourceScript, amount: '5000', offchain: true }] });
+  await assert.rejects(wallet.send({ address: 'unused', amount: 330 }), /pending transaction is not resolved/);
+  assert.equal(maintenanceJournal(scope).pending().length, 1);
+  assert.equal(f.state.submits, 0);
+});
 
 for (const network of ['signet', 'mutinynet'] as const) test(`offline SDK ${network}: Create, Check, Claim and separate Reject share real compiled outputs`, async t => {
   const f = await fixture(t, network);

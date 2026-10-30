@@ -53,19 +53,19 @@ export const FAUCET_URLS = Object.freeze({
   mutinynet: 'https://faucet.mutinynet.com/',
 });
 
-export function walletUrl(network) {
+export function walletUrl(network: TestNetwork) {
   const value = WALLET_URLS[network];
   if (!value) throw new Error('Choose Signet or Mutinynet.');
   return value;
 }
 
-export function faucetUrl(network) {
+export function faucetUrl(network: TestNetwork) {
   const value = FAUCET_URLS[network];
   if (!value) throw new Error('Choose Signet or Mutinynet.');
   return value;
 }
 
-export function walletCallbackUrl(locationHref) {
+export function walletCallbackUrl(locationHref: string | URL) {
   const callback = new URL(locationHref);
   callback.search = '';
   callback.hash = '';
@@ -76,7 +76,7 @@ export function walletCallbackUrl(locationHref) {
   return callback.toString();
 }
 
-export function formatSatsAsBitcoin(amountSats) {
+export function formatSatsAsBitcoin(amountSats: string | number | bigint) {
   const amount = Number(amountSats);
   if (!Number.isSafeInteger(amount) || amount < 1) throw new Error('Enter a whole-satoshi amount of at least 1.');
   const whole = Math.floor(amount / 100_000_000);
@@ -84,7 +84,7 @@ export function formatSatsAsBitcoin(amountSats) {
   return fraction ? `${whole}.${fraction}` : String(whole);
 }
 
-export function walletPaymentUrl({ network, address, amountSats, callback }) {
+export function walletPaymentUrl({ network, address, amountSats, callback }: { network: TestNetwork; address: string; amountSats: string | number | bigint; callback: string | URL }) {
   const recipient = String(address ?? '').trim();
   if (!recipient) throw new Error('Enter an Arkade recipient address on Setup Input first.');
   const callbackUrl = new URL(callback);
@@ -94,20 +94,20 @@ export function walletPaymentUrl({ network, address, amountSats, callback }) {
   return wallet.toString();
 }
 
-export function walletConnectUrl({ network, callback }) {
+export function walletConnectUrl({ network, callback }: { network: TestNetwork; callback: string | URL }) {
   const callbackUrl = new URL(callback);
   const wallet = new URL(walletUrl(network));
   wallet.search = new URLSearchParams({ action: 'connect', callback: callbackUrl.toString() }).toString();
   return wallet.toString();
 }
 
-export function walletProfileStorageKey(network, field) {
+export function walletProfileStorageKey(network: TestNetwork, field: string) {
   if (!['signet', 'mutinynet'].includes(network)) throw new Error('Choose Signet or Mutinynet.');
   if (!['wallet-1-address', 'wallet-2-mnemonic'].includes(field)) throw new Error('Choose a wallet profile field.');
   return `${network}-${field}`;
 }
 
-export function setupWalletProfileValues(network, storage = globalThis.localStorage) {
+export function setupWalletProfileValues(network: TestNetwork, storage = globalThis.localStorage) {
   const addressKey = walletProfileStorageKey(network, 'wallet-1-address');
   const mnemonicKey = walletProfileStorageKey(network, 'wallet-2-mnemonic');
   const values = {
@@ -121,11 +121,12 @@ export function setupWalletProfileValues(network, storage = globalThis.localStor
 
 export function setupNetworkValue(storage = globalThis.localStorage) {
   const value = storage.getItem(NETWORK_STORAGE_KEY) || DEFAULT_NETWORK;
+  if (value !== 'signet' && value !== 'mutinynet') throw new Error('Choose Signet or Mutinynet.');
   storage.setItem(NETWORK_STORAGE_KEY, value);
   return value;
 }
 
-export function localStorageGetItem(field, storage = globalThis.localStorage) {
+export function localStorageGetItem(field: string, storage = globalThis.localStorage) {
   const network = setupNetworkValue(storage);
   if (field === 'network') return network;
   if (field === 'wallet-1-address') return setupWalletProfileValues(network, storage).address1;

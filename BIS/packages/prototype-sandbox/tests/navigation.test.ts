@@ -86,6 +86,13 @@ test('setup initializes the network storage value', () => {
   assert.equal(values.get(NETWORK_STORAGE_KEY), DEFAULT_NETWORK);
 });
 
+test('setup refuses an unknown stored network without replacing its data', () => {
+  const values = new Map([[NETWORK_STORAGE_KEY, 'unsupported-network']]);
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  assert.throws(() => setupNetworkValue(storage), /Choose Signet or Mutinynet/);
+  assert.equal(values.get(NETWORK_STORAGE_KEY), 'unsupported-network');
+});
+
 test('setup initializes each new network profile with its Wallet 1 default without using legacy storage keys', () => {
   const values = new Map();
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };

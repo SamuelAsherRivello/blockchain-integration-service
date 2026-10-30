@@ -1,5 +1,5 @@
 import { ArkAddress, CSVMultisigTapscript, VtxoScript, Extension, createAssetPacket, claimWithPreimageIdentity,
-  signAndSubmitOffchainTx, type ExtendedVirtualCoin, type Wallet } from '@arkade-os/sdk';
+  signAndSubmitOffchainTx, type ExtendedVirtualCoin, type VirtualCoin, type Wallet } from '@arkade-os/sdk';
 import { hex } from '@scure/base';
 // These are pure SDK compiler/transaction checks, not a BIS Account or service.
 import { buildLtoScript } from '../../../integration/src/client/wallet-layer-arkade/lto-script.ts';
@@ -7,7 +7,7 @@ import { inspectTreasureDirectPolicy } from '../../../integration/src/client/wal
 import { assetTotals, inspectSendTransaction } from '../../../integration/src/client/wallet-layer-arkade/sending.ts';
 import type { TestNetwork } from '../../../integration/src/client/state-layer-core/test-network.ts';
 import { maintenanceJournal, maintenanceLock, type MaintenanceRecord } from './wallet-maintenance-state.ts';
-import { walletMaintenanceScope } from './wallet-maintenance.ts';
+import { managedWalletScope } from './wallet-maintenance.ts';
 import { treasureSdkStorage, type TreasureStorage } from './treasure-sdk-storage.ts';
 
 type Point = { txid: string; vout: number; value: number; script: string; assets?: { assetId: string; amount: string }[] };
@@ -21,7 +21,7 @@ export type TreasureSdkResult = { status: 'not-submitted' | 'pending' | 'claimab
 type ReservationWriter = (record: TreasureSdkRecord, spend: Spend) => void | Promise<void>;
 const digest = async (value: Uint8Array) => new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(value)));
 const validHex = (value: unknown, length: number) => typeof value === 'string' && new RegExp(`^[a-f0-9]{${length}}$`).test(value);
-const point = (coin: ExtendedVirtualCoin): Point => ({ txid: coin.txid, vout: coin.vout, value: coin.value, script: coin.script,
+const point = (coin: VirtualCoin): Point => ({ txid: coin.txid, vout: coin.vout, value: coin.value, script: coin.script,
   ...(coin.assets?.length ? { assets: coin.assets.map(a => ({ assetId: a.assetId, amount: String(a.amount) })) } : {}) });
 const asCoins = (coins: Point[]) => coins.map(c => ({ ...c, assets: c.assets?.map(a => ({ assetId: a.assetId, amount: BigInt(a.amount) })) }));
 
@@ -190,12 +190,13 @@ export async function executeTreasureSdk(wallet: Wallet, network: TestNetwork, a
   const submit = wallet.arkProvider.submitTx.bind(wallet.arkProvider), finalize = wallet.arkProvider.finalizeTx.bind(wallet.arkProvider);
   try {
     const minimum = Math.max(330, Number(info.vtxoMinAmount));
-    let inputs: ExtendedVirtualCoin[];
+    let inputs: VirtualCoin[], fundingInputs: ExtendedVirtualCoin[] | undefined;
     if (spend.kind === 'fund') {
       const available = (await wallet.getSpendableVtxos({ withRecoverable: false, withUnrolled: false }))
         .filter(c => !c.isSpent && !c.spentBy && !c.isSwept && !c.isUnrolled).sort((a, b) => Number(!!a.assets?.length) - Number(!!b.assets?.length) || a.value - b.value);
-      inputs = []; let total = 0;
-      for (const coin of available) { inputs.push(coin); total += coin.value; if (inputs.length >= 100 || total === 1000 && !assetTotals(inputs).length || total >= 1000 + minimum) break; }
+      fundingInputs = []; let total = 0;
+      for (const coin of available) { fundingInputs.push(coin); total += coin.value; if (fundingInputs.length >= 100 || total === 1000 && !assetTotals(fundingInputs).length || total >= 1000 + minimum) break; }
+      inputs = fundingInputs;
       if (total < 1000 || total !== 1000 && total < 1000 + minimum || assetTotals(inputs).length && total === 1000) throw Error('Treasure needs 1000 eligible sats and sufficient asset-preserving change.');
     } else {
       const fund = record.spends[0];
@@ -220,7 +221,7 @@ export async function executeTreasureSdk(wallet: Wallet, network: TestNetwork, a
       verifyTreasureSdkSpend(spend, spend.arkTx!, checkpoints);
       spend.finalization = [...checkpoints]; await persist(); return finalize(id, checkpoints);
     };
-    if (spend.kind === 'fund') await wallet.buildAndSubmitOffchainTx(inputs, outputs);
+    if (spend.kind === 'fund') await wallet.buildAndSubmitOffchainTx(fundingInputs!, outputs);
     else await signAndSubmitOffchainTx({ identity: spend.kind === 'claim' ? claimWithPreimageIdentity(wallet.identity, hex.decode(record.secret)) : wallet.identity,
       provider: wallet.arkProvider, inputs: inputs.map(c => ({ txid: c.txid, vout: c.vout, value: c.value,
         tapLeafScript: compiled.script.findLeaf(hex.encode(spend.kind === 'claim' ? compiled.claim : compiled.refund)), tapTree: compiled.script.encode() })),
@@ -233,7 +234,7 @@ export async function executeTreasureSdk(wallet: Wallet, network: TestNetwork, a
 }
 
 export async function demoTreasureSdkAction(wallet: Wallet, network: TestNetwork, action: 'start' | 'check' | 'claim' | 'reject') {
-  const scope = await walletMaintenanceScope(network, wallet.identity.descriptor);
+  const scope = managedWalletScope(wallet);
   return maintenanceLock(scope, async () => {
     const journal = maintenanceJournal(scope);
     if (action !== 'check' && journal.pending().some(row => !row.id.startsWith('treasure-'))) throw Error('A previous wallet transaction needs reconciliation. No Treasure action was submitted.');

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 test('Treasure Hunt source has exactly the required executable sections and no browser-owned session state', async () => {
-  const source = await readFile(new URL('../src/client/demos/treasure-hunt.ts', import.meta.url), 'utf8');
+  const source = (await readFile(new URL('../src/client/demos/treasure-hunt.ts', import.meta.url), 'utf8')).replaceAll('\r\n', '\n');
   const sections = [...source.matchAll(/^(\/{20,})\n\/\/ (Arrange|Act|Assert)\n\1$/gm)];
   assert.deepEqual(sections.map(match => match[2]), ['Arrange', 'Act', 'Assert']);
   assert.equal([...source.matchAll(/^\/{20,}$/gm)].length, 6);

@@ -3,6 +3,7 @@ import type { TestNetwork } from '../../../integration/src/client/state-layer-co
 import { demoGetInput } from './navigation.ts';
 import { demoGetNetwork } from './demo-utils.ts';
 import { sandboxWalletStorage as demoCreateWalletStorage } from './wallet-storage.ts';
+import { installWalletMaintenance } from './wallet-maintenance.ts';
 
 type DemoWalletOptions = {
   mnemonic?: string;
@@ -39,6 +40,7 @@ export async function demoCreateWallet(network: TestNetwork, {
       ? { walletRepository: new InMemoryWalletRepository(), contractRepository: new InMemoryContractRepository() }
       : demoCreateWalletStorage(network, identity, freshContracts),
   });
+  await installWalletMaintenance(wallet, network, identity.descriptor);
   // Claim/Recover needs only the creator signature within its two-minute window.
   if (signerOnly || !refresh) return wallet;
   try {

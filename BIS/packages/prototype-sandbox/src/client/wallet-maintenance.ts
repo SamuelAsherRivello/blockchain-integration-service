@@ -8,6 +8,13 @@ const controls = new WeakMap<object, { scope: string; exclusive: <T>(work: () =>
 const incomplete = () => new Error('A pending transaction is not resolved yet. Try Clean Wallet 2 again later.');
 const status = async (wallet: Wallet) => (await wallet.walletRepository.getWalletState())?.settings?.hasPendingTx === true;
 
+/** Reuse the factory-bound public identity scope without inspecting Identity internals. */
+export function managedWalletScope(wallet: Wallet) {
+  const control = controls.get(wallet);
+  if (!control) throw new Error('Wallet maintenance identity has not been verified.');
+  return control.scope;
+}
+
 export async function walletMaintenanceScope(network: TestNetwork, descriptor: string) {
   if (!['signet', 'mutinynet'].includes(network) || !descriptor) throw new Error('Wallet identity could not be verified.');
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${network}\0${descriptor}`));
