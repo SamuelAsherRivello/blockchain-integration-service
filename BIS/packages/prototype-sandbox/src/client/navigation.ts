@@ -25,7 +25,11 @@ export const DEMOS = Object.freeze([
   { number: 14, subject: 'Conditional Vault', title: 'Create', access: 'W', path: '/prototype-sandbox/demo-14/' },
   { number: 15, subject: 'Conditional Vault', title: 'Increment', access: 'R', path: '/prototype-sandbox/demo-15/' },
   { number: 17, subject: 'Conditional Vault', title: 'Check', access: 'R', path: '/prototype-sandbox/demo-17/' },
+  { number: 22, subject: 'Treasure Hunt', title: 'Create', access: 'W', path: '/prototype-sandbox/demo-22/' },
   { number: 16, subject: 'Conditional Vault', title: 'Claim', access: 'W', path: '/prototype-sandbox/demo-16/' },
+  { number: 23, subject: 'Treasure Hunt', title: 'Check', access: 'R', path: '/prototype-sandbox/demo-23/' },
+  { number: 24, subject: 'Treasure Hunt', title: 'Claim', access: 'W', path: '/prototype-sandbox/demo-24/' },
+  { number: 25, subject: 'Treasure Hunt', title: 'Reject', access: 'W', path: '/prototype-sandbox/demo-25/' },
   { number: 12, subject: 'External Wallet', title: 'Send Payment', access: 'R', path: '/prototype-sandbox/demo-12/' },
   { number: 13, subject: 'External Wallet', title: 'Receive Payment', access: 'W', path: '/prototype-sandbox/demo-13/' },
 ].map(demo => ({ ...demo, path: `${HOME_PATH}demo-${demo.number}/` })));

@@ -5,9 +5,9 @@ import { DEMO_FILES } from '../src/client/demo-files.ts';
 import { DEMOS } from '../src/client/navigation.ts';
 import { demoSourceFile, demoSourceUrl } from '../src/client/source-links.ts';
 
-test('all 21 routes map to distinct executable files and mode-specific source URLs', async () => {
+test('all routes map to registered executable files and mode-specific source URLs', async () => {
   assert.deepEqual(DEMO_FILES.map(demo => demo.number).sort((a,b) => a-b), DEMOS.map(demo => demo.number).sort((a,b) => a-b));
-  assert.equal(new Set(DEMO_FILES.map(demo => demo.file)).size, 21);
+  assert.equal(new Set(DEMO_FILES.map(demo => demo.file)).size, 22);
   for (const demo of DEMO_FILES) {
     const path = demoSourceFile(demo.id);
     assert.equal(path, `BIS/packages/prototype-sandbox/src/client/demos/${demo.file}`);

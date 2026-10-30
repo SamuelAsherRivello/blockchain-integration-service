@@ -147,6 +147,8 @@ const DIAGRAMS = Object.freeze({
   L1-->>Arkade: Claim transaction
   Arkade-->>SDK: Claim result
   SDK-->>Client: Claim result`),
+  treasureHunt: sequenceDiagram(`  Client->>Arkade: Start or inspect the Treasure Hunt offer
+  Arkade-->>Client: Return contract state and operation evidence`),
   externalSend: sequenceDiagram(`  Client->>External: Open payment link
   External->>Arkade: Approve payment
   Arkade-->>External: Payment result
@@ -598,6 +600,25 @@ function OperationDemo({ demoTitle, intro, diagram, docsHref, docsTopic, docsDes
     </section>
     <OutputSection title={demoTitle} output={output} elapsedMs={elapsedMs} onRecover={onRecover} recoverDisabled={recoverDisabled} />
   </>;
+}
+
+const TREASURE_ACTIONS = Object.freeze({
+  create: { demoTitle: 'Create Treasure Hunt Offer', action: 'start', sourceId: 'treasure-hunt-source' },
+  check: { demoTitle: 'Check Treasure Hunt Offer', action: 'check', sourceId: 'treasure-hunt-check-source' },
+  claim: { demoTitle: 'Claim Treasure', action: 'claim', sourceId: 'treasure-hunt-claim-source' },
+  reject: { demoTitle: 'Reject Treasure Offer', action: 'reject', sourceId: 'treasure-hunt-reject-source' },
+});
+
+function DemoTreasureHunt({ network, step = 'create' }) {
+  const currentAction = TREASURE_ACTIONS[step] ?? TREASURE_ACTIONS.create;
+  const walletProfile = demoGetWalletProfile(network);
+  const { output, elapsedMs, running, execute } = useExecutableDemo(currentAction.sourceId, network);
+  return <OperationDemo demoTitle={currentAction.demoTitle} intro={<p>Wallet 2 funds a real 1,000-sat Treasure contract. Check reads its current state; Claim or Reject returns its funds to Wallet 2. The original 90-second deadline is browser-enforced. Recovery is encrypted here, and unknown transactions stay reserved. Live network acceptance is still pending.</p>} diagram={DIAGRAMS.treasureHunt} docsHref={DOCS_URLS.contracts} docsTopic="Arkade smart contracts" sourceId={currentAction.sourceId} output={output} elapsedMs={elapsedMs} running={running} onExecute={() => execute({ treasure: { action: currentAction.action } })} loadingText={currentAction.demoTitle} input={<>
+    <label htmlFor="treasure-wallet-1">Wallet 1 Address</label>
+    <input id="treasure-wallet-1" value={walletProfile.address1} readOnly spellCheck="false" aria-label="Wallet 1 Address input value" />
+    <label htmlFor="treasure-wallet-2">Wallet 2 Mnemonic</label>
+    <input id="treasure-wallet-2" value={maskMnemonic(walletProfile.mnemonic2)} readOnly spellCheck="false" aria-label="Wallet 2 Mnemonic input value" />
+  </>} />;
 }
 
 function LoadingPrompt({ open, bodyText }) {
@@ -1187,6 +1208,10 @@ export function App({ pathname = window.location.pathname }) {
         {!homeActive && !setupActive && activeDemo === 15 && <DemoConditionalVault key={`${network}-increment`} network={network} action="increment" />}
         {!homeActive && !setupActive && activeDemo === 16 && <DemoConditionalVault key={`${network}-claim`} network={network} action="claim" />}
         {!homeActive && !setupActive && activeDemo === 17 && <DemoConditionalVault key={`${network}-check`} network={network} action="check" />}
+        {!homeActive && !setupActive && activeDemo === 22 && <DemoTreasureHunt network={network} step="create" />}
+        {!homeActive && !setupActive && activeDemo === 23 && <DemoTreasureHunt network={network} step="check" />}
+        {!homeActive && !setupActive && activeDemo === 24 && <DemoTreasureHunt network={network} step="claim" />}
+        {!homeActive && !setupActive && activeDemo === 25 && <DemoTreasureHunt network={network} step="reject" />}
         {!homeActive && !setupActive && activeDemo === 12 && <DemoExternalWalletPayment network={network} />}
         {!homeActive && !setupActive && activeDemo === 13 && <DemoExternalWalletReceivePayment network={network} />}
         </DemoOutputScope.Provider>

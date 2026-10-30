@@ -7,6 +7,9 @@ export type DemoContext = Readonly<{
   recover?: boolean;
   amount?: string;
   externalAddress?: string;
+  treasure?: Readonly<{
+    action: 'start' | 'check' | 'claim' | 'reject';
+  }>;
 }>;
 
 export type DemoResult = Readonly<{

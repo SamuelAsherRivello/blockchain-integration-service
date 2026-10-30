@@ -19,6 +19,10 @@ export const DEMO_FILES = [
   { number: 15, id: 'conditional-vault-increment-source', file: 'conditional-vault-increment.ts' },
   { number: 16, id: 'conditional-vault-claim-source', file: 'conditional-vault-claim.ts' },
   { number: 17, id: 'conditional-vault-check-source', file: 'conditional-vault-check.ts' },
+  { number: 22, id: 'treasure-hunt-source', file: 'treasure-hunt.ts' },
+  { number: 23, id: 'treasure-hunt-check-source', file: 'treasure-hunt.ts' },
+  { number: 24, id: 'treasure-hunt-claim-source', file: 'treasure-hunt.ts' },
+  { number: 25, id: 'treasure-hunt-reject-source', file: 'treasure-hunt.ts' },
   { number: 12, id: 'external-wallet-payment-source', file: 'external-wallet-payment.ts' },
   { number: 13, id: 'external-wallet-receive-source', file: 'external-wallet-receive.ts' },
 ] as const;
