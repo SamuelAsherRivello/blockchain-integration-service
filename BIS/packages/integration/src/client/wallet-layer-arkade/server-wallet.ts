@@ -73,7 +73,9 @@ export async function selectGameSigner(account: ServerWalletReference, requireme
 async function connectGameSigner(network: TestNetwork, options: ProbeOptions = {}, requirement?: ServerWalletRequirement): Promise<SignerProbe> {
   const endpoint = options.endpoint ?? signerEndpoint();
   if (!endpoint) return { status: 'absent', message: 'No BIS backend configured. Use Game Wallet Login.' };
-  const base = endpoint.endsWith('/') ? endpoint : endpoint + '/', fetcher = options.fetcher ?? fetch;
+  const base = endpoint.endsWith('/') ? endpoint : endpoint + '/', transport = options.fetcher ?? fetch;
+  // Stored browser transports must not receive the connection object as `this`.
+  const fetcher: typeof fetch = (input, init) => transport(input, init);
   const signal = AbortSignal.any([options.signal ?? new AbortController().signal, AbortSignal.timeout(options.timeoutMs ?? 1500)]);
   let response: Response;
   if (options.profileId !== undefined && !/^[0-9a-f]{64}$/.test(options.profileId)) return { status: 'error', message: 'Original BIS server wallet reference is invalid.' };
