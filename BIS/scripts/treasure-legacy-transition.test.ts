@@ -13,10 +13,9 @@ import {emptyContractLedger,startLto,finishContractOperation} from '../packages/
 
 test('legacy checks survive a controlled selector-to-blank document transition without relabeling stored recovery',async t=>{
   // Deterministic unfunded data, not an original network contract or receipt.
-  // First prove this script builder is byte-identical to the verified old one.
+  // Compare actual compiled output with the verified old compiler. The explicit
+  // Sandbox option changes source text but must preserve ordinary role bytes.
   const legacy=await prepareLegacyBundle();
-  assert.equal(await readFile('BIS/packages/integration/src/client/wallet-layer-arkade/lto-script.ts','utf8'),
-    await readLegacyFixtureSource('src/client/wallet-layer-arkade/lto-script.ts'));
   const [playerKey,gameKey,operatorKey]=await Promise.all([1,2,3].map(async n=>await SingleKey.fromHex(n.toString(16).padStart(64,'0')).xOnlyPublicKey()));
   const secret=new Uint8Array(32).fill(18),secretHash=new Uint8Array(await crypto.subtle.digest('SHA-256',secret));
   const built=buildLtoScript({playerKey,gameKey,operatorKey,secretHash,exitDelay:512n});
@@ -34,6 +33,16 @@ test('legacy checks survive a controlled selector-to-blank document transition w
   const config=developmentConfig({port:0});config.cacheDir='output/vite-cache/treasure-legacy-transition';config.server.hmr=false;
   const server=await createServer(config);let browser;
   try{
+    const legacySource=legacy.provenance.extraction+'/src/client/wallet-layer-arkade/lto-script.ts';
+    assert.equal(await readFile(legacySource,'utf8'),await readLegacyFixtureSource('src/client/wallet-layer-arkade/lto-script.ts'));
+    const {buildLtoScript:buildOriginal}=await server.ssrLoadModule('/'+legacySource.replaceAll('\\','/'));
+    const originalCompiled=buildOriginal({playerKey,gameKey,operatorKey,secretHash,exitDelay:512n});
+    for(const prototypeSameWallet of [undefined,false,true]){
+      const candidate=buildLtoScript({playerKey,gameKey,operatorKey,secretHash,exitDelay:512n,prototypeSameWallet});
+      for(const leaf of ['claim','refund'])assert.deepEqual(candidate[leaf],originalCompiled[leaf]);
+      assert.deepEqual(candidate.script.encode(),originalCompiled.script.encode());
+      assert.deepEqual(candidate.script.pkScript,originalCompiled.script.pkScript);
+    }
     await server.listen();browser=await chromium.launch({headless:true});const page=await browser.newPage();page.setDefaultTimeout(1500);page.setDefaultNavigationTimeout(30000);
     const base=server.resolvedUrls!.local[0],url=new URL('/admin/',base).href;
     await page.route(url,route=>route.fulfill({status:200,contentType:'text/html',
