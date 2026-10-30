@@ -5,7 +5,7 @@ import { RestIndexerProvider } from '@arkade-os/sdk';
 import { createEventLedger, publicAddressScript, type WalletActivity } from '../wallet-events.ts';
 import { networkDefinition, type TestNetwork } from '../sandbox-shared.ts';
 
-type DemoResultLog = (foo: WalletActivity) => void;
+type DemoResultLog = (activity: WalletActivity) => void;
 
 /** A compact view of the listener. The live observer also reconciles snapshots and reconnects. */
 export async function observeAddressScript(
@@ -24,8 +24,8 @@ export async function observeAddressScript(
   const subscriptionId = await indexer.subscribeForScripts([script]);
   try {
     for await (const frame of indexer.getSubscription(subscriptionId, signal)) {
-      const foo = ledger.consume(frame);
-      if (foo) demoResultLog(foo);
+      const activity = ledger.consume(frame);
+      if (activity) demoResultLog(activity);
     }
   } finally {
     await indexer.unsubscribeForScripts(subscriptionId).catch(() => {});

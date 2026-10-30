@@ -29,12 +29,12 @@ function EventsMonitor() {
       lastStatus.current = next;
       append(next === "I'm listening ..." ? 'Connected' : next.replace(/\s*(\.\s*)+$/, ''));
     }
-    function demoResultLog(foo: WalletActivity) {
-      append(foo.message);
-      setActivity(foo);
+    function demoResultLog(activity: WalletActivity) {
+      append(activity.message);
+      setActivity(activity);
     }
     try {
-      stop = observeWalletEvents({ network: query.get('network') ?? '', address: query.get('address') ?? '', onStatus: updateStatus, onActivity(foo) { demoResultLog(foo); } });
+      stop = observeWalletEvents({ network: query.get('network') ?? '', address: query.get('address') ?? '', onStatus: updateStatus, onActivity(activity) { demoResultLog(activity); } });
     } catch { updateStatus('Listener unavailable'); }
     window.addEventListener('pagehide', stop, { once: true });
     return () => { window.removeEventListener('pagehide', stop); stop(); };
