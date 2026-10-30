@@ -27,7 +27,7 @@ Task 1.1 verifies Setup Wallet 2 through the standalone Arkade SDK with no BIS A
 
 - [ ] 3.1 Run the focused Prototype Sandbox deterministic suite and package typecheck/build against the standalone SDK implementation; record deterministic results separately from any live transaction result.
 - [ ] 3.2 Perform funded Signet and Mutinynet lifecycle checks only where the standalone SDK/contract capability check exposes support; record exact network, contract profile, operation references and receipts, and verify unsupported networks fail closed without claiming live acceptance.
-- [ ] 3.3 Verify the finished standalone SDK demo in Edge, including that every step remains clickable and uses shared Execute/network controls, plus continued availability of Conditional Vault.
+- [x] 3.3 Verify the finished standalone SDK demo in Edge, including that every step remains clickable and uses shared Execute/network controls, plus continued availability of Conditional Vault.
 
 ## Current implementation audit (2026-10-30)
 
@@ -37,7 +37,7 @@ The complete non-browser Sandbox suite passed 201/201 against frozen `3edc0017` 
 
 Task 3.1 stays open: a strict check of the same common entry files reports 31 identical pre-existing diagnostics at clean `7b748c55` and at the current candidate after fixing all 20 introduced Sandbox helper diagnostics. The remaining baseline comprises faucet-core (27), network-config (3), and Events monitor network indexing (1). Compiler flags were not weakened; the full strict invocation is not green. Exact commands, messages and comparisons are retained separately from the earlier narrower green engine check.
 
-Tasks 3.2, 3.3, 4.1 and 4.2 remain open. The later Mutinynet observations below establish that network's funded behavior against the frozen candidate; they do not establish Signet acceptance or public release. The historical supplied wallet's unresolved Signet cleanup and Mutinynet increment records remain unchanged.
+Tasks 3.2, 4.1 and 4.2 remain open. The later Mutinynet observations below establish that network's funded behavior against the frozen candidate; they do not establish Signet acceptance or public release. Task 3.3 passed the separate current Edge guest checks below. The historical supplied wallet's unresolved Signet cleanup and Mutinynet increment records remain unchanged.
 
 ## Mutinynet funded acceptance (2026-10-30)
 
@@ -57,7 +57,15 @@ Cases B and C sealed a fresh journal key in the protected DPAPI vault before sig
 
 Local evidence is retained under `output/reports/treasure/sandbox-ui-current-6a2ebaca-2026-10-30/`: `sandbox-mut-a-original-refund-public.json`, `sandbox-mut-a-applied-disposition-readonly-public.json`, `sandbox-mut-b-execution-public.json`, and `sandbox-mut-c-execution-public.json`. Masked screenshots are under `output/screenshots/treasure-sandbox-live-mut-a-1030/`, `treasure-sandbox-live-mut-b-1030/`, and `treasure-sandbox-live-mut-c-1030/`. Secret and signed recovery material remains outside these output folders.
 
-Signet preflight verified the registered Sandbox identity and current zero-fee operator policy, but the identity has no funds. All current local faucet boarding inputs overlap an unresolved original attempt and remain reserved. A stricter cross-owner guard also retains 6,670 sats for older refund `clean-signet-mvrmbx9c-recover`, leaving 3,330 sats. That supersedes the ordinary rolling-window-only quote. No new Signet faucet request, onboarding or contract was submitted. Task 3.2 remains open until a separately admitted Signet flow has real receipts; all public-release tasks also remain open.
+The initial Signet preflight verified the registered Sandbox identity and current zero-fee operator policy, but the identity had no funds. All current local faucet boarding inputs overlap an unresolved original attempt and remain reserved. A stricter cross-owner guard also retained 6,670 sats for older refund `clean-signet-mvrmbx9c-recover`, leaving 3,330 sats. That superseded the ordinary rolling-window-only quote. This initial preflight made no faucet request, onboarding or contract; the separately admitted later request is documented below. Task 3.2 remains open until a separately admitted Signet flow has real receipts; all public-release tasks also remain open.
+
+## Current Edge presentation and Signet funding follow-up (2026-10-30)
+
+Task 3.3 passed against the unchanged frozen runtime in an explicit isolated root preview on port 6614, separate from the shared preview and wallet data. `browser-treasure-hunt.test.ts` passed 1/1 in Edge: all four Treasure routes on both networks retained clickable actions, shared Execute/network controls, read-only Input fields and an absent-wallet error before opening a wallet. No BIS Account prompt appeared. Conditional Vault routes 14 and 17 remained available on both networks. No page error, external request, API request, mnemonic or signing operation occurred. This is presentation acceptance, not Signet funded acceptance. Public evidence is in `sandbox-current-edge-guest-verification.json` under the existing local report folder.
+
+After the initial Signet preflight, the coordinator separately admitted one third-party incoming on-chain request for 1,000 sats to the already registered Sandbox Game boarding address. The original HTTP 202 acknowledgement and private claim URL were retained in DPAPI storage. The provider then reported terminal `send_failed`; a fresh GET of the same original token confirmed `failed`, `complete: true`. Both Signet explorers showed no recipient UTXO or transaction history. The provider documentation supplied no exact pre-broadcast guarantee or transaction identifier, so the external operation remains `unknown`, its 1,000-sat charge remains, and no retry or onboarding occurred. Our recipient wallet paid no fee; the independent external payer's network fee is unknown. The strict Signet charge is therefore 7,670 sats, leaving 2,330 sats before any further admission.
+
+A separately approved zero-value BIP322 get-intent query for the exact two original Market remint recovery inputs returned HTTP 200 and an empty current intent list. It did not register, delete, spend or change the original encrypted snapshot or ledger row. That empty lookup is insufficient to certify the historical refund's outcome. Registered wallets with positive Signet balances still have unresolved operations or reported onboarding holds and remain ineligible for a competing spend. Task 3.2 and publication remain open.
 
 ## Verification note (2026-10-29)
 
