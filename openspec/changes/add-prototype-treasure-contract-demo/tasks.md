@@ -2,7 +2,7 @@
 
 ## Current finite release acceptance
 
-The user added final step 9 to finish and vet all four Treasure Hunt pages. The standalone SDK lifecycle is implemented but has not passed funded live acceptance; historical BIS-based/UI-only passes below do not complete it. Follow the six-step local implementation/acceptance order in design.md. Sandbox implementation and local vetting precede coordinated publication; final public checks close step 9. Preserve all existing task IDs and recovery.
+The user added final step 9 to finish and vet all four Treasure Hunt pages. The standalone SDK lifecycle has passed the Mutinynet funded checks recorded below; Signet funded acceptance and coordinated publication remain open. Historical BIS-based/UI-only passes do not complete the standalone flow. Follow the six-step local implementation/acceptance order in design.md. Sandbox implementation and local vetting precede coordinated publication; final public checks close step 9. Preserve all existing task IDs and recovery.
 
 Task 1.1 verifies Setup Wallet 2 through the standalone Arkade SDK with no BIS Account/login/service. Task 1.2 must replace all four operation placeholders with the real canonical compiled contract lifecycle. Task 1.3 proves explicit fresh evidence, same-session identity and duplicate/unknown behavior. Tasks 3.1–3.3 require standalone SDK source checks and separate real Signet/Mutinynet receipts, including Create→Check→Claim, a separate Create→Check→Reject/refund, expiry and reload/recovery. Buttons/source/navigation alone cannot pass them.
 
@@ -37,7 +37,27 @@ The complete non-browser Sandbox suite passed 201/201 against frozen `3edc0017` 
 
 Task 3.1 stays open: a strict check of the same common entry files reports 31 identical pre-existing diagnostics at clean `7b748c55` and at the current candidate after fixing all 20 introduced Sandbox helper diagnostics. The remaining baseline comprises faucet-core (27), network-config (3), and Events monitor network indexing (1). Compiler flags were not weakened; the full strict invocation is not green. Exact commands, messages and comparisons are retained separately from the earlier narrower green engine check.
 
-Tasks 3.2, 3.3, 4.1 and 4.2 remain open. Earlier wallet-free/limited Edge observations do not establish the latest candidate's complete funded lifecycle, final-candidate acceptance or public release. The historical supplied wallet's unresolved Signet cleanup and Mutinynet increment records remain unchanged. No new live receipt or network qualification is claimed by this audit.
+Tasks 3.2, 3.3, 4.1 and 4.2 remain open. The later Mutinynet observations below establish that network's funded behavior against the frozen candidate; they do not establish Signet acceptance or public release. The historical supplied wallet's unresolved Signet cleanup and Mutinynet increment records remain unchanged.
+
+## Mutinynet funded acceptance (2026-10-30)
+
+The four standalone SDK pages ran in an owned Edge profile on shared port 5174, using registered `server-preview-game-20261025` as Setup Wallet 2 for both prototype roles. There was no BIS Account or server dependency. The accepted early Claim and early Reject cases used frozen source `f6e8f1e58e7fc0177e0889c44a00786813d29fcf`. All receipts below are real Arkade SDK/operator/indexer evidence, separate from deterministic fixtures.
+
+| Case | Real contract | Funding transaction | Verified terminal transaction |
+| --- | --- | --- | --- |
+| A: expiry and refund | `213d2135-0097-4261-beaa-a98ecede893b` | `7454b00e9ae349826172bb3c011c667f8726f20b9abf6c5fb9691e19cba9fd67` | `ffde71d8623312fdf4b1e6fdf838c253df4750af67ed4c952e8f9a4cb4612ef1` |
+| B: early Claim | `71814c8c-78e0-483a-a052-0c020633866c` | `1ba2a832e2bca8909d391f5c4e3e0d1987328c021d78ef6d5d267519faebc819` | `5698e7f9a49488edb885b2b9cc74e9adb547d1dafe79e059547579e753773866` |
+| C: early Reject | `62633a4a-79f5-4d45-85a1-235288f4ae8f` | `499e41d67f77d271883ae648f5f5bd8b046724fc8da408ee1552496f983960c4` | `b2495bbac6276db4d06ea374d9bb855d734b2fb2e562fbe3647ae861bf3187ff` |
+
+Each funding and terminal spend used exactly 1,000 sats with zero fee, one submit and one finalization. The compiler produced the canonical four-leaf artifact; terminal acceptance verified the exact original contract input, compiled hashlock or refund leaf, checkpoint, transaction root and saved wallet payout. Case B's Claim reached transport 23.759 seconds before its original deadline; Case C's Reject reached transport 15.763 seconds before its deadline. The 90-second eligibility is browser policy, not an on-chain upper bound. Check, reload and terminal duplicate actions submitted no transaction.
+
+Case A's first Claim was signed but never physically submitted because the original harness consumed its deadline. The completed executor's zero transport counters, exact signed request and preserved encrypted browser record were independently reviewed. Its disposition completed before the coordinator's later hold arrived and lacked all subsequently requested pre-write bindings. A retrospective complete-record comparison verified that only the documented disposition fields changed, preserved revision 8 and its nonextractable key, and matched the complete original request and operation fingerprint. Independent review then admitted one guarded refund of the still-unspent original output. The signed Claim, encrypted backup and conservative 1,000-sat charge remain retained. No Claim retry was performed.
+
+Cases B and C sealed a fresh journal key in the protected DPAPI vault before signing and persisted exact authenticated encrypted requests before transport. Each retained 12 authenticated journal records. Four focused journal tests passed, including ordered concurrent writes, authenticated request recovery, corruption/scope rejection and refusal to overwrite an interrupted write. The complete Case A/B recovery prefix was preserved during later cases. The conservative Mutinynet total is 9,183 sats, including funding preparation and the retained unsubmitted Claim charge.
+
+Local evidence is retained under `output/reports/treasure/sandbox-ui-current-6a2ebaca-2026-10-30/`: `sandbox-mut-a-original-refund-public.json`, `sandbox-mut-a-applied-disposition-readonly-public.json`, `sandbox-mut-b-execution-public.json`, and `sandbox-mut-c-execution-public.json`. Masked screenshots are under `output/screenshots/treasure-sandbox-live-mut-a-1030/`, `treasure-sandbox-live-mut-b-1030/`, and `treasure-sandbox-live-mut-c-1030/`. Secret and signed recovery material remains outside these output folders.
+
+Signet preflight verified the registered Sandbox identity and current zero-fee operator policy, but the identity has no funds. All current local faucet boarding inputs overlap an unresolved original attempt and remain reserved. A stricter cross-owner guard also retains 6,670 sats for older refund `clean-signet-mvrmbx9c-recover`, leaving 3,330 sats. That supersedes the ordinary rolling-window-only quote. No new Signet faucet request, onboarding or contract was submitted. Task 3.2 remains open until a separately admitted Signet flow has real receipts; all public-release tasks also remain open.
 
 ## Verification note (2026-10-29)
 
