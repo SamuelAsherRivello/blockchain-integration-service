@@ -45,7 +45,7 @@ async function app(operation, registrationError, activeSigner=false, startupErro
   Wallet:{create:async()=>({arkProvider:provider,boardingTapscript:{exitScript:'00'},
    indexerProvider:{getVtxos:async()=>({vtxos:[]})},
    settle:async()=>{throw new Error('Synthetic settlement failure');},
-   getBoardingAddress:async()=> 'tb1-test',getBoardingUtxos:async()=>[],
+   getBoardingAddress:async()=> 'tb1-test',getAddress:async()=> 'own-arkade',getBoardingUtxos:async()=>[],
    getBalance:async()=>({boarding:{total:10000},total:10000,available:0}),
    getProviderConnectionState:()=>({mode:'online',source:'live'}),
    getSpendableVtxos:async()=>[],onchainProvider:{getTransactions:async()=>[],getCoins:async()=>[],getChainTip:async()=>({height:1})}})},
