@@ -200,7 +200,7 @@ for (const network of ["signet", "mutinynet"] as const)
       const output = await page
         .locator('textarea[aria-label="Demo output"]')
         .inputValue();
-      assert.match(output, /^Demo: Check Conditional Vault - Mutinynet\n/);
+      assert.ok(output.startsWith(`Demo: Check Conditional Vault - ${network === 'signet' ? 'Signet' : 'Mutinynet'}\n`));
       assert.doesNotMatch(output, /Status: claimed|Success: true/);
       await storePublicFixture(page, { ...descriptor, deadline: descriptor.deadline + 1 });
       await page

@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const origin = process.env.PROTOTYPE_SANDBOX_URL ?? 'http://127.0.0.1:5174';
 
-test('sidebar keeps its width while Events and payment content flex beside it', { timeout: 60000 }, async t => {
+test('sidebar follows its responsive width while Events and payment content remain beside it', { timeout: 60000 }, async t => {
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage();
@@ -17,10 +17,11 @@ test('sidebar keeps its width while Events and payment content flex beside it', 
       await page.setViewportSize({ width, height: 900 });
       const rail = await page.getByRole('navigation').boundingBox();
       const main = await page.locator('.sandbox-main-content').boundingBox();
-      assert.equal(rail?.width, 232, `${route} at ${width}: fixed sidebar`);
-      assert.equal(main?.x, 232, `${route} at ${width}: content remains beside sidebar`);
+      const railWidth = width <= 480 ? 144 : width <= 760 ? 180 : 232;
+      assert.equal(rail?.width, railWidth, `${route} at ${width}: responsive sidebar`);
+      assert.equal(main?.x, railWidth, `${route} at ${width}: content remains beside sidebar`);
       assert.equal(main?.y, rail?.y, `${route} at ${width}: no stacked navigation`);
-      assert.equal(main?.width, width - 232, `${route} at ${width}: flexible content`);
+      assert.equal(main?.width, width - railWidth, `${route} at ${width}: flexible content`);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${route} at ${width}: no page overflow`);
       if (route === 'demo-21' && [1440, 740].includes(width)) {
         await page.screenshot({ path: new URL(`events-${width}.png`, screenshots).pathname.replace(/^\/(\w:)/, '$1') });

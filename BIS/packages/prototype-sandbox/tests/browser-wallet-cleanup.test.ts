@@ -27,7 +27,12 @@ test('Setup cleanup uses submitted profile values and offers progress, success a
   t.after(() => browser.close());
   const page = await browser.newPage();
   // Deterministic presentation only. Real SDK acceptance has its own network runner.
-  await page.route(/\/wallet-maintenance\.ts(?:\?.*)?$/, route => route.fulfill({ contentType: 'application/javascript', body: `
+  await page.route(/\/wallet-maintenance\.ts(?:\?.*)?$/, route => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.has('original-cleanup')) return route.continue();
+    url.searchParams.set('original-cleanup', '1');
+    return route.fulfill({ contentType: 'application/javascript', body: `
+    export * from ${JSON.stringify(url.pathname + url.search)};
     export async function installWalletMaintenance() {}
     export async function cleanWallet2(network, mnemonic, progress) {
       if (!mnemonic) throw Error('Submit Wallet 2 Mnemonic first.');
@@ -38,10 +43,12 @@ test('Setup cleanup uses submitted profile values and offers progress, success a
       if (network === 'mutinynet') throw Error('A pending transaction is not resolved yet. Try Clean Wallet 2 again later.');
       return 'Wallet cleaned.';
     }
-  ` }));
+  ` });
+  });
   await page.goto(`${origin}/prototype-sandbox/setup/`);
   const signet = page.locator('.sandbox-setup-profile').filter({ has: page.getByRole('heading', { name: 'Signet', exact: true }) });
   const mutiny = page.locator('.sandbox-setup-profile').filter({ has: page.getByRole('heading', { name: /mutiny/i }) });
+  await signet.getByRole('button', { name: 'Clean Wallet 2', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Clean Wallet 2', exact: true }).count(), 2);
   await signet.getByRole('button', { name: 'Clean Wallet 2' }).click();
   await signet.getByRole('status').filter({ hasText: 'Submit Wallet 2 Mnemonic first.' }).waitFor();

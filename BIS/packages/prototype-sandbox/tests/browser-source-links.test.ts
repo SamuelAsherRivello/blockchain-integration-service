@@ -5,8 +5,9 @@ import test from 'node:test';
 import { chromium } from 'playwright';
 import { DEMO_FILES } from '../src/client/demo-files.ts';
 import { demoSourceFile, SANDBOX_SHARED_FILE } from '../src/client/source-links.ts';
+const repositoryRoot = resolve(import.meta.dirname, '../../../..');
 
-test('all 22 panels, source viewers and Execute buttons use their registered file', { timeout: 120000 }, async t => {
+test(`all ${DEMO_FILES.length} panels, source viewers and Execute buttons use their registered file`, { timeout: 120000 }, async t => {
   const origin = process.env.PROTOTYPE_SANDBOX_URL ?? 'http://127.0.0.1:5174';
   const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL ?? 'chrome' });
   t.after(() => browser.close());
@@ -19,7 +20,7 @@ test('all 22 panels, source viewers and Execute buttons use their registered fil
   for (const demo of DEMO_FILES) {
     await page.goto(`${origin}/prototype-sandbox/demo-${demo.number}/`);
     const file = demoSourceFile(demo.id);
-    const expected = await readFile(resolve(file), 'utf8');
+    const expected = (await readFile(resolve(repositoryRoot, file), 'utf8')).replace(/\r\n?/g, '\n');
     const panel = page.locator('[aria-label="Source code"]').first();
     await panel.waitFor();
     assert.deepEqual(await panel.locator('.sandbox-code-line').allTextContents(), expected.replace(/\r\n?/g, '\n').split('\n'), demo.id);
@@ -35,7 +36,7 @@ test('all 22 panels, source viewers and Execute buttons use their registered fil
       const module = await import(target);
       return { source: entry.source, sameRunner: entry.run === module.runDemo };
     }, demo.id);
-    assert.equal(definition.source, expected, demo.id);
+    assert.equal(definition.source.replace(/\r\n?/g, '\n'), expected, demo.id);
     assert.equal(definition.sameRunner, true, demo.id);
     const link = page.getByRole('link', { name: 'Open source file', exact: true });
     assert.equal(await link.getAttribute('target'), '_blank');
@@ -44,7 +45,7 @@ test('all 22 panels, source viewers and Execute buttons use their registered fil
     const viewer = await popup;
     await viewer.locator('#source-title').filter({ hasText: file }).waitFor();
     await viewer.waitForFunction(() => !document.getElementById('source-content')!.textContent!.startsWith('Loading'));
-    assert.equal(await viewer.locator('#source-content').textContent(), expected, demo.id);
+    assert.equal((await viewer.locator('#source-content').textContent())?.replace(/\r\n?/g, '\n'), expected, demo.id);
     assert.equal(await viewer.locator('button,input,textarea').count(), 0);
     await viewer.close();
     assert.equal(await page.locator('textarea[aria-label="Demo output"]').inputValue(), '', 'opening source cannot execute ' + demo.id);
@@ -57,7 +58,7 @@ test('all 22 panels, source viewers and Execute buttons use their registered fil
   const sharedViewer = await sharedPopup;
   await sharedViewer.locator('#source-title').filter({ hasText: SANDBOX_SHARED_FILE }).waitFor();
   await sharedViewer.waitForFunction(() => !document.getElementById('source-content')!.textContent!.startsWith('Loading'));
-  assert.equal(await sharedViewer.locator('#source-content').textContent(), await readFile(resolve(SANDBOX_SHARED_FILE), 'utf8'));
+  assert.equal((await sharedViewer.locator('#source-content').textContent())?.replace(/\r\n?/g, '\n'), (await readFile(resolve(repositoryRoot, SANDBOX_SHARED_FILE), 'utf8')).replace(/\r\n?/g, '\n'));
   await sharedViewer.close();
   await page.goto(`${origin}/prototype-sandbox/source-view/?file=.env`);
   await page.getByText('Source unavailable. Open a source link from a sandbox demo.').waitFor();
