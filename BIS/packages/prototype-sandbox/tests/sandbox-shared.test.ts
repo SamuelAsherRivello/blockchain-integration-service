@@ -14,12 +14,14 @@ test('all 22 demos borrow supporting code once and use a real SDK value or publi
       ['external-wallet-payment.ts', ['external-wallet-payment-runtime.ts', 'RestArkProvider', 'demoGetNetwork(network).operator'].join('|')],
     ]).get(demo.file);
     if (demo.file === 'treasure-hunt.ts') {
-      assert.match(source, /from ['"]\.\.\/treasure-demo-runtime\.ts['"]/);
-      assert.match(source, /startTreasureContract\(service/);
-      const runtime = await readFile(new URL('../src/client/treasure-demo-runtime.ts', import.meta.url), 'utf8');
-      assert.match(runtime, /from ['"]\.\.\/\.\.\/\.\.\/integration\/src\/client\/state-layer-core\/contract-validation\.ts['"]/);
-      assert.match(runtime, /contractValidationOptions\(network\)\.includes\(validationMode\)/);
-      assert.match(runtime, /return service\.startContractAsync\(treasureStartRequest\(validationMode\)\)/);
+      assert.match(source, /from ['"]\.\.\/treasure-sdk\.ts['"]/);
+      assert.match(source, /demoTreasureSdkAction\(wallet, network, treasure\.action\)/);
+      assert.doesNotMatch(source, /treasure-demo-service|treasure-demo-runtime|BisService|startTreasureContract/);
+      const runtime = await readFile(new URL('../src/client/treasure-sdk.ts', import.meta.url), 'utf8');
+      assert.match(runtime, /from ['"]\.\.\/\.\.\/\.\.\/integration\/src\/client\/wallet-layer-arkade\/lto-script\.ts['"]/);
+      assert.match(runtime, /wallet\.buildAndSubmitOffchainTx\(/);
+      assert.match(runtime, /await signAndSubmitOffchainTx\(/);
+      assert.doesNotMatch(runtime, /createBisService|startContractAsync|restoreGameWalletAsync/);
       continue;
     }
     assert.equal(imports.length, helperBackedSdkDemo ? 1 : 2, demo.file);

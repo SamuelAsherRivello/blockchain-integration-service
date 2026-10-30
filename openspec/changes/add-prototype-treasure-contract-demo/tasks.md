@@ -13,9 +13,9 @@ Task 1.1 verifies Setup Wallet 2 through the standalone Arkade SDK with no BIS A
 
 ## 1. BIS profile and contract API integration
 
-- [ ] 1.1 Use the existing Setup Wallet 2 and standalone Arkade SDK wallet workflow, without a BIS Account, login or service.
-- [ ] 1.2 Implement the real Treasure Hunt contract Create, Check, Claim and Reject operations directly through the SDK, with durable recovery and no fabricated outcomes.
-- [ ] 1.3 Query network evidence on each explicit action and test duplicate starts, uncertain outcomes, and ineligible Claim/Reject operations.
+- [x] 1.1 Use the existing Setup Wallet 2 and standalone Arkade SDK wallet workflow, without a BIS Account, login or service.
+- [x] 1.2 Implement the real Treasure Hunt contract Create, Check, Claim and Reject operations directly through the SDK, with durable recovery and no fabricated outcomes.
+- [x] 1.3 Query network evidence on each explicit action and test duplicate starts, uncertain outcomes, and ineligible Claim/Reject operations.
 
 ## 2. Sandbox demo presentation
 
@@ -28,6 +28,16 @@ Task 1.1 verifies Setup Wallet 2 through the standalone Arkade SDK with no BIS A
 - [ ] 3.1 Run the focused Prototype Sandbox deterministic suite and package typecheck/build against the standalone SDK implementation; record deterministic results separately from any live transaction result.
 - [ ] 3.2 Perform funded Signet and Mutinynet lifecycle checks only where the standalone SDK/contract capability check exposes support; record exact network, contract profile, operation references and receipts, and verify unsupported networks fail closed without claiming live acceptance.
 - [ ] 3.3 Verify the finished standalone SDK demo in Edge, including that every step remains clickable and uses shared Execute/network controls, plus continued availability of Conditional Vault.
+
+## Current implementation audit (2026-10-30)
+
+Tasks 1.1–1.3 are complete at the implementation and deterministic-verification level. The active demo reads the selected network's Setup Wallet 2 and opens the standard Arkade SDK wallet without a BIS Account/service. `treasure-sdk.ts` uses the canonical compiler and actual SDK funding/claim/refund transactions; encrypted recovery, original scope/deadline, exact receipt inspection, duplicate-start protection and uncertain/ineligible outcomes have focused coverage. Commits `552ceb16` and `7b748c55` provide the source implementation and shared wallet-reservation fix. These checked implementation tasks do not assert funded network acceptance.
+
+The complete non-browser Sandbox suite passed 201/201 against frozen `3edc0017` plus the corrected stale Treasure source assertion. Current `73987fce` plus the scoped helper/type/assertion fixes passes 202/202, including native SDK onboarding preparation with an in-process synthetic wallet. The narrow Events/source/presentation/registry suite passed 22/22. External network requests were blocked in these accepted deterministic runs. The current Sandbox production build passed. Reports are under `output/reports/treasure/sandbox-regression-3edc0017-2026-10-30/` and `output/reports/treasure/sandbox-regression-73987fce-2026-10-30/`.
+
+Task 3.1 stays open: a strict check of the same common entry files reports 31 identical pre-existing diagnostics at clean `7b748c55` and at the current candidate after fixing all 20 introduced Sandbox helper diagnostics. The remaining baseline comprises faucet-core (27), network-config (3), and Events monitor network indexing (1). Compiler flags were not weakened; the full strict invocation is not green. Exact commands, messages and comparisons are retained separately from the earlier narrower green engine check.
+
+Tasks 3.2, 3.3, 4.1 and 4.2 remain open. Earlier wallet-free/limited Edge observations do not establish the latest candidate's complete funded lifecycle, final-candidate acceptance or public release. The historical supplied wallet's unresolved Signet cleanup and Mutinynet increment records remain unchanged. No new live receipt or network qualification is claimed by this audit.
 
 ## Verification note (2026-10-29)
 
