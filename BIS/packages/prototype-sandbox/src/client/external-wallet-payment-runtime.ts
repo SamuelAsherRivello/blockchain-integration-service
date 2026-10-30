@@ -74,7 +74,7 @@ export async function demoExternalWalletPayment({ network, recipientAddress, amo
       if (error) reject(error);
       else resolve(txid!);
     };
-    const receiveResult = event => {
+    const receiveResult = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== walletWindow || event.data?.source !== EXTERNAL_WALLET_MESSAGE_SOURCE || typeof event.data.search !== 'string') return;
       handleResult(event.data.search);
     };

@@ -1,15 +1,19 @@
 import { Ramps } from '@arkade-os/sdk';
+import type { Wallet, SettleParams } from '@arkade-os/sdk';
 import { demoErrorMessage } from './demo-runtime.ts';
 
 const MATCHING_BATCH_WAIT_MS = 5 * 60 * 1000;
+type EventStream = Wallet['arkProvider']['getEventStream'];
+type SettlementEvent = ReturnType<EventStream> extends AsyncIterable<infer Event> ? Event : never;
+type BatchFailure = Extract<SettlementEvent, { type: 'batch_failed' }>;
 
-function watchSettlementStream(open, signal, topics, getIntentId, onMatchingFailure) {
+function watchSettlementStream(open: EventStream, signal: AbortSignal, topics: string[], getIntentId: () => string | undefined, onMatchingFailure: (event: BatchFailure) => void) {
   const controller = new AbortController();
-  let timeout;
-  let deadline;
+  let timeout: ReturnType<typeof window.setTimeout> | undefined;
+  let deadline!: Promise<never>;
   let expired = false;
-  let source;
-  let selectedBatch;
+  let source: ReturnType<EventStream> | undefined;
+  let selectedBatch: string | undefined;
 
   const abort = () => controller.abort();
   const arm = () => {
@@ -70,18 +74,20 @@ function watchSettlementStream(open, signal, topics, getIntentId, onMatchingFail
   return iterator;
 }
 
-export async function demoOnboardBitcoin(wallet, fees) {
-  let params;
-  const preparationWallet = {
-    getAddress: () => wallet.getAddress(),
-    getBoardingAddress: () => wallet.getBoardingAddress(),
-    getBoardingUtxos: () => wallet.getBoardingUtxos(),
-    dustAmount: wallet.dustAmount,
-    settle: async value => {
-      params = value;
-      return 'prepared';
+export async function demoOnboardBitcoin(wallet: Wallet, fees: Parameters<Ramps['onboard']>[0]) {
+  let params: SettleParams | undefined;
+  // Preserve the full SDK wallet interface and method receivers while the
+  // preparation step captures settlement terms without submitting them.
+  const preparationWallet = new Proxy(wallet, {
+    get(target, property) {
+      if (property === 'settle') return async (value: SettleParams) => {
+        params = value;
+        return 'prepared';
+      };
+      const member = Reflect.get(target, property, target);
+      return typeof member === 'function' ? member.bind(target) : member;
     },
-  };
+  });
 
   await new Ramps(preparationWallet).onboard(fees);
   if (!params) throw new Error('The SDK did not prepare an onboarding settlement.');
@@ -91,9 +97,9 @@ export async function demoOnboardBitcoin(wallet, fees) {
   const originalRegisterIntent = provider.registerIntent;
   const openEventStream = originalGetEventStream.bind(provider);
   const registerIntent = originalRegisterIntent.bind(provider);
-  let intentId;
+  let intentId: string | undefined;
   let registrationAttempted = false;
-  let matchingFailure;
+  let matchingFailure: BatchFailure | undefined;
 
   provider.getEventStream = (signal, topics) => watchSettlementStream(
     openEventStream,
