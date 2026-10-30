@@ -158,6 +158,14 @@ function fixture() {
   const dependencies = {storage, restore:async phrase=>{if(phrase==='invalid')throw Error('sensitive');return {phrase,profileId:phrase};},addresses:async a=>({arkadeAddress:`tark1${a.profileId}`,bitcoinAddress:`tb1${a.profileId}`}),balance:async()=>({availableSats:1000,totalSats:1000,bitcoinSats:0,arkadeSats:1000})};
   return {dependencies,saved,listeners,storage,setPlayerProfileId:value=>{playerProfileId=value;},create:()=>createBisGameWallet({playerProfileId:()=> playerProfileId},dependencies)};
 }
+test('failed Game deselection retires active access and Player re-login requires explicit Game login',async()=>{
+ const f=fixture(),c=f.create();await tick();await c.importWallet('game');
+ f.storage.logout=async()=>{throw Error('fixture storage refusal');};await c.logout();
+ assert.equal(c.getState().profileId,undefined);assert.equal(c.canPayPlayer(),false);
+ f.setPlayerProfileId(undefined);await c.refresh();f.setPlayerProfileId('player');await c.refresh();
+ assert.equal(c.getState().profileId,undefined);assert.equal(c.canPayPlayer(),false);assert.equal(f.saved.has('game'),true);
+ await assert.rejects(c.quoteBoarding());await c.importWallet('game');assert.equal(c.getState().profileId,'game');c.dispose();
+});
 test('prewarmed public Game Wallet addresses are reused when the Player connects',async()=>{
   const f=fixture();let playerProfileId:string|undefined;let addressReads=0,releasePrewarm:undefined|(()=>void);
   f.storage.load=async()=>({phrase:'game',profileId:'game',network:'signet'});
